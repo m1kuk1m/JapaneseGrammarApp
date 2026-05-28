@@ -467,12 +467,7 @@ fun HistorySidebarItem(
     val isFailed = record.status == "FAILED"
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = { if (!isPending) onClick() },
-                onLongClick = { onLongClick() }
-            ),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) AizomeIndigo.copy(alpha = 0.25f) else Color.White
@@ -487,7 +482,15 @@ fun HistorySidebarItem(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 2.dp else 1.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = { if (!isPending) onClick() },
+                    onLongClick = { onLongClick() }
+                )
+                .padding(12.dp)
+        ) {
             Text(
                 text = record.originalText,
                 fontSize = 14.sp,
