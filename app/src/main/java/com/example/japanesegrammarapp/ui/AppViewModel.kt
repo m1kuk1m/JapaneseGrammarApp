@@ -172,8 +172,7 @@ class AppViewModel(private val context: Context) : ViewModel() {
             _activeModel.value = models.firstOrNull() ?: ""
         }
 
-        viewModelScope.launch {
-            history.collect { recordList ->
+        viewModelScope.launch {\n            history.collect { recordList ->
                 val currentSelected = _selectedRecord.value
                 if (currentSelected != null) {
                     val updated = recordList.find { it.id == currentSelected.id }
@@ -188,6 +187,14 @@ class AppViewModel(private val context: Context) : ViewModel() {
                     }
                 }
             }
+        }
+
+        // DEBUG: print raw Kuromoji tokens + bunsetsu result to Logcat on startup
+        // Filter by tag "JapaneseSegmenter" in Android Studio Logcat to see output.
+        // Remove this block once segmentation is verified.
+        viewModelScope.launch(Dispatchers.IO) {
+            JapaneseSegmenter.debugTokens("ここは事件性がないからと安易に切り捨てた俺の反省点だろうか。")
+            JapaneseSegmenter.debugTokens("図書館で本を読んでいる。")
         }
     }
 

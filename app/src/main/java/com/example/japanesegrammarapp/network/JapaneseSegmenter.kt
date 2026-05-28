@@ -19,6 +19,26 @@ object JapaneseSegmenter {
      * Target output for 「図書館で本を読んでいる。」:
      *   図書館で ｜ 本を ｜ 読んでいる。
      */
+
+    /**
+     * DEBUG ONLY: Call this from any Activity/ViewModel to print the raw Kuromoji token stream
+     * to Logcat. Use it to verify actual POS tags before writing merge rules.
+     *
+     * Usage (in ViewModel or test):
+     *   JapaneseSegmenter.debugTokens("ここは事件性がないからと安易に切り捨てた俺の反省点だろうか。")
+     */
+    fun debugTokens(text: String) {
+        val tokens = try { tokenizer.tokenize(text) } catch (e: Exception) { return }
+        android.util.Log.d("JapaneseSegmenter", "=== RAW TOKENS for: $text ===")
+        tokens.forEachIndexed { i, t ->
+            android.util.Log.d(
+                "JapaneseSegmenter",
+                "[$i] surface=${t.surface}  L1=${t.partOfSpeechLevel1}  L2=${t.partOfSpeechLevel2}  L3=${t.partOfSpeechLevel3}  L4=${t.partOfSpeechLevel4}"
+            )
+        }
+        android.util.Log.d("JapaneseSegmenter", "=== BUNSETSU RESULT: ${segmentAndCombine(text)} ===")
+    }
+
     fun segmentAndCombine(text: String): List<String> {
         if (text.isBlank()) return emptyList()
 
@@ -28,6 +48,7 @@ object JapaneseSegmenter {
             e.printStackTrace()
             return listOf(text)
         }
+
 
         val result = mutableListOf<String>()
         var i = 0
