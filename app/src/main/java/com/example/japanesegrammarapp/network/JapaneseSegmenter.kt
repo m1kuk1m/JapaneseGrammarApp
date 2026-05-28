@@ -6,8 +6,15 @@ object JapaneseSegmenter {
     private val tokenizer by lazy { Tokenizer() }
 
     /**
-     * Tokenizes Japanese text using Kuromoji IPADic and applies custom semantic rules
-     * to group tokens into cohesive, natural reading chunks (文節-like segments).
+     * Tokenizes Japanese text using Kuromoji IPADic and applies 文節-based rules
+     * to group tokens into natural language chunks that match how people perceive
+     * and use Japanese in daily speech.
+     *
+     * 文節 principle: Each chunk = one independent word (自立語) + all following
+     * dependent words (付属語: particles, auxiliary verbs, suffixes).
+     *
+     * Target output for 「ここは事件性がないからと安易に切り捨てた俺の反省点だろうか。」:
+     *   ここは ｜ 事件性が ｜ ないからと ｜ 安易に ｜ 切り捨てた ｜ 俺の ｜ 反省点 ｜ だろうか。
      */
     fun segmentAndCombine(text: String): List<String> {
         if (text.isBlank()) return emptyList()
@@ -16,7 +23,6 @@ object JapaneseSegmenter {
             tokenizer.tokenize(text)
         } catch (e: Exception) {
             e.printStackTrace()
-            // In case of any unexpected errors, fall back to returning the whole sentence as a single block
             return listOf(text)
         }
 
@@ -36,29 +42,58 @@ object JapaneseSegmenter {
 
                 var shouldMerge = false
 
-                // 1. Verb/Adjective + Auxiliary Verb/Suffix (e.g. 「切り捨て」 + 「た」 -> 「切り捨てた」)
-                if ((pos == "動詞" || pos == "形容詞") && 
-                    (nextPos == "助動詞" || nextPos.contains("接尾") || nextPos2.contains("接尾"))) {
+                // ── Rule 1: Content word + Noun suffix ──────────────────────────────────
+                // e.g. 「事件」+「性」→「事件性」, 「反省」+「点」→「反省点」
+                if (nextPos.contains("接尾") || nextPos2.contains("接尾")) {
                     shouldMerge = true
                 }
-                // 2. Noun + Suffix (e.g. 「事件」 + 「性」 -> 「事件性」)
-                else if (pos == "名詞" && (nextPos.contains("接尾") || nextPos2.contains("接尾"))) {
+
+                // ── Rule 2: Verb / Adjective + Auxiliary verb (inflection chain) ────────
+                // e.g. 「切り捨て」+「た」→「切り捨てた」, 「食べ」+「たく」+「ない」→「食べたくない」
+                else if ((pos == "動詞" || pos == "形容詞") && nextPos == "助動詞") {
                     shouldMerge = true
                 }
-                // 3. Adjectival Noun stem + "に" / "な" (e.g. 「安易」 + 「に」 -> 「安易に」)
+
+                // ── Rule 3: Adjectival noun stem + 「に」/「な」 ──────────────────────
+                // e.g. 「安易」+「に」→「安易に」, 「素直」+「な」→「素直な」
                 else if (pos2 == "形容動詞語幹" && (nextToken.surface == "に" || nextToken.surface == "な")) {
                     shouldMerge = true
                 }
-                // 3.5. Auxiliary Verb + Auxiliary Verb (e.g. Kuromoji splits 「だろう」 into 「だろ」+「う」,
-                //      or 「ない」+「だろう」, etc. Merge consecutive 助動詞 tokens to form complete forms.)
+
+                // ── Rule 4: Consecutive auxiliary verbs ──────────────────────────────────
+                // Kuromoji splits compound auxiliaries: 「だろ」+「う」, 「て」+「いる」, etc.
+                // Must merge them before applying downstream particle rules.
                 else if (pos == "助動詞" && nextPos == "助動詞") {
                     shouldMerge = true
                 }
-                // 4. Auxiliary Verb + Particle (e.g. 「だろう」 + 「か」 -> 「だろうか」)
-                else if (pos == "助動詞" && nextPos == "助詞") {
+
+                // ── Rule 5: Noun / Pronoun + Particle (core 文節 rule) ──────────────────
+                // This is the most important bunsetsu rule: a noun head always absorbs
+                // all following particles into one chunk.
+                // e.g. 「ここ」+「は」→「ここは」, 「事件性」+「が」→「事件性が」,
+                //      「俺」+「の」→「俺の」, 「反省点」+「を」→「反省点を」
+                else if (pos == "名詞" && nextPos == "助詞") {
                     shouldMerge = true
                 }
-                // 5. Punctuation/Symbols should merge into whatever precedes them
+
+                // ── Rule 6: Auxiliary verb / Particle + Particle (chain) ─────────────────
+                // Once we have an 助動詞 or 助詞 head, absorb any following 助詞 to keep
+                // the whole dependent-word tail in one chunk.
+                // e.g. 「ない」+「から」→「ないから」, then 「ないから」+「と」→「ないからと」
+                //      「だろう」+「か」→「だろうか」
+                else if ((pos == "助動詞" || pos == "助詞") && nextPos == "助詞") {
+                    shouldMerge = true
+                }
+
+                // ── Rule 7: Verb/Adjective + Particle (conjunctive tail) ─────────────────
+                // e.g. 「食べ」+「て」(接続助詞)→「食べて」, 「行か」+「ず」→「行かず」
+                // Limit to 接続助詞 and 終助詞 to avoid pulling in unrelated particles.
+                else if ((pos == "動詞" || pos == "形容詞") &&
+                    nextPos == "助詞" && (nextPos2 == "接続助詞" || nextPos2 == "終助詞")) {
+                    shouldMerge = true
+                }
+
+                // ── Rule 8: Punctuation always attaches to the preceding chunk ───────────
                 else if (nextPos == "記号") {
                     shouldMerge = true
                 }
