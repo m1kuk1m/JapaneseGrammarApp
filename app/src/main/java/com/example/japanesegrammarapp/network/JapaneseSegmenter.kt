@@ -49,6 +49,11 @@ object JapaneseSegmenter {
                 else if (pos2 == "形容動詞語幹" && (nextToken.surface == "に" || nextToken.surface == "な")) {
                     shouldMerge = true
                 }
+                // 3.5. Auxiliary Verb + Auxiliary Verb (e.g. Kuromoji splits 「だろう」 into 「だろ」+「う」,
+                //      or 「ない」+「だろう」, etc. Merge consecutive 助動詞 tokens to form complete forms.)
+                else if (pos == "助動詞" && nextPos == "助動詞") {
+                    shouldMerge = true
+                }
                 // 4. Auxiliary Verb + Particle (e.g. 「だろう」 + 「か」 -> 「だろうか」)
                 else if (pos == "助動詞" && nextPos == "助詞") {
                     shouldMerge = true
