@@ -249,12 +249,18 @@ class AppViewModel(private val context: Context) : ViewModel() {
     private fun parseDetailedResult(originalText: String, jsonString: String?): DetailedAnalysisResult? {
         if (jsonString.isNullOrBlank()) return null
         return try {
-            val cleanJson = jsonString.trim()
-                .removePrefix("```json")
-                .removePrefix("```text")
-                .removePrefix("```")
-                .removeSuffix("```")
-                .trim()
+            var cleanJson = jsonString.trim()
+            if (cleanJson.startsWith("```")) {
+                val firstNewLine = cleanJson.indexOf('\n')
+                cleanJson = if (firstNewLine != -1) {
+                    cleanJson.substring(firstNewLine).trim()
+                } else {
+                    cleanJson.removePrefix("```").trim()
+                }
+            }
+            if (cleanJson.endsWith("```")) {
+                cleanJson = cleanJson.removeSuffix("```").trim()
+            }
             val initialResult = gson.fromJson(cleanJson, DetailedAnalysisResult::class.java) ?: return null
 
             // 智能对齐兜底逻辑 (Smart Alignment Fallback)
