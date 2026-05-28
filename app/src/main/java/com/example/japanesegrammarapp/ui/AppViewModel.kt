@@ -49,7 +49,10 @@ class AppViewModel(private val context: Context) : ViewModel() {
                     if (updated != null && (updated.status != currentSelected.status || updated.analysisResult != currentSelected.analysisResult)) {
                         _selectedRecord.value = updated
                         _analysisResult.value = updated.analysisResult
-                        _detailedResult.value = parseDetailedResult(updated.originalText, updated.analysisResult)
+                        viewModelScope.launch(Dispatchers.IO) {
+                            val detail = parseDetailedResult(updated.originalText, updated.analysisResult)
+                            _detailedResult.value = detail
+                        }
                     }
                 }
             }
@@ -96,7 +99,10 @@ class AppViewModel(private val context: Context) : ViewModel() {
         _selectedRecord.value = record
         _currentOriginalText.value = record.originalText
         _analysisResult.value = record.analysisResult
-        _detailedResult.value = parseDetailedResult(record.originalText, record.analysisResult)
+        viewModelScope.launch(Dispatchers.IO) {
+            val detail = parseDetailedResult(record.originalText, record.analysisResult)
+            _detailedResult.value = detail
+        }
     }
 
     fun clearSelectedRecord() {
@@ -358,7 +364,7 @@ class AppViewModel(private val context: Context) : ViewModel() {
                         あなたは日本語テキストの「分かち書き（セグメンテーション）」を行う必要はありません。私がすでに以下の通りに完全かつ正確に分かち書きを行いました。
 
                         分かち書きトークンリスト:
-                        ${"$"}{segmentsJson}
+                        $segmentsJson
 
                         あなたは上記のトークンリストの順番、表記、要素数を「絶対に」维持したまま、各トークンの詳細分析を行ってください。
                         トークンを勝手に結合したり、分割したり、順番を変えたりすることは固く禁じます。
