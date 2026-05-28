@@ -14,7 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -84,7 +84,7 @@ fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
                         saveSettings()
                         navController.popBackStack() 
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る", tint = SumiInk)
+                        Icon(Icons.Default.ArrowBack, contentDescription = "戻る", tint = SumiInk)
                     }
                 },
                 colors = TopAppBarDefaults.largeTopAppBarColors(
