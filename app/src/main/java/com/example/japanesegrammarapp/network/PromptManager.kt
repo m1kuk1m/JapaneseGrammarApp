@@ -42,72 +42,36 @@ object PromptManager {
         
         FEW-SHOT EXAMPLE REFERENCE:
         Input Sentence: "図書館で本を読んでいる。"
-        Input Segment Tokens: ["図書館", "で", "本", "を", "読ん", "でいる", "。"]
+        Input Segment Tokens: ["図書館で", "本を", "読んでいる。"]
         Expected JSON Response:
         {
           "segments": [
             {
-              "text": "図書館",
-              "reading": "としょかん",
-              "partOfSpeech": "名詞-普通名詞-一般",
+              "text": "図書館で",
+              "reading": "としょかんで",
+              "partOfSpeech": "名詞-格助詞複合",
               "dictionaryForm": null,
-              "meaning": "图书馆",
-              "inflection": null,
-              "role": "名詞。場所を示す体言。格助詞「で」と結合し、動作が行われる場所を表す。"
+              "meaning": "在图书馆",
+              "inflection": "名詞「図書館」＋場所・動作の行われる場を示す格助詞「で」",
+              "role": "動作が行われる具体的な場所を示す連用修飾語。後続の述語「読んでいる」を場所の観点から修飾する。"
             },
             {
-              "text": "で",
-              "reading": "で",
-              "partOfSpeech": "助詞-格助詞",
+              "text": "本を",
+              "reading": "ほんを",
+              "partOfSpeech": "名詞-格助詞複合",
               "dictionaryForm": null,
-              "meaning": "在",
-              "inflection": null,
-              "role": "格助詞。動作・作用の行われる場所（図書館）を示す。"
+              "meaning": "书（作为宾语）",
+              "inflection": "名詞「本」＋対象・目的語を示す格助詞「を」",
+              "role": "他動詞「読む」の直接の目的語を示す連用修飾語。動作の対象（本）を格助詞「を」で明示する。"
             },
             {
-              "text": "本",
-              "reading": "ほん",
-              "partOfSpeech": "名詞-普通名詞-一般",
-              "dictionaryForm": null,
-              "meaning": "书",
-              "inflection": null,
-              "role": "名詞。格助詞「を」を伴い、動作の直接の対象（目的語）であることを表す。"
-            },
-            {
-              "text": "を",
-              "reading": "を",
-              "partOfSpeech": "助詞-格助詞",
-              "dictionaryForm": null,
-              "meaning": "把/将/（宾格助词）",
-              "inflection": null,
-              "role": "格助詞。後続の他動詞「読む」の直接目的語（本）を示す。"
-            },
-            {
-              "text": "読ん",
-              "reading": "よん",
-              "partOfSpeech": "動詞-一般",
+              "text": "読んでいる。",
+              "reading": "よんでいる。",
+              "partOfSpeech": "動詞-助動詞-補助記号複合",
               "dictionaryForm": "読む",
-              "meaning": "读/看（书）",
-              "inflection": "マ行五段活用動詞「読む」の連用形（撥音便）",
-              "role": "他動詞「読む」の連用形。補助動詞「でいる」と接続して動作の継続を表す。"
-            },
-            {
-              "text": "でいる",
-              "reading": "でいる",
-              "partOfSpeech": "助動詞",
-              "dictionaryForm": "でいる",
-              "meaning": "正在/着",
-              "inflection": "接続助詞「て」の濁音化「で」＋補助動詞「いる」の終止形",
-              "role": "動作の継続・進行（〜している）を表す述語の一部。"
-            },
-            {
-              "text": "。",
-              "reading": "くてん",
-              "partOfSpeech": "補助記号-句点",
-              "dictionaryForm": null,
-              "meaning": "。",
-              "inflection": null,
-              "role": "文の終わりを示す終止記号（句点）。"
+              "meaning": "正在读/在看",
+              "inflection": "マ行五段活用動詞「読む」の連用形（撥音便「読ん」）＋接続助詞「で」＋補助動詞「いる」の終止形＋句点「。」",
+              "role": "文全体の述語。「〜ている」形で動作の継続・進行を表し、文を終止させる主節の述語成分。"
             }
           ]
         }

@@ -15,6 +15,9 @@ object JapaneseSegmenter {
      *
      * Target output for 「ここは事件性がないからと安易に切り捨てた俺の反省点だろうか。」:
      *   ここは ｜ 事件性が ｜ ないからと ｜ 安易に ｜ 切り捨てた ｜ 俺の ｜ 反省点 ｜ だろうか。
+     *
+     * Target output for 「図書館で本を読んでいる。」:
+     *   図書館で ｜ 本を ｜ 読んでいる。
      */
     fun segmentAndCombine(text: String): List<String> {
         if (text.isBlank()) return emptyList()
@@ -90,6 +93,16 @@ object JapaneseSegmenter {
                 // Limit to 接続助詞 and 終助詞 to avoid pulling in unrelated particles.
                 else if ((pos == "動詞" || pos == "形容詞") &&
                     nextPos == "助詞" && (nextPos2 == "接続助詞" || nextPos2 == "終助詞")) {
+                    shouldMerge = true
+                }
+
+                // ── Rule 6.5: Conjunctive-particle chunk + Subsidiary verb ────────────────
+                // After Rule 7 merges e.g. 「読ん」+「で」→「読んで」 (pos becomes 助詞,
+                // pos2 becomes 接続助詞), the next token is a subsidiary verb (動詞-非自立)
+                // like いる/おく/しまう/みる. Without this rule, 読んでいる splits into
+                // 読んで｜いる。
+                // e.g. 「読んで」+「いる」→「読んでいる」, 「食べて」+「おく」→「食べておく」
+                else if (pos == "助詞" && pos2 == "接続助詞" && nextPos == "動詞" && nextPos2.contains("非自立")) {
                     shouldMerge = true
                 }
 
