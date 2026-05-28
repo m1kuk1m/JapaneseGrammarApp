@@ -555,7 +555,8 @@ fun WorkspaceInputForm(viewModel: AppViewModel, navController: NavController) {
     var modelExpanded by remember { mutableStateOf(false) }
 
     var textInput by remember { mutableStateOf("") }
-    val isAnalyzing by viewModel.isAnalyzing.collectAsState()
+    val selectedRecord by viewModel.selectedRecord.collectAsState()
+    val isAnalyzing = selectedRecord?.status == "PENDING"
     val useOcr by viewModel.useOcr.collectAsState()
 
     val currentOriginalText by viewModel.currentOriginalText.collectAsState()
