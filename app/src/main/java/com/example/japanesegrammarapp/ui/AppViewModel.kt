@@ -9,11 +9,12 @@ import com.example.japanesegrammarapp.data.AppDatabase
 import com.example.japanesegrammarapp.network.*
 import com.example.japanesegrammarapp.vision.OcrHelper
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
 sealed class UiEvent {
@@ -35,32 +36,39 @@ class AppViewModel(private val context: Context) : ViewModel() {
         "OpenAI Compatible" to "https://api.openai.com/v1"
     )
 
+    private val masterKey = androidx.security.crypto.MasterKey.Builder(context)
+        .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM)
+        .build()
+
+    val securePrefs = androidx.security.crypto.EncryptedSharedPreferences.create(
+        context,
+        "api_keys_secure",
+        masterKey,
+        androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
+
+    private val defaultModels = mapOf(
+        "Gemini" to listOf("gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"),
+        "Vertex AI" to listOf("gemini-1.5-flash", "gemini-1.5-pro"),
+        "DeepSeek" to listOf("deepseek-chat", "deepseek-coder"),
+        "Qwen" to listOf("qwen-max", "qwen-plus", "qwen-turbo", "qwen-long", "qwen2.5-72b-instruct", "qwen2.5-32b-instruct", "qwen2.5-14b-instruct", "qwen2.5-7b-instruct"),
+        "OpenAI Compatible" to listOf("gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo")
+    )
+
+    private val _activeProvider = MutableStateFlow(securePrefs.getString("active_provider", "Gemini") ?: "Gemini")
+    val activeProvider: StateFlow<String> = _activeProvider.asStateFlow()
+
+    private val _activeModel = MutableStateFlow("")
+    val activeModel: StateFlow<String> = _activeModel.asStateFlow()
+
+    private val _providerModels = MutableStateFlow<Map<String, List<String>>>(emptyMap())
+    val providerModels: StateFlow<Map<String, List<String>>> = _providerModels.asStateFlow()
+
     val history = analysisDao.getAllRecords()
 
     private val _selectedRecord = MutableStateFlow<AnalysisRecord?>(null)
     val selectedRecord: StateFlow<AnalysisRecord?> = _selectedRecord.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            history.collect { recordList ->
-                val currentSelected = _selectedRecord.value
-                if (currentSelected != null) {
-                    val updated = recordList.find { it.id == currentSelected.id }
-                    if (updated != null && (updated.status != currentSelected.status || updated.analysisResult != currentSelected.analysisResult)) {
-                        _selectedRecord.value = updated
-                        _analysisResult.value = updated.analysisResult
-                        viewModelScope.launch(Dispatchers.IO) {
-                            val detail = parseDetailedResult(updated.originalText, updated.analysisResult)
-                            _detailedResult.value = detail
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private val _isAnalyzing = MutableStateFlow(false)
-    val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
 
     private val _currentOriginalText = MutableStateFlow("")
     val currentOriginalText: StateFlow<String> = _currentOriginalText.asStateFlow()
@@ -87,13 +95,100 @@ class AppViewModel(private val context: Context) : ViewModel() {
     private val _isFetchingModels = MutableStateFlow(false)
     val isFetchingModels: StateFlow<Boolean> = _isFetchingModels.asStateFlow()
 
-    private val _uiEvent = Channel<UiEvent>(Channel.BUFFERED)
-    val uiEvent = _uiEvent.receiveAsFlow()
+    private val _uiEvent = MutableSharedFlow<UiEvent>(extraBufferCapacity = 10)
+    val uiEvent: SharedFlow<UiEvent> = _uiEvent.asSharedFlow()
 
     private val gson = com.google.gson.Gson()
 
     private val _detailedResult = MutableStateFlow<DetailedAnalysisResult?>(null)
     val detailedResult: StateFlow<DetailedAnalysisResult?> = _detailedResult.asStateFlow()
+
+    fun getModelsForProvider(provider: String): List<String> {
+        val json = securePrefs.getString("${provider}_models_list_json", null)
+        return if (json != null) {
+            try {
+                val listType = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
+                gson.fromJson(json, listType) ?: (defaultModels[provider] ?: emptyList())
+            } catch (e: Exception) {
+                defaultModels[provider] ?: emptyList()
+            }
+        } else {
+            defaultModels[provider] ?: emptyList()
+        }
+    }
+
+    fun saveModelsForProvider(provider: String, models: List<String>) {
+        securePrefs.edit().putString("${provider}_models_list_json", gson.toJson(models)).apply()
+        _providerModels.value = _providerModels.value.toMutableMap().apply {
+            put(provider, models)
+        }
+        if (_activeProvider.value == provider) {
+            _availableModels.value = models
+            val currentModel = _activeModel.value
+            if (!models.contains(currentModel)) {
+                val fallback = models.firstOrNull() ?: ""
+                setActiveModel(fallback)
+            }
+        }
+    }
+
+    fun setActiveProvider(provider: String) {
+        _activeProvider.value = provider
+        securePrefs.edit().putString("active_provider", provider).apply()
+        
+        val models = getModelsForProvider(provider)
+        _availableModels.value = models
+        
+        val selectedModel = securePrefs.getString("${provider}_selected_model", "") ?: ""
+        if (selectedModel.isNotBlank() && models.contains(selectedModel)) {
+            _activeModel.value = selectedModel
+        } else {
+            val fallback = models.firstOrNull() ?: ""
+            _activeModel.value = fallback
+            securePrefs.edit().putString("${provider}_selected_model", fallback).apply()
+        }
+    }
+
+    fun setActiveModel(model: String) {
+        _activeModel.value = model
+        securePrefs.edit().putString("${_activeProvider.value}_selected_model", model).apply()
+    }
+
+    init {
+        // Initialize provider models mapping
+        val initialModels = defaultUrls.keys.associateWith { getModelsForProvider(it) }
+        _providerModels.value = initialModels
+
+        // Initialize active provider & model
+        val provider = _activeProvider.value
+        val models = initialModels[provider] ?: emptyList()
+        _availableModels.value = models
+        
+        val selectedModel = securePrefs.getString("${provider}_selected_model", "") ?: ""
+        if (selectedModel.isNotBlank() && models.contains(selectedModel)) {
+            _activeModel.value = selectedModel
+        } else {
+            _activeModel.value = models.firstOrNull() ?: ""
+        }
+
+        viewModelScope.launch {
+            history.collect { recordList ->
+                val currentSelected = _selectedRecord.value
+                if (currentSelected != null) {
+                    val updated = recordList.find { it.id == currentSelected.id }
+                    if (updated != null && (updated.status != currentSelected.status || updated.analysisResult != currentSelected.analysisResult || updated.originalText != currentSelected.originalText)) {
+                        _selectedRecord.value = updated
+                        _currentOriginalText.value = updated.originalText
+                        _analysisResult.value = updated.analysisResult
+                        viewModelScope.launch(Dispatchers.IO) {
+                            val detail = parseDetailedResult(updated.originalText, updated.analysisResult)
+                            _detailedResult.value = detail
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     fun selectRecord(record: AnalysisRecord) {
         _selectedRecord.value = record
@@ -142,7 +237,7 @@ class AppViewModel(private val context: Context) : ViewModel() {
     fun fetchModels(provider: String, baseUrl: String, apiKey: String) {
         viewModelScope.launch {
             if (apiKey.isBlank()) {
-                _uiEvent.send(UiEvent.ShowError("Please configure API Key in Settings first."))
+                _uiEvent.emit(UiEvent.ShowError("Please configure API Key in Settings first."))
                 return@launch
             }
             val effectiveUrl = if (baseUrl.isBlank()) defaultUrls[provider] ?: "" else baseUrl
@@ -151,13 +246,13 @@ class AppViewModel(private val context: Context) : ViewModel() {
                 when (provider) {
                     "DeepSeek", "OpenAI Compatible" -> {
                         val cleanBase = effectiveUrl.trimEnd('/')
-                        val effectiveBase = if (cleanBase.endsWith("/v1")) cleanBase.dropLast(3) else cleanBase
-                        val url = "$effectiveBase/models"
+                        val url = "$cleanBase/models"
                         val response = llmService.getOpenAiModels(url, "Bearer $apiKey")
-                        _availableModels.value = response.data.map { it.id }
+                        val fetched = response.data.map { it.id }
+                        saveModelsForProvider(provider, fetched)
                     }
                     "Qwen" -> {
-                        _availableModels.value = qwenKnownModels
+                        saveModelsForProvider(provider, qwenKnownModels)
                     }
                     "Gemini", "Vertex AI" -> {
                         try {
@@ -165,21 +260,22 @@ class AppViewModel(private val context: Context) : ViewModel() {
                             val url = "$cleanBase/models?key=$apiKey"
                             val response = llmService.getGeminiModels(url)
                             
-                            _availableModels.value = response.models
+                            val fetched = response.models
                                 .filter { model ->
                                     model.supportedGenerationMethods?.contains("generateContent") ?: true
                                 }
                                 .map { it.name.removePrefix("models/") }
+                            saveModelsForProvider(provider, fetched)
                         } catch (e: Exception) {
-                            _availableModels.value = geminiKnownModels
+                            saveModelsForProvider(provider, geminiKnownModels)
                         }
                     }
                 }
             } catch (e: retrofit2.HttpException) {
                 val errorBody = e.response()?.errorBody()?.string() ?: ""
-                _uiEvent.send(UiEvent.ShowError("HTTP ${e.code()}: ${e.message()}\n$errorBody"))
+                _uiEvent.emit(UiEvent.ShowError("HTTP ${e.code()}: ${e.message()}\n$errorBody"))
             } catch (e: Exception) {
-                _uiEvent.send(UiEvent.ShowError("Network Error: ${e.localizedMessage}"))
+                _uiEvent.emit(UiEvent.ShowError("Network Error: ${e.localizedMessage}"))
             } finally {
                 _isFetchingModels.value = false
             }
@@ -200,11 +296,11 @@ class AppViewModel(private val context: Context) : ViewModel() {
     ) {
         viewModelScope.launch {
             if (text.isBlank() && imageUri == null) {
-                _uiEvent.send(UiEvent.ShowError("Please enter text or capture an image."))
+                _uiEvent.emit(UiEvent.ShowError("Please enter text or capture an image."))
                 return@launch
             }
             if (apiKey.isBlank()) {
-                _uiEvent.send(UiEvent.ShowError("Missing API Key."))
+                _uiEvent.emit(UiEvent.ShowError("Missing API Key."))
                 return@launch
             }
 
@@ -221,7 +317,7 @@ class AppViewModel(private val context: Context) : ViewModel() {
 
             // 2. Set selected record to show pending loader state and do not clear input fields immediately
             _selectedRecord.value = insertedRecord
-            _uiEvent.send(UiEvent.ShowError("分析タスクを開始しました。"))
+            _uiEvent.emit(UiEvent.ShowError("分析タスクを開始しました。"))
 
             // 3. Launch background worker
             launchBackgroundAnalysis(recordId, text, imageUri, provider, modelName, baseUrl, apiKey)
@@ -237,9 +333,8 @@ class AppViewModel(private val context: Context) : ViewModel() {
             val provider = providerAndModel.getOrNull(0) ?: "Gemini"
             val modelName = providerAndModel.getOrNull(1) ?: "default"
 
-            val prefs = context.getSharedPreferences("api_keys", Context.MODE_PRIVATE)
-            val key = prefs.getString("${provider}_key", "") ?: ""
-            val url = prefs.getString("${provider}_url", "") ?: ""
+            val key = securePrefs.getString("${provider}_key", "") ?: ""
+            val url = securePrefs.getString("${provider}_url", "") ?: ""
             val imageUri = record.imageUri?.let { Uri.parse(it) }
 
             launchBackgroundAnalysis(recordId, record.originalText, imageUri, provider, modelName, url, key)
@@ -273,7 +368,7 @@ class AppViewModel(private val context: Context) : ViewModel() {
             if (originalText.isNotBlank() && originalText != "画像文法分析") {
                 val expectedTokens = JapaneseSegmenter.segmentAndCombine(originalText)
                 if (expectedTokens.isNotEmpty()) {
-                    val apiSegments = initialResult.segments
+                    val apiSegments = initialResult.segments.orEmpty()
 
                     if (apiSegments.size == expectedTokens.size) {
                         // 长度完美一致，但可能存在微小字符差异，我们以本地分词为准进行对齐和纠正
@@ -286,33 +381,8 @@ class AppViewModel(private val context: Context) : ViewModel() {
                         }
                         initialResult.copy(segments = alignedSegments)
                     } else {
-                        // 长度不一致！执行“智能对齐兜底”
-                        // 遍历本地分词，依次套用大模型的字段，若大模型返回偏少，超出部分使用合理空白说明兜底
-                        val alignedSegments = expectedTokens.mapIndexed { idx, localText ->
-                            val matchingApiSegment = apiSegments.getOrNull(idx)
-                            if (matchingApiSegment != null) {
-                                matchingApiSegment.copy(text = localText)
-                            } else {
-                                WordSegment(
-                                    text = localText,
-                                    reading = "",
-                                    partOfSpeech = "未知",
-                                    dictionaryForm = null,
-                                    meaning = "解析漏配",
-                                    inflection = null,
-                                    role = "大模型返回数据缺失"
-                                )
-                            }
-                        }
-
-                        // 判断差异严重程度：如果两者的长度比例差异超过 40%，则安全降级为 null (显示原始文本卡片)
-                        val lengthDiff = Math.abs(expectedTokens.size - apiSegments.size)
-                        val diffRatio = lengthDiff.toFloat() / expectedTokens.size.toFloat()
-                        if (diffRatio > 0.4f) {
-                            null
-                        } else {
-                            initialResult.copy(segments = alignedSegments)
-                        }
+                        // Bug #8 修复：长度不一致时强行按索引对齐会导致数据错乱，因此直接返回初始结果，不作对齐
+                        initialResult
                     }
                 } else {
                     initialResult
@@ -342,7 +412,7 @@ class AppViewModel(private val context: Context) : ViewModel() {
                 var imageBase64: String? = null
                 var mimeType: String? = "image/jpeg"
                 if (!isOcrEnabled && imageUri != null) {
-                    val bytes = context.contentResolver.openInputStream(imageUri)?.readBytes()
+                    val bytes = context.contentResolver.openInputStream(imageUri)?.use { it.readBytes() }
                     if (bytes != null) {
                         imageBase64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
                         mimeType = context.contentResolver.getType(imageUri) ?: "image/jpeg"
@@ -423,8 +493,19 @@ class AppViewModel(private val context: Context) : ViewModel() {
 
                 val currentRecord = analysisDao.getRecordById(recordId)
                 if (currentRecord != null) {
+                    var updatedText = currentRecord.originalText
+                    if (updatedText == "画像文法分析" || updatedText.isBlank()) {
+                        val parsed = parseDetailedResult("", result)
+                        if (parsed != null) {
+                            val combinedSentence = parsed.segments?.joinToString("") { it.text ?: "" } ?: ""
+                            if (combinedSentence.isNotBlank()) {
+                                updatedText = combinedSentence
+                            }
+                        }
+                    }
                     analysisDao.update(
                         currentRecord.copy(
+                            originalText = updatedText,
                             analysisResult = result,
                             status = "COMPLETED"
                         )
@@ -454,5 +535,10 @@ class AppViewModel(private val context: Context) : ViewModel() {
 
     suspend fun extractTextFromImage(uri: Uri): String {
         return ocrHelper.extractTextFromUri(context, uri)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        ocrHelper.close()
     }
 }

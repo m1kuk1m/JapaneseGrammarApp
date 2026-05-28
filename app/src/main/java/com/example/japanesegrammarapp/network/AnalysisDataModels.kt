@@ -1,30 +1,30 @@
 package com.example.japanesegrammarapp.network
 
 data class WordSegment(
-    val text: String,
-    val reading: String,
-    val partOfSpeech: String,
+    val text: String? = null,
+    val reading: String? = null,
+    val partOfSpeech: String? = null,
     val dictionaryForm: String? = null,
-    val meaning: String,
+    val meaning: String? = null,
     val inflection: String? = null,
-    val role: String
+    val role: String? = null
 )
 
 data class SentenceClause(
-    val index: Int,
-    val role: String,
-    val text: String,
-    val explanation: String
+    val index: Int? = null,
+    val role: String? = null,
+    val text: String? = null,
+    val explanation: String? = null
 )
 
 data class DetailedGrammarPoint(
-    val pattern: String,
-    val explanation: String
+    val pattern: String? = null,
+    val explanation: String? = null
 )
 
 data class DetailedAnalysisResult(
-    val translation: String,
-    val segments: List<WordSegment>,
-    val clauses: List<SentenceClause>,
-    val grammarPoints: List<DetailedGrammarPoint>
+    val translation: String? = null,
+    val segments: List<WordSegment>? = null,
+    val clauses: List<SentenceClause>? = null,
+    val grammarPoints: List<DetailedGrammarPoint>? = null
 )

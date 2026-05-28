@@ -6,8 +6,9 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import kotlinx.coroutines.tasks.await
+import java.io.Closeable
 
-class OcrHelper {
+class OcrHelper : Closeable {
     private val recognizer = TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
 
     suspend fun extractTextFromUri(context: Context, uri: Uri): String {
@@ -114,5 +115,9 @@ class OcrHelper {
             e.printStackTrace()
             "Error extracting text: ${e.localizedMessage}"
         }
+    }
+
+    override fun close() {
+        recognizer.close()
     }
 }

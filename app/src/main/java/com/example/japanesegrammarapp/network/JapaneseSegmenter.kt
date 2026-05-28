@@ -25,8 +25,8 @@ object JapaneseSegmenter {
         while (i < tokens.size) {
             val token = tokens[i]
             var surface = token.surface ?: ""
-            val pos = token.partOfSpeechLevel1 ?: ""
-            val pos2 = token.partOfSpeechLevel2 ?: ""
+            var pos = token.partOfSpeechLevel1 ?: ""
+            var pos2 = token.partOfSpeechLevel2 ?: ""
 
             var j = i + 1
             while (j < tokens.size) {
@@ -52,6 +52,8 @@ object JapaneseSegmenter {
 
                 if (shouldMerge) {
                     surface += nextToken.surface ?: ""
+                    pos = nextPos
+                    pos2 = nextPos2
                     j++
                 } else {
                     break

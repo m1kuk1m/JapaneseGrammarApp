@@ -2,16 +2,22 @@ package com.example.japanesegrammarapp.ui.screens
 
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
@@ -25,17 +31,21 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.japanesegrammarapp.ui.AppViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(navController: NavController) {
+fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
     val context = LocalContext.current
-    val prefs = context.getSharedPreferences("api_keys", Context.MODE_PRIVATE)
+    val prefs = viewModel.securePrefs
     
     // Traditional Japanese Colors
     val SumiInk = Color(0xFF2B2A28)
     val WashiBg = Color(0xFFFCF8F2)
     val AizomeIndigo = Color(0xFFBCCCD4)
+
+    val activeProvider by viewModel.activeProvider.collectAsState()
+    val providerModels by viewModel.providerModels.collectAsState()
 
     val providers = listOf("Gemini", "Vertex AI", "DeepSeek", "Qwen", "OpenAI Compatible")
     val defaultUrls = mapOf(
@@ -52,7 +62,7 @@ fun SettingsScreen(navController: NavController) {
     // Toggle password visibility per provider
     var keysVisibility by remember { mutableStateOf(providers.associateWith { false }) }
     // Single expandable item tracking
-    var expandedProvider by remember { mutableStateOf<String?>("Gemini") }
+    var expandedProvider by remember { mutableStateOf<String?>(activeProvider) }
 
     fun saveSettings() {
         prefs.edit().apply {
@@ -74,7 +84,7 @@ fun SettingsScreen(navController: NavController) {
                         saveSettings()
                         navController.popBackStack() 
                     }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "戻る", tint = SumiInk)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る", tint = SumiInk)
                     }
                 },
                 colors = TopAppBarDefaults.largeTopAppBarColors(
@@ -109,7 +119,8 @@ fun SettingsScreen(navController: NavController) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp), 
+                        .padding(bottom = 16.dp)
+                        .animateContentSize(animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f)), 
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.15f)),
                     shape = RoundedCornerShape(8.dp)
@@ -126,15 +137,33 @@ fun SettingsScreen(navController: NavController) {
                             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    provider, 
-                                    style = MaterialTheme.typography.titleMedium, 
-                                    fontWeight = FontWeight.Bold,
-                                    color = SumiInk
-                                )
+                                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                    Text(
+                                        provider, 
+                                        style = MaterialTheme.typography.titleMedium, 
+                                        fontWeight = FontWeight.Bold,
+                                        color = SumiInk
+                                    )
+                                    if (activeProvider == provider) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Surface(
+                                            color = SumiInk.copy(alpha = 0.08f),
+                                            shape = RoundedCornerShape(4.dp),
+                                            border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.15f))
+                                        ) {
+                                            Text(
+                                                text = "有効",
+                                                color = SumiInk,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
                                 if (provider == "Vertex AI") {
                                     Text(
-                                        "AQ.キー用のExpress Modeを使用します。",
+                                        "APIキー用のExpress Modeを使用します。",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = SumiInk.copy(alpha = 0.5f)
                                     )
@@ -211,6 +240,122 @@ fun SettingsScreen(navController: NavController) {
                                         unfocusedTextColor = SumiInk
                                     )
                                 )
+                                
+                                // Active Provider Toggle
+                                Spacer(modifier = Modifier.height(12.dp))
+                                val isActive = activeProvider == provider
+                                if (isActive) {
+                                    Button(
+                                        onClick = {},
+                                        colors = ButtonDefaults.buttonColors(containerColor = SumiInk),
+                                        shape = RoundedCornerShape(6.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Icon(Icons.Default.Check, contentDescription = "Active", tint = WashiBg, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("現在のアクティブなプロバイダー", fontWeight = FontWeight.Bold, color = WashiBg, fontSize = 13.sp)
+                                    }
+                                } else {
+                                    OutlinedButton(
+                                        onClick = { viewModel.setActiveProvider(provider) },
+                                        shape = RoundedCornerShape(6.dp),
+                                        border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.6f)),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = SumiInk),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text("このプロバイダーを有効にする", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                    }
+                                }
+
+                                // Model Management Section
+                                Spacer(modifier = Modifier.height(16.dp))
+                                HorizontalDivider(color = SumiInk.copy(alpha = 0.1f))
+                                Spacer(modifier = Modifier.height(12.dp))
+                                
+                                Text(
+                                    text = "モデル管理",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = SumiInk,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                val models = providerModels[provider] ?: emptyList()
+                                
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = SumiInk.copy(alpha = 0.02f)),
+                                    border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.08f)),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        if (models.isEmpty()) {
+                                            Text("登録されているモデルはありません。", fontSize = 12.sp, color = SumiInk.copy(alpha = 0.4f))
+                                        } else {
+                                            models.forEach { model ->
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 4.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                                                ) {
+                                                    Text(model, color = SumiInk, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                                                    IconButton(
+                                                        onClick = {
+                                                            val updated = models.filter { it != model }
+                                                            viewModel.saveModelsForProvider(provider, updated)
+                                                        },
+                                                        modifier = Modifier.size(28.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Close, contentDescription = "削除", tint = Color(0xFFD32F2F), modifier = Modifier.size(16.dp))
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        
+                                        var newModelName by remember(provider) { mutableStateOf("") }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                                        ) {
+                                            OutlinedTextField(
+                                                value = newModelName,
+                                                onValueChange = { newModelName = it },
+                                                placeholder = { Text("新規モデル名...", fontSize = 12.sp, color = SumiInk.copy(alpha = 0.4f)) },
+                                                modifier = Modifier.weight(1f),
+                                                singleLine = true,
+                                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
+                                                shape = RoundedCornerShape(6.dp),
+                                                colors = OutlinedTextFieldDefaults.colors(
+                                                    focusedBorderColor = SumiInk,
+                                                    unfocusedBorderColor = SumiInk.copy(alpha = 0.2f),
+                                                    focusedTextColor = SumiInk,
+                                                    unfocusedTextColor = SumiInk
+                                                )
+                                            )
+                                            
+                                            Button(
+                                                onClick = {
+                                                    val nameTrimmed = newModelName.trim()
+                                                    if (nameTrimmed.isNotBlank() && !models.contains(nameTrimmed)) {
+                                                        val updated = models + nameTrimmed
+                                                        viewModel.saveModelsForProvider(provider, updated)
+                                                        newModelName = ""
+                                                    }
+                                                },
+                                                colors = ButtonDefaults.buttonColors(containerColor = SumiInk),
+                                                shape = RoundedCornerShape(6.dp),
+                                                modifier = Modifier.height(36.dp)
+                                            ) {
+                                                Text("追加", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WashiBg)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

@@ -101,7 +101,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                     }
                 }
                 
-                Divider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
+                HorizontalDivider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // New Analysis Button
@@ -246,7 +246,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    WorkspaceInputForm(viewModel = viewModel)
+                                    WorkspaceInputForm(viewModel = viewModel, navController = navController)
                                 }
                             }
                         }
@@ -302,7 +302,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
 
                                 if (isInputExpanded) {
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    WorkspaceInputForm(viewModel = viewModel)
+                                    WorkspaceInputForm(viewModel = viewModel, navController = navController)
                                 } else {
                                     // Compact text summary
                                     val currentText by viewModel.currentOriginalText.collectAsState()
@@ -533,70 +533,37 @@ fun HistorySidebarItem(
     }
 }
 
+// Traditional Japanese Zen Color Palette
+private val SumiInk = Color(0xFF2B2A28)          // 墨色 (Deep charcoal black)
+private val WashiBg = Color(0xFFFCF8F2)          // 和纸色 (Soft warm white cream)
+private val SakuraPink = Color(0xFFFEDFE1)       // 樱花色 (Soft warm blush pink)
+private val MatchaGreen = Color(0xFFC5E2C6)      // 抹茶色 (Soft sage green)
+private val AizomeIndigo = Color(0xFFBCCCD4)     // 蓝染色 (Soft slate blue)
+private val KuriAmber = Color(0xFFECCEB1)        // 栗色 (Soft amber/chestnut)
+private val HaiMist = Color(0xFFE5E4E2)          // 雾灰色 (Soft grey)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WorkspaceInputForm(viewModel: AppViewModel) {
+fun WorkspaceInputForm(viewModel: AppViewModel, navController: NavController) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("api_keys", Context.MODE_PRIVATE) }
-    val providers = listOf("Gemini", "Vertex AI", "DeepSeek", "Qwen", "OpenAI Compatible")
+    val prefs = viewModel.securePrefs
     
-    var selectedProvider by remember {
-        mutableStateOf(
-            providers.firstOrNull { provider ->
-                val key = prefs.getString("${provider}_key", "") ?: ""
-                key.isNotBlank()
-            } ?: "Gemini"
-        )
-    }
-    var providerExpanded by remember { mutableStateOf(false) }
-    var textInput by remember { mutableStateOf("") }
-    
-    val availableModels by viewModel.availableModels.collectAsState()
-    var selectedModel by remember(selectedProvider) { mutableStateOf(prefs.getString("${selectedProvider}_selected_model", "") ?: "") }
+    val activeProvider by viewModel.activeProvider.collectAsState()
+    val activeModel by viewModel.activeModel.collectAsState()
+    val providerModels by viewModel.providerModels.collectAsState()
+    val modelsList = providerModels[activeProvider] ?: emptyList()
     var modelExpanded by remember { mutableStateOf(false) }
-    
-    val coroutineScope = rememberCoroutineScope()
+
+    var textInput by remember { mutableStateOf("") }
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
-    val isFetchingModels by viewModel.isFetchingModels.collectAsState()
     val useOcr by viewModel.useOcr.collectAsState()
 
     val currentOriginalText by viewModel.currentOriginalText.collectAsState()
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(currentOriginalText) {
         textInput = currentOriginalText
-    }
-
-    // Fetch key changes
-    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
-    var resumeTrigger by remember { mutableStateOf(0) }
-    
-    DisposableEffect(lifecycleOwner) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                resumeTrigger++
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    LaunchedEffect(selectedProvider, resumeTrigger) {
-        val key = prefs.getString("${selectedProvider}_key", "") ?: ""
-        val url = prefs.getString("${selectedProvider}_url", "") ?: ""
-        if (key.isNotBlank()) {
-            viewModel.fetchModels(selectedProvider, url, key)
-        }
-    }
-
-    LaunchedEffect(availableModels) {
-        if (selectedModel.isBlank() && availableModels.isNotEmpty()) {
-            selectedModel = availableModels.first()
-            prefs.edit().putString("${selectedProvider}_selected_model", selectedModel).apply()
-        }
     }
 
     // Launchers
@@ -735,114 +702,87 @@ fun WorkspaceInputForm(viewModel: AppViewModel) {
         }
     }
 
-    // Provider Dropdown
-    ExposedDropdownMenuBox(
-        expanded = providerExpanded, 
-        onExpandedChange = { providerExpanded = !providerExpanded }
-    ) {
-        OutlinedTextField(
-            value = selectedProvider,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("プロバイダー", color = SumiInk.copy(alpha = 0.7f)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = providerExpanded) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(),
-            shape = RoundedCornerShape(8.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = SumiInk,
-                unfocusedBorderColor = SumiInk.copy(alpha = 0.3f),
-                focusedLabelColor = SumiInk,
-                unfocusedLabelColor = SumiInk.copy(alpha = 0.7f),
-                focusedTextColor = SumiInk,
-                unfocusedTextColor = SumiInk
-            )
-        )
-        ExposedDropdownMenu(
-            expanded = providerExpanded, 
-            onDismissRequest = { providerExpanded = false }
-        ) {
-            providers.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option, color = SumiInk) },
-                    onClick = {
-                        selectedProvider = option
-                        selectedModel = ""
-                        providerExpanded = false
-                    }
-                )
-            }
-        }
-    }
-    
-    Spacer(modifier = Modifier.height(12.dp))
-    
-    // Model Dropdown & Fetch Button
+    // Sleek, low-prominence Model Selection Pill Chip (Zen Style - No Emojis)
     Row(
-        modifier = Modifier.fillMaxWidth(), 
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp)
+            .animateContentSize(animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f)),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        ExposedDropdownMenuBox(
-            expanded = modelExpanded, 
-            onExpandedChange = { modelExpanded = !modelExpanded }, 
-            modifier = Modifier.weight(1f)
-        ) {
-            OutlinedTextField(
-                value = selectedModel,
-                onValueChange = { 
-                    selectedModel = it
-                    prefs.edit().putString("${selectedProvider}_selected_model", it).apply()
-                },
-                readOnly = false,
-                placeholder = { Text("モデルを選択または入力...", color = SumiInk.copy(alpha = 0.4f)) },
-                label = { Text("モデル", color = SumiInk.copy(alpha = 0.7f)) },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded) },
-                modifier = Modifier.fillMaxWidth().menuAnchor(),
-                shape = RoundedCornerShape(8.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = SumiInk,
-                    unfocusedBorderColor = SumiInk.copy(alpha = 0.3f),
-                    focusedLabelColor = SumiInk,
-                    unfocusedLabelColor = SumiInk.copy(alpha = 0.7f),
-                    focusedTextColor = SumiInk,
-                    unfocusedTextColor = SumiInk
-                )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "モデル: ",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = SumiInk.copy(alpha = 0.5f)
             )
-            ExposedDropdownMenu(
-                expanded = modelExpanded, 
-                onDismissRequest = { modelExpanded = false }
-            ) {
-                availableModels.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(option, color = SumiInk) },
-                        onClick = {
-                            selectedModel = option
-                            prefs.edit().putString("${selectedProvider}_selected_model", option).apply()
-                            modelExpanded = false
-                        }
-                    )
+            Box {
+                Surface(
+                    color = SumiInk.copy(alpha = 0.05f),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.1f)),
+                    modifier = Modifier.clickable { modelExpanded = true }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "$activeProvider : $activeModel",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SumiInk
+                        )
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "選択",
+                            tint = SumiInk.copy(alpha = 0.6f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = modelExpanded,
+                    onDismissRequest = { modelExpanded = false }
+                ) {
+                    modelsList.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option, color = SumiInk, fontSize = 13.sp) },
+                            onClick = {
+                                viewModel.setActiveModel(option)
+                                modelExpanded = false
+                            }
+                        )
+                    }
+                    if (modelsList.isEmpty()) {
+                        DropdownMenuItem(
+                            text = { Text("モデル未設定 (設定へ)", color = SumiInk.copy(alpha = 0.5f), fontSize = 13.sp) },
+                            onClick = {
+                                modelExpanded = false
+                                navController.navigate("settings")
+                            }
+                        )
+                    }
                 }
             }
         }
         
-        FilledTonalIconButton(
-            onClick = {
-                val key = prefs.getString("${selectedProvider}_key", "") ?: ""
-                val url = prefs.getString("${selectedProvider}_url", "") ?: ""
-                viewModel.fetchModels(selectedProvider, url, key)
-            },
-            modifier = Modifier.padding(top = 8.dp),
-            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                containerColor = SumiInk.copy(alpha = 0.08f),
-                contentColor = SumiInk
-            ),
-            shape = RoundedCornerShape(8.dp)
+        TextButton(
+            onClick = { navController.navigate("settings") },
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
         ) {
-            if (isFetchingModels) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = SumiInk)
-            else Icon(Icons.Default.Refresh, contentDescription = "モデルリストの更新")
+            Text(
+                text = "設定",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = SumiInk.copy(alpha = 0.6f)
+            )
         }
     }
-
-    Spacer(modifier = Modifier.height(12.dp))
 
     // OCR Settings Switch
     Row(
@@ -983,9 +923,9 @@ fun WorkspaceInputForm(viewModel: AppViewModel) {
     // Main start button
     Button(
         onClick = {
-            val key = prefs.getString("${selectedProvider}_key", "") ?: ""
-            val url = prefs.getString("${selectedProvider}_url", "") ?: ""
-            viewModel.analyzeText(textInput, selectedImageUri, selectedProvider, selectedModel.ifBlank { "default" }, url, key)
+            val key = prefs.getString("${activeProvider}_key", "") ?: ""
+            val url = prefs.getString("${activeProvider}_url", "") ?: ""
+            viewModel.analyzeText(textInput, selectedImageUri, activeProvider, activeModel.ifBlank { "default" }, url, key)
             selectedImageUri = null
         },
         enabled = (textInput.isNotBlank() || selectedImageUri != null) && !isAnalyzing,
@@ -1012,7 +952,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
 
     if (detailedResult != null) {
         val data = detailedResult!!
-        var selectedSegmentIndex by remember { mutableStateOf(0) }
+        var selectedSegmentIndex by remember(data) { mutableStateOf(0) }
 
         Column(
             modifier = Modifier
@@ -1043,15 +983,20 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    data.segments.forEachIndexed { index, segment ->
+                    data.segments?.forEachIndexed { index, segment ->
                         val isSelected = index == selectedSegmentIndex
+                        val borderWidth by androidx.compose.animation.core.animateDpAsState(
+                            targetValue = if (isSelected) 2.dp else 1.dp,
+                            label = "borderWidth"
+                        )
+                        val borderColor by androidx.compose.animation.core.animateColorAsState(
+                            targetValue = if (isSelected) SumiInk else SumiInk.copy(alpha = 0.15f),
+                            label = "borderColor"
+                        )
                         Surface(
-                            color = getChipColorForPos(segment.partOfSpeech),
+                            color = getChipColorForPos(segment.partOfSpeech ?: ""),
                             shape = RoundedCornerShape(6.dp),
-                            border = BorderStroke(
-                                width = if (isSelected) 2.dp else 1.dp,
-                                color = if (isSelected) SumiInk else SumiInk.copy(alpha = 0.15f)
-                            ),
+                            border = BorderStroke(width = borderWidth, color = borderColor),
                             modifier = Modifier
                                 .clickable { selectedSegmentIndex = index }
                                 .padding(horizontal = 2.dp)
@@ -1061,12 +1006,12 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    text = segment.reading,
+                                    text = segment.reading ?: "",
                                     fontSize = 9.sp,
                                     color = SumiInk.copy(alpha = 0.5f)
                                 )
                                 Text(
-                                    text = segment.text,
+                                    text = segment.text ?: "",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = SumiInk
@@ -1080,7 +1025,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
             Spacer(modifier = Modifier.height(12.dp))
             
             // 2. Segment Details Explanation Box
-            val currentSegment = data.segments.getOrNull(selectedSegmentIndex)
+            val currentSegment = data.segments?.getOrNull(selectedSegmentIndex)
             if (currentSegment != null) {
                 Text(
                     text = "単語の分解と分析 (タップして選択中)",
@@ -1091,7 +1036,9 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                 )
                 
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 300f)),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.15f)),
                     shape = RoundedCornerShape(8.dp),
@@ -1103,25 +1050,25 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = currentSegment.text,
+                                text = currentSegment.text ?: "",
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = SumiInk
                             )
                             Text(
-                                text = "（${currentSegment.reading}）",
+                                text = "（${currentSegment.reading ?: ""}）",
                                 fontSize = 12.sp,
                                 color = SumiInk.copy(alpha = 0.6f),
                                 modifier = Modifier.padding(bottom = 2.dp)
                             )
                         }
                         
-                        Divider(
+                        HorizontalDivider(
                             modifier = Modifier.padding(vertical = 8.dp),
                             color = SumiInk.copy(alpha = 0.1f)
                         )
                         
-                        DetailRow(label = "品詞", value = currentSegment.partOfSpeech)
+                        DetailRow(label = "品詞", value = currentSegment.partOfSpeech ?: "")
                         
                         if (!currentSegment.dictionaryForm.isNullOrBlank()) {
                             DetailRow(label = "辞書形", value = currentSegment.dictionaryForm)
@@ -1131,9 +1078,9 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                             DetailRow(label = "構成/活用", value = currentSegment.inflection)
                         }
                         
-                        DetailRow(label = "役割", value = currentSegment.role)
+                        DetailRow(label = "役割", value = currentSegment.role ?: "")
                         
-                        Divider(
+                        HorizontalDivider(
                             modifier = Modifier.padding(vertical = 8.dp),
                             color = SumiInk.copy(alpha = 0.1f)
                         )
@@ -1153,7 +1100,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = currentSegment.meaning,
+                                    text = currentSegment.meaning ?: "",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = SumiInk
@@ -1200,7 +1147,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                         )
                     }
                     Text(
-                        text = data.translation,
+                        text = data.translation ?: "",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         color = SumiInk,
@@ -1212,7 +1159,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
             Spacer(modifier = Modifier.height(12.dp))
             
             // 4. Sentence Clauses
-            if (data.clauses.isNotEmpty()) {
+            if (!data.clauses.isNullOrEmpty()) {
                 Text(
                     text = "文節の解釈と構造",
                     fontSize = 12.sp,
@@ -1229,7 +1176,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        data.clauses.forEachIndexed { idx, clause ->
+                        data.clauses?.forEachIndexed { idx, clause ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.Top
@@ -1248,7 +1195,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                                             shape = RoundedCornerShape(3.dp)
                                         ) {
                                             Text(
-                                                text = clause.role,
+                                                text = clause.role ?: "",
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = SumiInk,
@@ -1256,7 +1203,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                                             )
                                         }
                                         Text(
-                                            text = clause.text,
+                                            text = clause.text ?: "",
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = SumiInk
@@ -1264,14 +1211,14 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                                     }
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = clause.explanation,
+                                        text = clause.explanation ?: "",
                                         fontSize = 12.sp,
                                         color = SumiInk.copy(alpha = 0.7f)
                                     )
                                 }
                             }
                             if (idx < data.clauses.size - 1) {
-                                Divider(
+                                HorizontalDivider(
                                     modifier = Modifier.padding(vertical = 8.dp),
                                     color = SumiInk.copy(alpha = 0.08f)
                                 )
@@ -1283,7 +1230,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
             }
             
             // 5. Core Grammar Points
-            if (data.grammarPoints.isNotEmpty()) {
+            if (!data.grammarPoints.isNullOrEmpty()) {
                 Text(
                     text = "文法ポイントの分析",
                     fontSize = 12.sp,
@@ -1300,7 +1247,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        data.grammarPoints.forEachIndexed { idx, gp ->
+                        data.grammarPoints?.forEachIndexed { idx, gp ->
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1319,7 +1266,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                                         )
                                     }
                                     Text(
-                                        text = gp.pattern,
+                                        text = gp.pattern ?: "",
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = SumiInk
@@ -1327,14 +1274,14 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = gp.explanation,
+                                    text = gp.explanation ?: "",
                                     fontSize = 13.sp,
                                     color = SumiInk.copy(alpha = 0.8f),
                                     lineHeight = 18.sp
                                 )
                             }
-                            if (idx < data.grammarPoints.size - 1) {
-                                Divider(
+                            if (idx < (data.grammarPoints?.size ?: 0) - 1) {
+                                HorizontalDivider(
                                     modifier = Modifier.padding(vertical = 12.dp),
                                     color = SumiInk.copy(alpha = 0.08f)
                                 )
@@ -1363,7 +1310,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                     color = SumiInk.copy(alpha = 0.5f),
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
-                Divider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(bottom = 8.dp))
+                HorizontalDivider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(bottom = 8.dp))
                 Text(
                     text = rawResult ?: "分析結果はありません。",
                     modifier = Modifier
@@ -1384,8 +1331,8 @@ private fun getChipColorForPos(pos: String): Color {
         pos.contains("名詞") -> Color(0xFFD3E0EA) // 蓝染蓝 (Aizome)
         pos.contains("動詞") -> Color(0xFFD4ECD5) // 抹茶绿 (Matcha)
         pos.contains("形容") || pos.contains("形状") -> Color(0xFFF6E2CD) // 栗色 (Kuri)
-        pos.contains("助詞") -> Color(0xFFFDD4D8) // 樱花粉 (Sakura)
         pos.contains("助動詞") -> Color(0xFFE8D3EA) // 藤紫 (Fuji)
+        pos.contains("助詞") -> Color(0xFFFDD4D8) // 樱花粉 (Sakura)
         else -> Color(0xFFEFEFEF) // 雾灰 (Hai)
     }
 }
