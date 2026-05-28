@@ -11,6 +11,8 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -450,6 +452,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HistorySidebarItem(
     record: AnalysisRecord,
@@ -466,12 +469,10 @@ fun HistorySidebarItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .pointerInput(record.id) {
-                detectTapGestures(
-                    onTap = { if (!isPending) onClick() },
-                    onLongPress = { onLongClick() }
-                )
-            },
+            .combinedClickable(
+                onClick = { if (!isPending) onClick() },
+                onLongClick = { onLongClick() }
+            ),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) AizomeIndigo.copy(alpha = 0.25f) else Color.White
