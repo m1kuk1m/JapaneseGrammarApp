@@ -1,6 +1,7 @@
 package com.example.japanesegrammarapp.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -11,7 +12,7 @@ import com.example.japanesegrammarapp.ui.screens.*
 fun AppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
-    val viewModel = AppViewModel(context)
+    val viewModel = remember { AppViewModel(context.applicationContext) }
 
     NavHost(navController = navController, startDestination = "workspace") {
         composable("workspace") {
