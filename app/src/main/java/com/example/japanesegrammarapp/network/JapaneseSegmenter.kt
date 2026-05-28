@@ -41,12 +41,20 @@ object JapaneseSegmenter {
                     (nextPos == "助動詞" || nextPos.contains("接尾") || nextPos2.contains("接尾"))) {
                     shouldMerge = true
                 }
-                // 2. Adjectival Noun stem + "に" / "な" (e.g. 「安易」 + 「に」 -> 「安易に」)
+                // 2. Noun + Suffix (e.g. 「事件」 + 「性」 -> 「事件性」)
+                else if (pos == "名詞" && (nextPos.contains("接尾") || nextPos2.contains("接尾"))) {
+                    shouldMerge = true
+                }
+                // 3. Adjectival Noun stem + "に" / "な" (e.g. 「安易」 + 「に」 -> 「安易に」)
                 else if (pos2 == "形容動詞語幹" && (nextToken.surface == "に" || nextToken.surface == "な")) {
                     shouldMerge = true
                 }
-                // 3. Noun + Noun Suffix (e.g. 「事件」 + 「性」 -> 「事件性」)
-                else if (pos == "名詞" && (nextPos.contains("接尾") || nextPos2.contains("接尾"))) {
+                // 4. Auxiliary Verb + Particle (e.g. 「だろう」 + 「か」 -> 「だろうか」)
+                else if (pos == "助動詞" && nextPos == "助詞") {
+                    shouldMerge = true
+                }
+                // 5. Punctuation/Symbols should merge into whatever precedes them
+                else if (nextPos == "記号") {
                     shouldMerge = true
                 }
 
