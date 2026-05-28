@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 
 sealed class UiEvent {
     data class ShowError(val message: String) : UiEvent()
@@ -425,7 +426,13 @@ class AppViewModel(private val context: Context) : ViewModel() {
                     emptyList()
                 }
 
-                val finalPrompt = if (preSegments.isNotEmpty()) {
+                val promptTrans = if (text.isNotBlank() && text != "画像文法分析") {
+                    "分析対象の文: \"$text\"\nこの文の自然な中国語訳を出力してください。"
+                } else {
+                    "画像内のすべての日本語の文法構造と語彙を詳細に分析してください。"
+                }
+
+                val promptSeg = if (preSegments.isNotEmpty()) {
                     val segmentsJson = gson.toJson(preSegments)
                     """
                         分析対象の文: "$text"
@@ -436,66 +443,109 @@ class AppViewModel(private val context: Context) : ViewModel() {
                         分かち書きトークンリスト:
                         $segmentsJson
 
-                        あなたは上記のトークンリストの順番、表記、要素数を「絶対に」维持したまま、各トークンの詳細分析を行ってください。
+                        あなたは上記のトークンリストの順番、表記、要素数を「絶対に」維持したまま、各トークンの詳細分析を行ってください。
                         トークンを勝手に結合したり、分割したり、順番を変えたりすることは固く禁じます。
 
                         出力する JSON の `segments` 配列の要素数は、上記のトークンリストと完全に一致し、各要素の `text` はトークンリストの文字列と完全に一致していなければなりません。
                     """.trimIndent()
                 } else {
-                    text.ifBlank { "画像内のすべての日本語の文法構造と語彙を詳細に分析してください。" }
+                    text.ifBlank { "画像内のすべての日本語の単語や品詞、活用を詳細に分析してください。" }
                 }
 
-                val result = when (provider) {
-                    "DeepSeek", "OpenAI Compatible", "Qwen" -> {
-                        val cleanBase = effectiveUrl.trimEnd('/')
-                        val url = "$cleanBase/chat/completions"
-
-                        val contentPayload: Any = if (imageBase64 != null) {
-                            listOf(
-                                OpenAiContentPart(type = "text", text = PromptManager.SYSTEM_PROMPT + "\n\n分析対象:\n" + finalPrompt),
-                                OpenAiContentPart(
-                                    type = "image_url",
-                                    image_url = OpenAiImageUrl(url = "data:$mimeType;base64,$imageBase64")
-                                )
-                            )
-                        } else {
-                            PromptManager.SYSTEM_PROMPT + "\n\n分析対象:\n" + finalPrompt
-                        }
-
-                        val request = OpenAiRequest(
-                            model = modelName,
-                            messages = listOf(
-                                OpenAiMessage(role = "user", content = contentPayload)
-                            )
-                        )
-                        val response = llmService.generateOpenAiCompatible(url, "Bearer $apiKey", request)
-                        response.choices.firstOrNull()?.message?.content ?: "No response from model"
-                    }
-                    "Gemini", "Vertex AI" -> {
-                        val cleanBase = effectiveUrl.trimEnd('/')
-                        val url = "$cleanBase/models/$modelName:generateContent?key=$apiKey"
-
-                        val parts = mutableListOf<GeminiPart>()
-                        parts.add(GeminiPart(text = finalPrompt))
-                        if (imageBase64 != null && mimeType != null) {
-                            parts.add(GeminiPart(inlineData = GeminiInlineData(mimeType = mimeType, data = imageBase64)))
-                        }
-
-                        val request = GeminiRequest(
-                            contents = listOf(GeminiContent(role = "user", parts = parts)),
-                            systemInstruction = GeminiContent(role = "user", parts = listOf(GeminiPart(text = PromptManager.SYSTEM_PROMPT)))
-                        )
-                        val response = llmService.generateGemini(url, request)
-                        response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: "No response from model"
-                    }
-                    else -> "Unsupported provider"
+                val promptClauses = if (text.isNotBlank() && text != "画像文法分析") {
+                    "分析対象の文: \"$text\"\nこの文の文節（フレーズ）ごとの役割や意味の説明を行ってください。"
+                } else {
+                    "画像内のすべての日本語の文節構造を詳細に分析してください。"
                 }
+
+                val promptGrammar = if (text.isNotBlank() && text != "画像文法分析") {
+                    "分析対象の文: \"$text\"\nこの文に含まれるコアとなる文型や特殊文法（受身、使役、敬語）、固定表現、助詞のニュアンスなどを詳細に解説してください。"
+                } else {
+                    "画像内のすべての日本語の文法表現や固定表現を詳細に分析してください。"
+                }
+
+                val (transJson, segJson, clauseJson, grammarJson) = kotlinx.coroutines.coroutineScope {
+                    val deferredTrans = async {
+                        callLlmApi(
+                            PromptManager.SYSTEM_PROMPT_TRANSLATION,
+                            promptTrans,
+                            imageBase64,
+                            mimeType,
+                            provider,
+                            modelName,
+                            effectiveUrl,
+                            apiKey
+                        )
+                    }
+                    val deferredSegs = async {
+                        callLlmApi(
+                            PromptManager.SYSTEM_PROMPT_SEGMENTS,
+                            promptSeg,
+                            imageBase64,
+                            mimeType,
+                            provider,
+                            modelName,
+                            effectiveUrl,
+                            apiKey
+                        )
+                    }
+                    val deferredClauses = async {
+                        callLlmApi(
+                            PromptManager.SYSTEM_PROMPT_CLAUSES,
+                            promptClauses,
+                            imageBase64,
+                            mimeType,
+                            provider,
+                            modelName,
+                            effectiveUrl,
+                            apiKey
+                        )
+                    }
+                    val deferredGrammar = async {
+                        callLlmApi(
+                            PromptManager.SYSTEM_PROMPT_GRAMMAR,
+                            promptGrammar,
+                            imageBase64,
+                            mimeType,
+                            provider,
+                            modelName,
+                            effectiveUrl,
+                            apiKey
+                        )
+                    }
+
+                    listOf(
+                        deferredTrans.await(),
+                        deferredSegs.await(),
+                        deferredClauses.await(),
+                        deferredGrammar.await()
+                    )
+                }
+
+                val transClean = cleanMarkdownJson(transJson)
+                val segsClean = cleanMarkdownJson(segJson)
+                val clausesClean = cleanMarkdownJson(clauseJson)
+                val grammarClean = cleanMarkdownJson(grammarJson)
+
+                val transObj = try { gson.fromJson(transClean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
+                val segsObj = try { gson.fromJson(segsClean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
+                val clausesObj = try { gson.fromJson(clausesClean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
+                val grammarObj = try { gson.fromJson(grammarClean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
+
+                val combinedResultObj = DetailedAnalysisResult(
+                    translation = transObj?.translation,
+                    segments = segsObj?.segments,
+                    clauses = clausesObj?.clauses,
+                    grammarPoints = grammarObj?.grammarPoints
+                )
+
+                val mergedResult = gson.toJson(combinedResultObj)
 
                 val currentRecord = analysisDao.getRecordById(recordId)
                 if (currentRecord != null) {
                     var updatedText = currentRecord.originalText
                     if (updatedText == "画像文法分析" || updatedText.isBlank()) {
-                        val parsed = parseDetailedResult("", result)
+                        val parsed = parseDetailedResult("", mergedResult)
                         if (parsed != null) {
                             val combinedSentence = parsed.segments?.joinToString("") { it.text ?: "" } ?: ""
                             if (combinedSentence.isNotBlank()) {
@@ -506,7 +556,7 @@ class AppViewModel(private val context: Context) : ViewModel() {
                     analysisDao.update(
                         currentRecord.copy(
                             originalText = updatedText,
-                            analysisResult = result,
+                            analysisResult = mergedResult,
                             status = "COMPLETED"
                         )
                     )
@@ -531,6 +581,79 @@ class AppViewModel(private val context: Context) : ViewModel() {
                 }
             }
         }
+    }
+
+    private suspend fun callLlmApi(
+        systemPrompt: String,
+        userPrompt: String,
+        imageBase64: String?,
+        mimeType: String?,
+        provider: String,
+        modelName: String,
+        effectiveUrl: String,
+        apiKey: String
+    ): String {
+        return when (provider) {
+            "DeepSeek", "OpenAI Compatible", "Qwen" -> {
+                val cleanBase = effectiveUrl.trimEnd('/')
+                val url = "$cleanBase/chat/completions"
+
+                val contentPayload: Any = if (imageBase64 != null) {
+                    listOf(
+                        OpenAiContentPart(type = "text", text = systemPrompt + "\n\n分析対象:\n" + userPrompt),
+                        OpenAiContentPart(
+                            type = "image_url",
+                            image_url = OpenAiImageUrl(url = "data:$mimeType;base64,$imageBase64")
+                        )
+                    )
+                } else {
+                    systemPrompt + "\n\n分析対象:\n" + userPrompt
+                }
+
+                val request = OpenAiRequest(
+                    model = modelName,
+                    messages = listOf(
+                        OpenAiMessage(role = "user", content = contentPayload)
+                    )
+                )
+                val response = llmService.generateOpenAiCompatible(url, "Bearer $apiKey", request)
+                response.choices.firstOrNull()?.message?.content ?: throw Exception("No response from model")
+            }
+            "Gemini", "Vertex AI" -> {
+                val cleanBase = effectiveUrl.trimEnd('/')
+                val url = "$cleanBase/models/$modelName:generateContent?key=$apiKey"
+
+                val parts = mutableListOf<GeminiPart>()
+                parts.add(GeminiPart(text = userPrompt))
+                if (imageBase64 != null && mimeType != null) {
+                    parts.add(GeminiPart(inlineData = GeminiInlineData(mimeType = mimeType, data = imageBase64)))
+                }
+
+                val request = GeminiRequest(
+                    contents = listOf(GeminiContent(role = "user", parts = parts)),
+                    systemInstruction = GeminiContent(role = "user", parts = listOf(GeminiPart(text = systemPrompt)))
+                )
+                val response = llmService.generateGemini(url, request)
+                response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: throw Exception("No response from model")
+            }
+            else -> throw Exception("Unsupported provider")
+        }
+    }
+
+    private fun cleanMarkdownJson(rawJson: String): String {
+        var cleanJson = rawJson.trim()
+        if (cleanJson.startsWith("```")) {
+            val firstNewLine = cleanJson.indexOf('\n')
+            cleanJson = if (firstNewLine != -1) {
+                cleanJson.substring(firstNewLine).trim()
+            } else {
+                cleanJson.removePrefix("```").trim()
+            }
+        }
+        if (cleanJson.endsWith("```")) {
+            cleanJson = cleanJson.removeSuffix("```").trim()
+        }
+        return cleanJson
     }
 
     suspend fun extractTextFromImage(uri: Uri): String {
