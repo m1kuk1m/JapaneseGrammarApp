@@ -6,7 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -1338,5 +1338,28 @@ private fun getChipColorForPos(pos: String): Color {
         pos.contains("助動詞") -> Color(0xFFE8D3EA) // 藤紫 (Fuji)
         pos.contains("助詞") -> Color(0xFFFDD4D8) // 樱花粉 (Sakura)
         else -> Color(0xFFEFEFEF) // 雾灰 (Hai)
+    }
+}
+
+@Composable
+fun DetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            color = SumiInk.copy(alpha = 0.5f)
+        )
+        Text(
+            text = value,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = SumiInk
+        )
     }
 }
