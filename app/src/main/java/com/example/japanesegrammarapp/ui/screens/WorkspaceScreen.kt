@@ -989,11 +989,11 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                 ) {
                     data.segments?.forEachIndexed { index, segment ->
                         val isSelected = index == selectedSegmentIndex
-                        val borderWidth by androidx.compose.animation.core.animateDpAsState(
+                        val borderWidth by animateDpAsState(
                             targetValue = if (isSelected) 2.dp else 1.dp,
                             label = "borderWidth"
                         )
-                        val borderColor by androidx.compose.animation.core.animateColorAsState(
+                        val borderColor by animateColorAsState(
                             targetValue = if (isSelected) SumiInk else SumiInk.copy(alpha = 0.15f),
                             label = "borderColor"
                         )
