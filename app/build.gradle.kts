@@ -46,6 +46,9 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/CONTRIBUTORS.md"
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/LICENSE-notice.md"
         }
     }
 }
@@ -85,6 +88,9 @@ dependencies {
     // ML Kit Text Recognition
     implementation("com.google.mlkit:text-recognition-japanese:16.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+    // Kuromoji Japanese Morphological Analyzer
+    implementation("com.atilika.kuromoji:kuromoji-ipadic:0.9.0")
 
     // Security (EncryptedSharedPreferences)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")

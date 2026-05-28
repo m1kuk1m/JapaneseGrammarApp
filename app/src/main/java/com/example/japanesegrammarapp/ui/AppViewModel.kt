@@ -49,21 +49,7 @@ class AppViewModel(private val context: Context) : ViewModel() {
                     if (updated != null && (updated.status != currentSelected.status || updated.analysisResult != currentSelected.analysisResult)) {
                         _selectedRecord.value = updated
                         _analysisResult.value = updated.analysisResult
-                        if (updated.analysisResult != null) {
-                            try {
-                                val cleanJson = updated.analysisResult.trim()
-                                    .removePrefix("```json")
-                                    .removePrefix("```text")
-                                    .removePrefix("```")
-                                    .removeSuffix("```")
-                                    .trim()
-                                _detailedResult.value = gson.fromJson(cleanJson, DetailedAnalysisResult::class.java)
-                            } catch (e: Exception) {
-                                _detailedResult.value = null
-                            }
-                        } else {
-                            _detailedResult.value = null
-                        }
+                        _detailedResult.value = parseDetailedResult(updated.originalText, updated.analysisResult)
                     }
                 }
             }
@@ -110,22 +96,7 @@ class AppViewModel(private val context: Context) : ViewModel() {
         _selectedRecord.value = record
         _currentOriginalText.value = record.originalText
         _analysisResult.value = record.analysisResult
-        try {
-            val resultText = record.analysisResult
-            if (resultText != null) {
-                val cleanJson = resultText.trim()
-                    .removePrefix("```json")
-                    .removePrefix("```text")
-                    .removePrefix("```")
-                    .removeSuffix("```")
-                    .trim()
-                _detailedResult.value = gson.fromJson(cleanJson, DetailedAnalysisResult::class.java)
-            } else {
-                _detailedResult.value = null
-            }
-        } catch (e: Exception) {
-            _detailedResult.value = null
-        }
+        _detailedResult.value = parseDetailedResult(record.originalText, record.analysisResult)
     }
 
     fun clearSelectedRecord() {
@@ -275,6 +246,74 @@ class AppViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+    private fun parseDetailedResult(originalText: String, jsonString: String?): DetailedAnalysisResult? {
+        if (jsonString.isNullOrBlank()) return null
+        return try {
+            val cleanJson = jsonString.trim()
+                .removePrefix("```json")
+                .removePrefix("```text")
+                .removePrefix("```")
+                .removeSuffix("```")
+                .trim()
+            val initialResult = gson.fromJson(cleanJson, DetailedAnalysisResult::class.java) ?: return null
+
+            // 智能对齐兜底逻辑 (Smart Alignment Fallback)
+            if (originalText.isNotBlank() && originalText != "画像文法分析") {
+                val expectedTokens = JapaneseSegmenter.segmentAndCombine(originalText)
+                if (expectedTokens.isNotEmpty()) {
+                    val apiSegments = initialResult.segments
+
+                    if (apiSegments.size == expectedTokens.size) {
+                        // 长度完美一致，但可能存在微小字符差异，我们以本地分词为准进行对齐和纠正
+                        val alignedSegments = apiSegments.mapIndexed { idx, segment ->
+                            if (segment.text != expectedTokens[idx]) {
+                                segment.copy(text = expectedTokens[idx])
+                            } else {
+                                segment
+                            }
+                        }
+                        initialResult.copy(segments = alignedSegments)
+                    } else {
+                        // 长度不一致！执行“智能对齐兜底”
+                        // 遍历本地分词，依次套用大模型的字段，若大模型返回偏少，超出部分使用合理空白说明兜底
+                        val alignedSegments = expectedTokens.mapIndexed { idx, localText ->
+                            val matchingApiSegment = apiSegments.getOrNull(idx)
+                            if (matchingApiSegment != null) {
+                                matchingApiSegment.copy(text = localText)
+                            } else {
+                                WordSegment(
+                                    text = localText,
+                                    reading = "",
+                                    partOfSpeech = "未知",
+                                    dictionaryForm = null,
+                                    meaning = "解析漏配",
+                                    inflection = null,
+                                    role = "大模型返回数据缺失"
+                                )
+                            }
+                        }
+
+                        // 判断差异严重程度：如果两者的长度比例差异超过 40%，则安全降级为 null (显示原始文本卡片)
+                        val lengthDiff = Math.abs(expectedTokens.size - apiSegments.size)
+                        val diffRatio = lengthDiff.toFloat() / expectedTokens.size.toFloat()
+                        if (diffRatio > 0.4f) {
+                            null
+                        } else {
+                            initialResult.copy(segments = alignedSegments)
+                        }
+                    }
+                } else {
+                    initialResult
+                }
+            } else {
+                initialResult
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
     private fun launchBackgroundAnalysis(
         recordId: Int,
         text: String,
@@ -298,7 +337,31 @@ class AppViewModel(private val context: Context) : ViewModel() {
                     }
                 }
 
-                val finalPrompt = text.ifBlank { "画像内のすべての日本語の文法構造と語彙を詳細に分析してください。" }
+                val preSegments = if (text.isNotBlank() && text != "画像文法分析") {
+                    JapaneseSegmenter.segmentAndCombine(text)
+                } else {
+                    emptyList()
+                }
+
+                val finalPrompt = if (preSegments.isNotEmpty()) {
+                    val segmentsJson = gson.toJson(preSegments)
+                    """
+                        分析対象の文: "$text"
+
+                        【極めて重要な制約条件】
+                        あなたは日本語テキストの「分かち書き（セグメンテーション）」を行う必要はありません。私がすでに以下の通りに完全かつ正確に分かち書きを行いました。
+
+                        分かち書きトークンリスト:
+                        ${"$"}{segmentsJson}
+
+                        あなたは上記のトークンリストの順番、表記、要素数を「絶対に」维持したまま、各トークンの詳細分析を行ってください。
+                        トークンを勝手に結合したり、分割したり、順番を変えたりすることは固く禁じます。
+
+                        出力する JSON の `segments` 配列の要素数は、上記のトークンリストと完全に一致し、各要素の `text` はトークンリストの文字列と完全に一致していなければなりません。
+                    """.trimIndent()
+                } else {
+                    text.ifBlank { "画像内のすべての日本語の文法構造と語彙を詳細に分析してください。" }
+                }
 
                 val result = when (provider) {
                     "DeepSeek", "OpenAI Compatible", "Qwen" -> {
