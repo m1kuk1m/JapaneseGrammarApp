@@ -598,22 +598,25 @@ class AppViewModel(private val context: Context) : ViewModel() {
                 val cleanBase = effectiveUrl.trimEnd('/')
                 val url = "$cleanBase/chat/completions"
 
-                val contentPayload: Any = if (imageBase64 != null) {
+                // User message content: plain text or multipart (text + image)
+                val userContent: Any = if (imageBase64 != null) {
                     listOf(
-                        OpenAiContentPart(type = "text", text = systemPrompt + "\n\n分析対象:\n" + userPrompt),
+                        OpenAiContentPart(type = "text", text = userPrompt),
                         OpenAiContentPart(
                             type = "image_url",
                             image_url = OpenAiImageUrl(url = "data:$mimeType;base64,$imageBase64")
                         )
                     )
                 } else {
-                    systemPrompt + "\n\n分析対象:\n" + userPrompt
+                    userPrompt
                 }
 
                 val request = OpenAiRequest(
                     model = modelName,
                     messages = listOf(
-                        OpenAiMessage(role = "user", content = contentPayload)
+                        // System prompt as a dedicated system-role message for correct instruction priority
+                        OpenAiMessage(role = "system", content = systemPrompt),
+                        OpenAiMessage(role = "user", content = userContent)
                     )
                 )
                 val response = llmService.generateOpenAiCompatible(url, "Bearer $apiKey", request)
