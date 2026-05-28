@@ -101,7 +101,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                     }
                 }
                 
-                HorizontalDivider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
+                Divider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // New Analysis Button
@@ -1063,7 +1063,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                             )
                         }
                         
-                        HorizontalDivider(
+                        Divider(
                             modifier = Modifier.padding(vertical = 8.dp),
                             color = SumiInk.copy(alpha = 0.1f)
                         )
@@ -1080,7 +1080,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                         
                         DetailRow(label = "役割", value = currentSegment.role ?: "")
                         
-                        HorizontalDivider(
+                        Divider(
                             modifier = Modifier.padding(vertical = 8.dp),
                             color = SumiInk.copy(alpha = 0.1f)
                         )
@@ -1218,7 +1218,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                                 }
                             }
                             if (idx < data.clauses.size - 1) {
-                                HorizontalDivider(
+                                Divider(
                                     modifier = Modifier.padding(vertical = 8.dp),
                                     color = SumiInk.copy(alpha = 0.08f)
                                 )
@@ -1281,7 +1281,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                                 )
                             }
                             if (idx < (data.grammarPoints?.size ?: 0) - 1) {
-                                HorizontalDivider(
+                                Divider(
                                     modifier = Modifier.padding(vertical = 12.dp),
                                     color = SumiInk.copy(alpha = 0.08f)
                                 )
@@ -1310,7 +1310,7 @@ fun WorkspaceResultContent(viewModel: AppViewModel) {
                     color = SumiInk.copy(alpha = 0.5f),
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
-                HorizontalDivider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(bottom = 8.dp))
+                Divider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(bottom = 8.dp))
                 Text(
                     text = rawResult ?: "分析結果はありません。",
                     modifier = Modifier

@@ -269,7 +269,7 @@ fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
 
                                 // Model Management Section
                                 Spacer(modifier = Modifier.height(16.dp))
-                                HorizontalDivider(color = SumiInk.copy(alpha = 0.1f))
+                                Divider(color = SumiInk.copy(alpha = 0.1f))
                                 Spacer(modifier = Modifier.height(12.dp))
                                 
                                 Text(
