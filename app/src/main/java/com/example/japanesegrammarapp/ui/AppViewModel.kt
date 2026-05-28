@@ -96,6 +96,9 @@ class AppViewModel(private val context: Context) : ViewModel() {
     private val _isFetchingModels = MutableStateFlow(false)
     val isFetchingModels: StateFlow<Boolean> = _isFetchingModels.asStateFlow()
 
+    private val _fetchingProvider = MutableStateFlow<String?>(null)
+    val fetchingProvider: StateFlow<String?> = _fetchingProvider.asStateFlow()
+
     private val _uiEvent = MutableSharedFlow<UiEvent>(extraBufferCapacity = 10)
     val uiEvent: SharedFlow<UiEvent> = _uiEvent.asSharedFlow()
 
@@ -250,6 +253,7 @@ class AppViewModel(private val context: Context) : ViewModel() {
             }
             val effectiveUrl = if (baseUrl.isBlank()) defaultUrls[provider] ?: "" else baseUrl
             _isFetchingModels.value = true
+            _fetchingProvider.value = provider
             try {
                 when (provider) {
                     "DeepSeek", "OpenAI Compatible" -> {
@@ -286,6 +290,7 @@ class AppViewModel(private val context: Context) : ViewModel() {
                 _uiEvent.emit(UiEvent.ShowError("Network Error: ${e.localizedMessage}"))
             } finally {
                 _isFetchingModels.value = false
+                _fetchingProvider.value = null
             }
         }
     }

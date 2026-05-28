@@ -20,8 +20,10 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -46,6 +48,8 @@ fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
 
     val activeProvider by viewModel.activeProvider.collectAsState()
     val providerModels by viewModel.providerModels.collectAsState()
+    val isFetchingModels by viewModel.isFetchingModels.collectAsState()
+    val fetchingProvider by viewModel.fetchingProvider.collectAsState()
 
     val providers = listOf("Gemini", "Vertex AI", "DeepSeek", "Qwen", "OpenAI Compatible")
     val defaultUrls = mapOf(
@@ -271,13 +275,52 @@ fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Divider(color = SumiInk.copy(alpha = 0.1f))
                                 Spacer(modifier = Modifier.height(12.dp))
-                                
-                                Text(
-                                    text = "モデル管理",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = SumiInk,
-                                    fontWeight = FontWeight.Bold
-                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "モデル管理",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = SumiInk,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    // Fetch models button
+                                    val isFetchingThis = fetchingProvider == provider
+                                    OutlinedButton(
+                                        onClick = {
+                                            val currentUrl = urls[provider] ?: ""
+                                            val currentKey = keys[provider] ?: ""
+                                            viewModel.fetchModels(provider, currentUrl, currentKey)
+                                        },
+                                        enabled = !isFetchingThis,
+                                        shape = RoundedCornerShape(6.dp),
+                                        border = BorderStroke(1.dp, if (isFetchingThis) SumiInk.copy(alpha = 0.2f) else SumiInk.copy(alpha = 0.5f)),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = SumiInk),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(32.dp)
+                                    ) {
+                                        if (isFetchingThis) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(14.dp),
+                                                strokeWidth = 2.dp,
+                                                color = SumiInk.copy(alpha = 0.5f)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("取得中...", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                        } else {
+                                            Icon(
+                                                Icons.Default.Refresh,
+                                                contentDescription = "モデルを取得",
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("クラウドから取得", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
+                                }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 
                                 val models = providerModels[provider] ?: emptyList()
