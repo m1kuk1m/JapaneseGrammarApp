@@ -5,7 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -14,25 +14,22 @@ import com.example.japanesegrammarapp.ui.screens.*
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-    val context = LocalContext.current
-    val viewModel: AppViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = AppViewModelFactory(context.applicationContext)
-    )
+    val viewModel: AppViewModel = hiltViewModel()
 
     NavHost(
         navController = navController, 
         startDestination = "workspace",
         enterTransition = { 
-            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(450)) + fadeIn(animationSpec = tween(450)) 
+            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(150)) + fadeIn(animationSpec = tween(150)) 
         },
         exitTransition = { 
-            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(450)) + fadeOut(animationSpec = tween(450)) 
+            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(150)) + fadeOut(animationSpec = tween(150)) 
         },
         popEnterTransition = { 
-            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(450)) + fadeIn(animationSpec = tween(450)) 
+            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(150)) + fadeIn(animationSpec = tween(150)) 
         },
         popExitTransition = { 
-            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(450)) + fadeOut(animationSpec = tween(450)) 
+            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(150)) + fadeOut(animationSpec = tween(150)) 
         }
     ) {
         composable("workspace") {

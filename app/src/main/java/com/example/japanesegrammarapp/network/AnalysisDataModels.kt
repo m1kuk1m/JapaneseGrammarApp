@@ -4,6 +4,7 @@ data class WordSegment(
     val text: String? = null,
     val reading: String? = null,
     val partOfSpeech: String? = null,
+    val posCategory: String? = null,
     val dictionaryForm: String? = null,
     val meaning: String? = null,
     val inflection: String? = null,

@@ -34,34 +34,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.japanesegrammarapp.ui.AppViewModel
+import com.example.japanesegrammarapp.network.LlmConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
     val context = LocalContext.current
-    val prefs = viewModel.securePrefs
     
     // Traditional Japanese Colors
     val SumiInk = Color(0xFF2B2A28)
     val WashiBg = Color(0xFFFCF8F2)
     val AizomeIndigo = Color(0xFFBCCCD4)
 
-    val activeProvider by viewModel.activeProvider.collectAsState()
-    val providerModels by viewModel.providerModels.collectAsState()
-    val isFetchingModels by viewModel.isFetchingModels.collectAsState()
-    val fetchingProvider by viewModel.fetchingProvider.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    val activeProvider = uiState.activeProvider
+    val providerModels = uiState.providerModels
+    val isFetchingModels = uiState.isFetchingModels
+    val fetchingProvider = uiState.fetchingProvider
 
-    val providers = listOf("Gemini", "Vertex AI", "DeepSeek", "Qwen", "OpenAI Compatible")
-    val defaultUrls = mapOf(
-        "Gemini" to "https://generativelanguage.googleapis.com/v1beta",
-        "Vertex AI" to "https://aiplatform.googleapis.com/v1/publishers/google",
-        "DeepSeek" to "https://api.deepseek.com",
-        "Qwen" to "https://dashscope.aliyuncs.com/compatible-mode/v1",
-        "OpenAI Compatible" to "https://api.openai.com/v1"
-    )
+    val providers = LlmConfig.providers
+    val defaultUrls = LlmConfig.defaultUrls
 
-    var keys by remember { mutableStateOf(providers.associateWith { prefs.getString("${it}_key", "") ?: "" }) }
-    var urls by remember { mutableStateOf(providers.associateWith { prefs.getString("${it}_url", defaultUrls[it]) ?: defaultUrls[it] ?: "" }) }
+    var keys by remember { mutableStateOf(providers.associateWith { viewModel.getApiKey(it) }) }
+    var urls by remember { mutableStateOf(providers.associateWith { viewModel.getApiUrl(it) }) }
 
     // Toggle password visibility per provider
     var keysVisibility by remember { mutableStateOf(providers.associateWith { false }) }
@@ -69,12 +64,9 @@ fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
     var expandedProvider by remember { mutableStateOf<String?>(activeProvider) }
 
     fun saveSettings() {
-        prefs.edit().apply {
-            providers.forEach { 
-                putString("${it}_key", keys[it])
-                putString("${it}_url", urls[it])
-            }
-            apply()
+        providers.forEach { 
+            viewModel.saveApiKey(it, keys[it] ?: "")
+            viewModel.saveApiUrl(it, urls[it] ?: "")
         }
     }
 
@@ -106,6 +98,50 @@ fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
+                "一般設定", 
+                style = MaterialTheme.typography.titleLarge, 
+                color = SumiInk, 
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.15f)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val useOcr = uiState.useOcr
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("ローカルOCRでテキスト抽出", fontWeight = FontWeight.Bold, color = SumiInk, fontSize = 14.sp)
+                        Text(
+                            "オフにすると、画像を直接AIに送信して分析します。",
+                            fontSize = 11.sp,
+                            color = SumiInk.copy(alpha = 0.5f)
+                        )
+                    }
+                    Switch(
+                        checked = useOcr,
+                        onCheckedChange = { viewModel.setUseOcr(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = WashiBg,
+                            checkedTrackColor = SumiInk,
+                            uncheckedThumbColor = SumiInk.copy(alpha = 0.4f),
+                            uncheckedTrackColor = SumiInk.copy(alpha = 0.1f)
+                        )
+                    )
+                }
+            }
+
+            Text(
                 "API 設定", 
                 style = MaterialTheme.typography.titleLarge, 
                 color = SumiInk, 
@@ -124,7 +160,7 @@ fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
-                        .animateContentSize(animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f)), 
+                        .animateContentSize(animationSpec = spring(dampingRatio = 0.8f, stiffness = 150f)), 
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.15f)),
                     shape = RoundedCornerShape(8.dp)
@@ -191,7 +227,6 @@ fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
                                     value = urls[provider] ?: "",
                                     onValueChange = { newValue ->
                                         urls = urls.toMutableMap().apply { put(provider, newValue) }
-                                        prefs.edit().putString("${provider}_url", newValue).apply()
                                     },
                                     label = { Text("ベースURL", color = SumiInk.copy(alpha = 0.7f)) },
                                     modifier = Modifier.fillMaxWidth(),
@@ -213,7 +248,6 @@ fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
                                     value = keys[provider] ?: "",
                                     onValueChange = { newValue ->
                                         keys = keys.toMutableMap().apply { put(provider, newValue) }
-                                        prefs.edit().putString("${provider}_key", newValue).apply()
                                     },
                                     label = { Text("APIキー", color = SumiInk.copy(alpha = 0.7f)) },
                                     modifier = Modifier.fillMaxWidth(),
@@ -257,7 +291,7 @@ fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
                                     ) {
                                         Icon(Icons.Default.Check, contentDescription = "Active", tint = WashiBg, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("現在のアクティブなプロバイダー", fontWeight = FontWeight.Bold, color = WashiBg, fontSize = 13.sp)
+                                        Text("使用中", fontWeight = FontWeight.Bold, color = WashiBg, fontSize = 13.sp)
                                     }
                                 } else {
                                     OutlinedButton(
@@ -267,7 +301,7 @@ fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = SumiInk),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Text("このプロバイダーを有効にする", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                        Text("有効にする", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                                     }
                                 }
 
@@ -317,7 +351,7 @@ fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
                                                 modifier = Modifier.size(14.dp)
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("クラウドから取得", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                            Text("モデルを取得", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                         }
                                     }
                                 }
