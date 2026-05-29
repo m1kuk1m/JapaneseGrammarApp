@@ -442,37 +442,49 @@ class AppViewModel(private val context: Context) : ViewModel() {
                 val promptTrans = if (text.isNotBlank() && text != "画像文法分析") {
                     "分析対象の文: \"$text\"\nこの文の自然な中国語訳を出力してください。"
                 } else {
-                    "画像内のすべての日本語の文法構造と語彙を詳細に分析してください。"
+                    "画像内の日本語テキストを自然な中国語（簡体字）に翻訳してください。"
                 }
 
                 val promptSeg = if (preSegments.isNotEmpty()) {
                     val segmentsJson = gson.toJson(preSegments)
+                    val expectedSize = preSegments.size
                     """
                         分析対象の文: "$text"
 
                         【極めて重要な制約条件】
-                        あなたは日本語テキストの「分かち書き（セグメンテーション）」を行う必要はありません。私がすでに以下の通りに完全かつ正確に分かち書きを行いました。
+                        あなたは日本語テキストの「分かち書き（セグメンテーション）」を行う必要はありません。すでに以下のように分かち書きされています。
 
-                        分かち書きトークンリスト:
+                        分かち書きトークンリスト（全 ${expectedSize} 個のトークン）:
                         $segmentsJson
 
-                        あなたは上記のトークンリストの順番、表記、要素数を「絶対に」維持したまま、各トークンの詳細分析を行ってください。
-                        トークンを勝手に結合したり、分割したり、順番を変えたりすることは固く禁じます。
-
-                        出力する JSON の `segments` 配列の要素数は、上記のトークンリストと完全に一致し、各要素の `text` はトークンリストの文字列と完全に一致していなければなりません。
+                        必ず上記のトークンリストの順番、表記、要素数を「絶対に」維持したまま、各トークンの詳細分析を行ってください。
+                        出力する JSON の `segments` 配列の要素数は、**必ず正確に ${expectedSize} 個**でなければなりません。各要素の `text` は、上記のトークンリストの各文字列と一字一句完全に一致させてください。トークンを勝手に結合・分割・省略することは固く禁じます。
                     """.trimIndent()
                 } else {
                     text.ifBlank { "画像内のすべての日本語の単語や品詞、活用を詳細に分析してください。" }
                 }
 
                 val promptClauses = if (text.isNotBlank() && text != "画像文法分析") {
-                    "分析対象の文: \"$text\"\nこの文の文節（フレーズ）ごとの役割や意味の説明を行ってください。"
+                    "分析対象の文: \"$text\"\nこの文の文節（フレーズ）ごとの文法的役割の詳細な解説を行ってください。"
                 } else {
-                    "画像内のすべての日本語の文節構造を詳細に分析してください。"
+                    "画像内のすべての日本語の文節構造と文法的役割を詳細に分析してください。"
                 }
 
                 val promptGrammar = if (text.isNotBlank() && text != "画像文法分析") {
-                    "分析対象の文: \"$text\"\nこの文に含まれるコアとなる文型や特殊文法（受身、使役、敬語）、固定表現、助詞のニュアンスなどを詳細に解説してください。"
+                    if (preSegments.isNotEmpty()) {
+                        val segmentsJson = gson.toJson(preSegments)
+                        """
+                        分析対象の文: "$text"
+                        
+                        【形態素解析結果（重要：複合助詞・接続形式の見落とし防止のために必ず活用してください）】
+                        以下は形態素解析器による分かち書き結果です。この語彙リストを参考として活用し、複合助詞・接続形式・慣用表現を見落とさないようにしてください。
+                        $segmentsJson
+                        
+                        上記の文に含まれる最も重要かつ難度の高い文法項目・慣用表現を厳選して解説してください。
+                        """.trimIndent()
+                    } else {
+                        "分析対象の文: \"$text\"\nこの文に含まれる最も重要かつ難度の高い文法項目・慣用表現を厳選して解説してください。"
+                    }
                 } else {
                     "画像内のすべての日本語の文法表現や固定表現を詳細に分析してください。"
                 }
@@ -630,7 +642,9 @@ class AppViewModel(private val context: Context) : ViewModel() {
                         // System prompt as a dedicated system-role message for correct instruction priority
                         OpenAiMessage(role = "system", content = systemPrompt),
                         OpenAiMessage(role = "user", content = userContent)
-                    )
+                    ),
+                    temperature = 0.1,
+                    response_format = OpenAiResponseFormat("json_object")
                 )
                 val response = llmService.generateOpenAiCompatible(url, "Bearer $apiKey", request)
                 response.choices.firstOrNull()?.message?.content ?: throw Exception("No response from model")
@@ -647,7 +661,11 @@ class AppViewModel(private val context: Context) : ViewModel() {
 
                 val request = GeminiRequest(
                     contents = listOf(GeminiContent(role = "user", parts = parts)),
-                    systemInstruction = GeminiContent(role = "user", parts = listOf(GeminiPart(text = systemPrompt)))
+                    systemInstruction = GeminiContent(role = "user", parts = listOf(GeminiPart(text = systemPrompt))),
+                    generationConfig = GeminiGenerationConfig(
+                        temperature = 0.1,
+                        responseMimeType = "application/json"
+                    )
                 )
                 val response = llmService.generateGemini(url, request)
                 response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: throw Exception("No response from model")

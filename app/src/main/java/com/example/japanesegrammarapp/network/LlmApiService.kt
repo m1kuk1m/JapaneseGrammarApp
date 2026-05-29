@@ -7,7 +7,14 @@ import retrofit2.http.POST
 import retrofit2.http.Url
 
 // OpenAI Compatible Models
-data class OpenAiRequest(val model: String, val messages: List<OpenAiMessage>)
+data class OpenAiResponseFormat(val type: String)
+
+data class OpenAiRequest(
+    val model: String,
+    val messages: List<OpenAiMessage>,
+    val temperature: Double? = null,
+    val response_format: OpenAiResponseFormat? = null
+)
 data class OpenAiMessage(val role: String, val content: Any) // content can be String or List<OpenAiContentPart>
 data class OpenAiContentPart(
     val type: String, // "text" or "image_url"
@@ -24,7 +31,16 @@ data class OpenAiModelListResponse(val data: List<OpenAiModel>)
 data class OpenAiModel(val id: String)
 
 // Gemini Models
-data class GeminiRequest(val contents: List<GeminiContent>, val systemInstruction: GeminiContent? = null)
+data class GeminiGenerationConfig(
+    val temperature: Double? = null,
+    val responseMimeType: String? = null
+)
+
+data class GeminiRequest(
+    val contents: List<GeminiContent>,
+    val systemInstruction: GeminiContent? = null,
+    val generationConfig: GeminiGenerationConfig? = null
+)
 data class GeminiContent(val role: String = "user", val parts: List<GeminiPart>)
 data class GeminiPart(val text: String? = null, val inlineData: GeminiInlineData? = null)
 data class GeminiInlineData(val mimeType: String, val data: String) // Base64 data
