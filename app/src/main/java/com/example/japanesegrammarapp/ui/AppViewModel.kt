@@ -175,7 +175,8 @@ class AppViewModel(private val context: Context) : ViewModel() {
             _activeModel.value = models.firstOrNull() ?: ""
         }
 
-        viewModelScope.launch {\n            history.collect { recordList ->
+        viewModelScope.launch {
+            history.collect { recordList ->
                 val currentSelected = _selectedRecord.value
                 if (currentSelected != null) {
                     val updated = recordList.find { it.id == currentSelected.id }
