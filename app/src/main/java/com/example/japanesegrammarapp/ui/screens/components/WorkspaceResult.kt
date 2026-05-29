@@ -477,16 +477,16 @@ private fun getChipColorForPos(segment: WordSegment): Color {
     val category = segment.posCategory
     if (category != null) {
         return when (category) {
-            "NOUN" -> Color(0xFFD3E0EA) // 蓝染蓝 (Aizome)
-            "VERB" -> Color(0xFFD4ECD5) // 抹茶绿 (Matcha)
-            "ADJECTIVE" -> Color(0xFFF6E2CD) // 栗色 (Kuri)
-            "AUXILIARY" -> Color(0xFFE8D3EA) // 藤紫 (Fuji)
-            "PARTICLE" -> Color(0xFFFDD4D8) // 樱花粉 (Sakura)
-            else -> Color(0xFFEFEFEF) // 雾灰 (Hai)
+            "NOUN" -> Color(0xFFD3E0EA)       // 蓝染蓝 (Aizome)
+            "VERB" -> Color(0xFFD4ECD5)       // 抹茶绿 (Matcha)
+            "ADJECTIVE" -> Color(0xFFF6E2CD)  // 栗色 (Kuri)
+            "AUXILIARY" -> Color(0xFFE8D3EA)  // 藤紫 (Fuji)
+            "PARTICLE" -> Color(0xFFFDD4D8)   // 樱花粉 (Sakura)
+            else -> Color(0xFFEFEFEF)         // 雾灰 (Hai)
         }
     }
 
-    // Backward compatibility: Fallback to text matching for old history records
+    // 向下兼容：如果历史数据没有 posCategory，回退到基于 partOfSpeech 的模糊匹配
     val pos = segment.partOfSpeech ?: ""
     val primaryPos = pos.split("-").firstOrNull() ?: ""
     return when {
