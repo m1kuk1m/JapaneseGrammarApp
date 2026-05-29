@@ -1,5 +1,8 @@
 package com.example.japanesegrammarapp.network
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class WordSegment(
     val text: String? = null,
     val reading: String? = null,
@@ -11,6 +14,7 @@ data class WordSegment(
     val role: String? = null
 )
 
+@Immutable
 data class SentenceClause(
     val index: Int? = null,
     val role: String? = null,
@@ -18,11 +22,13 @@ data class SentenceClause(
     val explanation: String? = null
 )
 
+@Immutable
 data class DetailedGrammarPoint(
     val pattern: String? = null,
     val explanation: String? = null
 )
 
+@Immutable
 data class DetailedAnalysisResult(
     val translation: String? = null,
     val segments: List<WordSegment>? = null,

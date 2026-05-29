@@ -1,10 +1,13 @@
 package com.example.japanesegrammarapp.ui
 
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.EaseInOutQuart
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -17,19 +20,23 @@ fun AppNavigation() {
     val viewModel: AppViewModel = hiltViewModel()
 
     NavHost(
-        navController = navController, 
+        navController = navController,
         startDestination = "workspace",
-        enterTransition = { 
-            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(150)) + fadeIn(animationSpec = tween(150)) 
+        modifier = Modifier.fillMaxSize(),
+        // Shortened from 400ms → 300ms: reduces the window during which competing
+        // internal Compose animations (expandVertically, animateContentSize) can
+        // cause frame drops. EaseInOutQuart feels equally smooth but completes faster.
+        enterTransition = {
+            fadeIn(animationSpec = tween(300, easing = EaseInOutQuart))
         },
-        exitTransition = { 
-            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(150)) + fadeOut(animationSpec = tween(150)) 
+        exitTransition = {
+            fadeOut(animationSpec = tween(300, easing = EaseInOutQuart))
         },
-        popEnterTransition = { 
-            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(150)) + fadeIn(animationSpec = tween(150)) 
+        popEnterTransition = {
+            fadeIn(animationSpec = tween(300, easing = EaseInOutQuart))
         },
-        popExitTransition = { 
-            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(150)) + fadeOut(animationSpec = tween(150)) 
+        popExitTransition = {
+            fadeOut(animationSpec = tween(300, easing = EaseInOutQuart))
         }
     ) {
         composable("workspace") {
@@ -37,6 +44,22 @@ fun AppNavigation() {
         }
         composable("settings") {
             SettingsScreen(navController, viewModel)
+        }
+        composable(
+            route = "camera?imageUri={imageUri}",
+            arguments = listOf(
+                androidx.navigation.navArgument("imageUri") {
+                    type = androidx.navigation.NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val galleryImageUriString = backStackEntry.arguments?.getString("imageUri")
+            CameraScreen(
+                navController = navController,
+                galleryImageUriString = galleryImageUriString
+            )
         }
     }
 }
