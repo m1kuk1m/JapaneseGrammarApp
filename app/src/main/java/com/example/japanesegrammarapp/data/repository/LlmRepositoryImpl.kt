@@ -4,16 +4,16 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.example.japanesegrammarapp.network.*
+import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.repository.LlmRepository
 import com.example.japanesegrammarapp.domain.repository.LlmResult
-import com.example.japanesegrammarapp.domain.repository.SettingsRepository
+import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class LlmRepositoryImpl @Inject constructor(
-    private val llmService: LlmApiService,
-    private val settingsRepository: SettingsRepository
+    private val llmService: LlmApiService
 ) : LlmRepository {
 
     override suspend fun fetchModels(provider: String, baseUrl: String, apiKey: String): List<String> {
@@ -21,31 +21,37 @@ class LlmRepositoryImpl @Inject constructor(
             throw IllegalArgumentException("Please configure API Key in Settings first.")
         }
         val effectiveUrl = if (baseUrl.isBlank()) LlmConfig.defaultUrls[provider] ?: "" else baseUrl
-        return when (provider) {
-            "DeepSeek", "OpenAI Compatible" -> {
-                val cleanBase = effectiveUrl.trimEnd('/')
-                val url = "$cleanBase/models"
-                val response = llmService.getOpenAiModels(url, "Bearer ${apiKey.trim()}")
-                response.data.map { it.id }
-            }
-            "Qwen" -> {
-                LlmConfig.qwenKnownModels
-            }
-            "Gemini", "Vertex AI" -> {
-                try {
+        try {
+            return when (provider) {
+                "DeepSeek", "OpenAI Compatible" -> {
                     val cleanBase = effectiveUrl.trimEnd('/')
-                    val url = "$cleanBase/models?key=${apiKey.trim()}"
-                    val response = llmService.getGeminiModels(url)
-                    response.models
-                        .filter { model ->
-                            model.supportedGenerationMethods?.contains("generateContent") ?: true
-                        }
-                        .map { it.name.removePrefix("models/") }
-                } catch (e: Exception) {
-                    LlmConfig.geminiKnownModels
+                    val url = "$cleanBase/models"
+                    val response = llmService.getOpenAiModels(url, "Bearer ${apiKey.trim()}")
+                    response.data.map { it.id }
                 }
+                "Qwen" -> {
+                    LlmConfig.qwenKnownModels
+                }
+                "Gemini", "Vertex AI" -> {
+                    try {
+                        val cleanBase = effectiveUrl.trimEnd('/')
+                        val url = "$cleanBase/models?key=${apiKey.trim()}"
+                        val response = llmService.getGeminiModels(url)
+                        response.models
+                            .filter { model ->
+                                model.supportedGenerationMethods?.contains("generateContent") ?: true
+                            }
+                            .map { it.name.removePrefix("models/") }
+                    } catch (e: Exception) {
+                        LlmConfig.geminiKnownModels
+                    }
+                }
+                else -> throw IllegalArgumentException("Unsupported provider")
             }
-            else -> throw IllegalArgumentException("Unsupported provider")
+        } catch (e: retrofit2.HttpException) {
+            val errorBody = e.response()?.errorBody()?.string() ?: ""
+            val safeBody = if (errorBody.length > 200) errorBody.take(200) + "..." else errorBody
+            throw Exception("HTTP ${e.code()}: ${e.message()}\n$safeBody", e)
         }
     }
 
@@ -136,18 +142,20 @@ class LlmRepositoryImpl @Inject constructor(
         imageBase64: String?,
         mimeType: String?,
         apiTypeLabel: String,
+        primaryConfig: LlmApiConfig,
+        backupConfig: LlmApiConfig?,
         onRetry: (attempt: Int) -> Unit,
         onBackup: (backupProvider: String) -> Unit
     ): LlmResult {
-        val primaryProvider = settingsRepository.getActiveProvider()
-        val primaryModel = settingsRepository.getActiveModel(primaryProvider)
-        val primaryKey = settingsRepository.getApiKey(primaryProvider)
-        val primaryUrl = settingsRepository.getApiUrl(primaryProvider)
+        val primaryProvider = primaryConfig.provider
+        val primaryModel = primaryConfig.modelName
+        val primaryKey = primaryConfig.apiKey
+        val primaryUrl = primaryConfig.baseUrl
 
-        val backupProvider = settingsRepository.getBackupProvider()
-        val backupModel = settingsRepository.getBackupModel()
-        val backupKey = settingsRepository.getApiKey(backupProvider)
-        val backupUrl = settingsRepository.getApiUrl(backupProvider)
+        val backupProvider = backupConfig?.provider ?: ""
+        val backupModel = backupConfig?.modelName ?: ""
+        val backupKey = backupConfig?.apiKey ?: ""
+        val backupUrl = backupConfig?.baseUrl ?: ""
 
         var attempt = 0
         val maxRetries = 2

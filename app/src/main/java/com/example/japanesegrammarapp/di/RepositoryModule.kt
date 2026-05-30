@@ -47,4 +47,16 @@ abstract class RepositoryModule {
     abstract fun bindImageAttachmentLoader(
         imageAttachmentLoaderImpl: ImageAttachmentLoaderImpl
     ): ImageAttachmentLoader
+
+    @Binds
+    @Singleton
+    abstract fun bindLlmAnalysisService(
+        llmAnalysisServiceImpl: LlmAnalysisServiceImpl
+    ): LlmAnalysisService
+
+    @Binds
+    @Singleton
+    abstract fun bindDetailedResultSerializer(
+        detailedResultSerializerImpl: DetailedResultSerializerImpl
+    ): DetailedResultSerializer
 }

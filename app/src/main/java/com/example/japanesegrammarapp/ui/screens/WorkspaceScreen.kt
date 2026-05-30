@@ -25,7 +25,7 @@ import androidx.navigation.NavController
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import com.example.japanesegrammarapp.domain.model.AnalysisStatus
-import com.example.japanesegrammarapp.ui.AppViewModel
+import com.example.japanesegrammarapp.ui.WorkspaceViewModel
 import com.example.japanesegrammarapp.ui.UiEvent
 import com.example.japanesegrammarapp.ui.screens.components.ExportSelectionDialog
 import com.example.japanesegrammarapp.ui.screens.components.HistorySidebar
@@ -35,19 +35,18 @@ import com.example.japanesegrammarapp.ui.screens.components.ZenLoadingView
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
 import com.example.japanesegrammarapp.ui.theme.ZenColors.WashiBg
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.EaseInOutCubic
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
+fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val WashiBg = MaterialTheme.colorScheme.background
     val PrimaryColor = MaterialTheme.colorScheme.primary
@@ -67,6 +66,12 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
     
     val isPlayingTts by viewModel.isPlayingTts.collectAsState(initial = false)
 
+    // Hoisted States for input form
+    var textInputState by androidx.compose.runtime.saveable.rememberSaveable(uiState.currentOriginalText) {
+        mutableStateOf(uiState.currentOriginalText)
+    }
+    var selectedImageUriState by remember { mutableStateOf<Uri?>(null) }
+
     // Intercept back button to close drawer or return to input page
     androidx.activity.compose.BackHandler(enabled = drawerState.isOpen) {
         coroutineScope.launch { drawerState.close() }
@@ -76,10 +81,6 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
         viewModel.clearSelectedRecord()
     }
 
-    // Single source-of-truth navigation helper. NavController.navigate() synchronously
-    // updates currentDestination, so calling this twice in a row is a safe no-op:
-    // the second call sees route != "workspace" and exits immediately. No boolean
-    // flags, LaunchedEffect timers, or lifecycle observers are needed.
     val navigateToSettings: () -> Unit = remember(navController) {
         {
             if (navController.currentDestination?.route == "workspace") {
@@ -88,12 +89,23 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
         }
     }
 
-    // UI Event Collection
+    // UI Event Collection & Localization Handling
     LaunchedEffect(viewModel) {
         viewModel.uiEvent.collect { event ->
             when (event) {
                 is UiEvent.ShowError -> {
                     snackbarHostState.showSnackbar(event.message)
+                }
+                is UiEvent.ShowLocalizedError -> {
+                    val formattedMessage = if (event.args.isNotEmpty()) {
+                        val resolvedArgs = event.args.map { arg ->
+                            if (arg is Int) context.getString(arg) else arg
+                        }
+                        context.getString(event.resId, *resolvedArgs.toTypedArray())
+                    } else {
+                        context.getString(event.resId)
+                    }
+                    snackbarHostState.showSnackbar(formattedMessage)
                 }
                 is UiEvent.TaskCompleted -> {
                     val result = snackbarHostState.showSnackbar(
@@ -108,10 +120,20 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                         }
                     }
                 }
-                is UiEvent.ExportContent -> {
+                is UiEvent.ExportRecordEvent -> {
+                    val content = com.example.japanesegrammarapp.utils.RecordExporter.buildRecordExportText(context, event.record)
                     val sendIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, event.content)
+                        putExtra(Intent.EXTRA_TEXT, content)
+                        putExtra(Intent.EXTRA_SUBJECT, event.filename)
+                    }
+                    context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.export_chooser_title)))
+                }
+                is UiEvent.ExportAllHistoryEvent -> {
+                    val content = com.example.japanesegrammarapp.utils.RecordExporter.buildAllHistoryExportText(context, event.records)
+                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, content)
                         putExtra(Intent.EXTRA_SUBJECT, event.filename)
                     }
                     context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.export_chooser_title)))
@@ -119,6 +141,30 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                 else -> {}
             }
         }
+    }
+
+    // Camera Result Observer & OCR Executor
+    val navBackStackEntry = navController.currentBackStackEntry
+    LaunchedEffect(navBackStackEntry) {
+        navBackStackEntry?.savedStateHandle?.getStateFlow<String?>("captured_image_uri", null)
+            ?.collect { uriString ->
+                if (!uriString.isNullOrBlank()) {
+                    val uri = Uri.parse(uriString)
+                    if (uiState.useOcr) {
+                        coroutineScope.launch {
+                            val extracted = viewModel.extractTextFromImage(uri)
+                            textInputState = extracted
+                            viewModel.setCurrentOriginalText(extracted)
+                            if (extracted.isNotBlank()) {
+                                viewModel.startAnalysis(extracted, uri)
+                            }
+                        }
+                    } else {
+                        selectedImageUriState = uri
+                    }
+                    navBackStackEntry.savedStateHandle["captured_image_uri"] = null
+                }
+            }
     }
 
     // Modal Drawer wrapper
@@ -145,7 +191,6 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
             }
         }
     ) {
-        // Main Screen Content
         Scaffold(
             containerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
             snackbarHost = { 
@@ -175,7 +220,6 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                     },
                     actions = {
                         if (uiState.selectedRecord != null) {
-                            // Export current record
                             IconButton(onClick = {
                                 uiState.selectedRecord?.let { viewModel.exportRecord(it) }
                             }) {
@@ -212,7 +256,6 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                     modifier = Modifier.fillMaxSize()
                 ) { targetHasResult ->
                     if (!targetHasResult) {
-                        // Initial State: Input field centered in the middle of screen
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -239,7 +282,6 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                     modifier = Modifier.padding(bottom = 28.dp)
                                 )
 
-                                // Main Input Panel
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -250,8 +292,30 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         WorkspaceInputForm(
                                             uiState = uiState,
-                                            viewModel = viewModel,
-                                            navController = navController,
+                                            textInput = textInputState,
+                                            onTextInputChanged = { text ->
+                                                textInputState = text
+                                                viewModel.setCurrentOriginalText(text)
+                                            },
+                                            selectedImageUri = selectedImageUriState,
+                                            onSelectedImageUriChanged = { uri -> selectedImageUriState = uri },
+                                            onModelSelected = { model -> viewModel.setActiveModel(model) },
+                                            onStartAnalysis = { text, uri ->
+                                                viewModel.startAnalysis(text, uri)
+                                            },
+                                            onCancelAnalysis = {
+                                                uiState.selectedRecord?.id?.let { viewModel.cancelAnalysis(it) }
+                                            },
+                                            onNavigateToCamera = { navController.navigate("camera") },
+                                            onPickImage = { sourceUri ->
+                                                coroutineScope.launch {
+                                                    val localUri = withContext(Dispatchers.IO) {
+                                                        com.example.japanesegrammarapp.utils.BitmapHelper.copyUriToCache(context, sourceUri)
+                                                    }
+                                                    val finalUri = localUri ?: sourceUri
+                                                    navController.navigate("camera?imageUri=${Uri.encode(finalUri.toString())}")
+                                                }
+                                            },
                                             onNavigateToSettings = navigateToSettings
                                         )
                                     }
@@ -259,13 +323,11 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                             }
                         }
                     } else {
-                        // Result State: Input box moves to the top, scrollable results expand below
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(horizontal = 16.dp)
                         ) {
-                            // Read-only text card for current analysis
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -320,12 +382,11 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                 }
                             }
 
-                            // Detailed result rendering
                             val record = uiState.selectedRecord
                             if (record != null) {
                                 val resultState = when {
                                     record.status == AnalysisStatus.FAILED -> "FAILED"
-                                    else -> "CONTENT" // PENDING and COMPLETED both render content progressively
+                                    else -> "CONTENT"
                                 }
 
                                 Box(
@@ -405,14 +466,13 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                                                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor, contentColor = OnPrimaryColor)
                                                             ) {
                                                                 Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.retry), modifier = Modifier.size(16.dp))
-                                                                Spacer(modifier = Modifier.width(4.dp))
+                                                                 Spacer(modifier = Modifier.width(4.dp))
                                                                 Text(stringResource(R.string.retry), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                                             }
                                                         }
                                                     }
                                                 }
                                             }
-
                                         }
                                     }
                                 }

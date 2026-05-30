@@ -1,4 +1,4 @@
-package com.example.japanesegrammarapp.network
+package com.example.japanesegrammarapp.domain.model
 
 object LlmConfig {
     val providers = listOf("Gemini", "Vertex AI", "DeepSeek", "Qwen", "OpenAI Compatible")

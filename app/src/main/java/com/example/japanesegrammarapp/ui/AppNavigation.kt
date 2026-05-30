@@ -17,8 +17,6 @@ import com.example.japanesegrammarapp.ui.screens.*
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-    val viewModel: AppViewModel = hiltViewModel()
-
     NavHost(
         navController = navController,
         startDestination = "workspace",
@@ -40,10 +38,12 @@ fun AppNavigation() {
         }
     ) {
         composable("workspace") {
-            WorkspaceScreen(navController, viewModel)
+            val workspaceViewModel: WorkspaceViewModel = hiltViewModel()
+            WorkspaceScreen(navController, workspaceViewModel)
         }
         composable("settings") {
-            SettingsScreen(navController, viewModel)
+            val settingsViewModel: SettingsViewModel = hiltViewModel()
+            SettingsScreen(navController, settingsViewModel)
         }
         composable(
             route = "camera?imageUri={imageUri}",

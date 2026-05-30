@@ -2,7 +2,6 @@ package com.example.japanesegrammarapp.domain.usecase
 
 import com.example.japanesegrammarapp.domain.model.*
 import com.example.japanesegrammarapp.domain.repository.*
-import com.google.gson.Gson
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@Singleton
 data class AnalysisProgress(
     val tokenizerCompleted: Boolean = false,
     val segmentsCompleted: Boolean = false,
@@ -24,16 +24,15 @@ data class AnalysisProgress(
 
 @Singleton
 class AnalyzeTextUseCase @Inject constructor(
-    private val historyRepository: HistoryRepository,
     private val settingsRepository: SettingsRepository,
-    private val llmRepository: LlmRepository,
-    private val ocrRepository: OcrRepository,
-    private val imageLoader: ImageAttachmentLoader,
-    private val gson: Gson
+    private val llmAnalysisService: LlmAnalysisService,
+    private val getOcrTextUseCase: GetOcrTextUseCase,
+    private val saveAnalysisRecordUseCase: SaveAnalysisRecordUseCase,
+    private val eventBus: AnalysisEventBus,
+    private val detailedResultSerializer: DetailedResultSerializer
 ) {
     private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val activeJobs = ConcurrentHashMap<Int, Job>()
-    private val parsedCache = ConcurrentHashMap<String, DetailedAnalysisResult>()
 
     private val _progressFlow = MutableStateFlow<Map<Int, AnalysisProgress>>(emptyMap())
     val progressFlow: StateFlow<Map<Int, AnalysisProgress>> = _progressFlow.asStateFlow()
@@ -60,25 +59,17 @@ class AnalyzeTextUseCase @Inject constructor(
             modelUsed = "$provider: $modelName",
             status = AnalysisStatus.PENDING
         )
-        val recordId = historyRepository.insertRecord(record).toInt()
+        val recordId = saveAnalysisRecordUseCase.insert(record).toInt()
 
-        val job = launchBackgroundAnalysis(recordId, text, imageUri, provider, modelName, baseUrl, apiKey)
+        val job = launchBackgroundAnalysis(recordId, text, imageUri)
         activeJobs[recordId] = job
         job.invokeOnCompletion { activeJobs.remove(recordId) }
 
         return recordId
     }
 
-    suspend fun executeRetry(
-        recordId: Int,
-        text: String,
-        imageUri: String?,
-        provider: String,
-        modelName: String,
-        baseUrl: String,
-        apiKey: String
-    ) {
-        val job = launchBackgroundAnalysis(recordId, text, imageUri, provider, modelName, baseUrl, apiKey)
+    suspend fun executeRetry(recordId: Int, text: String, imageUri: String?) {
+        val job = launchBackgroundAnalysis(recordId, text, imageUri)
         activeJobs[recordId] = job
         job.invokeOnCompletion { activeJobs.remove(recordId) }
     }
@@ -87,9 +78,9 @@ class AnalyzeTextUseCase @Inject constructor(
         val job = activeJobs.remove(recordId)
         job?.cancel()
         repositoryScope.launch {
-            val record = historyRepository.getRecordById(recordId)
+            val record = saveAnalysisRecordUseCase.getById(recordId)
             if (record != null) {
-                historyRepository.deleteRecord(record)
+                saveAnalysisRecordUseCase.delete(record)
             }
         }
     }
@@ -98,41 +89,10 @@ class AnalyzeTextUseCase @Inject constructor(
         repositoryScope.cancel()
     }
 
-    private suspend fun executeLlmWithFailover(
-        recordId: Int,
-        systemPrompt: String,
-        userPrompt: String,
-        imageBase64: String?,
-        mimeType: String?,
-        apiTypeLabel: String
-    ): LlmResult {
-        return llmRepository.executeWithFailover(
-            systemPrompt = systemPrompt,
-            userPrompt = userPrompt,
-            imageBase64 = imageBase64,
-            mimeType = mimeType,
-            apiTypeLabel = apiTypeLabel,
-            onRetry = { attempt ->
-                repositoryScope.launch {
-                    historyRepository.emitEvent(AnalysisEvent.LlmRetryTriggered(recordId, apiTypeLabel, attempt))
-                }
-            },
-            onBackup = { backupProvider ->
-                repositoryScope.launch {
-                    historyRepository.emitEvent(AnalysisEvent.LlmBackupTriggered(recordId, apiTypeLabel, backupProvider))
-                }
-            }
-        )
-    }
-
     private fun launchBackgroundAnalysis(
         recordId: Int,
         text: String,
-        imageUri: String?,
-        provider: String,
-        modelName: String,
-        baseUrl: String,
-        apiKey: String
+        imageUri: String?
     ): Job {
         return repositoryScope.launch(Dispatchers.IO) {
             _progressFlow.update { it + (recordId to AnalysisProgress()) }
@@ -143,10 +103,10 @@ class AnalyzeTextUseCase @Inject constructor(
             val dbWriterJob = launch {
                 for (resultToSave in dbWriteChannel) {
                     try {
-                        val currentRecord = historyRepository.getRecordById(recordId)
+                        val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
                         if (currentRecord != null) {
-                            val mergedResult = gson.toJson(resultToSave)
-                            historyRepository.updateRecord(
+                            val mergedResult = detailedResultSerializer.toJson(resultToSave)
+                            saveAnalysisRecordUseCase.update(
                                 currentRecord.copy(
                                     analysisResult = mergedResult,
                                     consumedTokens = resultToSave.consumedTokens,
@@ -166,87 +126,84 @@ class AnalyzeTextUseCase @Inject constructor(
             }
 
             try {
-                val isOcrEnabled = settingsRepository.getUseOcr()
-                var isOcrMode = isOcrEnabled && !imageUri.isNullOrBlank()
+                // Fetch LLM API Configurations from Settings
+                val primaryProvider = settingsRepository.getActiveProvider()
+                val primaryModel = settingsRepository.getActiveModel(primaryProvider)
+                val primaryKey = settingsRepository.getApiKey(primaryProvider)
+                val primaryUrl = settingsRepository.getApiUrl(primaryProvider)
 
-                var imageBase64: String? = null
-                var mimeType: String? = "image/jpeg"
-                if (!isOcrEnabled && !imageUri.isNullOrBlank()) {
-                    val payload = imageLoader.loadAsBase64(imageUri)
-                    if (payload != null) {
-                        imageBase64 = payload.base64Data
-                        mimeType = payload.mimeType
+                val backupProvider = settingsRepository.getBackupProvider()
+                val backupModel = settingsRepository.getBackupModel()
+                val backupKey = settingsRepository.getApiKey(backupProvider)
+                val backupUrl = settingsRepository.getApiUrl(backupProvider)
+
+                val primaryConfig = LlmApiConfig(primaryProvider, primaryModel, primaryUrl, primaryKey)
+                val backupConfig = if (backupProvider.isNotBlank() && backupModel.isNotBlank() && backupKey.isNotBlank()) {
+                    LlmApiConfig(backupProvider, backupModel, backupUrl, backupKey)
+                } else null
+
+                // Perform OCR if needed
+                val isOcrEnabled = settingsRepository.getUseOcr()
+                val ocrResult = getOcrTextUseCase.execute(text, imageUri, isOcrEnabled, recordId)
+
+                val isOcrMode = ocrResult.isOcrMode
+                val ocrText = ocrResult.ocrText
+                val imageBase64 = ocrResult.imagePayload?.base64Data
+                val mimeType = ocrResult.imagePayload?.mimeType
+
+                val retryListener = { attempt: Int ->
+                    repositoryScope.launch {
+                        eventBus.post(AnalysisEvent.LlmRetryTriggered(recordId, "LlmApi", attempt))
                     }
+                    Unit
                 }
 
-                var ocrText = text
-                if (isOcrMode) {
-                    if (ocrText.isBlank()) {
-                        try {
-                            ocrText = ocrRepository.extractTextFromImage(android.net.Uri.parse(imageUri!!))
-                        } catch (e: Exception) {
-                            ocrText = ""
-                        }
+                val backupListener = { backupProv: String ->
+                    repositoryScope.launch {
+                        eventBus.post(AnalysisEvent.LlmBackupTriggered(recordId, "LlmApi", backupProv))
                     }
-
-                    if (ocrText.isBlank()) {
-                        // Fallback to Vision Mode if local OCR yielded empty text
-                        isOcrMode = false
-                        historyRepository.emitEvent(AnalysisEvent.OcrFallbackTriggered(recordId))
-
-                        // Re-load image bytes for Vision Mode fallback
-                        if (!imageUri.isNullOrBlank()) {
-                            val payload = imageLoader.loadAsBase64(imageUri)
-                            if (payload != null) {
-                                imageBase64 = payload.base64Data
-                                mimeType = payload.mimeType
-                            }
-                        }
-                    }
+                    Unit
                 }
 
                 if (isOcrMode) {
                     // ==========================================
                     // OCR Mode Flow (Sequential Tokenizer first)
                     // ==========================================
-                    val promptTokenizer = "分析対象のOCRテキスト: \"$ocrText\"\nこのテキストのOCR誤認識（て・で誤認、濁点脱落など）を自动修正した上で、トークン化し、文字列の配列として出力してください。"
-
-                    // 1. Execute Tokenizer first (acts as OCR correction & spelling grammar checker)
-                    // No image is transmitted in OCR mode (imageBase64 = null)
-                    val tokenRes = executeLlmWithFailover(
-                        recordId,
-                        com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_TOKENIZER_OCR,
-                        promptTokenizer,
-                        null,
-                        null,
-                        "単語分割"
+                    val tokenRes = llmAnalysisService.executeTokenizer(
+                        text = ocrText,
+                        imageBase64 = null,
+                        mimeType = null,
+                        isOcrMode = true,
+                        primaryConfig = primaryConfig,
+                        backupConfig = backupConfig,
+                        onRetry = { attempt -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmRetryTriggered(recordId, "単語分割", attempt)) } },
+                        onBackup = { provider -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmBackupTriggered(recordId, "単語分割", provider)) } }
                     )
-                    val cleanTokenJson = cleanMarkdownJson(tokenRes.text)
-                    val tokenObj = try { gson.fromJson(cleanTokenJson, TokenizationResult::class.java) } catch (e: Exception) { null }
+                    val tokenObj = tokenRes.first
+                    val metadata = tokenRes.second
                     val tokens = tokenObj?.tokens ?: emptyList()
                     val correctedText = tokenObj?.correctedText
 
                     var effectiveText = ocrText
                     if (!correctedText.isNullOrBlank() && correctedText != ocrText) {
                         effectiveText = correctedText
-                        historyRepository.emitEvent(AnalysisEvent.SpellingCorrectedTriggered(recordId, effectiveText))
+                        eventBus.post(AnalysisEvent.SpellingCorrectedTriggered(recordId, effectiveText))
                     }
 
-                    // Emit skeleton tokens to UI immediately
                     val skeletonSegments = tokens.map { WordSegment(text = it) }
                     if (effectiveText != text) {
-                        val currentRecord = historyRepository.getRecordById(recordId)
+                        val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
                         if (currentRecord != null) {
-                            historyRepository.updateRecord(currentRecord.copy(originalText = effectiveText))
+                            saveAnalysisRecordUseCase.update(currentRecord.copy(originalText = effectiveText))
                         }
                     }
                     val snapshot = partialResultMutex.withLock {
                         if (skeletonSegments.isNotEmpty()) {
                             partialResult = partialResult.copy(segments = skeletonSegments)
                         }
-                        partialResult.consumedTokens += tokenRes.consumedTokens
-                        partialResult.inputTokens += tokenRes.inputTokens
-                        partialResult.outputTokens += tokenRes.outputTokens
+                        partialResult.consumedTokens += metadata.consumedTokens
+                        partialResult.inputTokens += metadata.inputTokens
+                        partialResult.outputTokens += metadata.outputTokens
                         partialResult
                     }
                     savePartial(snapshot)
@@ -256,30 +213,21 @@ class AnalyzeTextUseCase @Inject constructor(
                         map + (recordId to current.copy(tokenizerCompleted = true))
                     }
 
-                    // Prepare prompts using the effective corrected text
-                    val promptTrans = "分析対象の文: \"$effectiveText\"\nこの文の自然な中国語訳を出力してください。"
-                    val promptClauses = "分析対象の文: \"$effectiveText\"\nこの文の文節（フレーズ）ごとの文法的役割の詳細な解説を行ってください。"
-                    val promptGrammar = "分析対象の文: \"$effectiveText\"\nこの文に含まれる最も重要かつ難度の高い文法項目・慣用表現を厳選して解説してください。"
-
-                    val tokensJsonString = gson.toJson(tokens)
-                    val promptSeg = "分析対象の文: \"$effectiveText\"\nユーザーが提供したトークン配列: $tokensJsonString\n各トークンの詳細な文法分析を行ってください。"
-
-                    // Execute remaining 4 calls concurrently (using supervisorScope to prevent cascading cancellation)
                     supervisorScope {
                         // Translation
                         launch {
                             try {
-                                val res = executeLlmWithFailover(recordId, com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_TRANSLATION, promptTrans, null, null, "翻訳")
-                                val clean = cleanMarkdownJson(res.text)
-                                val obj = try { gson.fromJson(clean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
-                                val snapshot = partialResultMutex.withLock {
+                                val res = llmAnalysisService.executeTranslation(effectiveText, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                val obj = res.first
+                                val meta = res.second
+                                val snapshotInner = partialResultMutex.withLock {
                                     partialResult = partialResult.copy(translation = obj?.translation)
-                                    partialResult.consumedTokens += res.consumedTokens
-                                    partialResult.inputTokens += res.inputTokens
-                                    partialResult.outputTokens += res.outputTokens
+                                    partialResult.consumedTokens += meta.consumedTokens
+                                    partialResult.inputTokens += meta.inputTokens
+                                    partialResult.outputTokens += meta.outputTokens
                                     partialResult
                                 }
-                                savePartial(snapshot)
+                                savePartial(snapshotInner)
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             } finally {
@@ -293,17 +241,17 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Clauses
                         launch {
                             try {
-                                val res = executeLlmWithFailover(recordId, com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_CLAUSES, promptClauses, null, null, "文節解析")
-                                val clean = cleanMarkdownJson(res.text)
-                                val obj = try { gson.fromJson(clean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
-                                val snapshot = partialResultMutex.withLock {
+                                val res = llmAnalysisService.executeClauses(effectiveText, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                val obj = res.first
+                                val meta = res.second
+                                val snapshotInner = partialResultMutex.withLock {
                                     partialResult = partialResult.copy(clauses = obj?.clauses)
-                                    partialResult.consumedTokens += res.consumedTokens
-                                    partialResult.inputTokens += res.inputTokens
-                                    partialResult.outputTokens += res.outputTokens
+                                    partialResult.consumedTokens += meta.consumedTokens
+                                    partialResult.inputTokens += meta.inputTokens
+                                    partialResult.outputTokens += meta.outputTokens
                                     partialResult
                                 }
-                                savePartial(snapshot)
+                                savePartial(snapshotInner)
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             } finally {
@@ -317,17 +265,17 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Grammar
                         launch {
                             try {
-                                val res = executeLlmWithFailover(recordId, com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_GRAMMAR, promptGrammar, null, null, "文法解説")
-                                val clean = cleanMarkdownJson(res.text)
-                                val obj = try { gson.fromJson(clean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
-                                val snapshot = partialResultMutex.withLock {
+                                val res = llmAnalysisService.executeGrammar(effectiveText, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                val obj = res.first
+                                val meta = res.second
+                                val snapshotInner = partialResultMutex.withLock {
                                     partialResult = partialResult.copy(grammarPoints = obj?.grammarPoints)
-                                    partialResult.consumedTokens += res.consumedTokens
-                                    partialResult.inputTokens += res.inputTokens
-                                    partialResult.outputTokens += res.outputTokens
+                                    partialResult.consumedTokens += meta.consumedTokens
+                                    partialResult.inputTokens += meta.inputTokens
+                                    partialResult.outputTokens += meta.outputTokens
                                     partialResult
                                 }
-                                savePartial(snapshot)
+                                savePartial(snapshotInner)
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             } finally {
@@ -341,19 +289,19 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Segments (detailed segmentation analysis)
                         launch {
                             try {
-                                val segRes = executeLlmWithFailover(recordId, com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_SEGMENTS, promptSeg, null, null, "詳細文法解析")
-                                val cleanSegJson = cleanMarkdownJson(segRes.text)
-                                val segObj = try { gson.fromJson(cleanSegJson, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
-                                val snapshot = partialResultMutex.withLock {
-                                    if (segObj?.segments != null) {
-                                        partialResult = partialResult.copy(segments = segObj.segments)
+                                val res = llmAnalysisService.executeSegments(effectiveText, tokens, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                val obj = res.first
+                                val meta = res.second
+                                val snapshotInner = partialResultMutex.withLock {
+                                    if (obj?.segments != null) {
+                                        partialResult = partialResult.copy(segments = obj.segments)
                                     }
-                                    partialResult.consumedTokens += segRes.consumedTokens
-                                    partialResult.inputTokens += segRes.inputTokens
-                                    partialResult.outputTokens += segRes.outputTokens
+                                    partialResult.consumedTokens += meta.consumedTokens
+                                    partialResult.inputTokens += meta.inputTokens
+                                    partialResult.outputTokens += meta.outputTokens
                                     partialResult
                                 }
-                                savePartial(snapshot)
+                                savePartial(snapshotInner)
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             } finally {
@@ -368,45 +316,21 @@ class AnalyzeTextUseCase @Inject constructor(
                     // ==========================================
                     // Non-OCR Mode Flow (Tokenizer, Translation, Clauses, Grammar in parallel. Segments runs after Tokenizer.)
                     // ==========================================
-                    val promptTokenizer = if (text.isNotBlank()) {
-                        "分析対象の文: \"$text\"\nこの文をトークン化し、文字列の配列として出力してください。"
-                    } else {
-                        "画像内の日本語テキストをトークン化し、文字列の配列として出力してください。"
-                    }
-
-                    val promptTrans = if (text.isNotBlank()) {
-                        "分析対象の文: \"$text\"\nこの文の自然な中国語訳を出力してください。"
-                    } else {
-                        "画像内の日本語テキストを自然な中国語（簡体字）に翻訳してください。"
-                    }
-
-                    val promptClauses = if (text.isNotBlank()) {
-                        "分析対象の文: \"$text\"\nこの文の文節（フレーズ）ごとの文法的役割の詳細な解説を行ってください。"
-                    } else {
-                        "画像内のすべての日本語の文節構造と文法的役割を詳細に分析してください。"
-                    }
-
-                    val promptGrammar = if (text.isNotBlank()) {
-                        "分析対象の文: \"$text\"\nこの文に含まれる最も重要かつ難度の高い文法項目・慣用表現を厳選して解説してください。"
-                    } else {
-                        "画像内のすべての日本語の文法表现や固定表現を詳細に分析してください。"
-                    }
-
                     supervisorScope {
                         // 1. Translation
                         launch {
                             try {
-                                val res = executeLlmWithFailover(recordId, com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_TRANSLATION, promptTrans, imageBase64, mimeType, "翻訳")
-                                val clean = cleanMarkdownJson(res.text)
-                                val obj = try { gson.fromJson(clean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
-                                val snapshot = partialResultMutex.withLock {
+                                val res = llmAnalysisService.executeTranslation(text, imageBase64, mimeType, primaryConfig, backupConfig, retryListener, backupListener)
+                                val obj = res.first
+                                val meta = res.second
+                                val snapshotInner = partialResultMutex.withLock {
                                     partialResult = partialResult.copy(translation = obj?.translation)
-                                    partialResult.consumedTokens += res.consumedTokens
-                                    partialResult.inputTokens += res.inputTokens
-                                    partialResult.outputTokens += res.outputTokens
+                                    partialResult.consumedTokens += meta.consumedTokens
+                                    partialResult.inputTokens += meta.inputTokens
+                                    partialResult.outputTokens += meta.outputTokens
                                     partialResult
                                 }
-                                savePartial(snapshot)
+                                savePartial(snapshotInner)
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             } finally {
@@ -420,17 +344,17 @@ class AnalyzeTextUseCase @Inject constructor(
                         // 2. Clauses
                         launch {
                             try {
-                                val res = executeLlmWithFailover(recordId, com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_CLAUSES, promptClauses, imageBase64, mimeType, "文節解析")
-                                val clean = cleanMarkdownJson(res.text)
-                                val obj = try { gson.fromJson(clean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
-                                val snapshot = partialResultMutex.withLock {
+                                val res = llmAnalysisService.executeClauses(text, imageBase64, mimeType, primaryConfig, backupConfig, retryListener, backupListener)
+                                val obj = res.first
+                                val meta = res.second
+                                val snapshotInner = partialResultMutex.withLock {
                                     partialResult = partialResult.copy(clauses = obj?.clauses)
-                                    partialResult.consumedTokens += res.consumedTokens
-                                    partialResult.inputTokens += res.inputTokens
-                                    partialResult.outputTokens += res.outputTokens
+                                    partialResult.consumedTokens += meta.consumedTokens
+                                    partialResult.inputTokens += meta.inputTokens
+                                    partialResult.outputTokens += meta.outputTokens
                                     partialResult
                                 }
-                                savePartial(snapshot)
+                                savePartial(snapshotInner)
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             } finally {
@@ -444,17 +368,17 @@ class AnalyzeTextUseCase @Inject constructor(
                         // 3. Grammar
                         launch {
                             try {
-                                val res = executeLlmWithFailover(recordId, com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_GRAMMAR, promptGrammar, imageBase64, mimeType, "文法解説")
-                                val clean = cleanMarkdownJson(res.text)
-                                val obj = try { gson.fromJson(clean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
-                                val snapshot = partialResultMutex.withLock {
+                                val res = llmAnalysisService.executeGrammar(text, imageBase64, mimeType, primaryConfig, backupConfig, retryListener, backupListener)
+                                val obj = res.first
+                                val meta = res.second
+                                val snapshotInner = partialResultMutex.withLock {
                                     partialResult = partialResult.copy(grammarPoints = obj?.grammarPoints)
-                                    partialResult.consumedTokens += res.consumedTokens
-                                    partialResult.inputTokens += res.inputTokens
-                                    partialResult.outputTokens += res.outputTokens
+                                    partialResult.consumedTokens += meta.consumedTokens
+                                    partialResult.inputTokens += meta.inputTokens
+                                    partialResult.outputTokens += meta.outputTokens
                                     partialResult
                                 }
-                                savePartial(snapshot)
+                                savePartial(snapshotInner)
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             } finally {
@@ -469,16 +393,18 @@ class AnalyzeTextUseCase @Inject constructor(
                         launch {
                             try {
                                 // 4a. Execute Tokenizer first
-                                val tokenRes = executeLlmWithFailover(
-                                    recordId,
-                                    com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_TOKENIZER,
-                                    promptTokenizer,
-                                    imageBase64,
-                                    mimeType,
-                                    "単語分割"
+                                val tokenRes = llmAnalysisService.executeTokenizer(
+                                    text = text,
+                                    imageBase64 = imageBase64,
+                                    mimeType = mimeType,
+                                    isOcrMode = false,
+                                    primaryConfig = primaryConfig,
+                                    backupConfig = backupConfig,
+                                    onRetry = { attempt -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmRetryTriggered(recordId, "単語分割", attempt)) } },
+                                    onBackup = { provider -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmBackupTriggered(recordId, "単語分割", provider)) } }
                                 )
-                                val cleanTokenJson = cleanMarkdownJson(tokenRes.text)
-                                val tokenObj = try { gson.fromJson(cleanTokenJson, TokenizationResult::class.java) } catch (e: Exception) { null }
+                                val tokenObj = tokenRes.first
+                                val tokenMeta = tokenRes.second
                                 val tokens = tokenObj?.tokens ?: emptyList()
 
                                 val skeletonSegments = tokens.map { WordSegment(text = it) }
@@ -486,9 +412,9 @@ class AnalyzeTextUseCase @Inject constructor(
                                     if (skeletonSegments.isNotEmpty()) {
                                         partialResult = partialResult.copy(segments = skeletonSegments)
                                     }
-                                    partialResult.consumedTokens += tokenRes.consumedTokens
-                                    partialResult.inputTokens += tokenRes.inputTokens
-                                    partialResult.outputTokens += tokenRes.outputTokens
+                                    partialResult.consumedTokens += tokenMeta.consumedTokens
+                                    partialResult.inputTokens += tokenMeta.inputTokens
+                                    partialResult.outputTokens += tokenMeta.outputTokens
                                     partialResult
                                 }
                                 savePartial(tokenSnapshot)
@@ -499,31 +425,26 @@ class AnalyzeTextUseCase @Inject constructor(
                                 }
 
                                 // 4b. Execute detailed segments analysis using the retrieved tokens
-                                val tokensJsonString = gson.toJson(tokens)
-                                val promptSeg = if (text.isNotBlank()) {
-                                    "分析対象の文: \"$text\"\nユーザーが提供したトークン配列: $tokensJsonString\n各トークンの詳細な文法分析を行ってください。"
-                                } else {
-                                    "画像内の日本語テキストのトークン配列: $tokensJsonString\n各トークンの詳細な文法分析を行ってください。"
-                                }
-
-                                val segRes = executeLlmWithFailover(
-                                    recordId,
-                                    com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_SEGMENTS,
-                                    promptSeg,
-                                    imageBase64,
-                                    mimeType,
-                                    "詳細文法解析"
+                                val resSeg = llmAnalysisService.executeSegments(
+                                    text = text,
+                                    tokens = tokens,
+                                    imageBase64 = imageBase64,
+                                    mimeType = mimeType,
+                                    primaryConfig = primaryConfig,
+                                    backupConfig = backupConfig,
+                                    onRetry = retryListener,
+                                    onBackup = backupListener
                                 )
-                                val cleanSegJson = cleanMarkdownJson(segRes.text)
-                                val segObj = try { gson.fromJson(cleanSegJson, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
+                                val segObj = resSeg.first
+                                val segMeta = resSeg.second
 
                                 val segmentSnapshot = partialResultMutex.withLock {
                                     if (segObj?.segments != null) {
                                         partialResult = partialResult.copy(segments = segObj.segments)
                                     }
-                                    partialResult.consumedTokens += segRes.consumedTokens
-                                    partialResult.inputTokens += segRes.inputTokens
-                                    partialResult.outputTokens += segRes.outputTokens
+                                    partialResult.consumedTokens += segMeta.consumedTokens
+                                    partialResult.inputTokens += segMeta.inputTokens
+                                    partialResult.outputTokens += segMeta.outputTokens
                                     partialResult
                                 }
                                 savePartial(segmentSnapshot)
@@ -542,7 +463,7 @@ class AnalyzeTextUseCase @Inject constructor(
                 dbWriteChannel.close()
                 dbWriterJob.join()
 
-                val currentRecord = historyRepository.getRecordById(recordId)
+                val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
                 if (currentRecord != null) {
                     var updatedText = currentRecord.originalText
                     if (updatedText.isBlank()) {
@@ -551,7 +472,7 @@ class AnalyzeTextUseCase @Inject constructor(
                             updatedText = combinedSentence
                         }
                     }
-                    val finalResultJson = gson.toJson(partialResult)
+                    val finalResultJson = detailedResultSerializer.toJson(partialResult)
                     val updatedRecord = currentRecord.copy(
                         originalText = updatedText,
                         analysisResult = finalResultJson,
@@ -560,34 +481,27 @@ class AnalyzeTextUseCase @Inject constructor(
                         inputTokens = partialResult.inputTokens,
                         outputTokens = partialResult.outputTokens
                     )
-                    historyRepository.updateRecord(updatedRecord)
+                    saveAnalysisRecordUseCase.update(updatedRecord)
 
                     val displayMsg = if (updatedText.length > 10) {
                         "「${updatedText.take(10)}...」の分析が完了しました"
                     } else {
                         "「${updatedText}」の分析が完了しました"
                     }
-                    historyRepository.emitEvent(AnalysisEvent.TaskCompleted(recordId, displayMsg))
+                    eventBus.post(AnalysisEvent.TaskCompleted(recordId, displayMsg))
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 e.printStackTrace()
                 dbWriteChannel.close()
                 dbWriterJob.join()
-                val errorMsg = when (e) {
-                    is retrofit2.HttpException -> {
-                        val body = e.response()?.errorBody()?.string() ?: ""
-                        val safeBody = if (body.length > 200) body.take(200) + "..." else body
-                        "HTTP ${e.code()}: ${e.message()}\n$safeBody"
-                    }
-                    else -> e.localizedMessage ?: "Unknown network error"
-                }
-                val currentRecord = historyRepository.getRecordById(recordId)
+
+                val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
                 if (currentRecord != null) {
-                    historyRepository.updateRecord(
+                    saveAnalysisRecordUseCase.update(
                         currentRecord.copy(
                             status = AnalysisStatus.FAILED,
-                            errorMessage = errorMsg
+                            errorMessage = e.localizedMessage ?: "Unknown network error"
                         )
                     )
                 }
@@ -598,39 +512,7 @@ class AnalyzeTextUseCase @Inject constructor(
         }
     }
 
-    private fun cleanMarkdownJson(rawJson: String): String {
-        var cleanJson = rawJson.trim()
-        if (cleanJson.startsWith("```")) {
-            val firstNewLine = cleanJson.indexOf('\n')
-            cleanJson = if (firstNewLine != -1) {
-                cleanJson.substring(firstNewLine).trim()
-            } else {
-                cleanJson.removePrefix("```").trim()
-            }
-        }
-        if (cleanJson.endsWith("```")) {
-            cleanJson = cleanJson.removeSuffix("```").trim()
-        }
-        return cleanJson
-    }
-
     fun parseDetailedResult(originalText: String, jsonString: String?): DetailedAnalysisResult? {
-        if (jsonString.isNullOrBlank()) return null
-        val cached = parsedCache[jsonString]
-        if (cached != null) return cached
-        return try {
-            val cleanJson = cleanMarkdownJson(jsonString)
-            val parsed = gson.fromJson(cleanJson, DetailedAnalysisResult::class.java)
-            if (parsed != null) {
-                if (parsedCache.size > 50) {
-                    parsedCache.clear()
-                }
-                parsedCache[jsonString] = parsed
-            }
-            parsed
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
+        return detailedResultSerializer.fromJson(jsonString)
     }
 }

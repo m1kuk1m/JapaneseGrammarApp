@@ -35,8 +35,8 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.japanesegrammarapp.R
-import com.example.japanesegrammarapp.network.LlmConfig
-import com.example.japanesegrammarapp.ui.AppViewModel
+import com.example.japanesegrammarapp.domain.model.LlmConfig
+import com.example.japanesegrammarapp.ui.SettingsViewModel
 import com.example.japanesegrammarapp.ui.UiEvent
 import com.example.japanesegrammarapp.ui.theme.ZenColors
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +45,7 @@ import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
+fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val WashiBg = MaterialTheme.colorScheme.background
     val SurfaceColor = MaterialTheme.colorScheme.surface

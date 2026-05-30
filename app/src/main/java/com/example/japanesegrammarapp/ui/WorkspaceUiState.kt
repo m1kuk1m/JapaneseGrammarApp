@@ -12,15 +12,9 @@ data class WorkspaceUiState(
     val selectedRecord: AnalysisDomainRecord? = null,
     val currentOriginalText: String = "",
     val useOcr: Boolean = true,
-    val isFetchingModels: Boolean = false,
-    val fetchingProvider: String? = null,
     val analysisResult: String? = null,
     val detailedResult: DetailedAnalysisResult? = null,
     val isParsingDetailedResult: Boolean = false,
     val selectedRecordProgress: AnalysisProgress? = null,
-    val backupProvider: String = "DeepSeek",
-    val backupModel: String = "",
-    val themeMode: String = "System",
-    val primaryColor: String = "Default",
     val wallpaperUri: String = ""
 )

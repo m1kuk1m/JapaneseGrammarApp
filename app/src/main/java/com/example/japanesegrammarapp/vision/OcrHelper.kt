@@ -8,8 +8,11 @@ import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class OcrHelper {
+@Singleton
+class OcrHelper @Inject constructor() {
     suspend fun extractTextFromUri(context: Context, uri: Uri): String = withContext(Dispatchers.IO) {
         val recognizer = TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
         try {

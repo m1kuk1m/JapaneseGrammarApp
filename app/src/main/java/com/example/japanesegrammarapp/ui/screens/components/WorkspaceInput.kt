@@ -26,26 +26,27 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.AnalysisStatus
-import com.example.japanesegrammarapp.ui.AppViewModel
 import com.example.japanesegrammarapp.ui.WorkspaceUiState
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkspaceInputForm(
     uiState: WorkspaceUiState,
-    viewModel: AppViewModel,
-    navController: NavController,
+    textInput: String,
+    onTextInputChanged: (String) -> Unit,
+    selectedImageUri: Uri?,
+    onSelectedImageUriChanged: (Uri?) -> Unit,
+    onModelSelected: (String) -> Unit,
+    onStartAnalysis: (String, Uri?) -> Unit,
+    onCancelAnalysis: () -> Unit,
+    onNavigateToCamera: () -> Unit,
+    onPickImage: (Uri) -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
-    val WashiBg = MaterialTheme.colorScheme.background
     val SurfaceColor = MaterialTheme.colorScheme.surface
     val PrimaryColor = MaterialTheme.colorScheme.primary
     val OnPrimaryColor = MaterialTheme.colorScheme.onPrimary
@@ -58,83 +59,14 @@ fun WorkspaceInputForm(
     val modelsList = providerModels[activeProvider] ?: emptyList()
     var modelExpanded by remember { mutableStateOf(false) }
 
-    var textInput by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
     val isAnalyzing = uiState.selectedRecord?.status == AnalysisStatus.PENDING
     val useOcr = uiState.useOcr
-
-    val currentOriginalText = uiState.currentOriginalText
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    val coroutineScope = rememberCoroutineScope()
-
-    fun handleImageCaptured(uri: Uri) {
-        if (useOcr) {
-            coroutineScope.launch {
-                val extracted = viewModel.extractTextFromImage(uri)
-                textInput = extracted
-                viewModel.setCurrentOriginalText(extracted)
-                if (extracted.isNotBlank()) {
-                    val key = viewModel.getApiKey(activeProvider)
-                    val url = viewModel.getApiUrl(activeProvider)
-                    viewModel.analyzeText(extracted, uri, activeProvider, activeModel.ifBlank { "default" }, url, key)
-                }
-            }
-        } else {
-            selectedImageUri = uri
-        }
-    }
-
-    LaunchedEffect(currentOriginalText) {
-        textInput = currentOriginalText
-    }
-
-    val navBackStackEntry = navController.currentBackStackEntry
-    LaunchedEffect(navBackStackEntry) {
-        navBackStackEntry?.savedStateHandle?.getStateFlow<String?>("captured_image_uri", null)
-            ?.collect { uriString ->
-                if (!uriString.isNullOrBlank()) {
-                    val uri = Uri.parse(uriString)
-                    handleImageCaptured(uri)
-                    navBackStackEntry.savedStateHandle["captured_image_uri"] = null
-                }
-            }
-    }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let { sourceUri ->
-            coroutineScope.launch {
-                var localUriToUse: Uri? = null
-                val success = withContext(Dispatchers.IO) {
-                    try {
-                        val imagesDir = java.io.File(context.filesDir, "images")
-                        if (!imagesDir.exists()) imagesDir.mkdirs()
-                        val uniqueFileName = "gallery_${System.currentTimeMillis()}.jpg"
-                        val galleryFile = java.io.File(imagesDir, uniqueFileName)
-                        
-                        context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                            java.io.FileOutputStream(galleryFile).use { outputStream ->
-                                inputStream.copyTo(outputStream)
-                            }
-                        }
-                        
-                        localUriToUse = androidx.core.content.FileProvider.getUriForFile(
-                            context,
-                            "com.example.japanesegrammarapp.fileprovider",
-                            galleryFile
-                        )
-                        true
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        false
-                    }
-                }
-                if (success && localUriToUse != null) {
-                    navController.navigate("camera?imageUri=${Uri.encode(localUriToUse.toString())}")
-                } else {
-                    navController.navigate("camera?imageUri=${Uri.encode(sourceUri.toString())}")
-                }
-            }
+            onPickImage(sourceUri)
         }
     }
 
@@ -195,7 +127,7 @@ fun WorkspaceInputForm(
                         DropdownMenuItem(
                             text = { Text(option, color = SumiInk, fontSize = 13.sp) },
                             onClick = {
-                                viewModel.setActiveModel(option)
+                                onModelSelected(option)
                                 modelExpanded = false
                             }
                         )
@@ -217,17 +149,14 @@ fun WorkspaceInputForm(
     OutlinedTextField(
         value = textInput,
         onValueChange = { newValue ->
-            textInput = newValue
+            onTextInputChanged(newValue)
             if (isAnalyzing) {
-                val activeRecordId = uiState.selectedRecord?.id
-                if (activeRecordId != null) {
-                    viewModel.cancelAnalysis(activeRecordId)
-                    android.widget.Toast.makeText(
-                        context,
-                        context.getString(R.string.analysis_interrupted),
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
-                }
+                onCancelAnalysis()
+                android.widget.Toast.makeText(
+                    context,
+                    context.getString(R.string.analysis_interrupted),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
             }
         },
         placeholder = { Text(stringResource(R.string.input_hint), color = SumiInk.copy(alpha = 0.4f)) },
@@ -273,7 +202,7 @@ fun WorkspaceInputForm(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.analysis_target_image), fontWeight = FontWeight.Bold, color = SumiInk, fontSize = 12.sp)
                 }
-                IconButton(onClick = { selectedImageUri = null }) {
+                IconButton(onClick = { onSelectedImageUriChanged(null) }) {
                     Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), tint = Color(0xFFD32F2F))
                 }
             }
@@ -287,7 +216,7 @@ fun WorkspaceInputForm(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         OutlinedButton(
-            onClick = { navController.navigate("camera") }, 
+            onClick = onNavigateToCamera, 
             modifier = Modifier
                 .weight(1f)
                 .height(40.dp),
@@ -313,13 +242,10 @@ fun WorkspaceInputForm(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    // Main start button
     Button(
         onClick = {
-            val key = viewModel.getApiKey(activeProvider)
-            val url = viewModel.getApiUrl(activeProvider)
-            viewModel.analyzeText(textInput, selectedImageUri, activeProvider, activeModel.ifBlank { "default" }, url, key)
-            selectedImageUri = null
+            onStartAnalysis(textInput, selectedImageUri)
+            onSelectedImageUriChanged(null)
         },
         enabled = (textInput.isNotBlank() || selectedImageUri != null) && !isAnalyzing,
         modifier = Modifier

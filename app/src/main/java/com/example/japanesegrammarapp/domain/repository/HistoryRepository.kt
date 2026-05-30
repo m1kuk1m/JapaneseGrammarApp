@@ -1,15 +1,11 @@
 package com.example.japanesegrammarapp.domain.repository
 
-import com.example.japanesegrammarapp.domain.model.AnalysisEvent
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
 import com.example.japanesegrammarapp.domain.model.DailyTokenUsage
 import kotlinx.coroutines.flow.Flow
 
 interface HistoryRepository {
-    val analysisEvents: Flow<AnalysisEvent>
-    suspend fun emitEvent(event: AnalysisEvent)
-    
     val history: Flow<List<AnalysisDomainRecord>>
     suspend fun getRecordById(id: Int): AnalysisDomainRecord?
     suspend fun insertRecord(record: AnalysisDomainRecord): Long

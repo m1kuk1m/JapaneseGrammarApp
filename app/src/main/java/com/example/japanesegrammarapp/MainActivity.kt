@@ -14,7 +14,7 @@ import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.japanesegrammarapp.ui.AppNavigation
-import com.example.japanesegrammarapp.ui.AppViewModel
+import com.example.japanesegrammarapp.ui.SettingsViewModel
 import com.example.japanesegrammarapp.ui.theme.AppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -36,7 +36,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContent {
-            val viewModel: AppViewModel = hiltViewModel()
+            val viewModel: SettingsViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsState()
 
             val isDarkTheme = when (uiState.themeMode) {

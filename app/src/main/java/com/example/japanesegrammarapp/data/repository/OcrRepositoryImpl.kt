@@ -10,10 +10,11 @@ import javax.inject.Singleton
 
 @Singleton
 class OcrRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val ocrHelper: OcrHelper
 ) : OcrRepository {
 
-    override suspend fun extractTextFromImage(uri: Uri): String {
-        return OcrHelper().extractTextFromUri(context, uri)
+    override suspend fun extractTextFromImage(imageUri: String): String {
+        return ocrHelper.extractTextFromUri(context, Uri.parse(imageUri))
     }
 }

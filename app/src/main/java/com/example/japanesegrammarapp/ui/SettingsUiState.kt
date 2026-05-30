@@ -1,0 +1,16 @@
+package com.example.japanesegrammarapp.ui
+
+data class SettingsUiState(
+    val activeProvider: String = "Gemini",
+    val activeModel: String = "",
+    val availableModels: List<String> = emptyList(),
+    val providerModels: Map<String, List<String>> = emptyMap(),
+    val useOcr: Boolean = true,
+    val isFetchingModels: Boolean = false,
+    val fetchingProvider: String? = null,
+    val backupProvider: String = "DeepSeek",
+    val backupModel: String = "",
+    val themeMode: String = "System",
+    val primaryColor: String = "Default",
+    val wallpaperUri: String = ""
+)

@@ -3,9 +3,10 @@ package com.example.japanesegrammarapp.data.repository
 import android.content.SharedPreferences
 import com.example.japanesegrammarapp.di.SecurePrefs
 import com.example.japanesegrammarapp.di.StandardPrefs
-import com.example.japanesegrammarapp.network.LlmConfig
+import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.google.gson.Gson
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,6 +30,15 @@ class SettingsRepositoryImpl @Inject constructor(
     @Volatile private var cachedThemeMode: String? = null
     @Volatile private var cachedPrimaryColor: String? = null
     @Volatile private var cachedWallpaperUri: String? = null
+
+    private val _themeMode = kotlinx.coroutines.flow.MutableStateFlow(settingPrefs.getString("theme_mode", "System") ?: "System")
+    override val themeMode: kotlinx.coroutines.flow.StateFlow<String> = _themeMode.asStateFlow()
+
+    private val _primaryColor = kotlinx.coroutines.flow.MutableStateFlow(settingPrefs.getString("primary_color", "Default") ?: "Default")
+    override val primaryColor: kotlinx.coroutines.flow.StateFlow<String> = _primaryColor.asStateFlow()
+
+    private val _wallpaperUri = kotlinx.coroutines.flow.MutableStateFlow(settingPrefs.getString("wallpaper_uri", "") ?: "")
+    override val wallpaperUri: kotlinx.coroutines.flow.StateFlow<String> = _wallpaperUri.asStateFlow()
 
     override fun getActiveProvider(): String {
         return cachedActiveProvider ?: synchronized(this) {
@@ -203,6 +213,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override fun setThemeMode(mode: String) {
         cachedThemeMode = mode
         settingPrefs.edit().putString("theme_mode", mode).apply()
+        _themeMode.value = mode
     }
 
     override fun getPrimaryColor(): String {
@@ -219,6 +230,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override fun setPrimaryColor(colorHex: String) {
         cachedPrimaryColor = colorHex
         settingPrefs.edit().putString("primary_color", colorHex).apply()
+        _primaryColor.value = colorHex
     }
 
     override fun getWallpaperUri(): String {
@@ -235,6 +247,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override fun setWallpaperUri(uri: String) {
         cachedWallpaperUri = uri
         settingPrefs.edit().putString("wallpaper_uri", uri).apply()
+        _wallpaperUri.value = uri
     }
 
     // TTS Implementation
