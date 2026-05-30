@@ -38,7 +38,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.AnalysisStatus
-import com.example.japanesegrammarapp.network.WordSegment
+import com.example.japanesegrammarapp.domain.model.WordSegment
+import com.example.japanesegrammarapp.domain.model.DetailedAnalysisResult
 import com.example.japanesegrammarapp.ui.WorkspaceUiState
 import com.example.japanesegrammarapp.ui.theme.ZenColors.AizomeIndigo
 import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
@@ -59,7 +60,7 @@ fun WorkspaceResultContent(
     val detailedResult = uiState.detailedResult
     val rawResult = uiState.analysisResult
 
-    val data = detailedResult ?: com.example.japanesegrammarapp.network.DetailedAnalysisResult()
+    val data = detailedResult ?: DetailedAnalysisResult()
     val progress = uiState.selectedRecordProgress
     val isPending = uiState.selectedRecord?.status == AnalysisStatus.PENDING
 

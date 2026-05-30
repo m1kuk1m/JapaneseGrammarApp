@@ -1,8 +1,8 @@
 package com.example.japanesegrammarapp.domain.usecase
 
 import com.example.japanesegrammarapp.domain.model.AnalysisStatus
-import com.example.japanesegrammarapp.data.repository.HistoryRepository
-import com.example.japanesegrammarapp.data.repository.SettingsRepository
+import com.example.japanesegrammarapp.domain.repository.HistoryRepository
+import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 

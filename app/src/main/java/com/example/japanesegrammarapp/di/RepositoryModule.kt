@@ -1,5 +1,6 @@
 package com.example.japanesegrammarapp.di
 
+import com.example.japanesegrammarapp.domain.repository.*
 import com.example.japanesegrammarapp.data.repository.*
 import dagger.Binds
 import dagger.Module
@@ -45,5 +46,5 @@ abstract class RepositoryModule {
     @Singleton
     abstract fun bindImageAttachmentLoader(
         imageAttachmentLoaderImpl: ImageAttachmentLoaderImpl
-    ): com.example.japanesegrammarapp.domain.repository.ImageAttachmentLoader
+    ): ImageAttachmentLoader
 }

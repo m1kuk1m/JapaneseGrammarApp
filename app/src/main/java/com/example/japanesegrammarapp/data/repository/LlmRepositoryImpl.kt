@@ -1,20 +1,19 @@
 package com.example.japanesegrammarapp.data.repository
 
-import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.example.japanesegrammarapp.network.*
-import com.example.japanesegrammarapp.R
+import com.example.japanesegrammarapp.domain.repository.LlmRepository
+import com.example.japanesegrammarapp.domain.repository.LlmResult
+import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class LlmRepositoryImpl @Inject constructor(
     private val llmService: LlmApiService,
-    private val settingsRepository: SettingsRepository,
-    @ApplicationContext private val context: Context
+    private val settingsRepository: SettingsRepository
 ) : LlmRepository {
 
     override suspend fun fetchModels(provider: String, baseUrl: String, apiKey: String): List<String> {
@@ -136,7 +135,9 @@ class LlmRepositoryImpl @Inject constructor(
         userPrompt: String,
         imageBase64: String?,
         mimeType: String?,
-        apiTypeLabel: String
+        apiTypeLabel: String,
+        onRetry: (attempt: Int) -> Unit,
+        onBackup: (backupProvider: String) -> Unit
     ): LlmResult {
         val primaryProvider = settingsRepository.getActiveProvider()
         val primaryModel = settingsRepository.getActiveModel(primaryProvider)
@@ -168,13 +169,7 @@ class LlmRepositoryImpl @Inject constructor(
                 lastException = e
                 attempt++
                 if (attempt <= maxRetries) {
-                    withContext(Dispatchers.Main) {
-                        android.widget.Toast.makeText(
-                            context,
-                            context.getString(R.string.llm_retry_toast, apiTypeLabel, attempt),
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
-                    }
+                    onRetry(attempt)
                     delay(1000L)
                 }
             }
@@ -184,13 +179,7 @@ class LlmRepositoryImpl @Inject constructor(
             throw Exception("メインAPI（${apiTypeLabel}）の再試行に失敗し、予備APIが設定されていないか有効ではありません。メインAPIエラー: ${lastException?.localizedMessage}", lastException)
         }
 
-        withContext(Dispatchers.Main) {
-            android.widget.Toast.makeText(
-                context,
-                context.getString(R.string.llm_backup_toast, apiTypeLabel, backupProvider),
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
-        }
+        onBackup(backupProvider)
 
         try {
             return callLlmApi(

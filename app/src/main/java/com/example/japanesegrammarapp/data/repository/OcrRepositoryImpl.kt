@@ -3,6 +3,7 @@ package com.example.japanesegrammarapp.data.repository
 import android.content.Context
 import android.net.Uri
 import com.example.japanesegrammarapp.vision.OcrHelper
+import com.example.japanesegrammarapp.domain.repository.OcrRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton

@@ -1,4 +1,4 @@
-package com.example.japanesegrammarapp.data.repository
+package com.example.japanesegrammarapp.domain.repository
 
 data class LlmResult(val text: String, val consumedTokens: Int, val inputTokens: Int = 0, val outputTokens: Int = 0)
 
@@ -20,6 +20,8 @@ interface LlmRepository {
         userPrompt: String,
         imageBase64: String?,
         mimeType: String?,
-        apiTypeLabel: String
+        apiTypeLabel: String,
+        onRetry: (attempt: Int) -> Unit = {},
+        onBackup: (backupProvider: String) -> Unit = {}
     ): LlmResult
 }

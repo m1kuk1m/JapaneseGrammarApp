@@ -6,6 +6,8 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
+import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
+import com.example.japanesegrammarapp.domain.model.DailyTokenUsage
 
 @Dao
 interface AnalysisDao {
@@ -34,15 +36,3 @@ interface AnalysisDao {
     fun getDailyTokenUsage(): Flow<List<DailyTokenUsage>>
 }
 
-data class ModelTokenUsage(
-    val modelUsed: String,
-    val totalTokens: Int
-)
-
-data class DailyTokenUsage(
-    val date: String,
-    val modelUsed: String,
-    val inputTokens: Int,
-    val outputTokens: Int,
-    val totalTokens: Int
-)

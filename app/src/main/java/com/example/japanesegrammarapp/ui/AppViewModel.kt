@@ -5,14 +5,8 @@ import android.net.Uri
 import com.example.japanesegrammarapp.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.japanesegrammarapp.data.AnalysisEvent
-import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
-import com.example.japanesegrammarapp.domain.model.AnalysisStatus
-import com.example.japanesegrammarapp.data.repository.HistoryRepository
-import com.example.japanesegrammarapp.data.repository.LlmRepository
-import com.example.japanesegrammarapp.data.repository.OcrRepository
-import com.example.japanesegrammarapp.data.repository.SettingsRepository
-import com.example.japanesegrammarapp.data.repository.TtsRepository
+import com.example.japanesegrammarapp.domain.model.*
+import com.example.japanesegrammarapp.domain.repository.*
 import com.example.japanesegrammarapp.domain.usecase.AnalyzeTextUseCase
 import com.example.japanesegrammarapp.domain.usecase.RetryAnalysisUseCase
 import com.example.japanesegrammarapp.network.LlmConfig
@@ -51,10 +45,10 @@ class AppViewModel @Inject constructor(
         .map { it ?: 0 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    val tokenUsageByModel: StateFlow<List<com.example.japanesegrammarapp.data.ModelTokenUsage>> = historyRepository.tokenUsageByModel
+    val tokenUsageByModel: StateFlow<List<ModelTokenUsage>> = historyRepository.tokenUsageByModel
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val dailyTokenUsage: StateFlow<List<com.example.japanesegrammarapp.data.DailyTokenUsage>> = historyRepository.dailyTokenUsage
+    val dailyTokenUsage: StateFlow<List<DailyTokenUsage>> = historyRepository.dailyTokenUsage
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val isPlayingTts: StateFlow<Boolean> = ttsRepository.isPlaying
@@ -116,6 +110,12 @@ class AppViewModel @Inject constructor(
                     }
                     is AnalysisEvent.SpellingCorrectedTriggered -> {
                         _uiEvent.emit(UiEvent.ShowError(context.getString(R.string.spelling_corrected_toast)))
+                    }
+                    is AnalysisEvent.LlmRetryTriggered -> {
+                        _uiEvent.emit(UiEvent.ShowError(context.getString(R.string.llm_retry_toast, event.apiTypeLabel, event.attempt)))
+                    }
+                    is AnalysisEvent.LlmBackupTriggered -> {
+                        _uiEvent.emit(UiEvent.ShowError(context.getString(R.string.llm_backup_toast, event.apiTypeLabel, event.backupProvider)))
                     }
                 }
             }
@@ -505,16 +505,19 @@ class AppViewModel @Inject constructor(
 
     fun playTtsForCurrentRecord() {
         val detail = _uiState.value.detailedResult
-        if (detail != null && !detail.segments.isNullOrEmpty()) {
-            // Concatenate 'reading' for accurate pronunciation. 
-            // If reading is null or blank, fallback to text.
-            val readingText = detail.segments.joinToString("") { segment ->
-                val reading = segment.reading
-                if (!reading.isNullOrBlank()) reading else (segment.text ?: "")
-            }
-            if (readingText.isNotBlank()) {
-                ttsRepository.playText(readingText)
-                return
+        if (detail != null) {
+            val segments = detail.segments
+            if (!segments.isNullOrEmpty()) {
+                // Concatenate 'reading' for accurate pronunciation. 
+                // If reading is null or blank, fallback to text.
+                val readingText = segments.joinToString("") { segment: WordSegment ->
+                    val reading = segment.reading
+                    if (!reading.isNullOrBlank()) reading else (segment.text ?: "")
+                }
+                if (readingText.isNotBlank()) {
+                    ttsRepository.playText(readingText)
+                    return
+                }
             }
         }
         // Fallback to original text if detailed parse is not available

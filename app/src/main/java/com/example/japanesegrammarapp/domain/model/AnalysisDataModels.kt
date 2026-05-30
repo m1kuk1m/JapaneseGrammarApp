@@ -1,4 +1,4 @@
-package com.example.japanesegrammarapp.network
+package com.example.japanesegrammarapp.domain.model
 
 import androidx.compose.runtime.Immutable
 

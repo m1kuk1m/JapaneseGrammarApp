@@ -2,7 +2,7 @@ package com.example.japanesegrammarapp.ui
 
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import com.example.japanesegrammarapp.domain.usecase.AnalysisProgress
-import com.example.japanesegrammarapp.network.DetailedAnalysisResult
+import com.example.japanesegrammarapp.domain.model.DetailedAnalysisResult
 
 data class WorkspaceUiState(
     val activeProvider: String = "Gemini",

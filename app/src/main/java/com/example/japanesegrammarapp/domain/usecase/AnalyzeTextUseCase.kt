@@ -1,15 +1,7 @@
 package com.example.japanesegrammarapp.domain.usecase
 
-import com.example.japanesegrammarapp.data.AnalysisEvent
-import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
-import com.example.japanesegrammarapp.domain.model.AnalysisStatus
-import com.example.japanesegrammarapp.domain.repository.ImageAttachmentLoader
-import com.example.japanesegrammarapp.data.repository.HistoryRepository
-import com.example.japanesegrammarapp.data.repository.LlmRepository
-import com.example.japanesegrammarapp.data.repository.LlmResult
-import com.example.japanesegrammarapp.data.repository.OcrRepository
-import com.example.japanesegrammarapp.data.repository.SettingsRepository
-import com.example.japanesegrammarapp.network.DetailedAnalysisResult
+import com.example.japanesegrammarapp.domain.model.*
+import com.example.japanesegrammarapp.domain.repository.*
 import com.google.gson.Gson
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -106,6 +98,33 @@ class AnalyzeTextUseCase @Inject constructor(
         repositoryScope.cancel()
     }
 
+    private suspend fun executeLlmWithFailover(
+        recordId: Int,
+        systemPrompt: String,
+        userPrompt: String,
+        imageBase64: String?,
+        mimeType: String?,
+        apiTypeLabel: String
+    ): LlmResult {
+        return llmRepository.executeWithFailover(
+            systemPrompt = systemPrompt,
+            userPrompt = userPrompt,
+            imageBase64 = imageBase64,
+            mimeType = mimeType,
+            apiTypeLabel = apiTypeLabel,
+            onRetry = { attempt ->
+                repositoryScope.launch {
+                    historyRepository.emitEvent(AnalysisEvent.LlmRetryTriggered(recordId, apiTypeLabel, attempt))
+                }
+            },
+            onBackup = { backupProvider ->
+                repositoryScope.launch {
+                    historyRepository.emitEvent(AnalysisEvent.LlmBackupTriggered(recordId, apiTypeLabel, backupProvider))
+                }
+            }
+        )
+    }
+
     private fun launchBackgroundAnalysis(
         recordId: Int,
         text: String,
@@ -194,7 +213,8 @@ class AnalyzeTextUseCase @Inject constructor(
 
                     // 1. Execute Tokenizer first (acts as OCR correction & spelling grammar checker)
                     // No image is transmitted in OCR mode (imageBase64 = null)
-                    val tokenRes = llmRepository.executeWithFailover(
+                    val tokenRes = executeLlmWithFailover(
+                        recordId,
                         com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_TOKENIZER_OCR,
                         promptTokenizer,
                         null,
@@ -202,7 +222,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         "単語分割"
                     )
                     val cleanTokenJson = cleanMarkdownJson(tokenRes.text)
-                    val tokenObj = try { gson.fromJson(cleanTokenJson, com.example.japanesegrammarapp.network.TokenizationResult::class.java) } catch (e: Exception) { null }
+                    val tokenObj = try { gson.fromJson(cleanTokenJson, TokenizationResult::class.java) } catch (e: Exception) { null }
                     val tokens = tokenObj?.tokens ?: emptyList()
                     val correctedText = tokenObj?.correctedText
 
@@ -213,7 +233,7 @@ class AnalyzeTextUseCase @Inject constructor(
                     }
 
                     // Emit skeleton tokens to UI immediately
-                    val skeletonSegments = tokens.map { com.example.japanesegrammarapp.network.WordSegment(text = it) }
+                    val skeletonSegments = tokens.map { WordSegment(text = it) }
                     if (effectiveText != text) {
                         val currentRecord = historyRepository.getRecordById(recordId)
                         if (currentRecord != null) {
@@ -249,7 +269,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Translation
                         launch {
                             try {
-                                val res = llmRepository.executeWithFailover(com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_TRANSLATION, promptTrans, null, null, "翻訳")
+                                val res = executeLlmWithFailover(recordId, com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_TRANSLATION, promptTrans, null, null, "翻訳")
                                 val clean = cleanMarkdownJson(res.text)
                                 val obj = try { gson.fromJson(clean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
                                 val snapshot = partialResultMutex.withLock {
@@ -273,7 +293,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Clauses
                         launch {
                             try {
-                                val res = llmRepository.executeWithFailover(com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_CLAUSES, promptClauses, null, null, "文節解析")
+                                val res = executeLlmWithFailover(recordId, com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_CLAUSES, promptClauses, null, null, "文節解析")
                                 val clean = cleanMarkdownJson(res.text)
                                 val obj = try { gson.fromJson(clean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
                                 val snapshot = partialResultMutex.withLock {
@@ -297,7 +317,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Grammar
                         launch {
                             try {
-                                val res = llmRepository.executeWithFailover(com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_GRAMMAR, promptGrammar, null, null, "文法解説")
+                                val res = executeLlmWithFailover(recordId, com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_GRAMMAR, promptGrammar, null, null, "文法解説")
                                 val clean = cleanMarkdownJson(res.text)
                                 val obj = try { gson.fromJson(clean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
                                 val snapshot = partialResultMutex.withLock {
@@ -321,7 +341,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Segments (detailed segmentation analysis)
                         launch {
                             try {
-                                val segRes = llmRepository.executeWithFailover(com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_SEGMENTS, promptSeg, null, null, "詳細文法解析")
+                                val segRes = executeLlmWithFailover(recordId, com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_SEGMENTS, promptSeg, null, null, "詳細文法解析")
                                 val cleanSegJson = cleanMarkdownJson(segRes.text)
                                 val segObj = try { gson.fromJson(cleanSegJson, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
                                 val snapshot = partialResultMutex.withLock {
@@ -376,7 +396,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         // 1. Translation
                         launch {
                             try {
-                                val res = llmRepository.executeWithFailover(com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_TRANSLATION, promptTrans, imageBase64, mimeType, "翻訳")
+                                val res = executeLlmWithFailover(recordId, com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_TRANSLATION, promptTrans, imageBase64, mimeType, "翻訳")
                                 val clean = cleanMarkdownJson(res.text)
                                 val obj = try { gson.fromJson(clean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
                                 val snapshot = partialResultMutex.withLock {
@@ -400,7 +420,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         // 2. Clauses
                         launch {
                             try {
-                                val res = llmRepository.executeWithFailover(com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_CLAUSES, promptClauses, imageBase64, mimeType, "文節解析")
+                                val res = executeLlmWithFailover(recordId, com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_CLAUSES, promptClauses, imageBase64, mimeType, "文節解析")
                                 val clean = cleanMarkdownJson(res.text)
                                 val obj = try { gson.fromJson(clean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
                                 val snapshot = partialResultMutex.withLock {
@@ -424,7 +444,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         // 3. Grammar
                         launch {
                             try {
-                                val res = llmRepository.executeWithFailover(com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_GRAMMAR, promptGrammar, imageBase64, mimeType, "文法解説")
+                                val res = executeLlmWithFailover(recordId, com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_GRAMMAR, promptGrammar, imageBase64, mimeType, "文法解説")
                                 val clean = cleanMarkdownJson(res.text)
                                 val obj = try { gson.fromJson(clean, DetailedAnalysisResult::class.java) } catch (e: Exception) { null }
                                 val snapshot = partialResultMutex.withLock {
@@ -449,7 +469,8 @@ class AnalyzeTextUseCase @Inject constructor(
                         launch {
                             try {
                                 // 4a. Execute Tokenizer first
-                                val tokenRes = llmRepository.executeWithFailover(
+                                val tokenRes = executeLlmWithFailover(
+                                    recordId,
                                     com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_TOKENIZER,
                                     promptTokenizer,
                                     imageBase64,
@@ -457,10 +478,10 @@ class AnalyzeTextUseCase @Inject constructor(
                                     "単語分割"
                                 )
                                 val cleanTokenJson = cleanMarkdownJson(tokenRes.text)
-                                val tokenObj = try { gson.fromJson(cleanTokenJson, com.example.japanesegrammarapp.network.TokenizationResult::class.java) } catch (e: Exception) { null }
+                                val tokenObj = try { gson.fromJson(cleanTokenJson, TokenizationResult::class.java) } catch (e: Exception) { null }
                                 val tokens = tokenObj?.tokens ?: emptyList()
 
-                                val skeletonSegments = tokens.map { com.example.japanesegrammarapp.network.WordSegment(text = it) }
+                                val skeletonSegments = tokens.map { WordSegment(text = it) }
                                 val tokenSnapshot = partialResultMutex.withLock {
                                     if (skeletonSegments.isNotEmpty()) {
                                         partialResult = partialResult.copy(segments = skeletonSegments)
@@ -485,7 +506,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                     "画像内の日本語テキストのトークン配列: $tokensJsonString\n各トークンの詳細な文法分析を行ってください。"
                                 }
 
-                                val segRes = llmRepository.executeWithFailover(
+                                val segRes = executeLlmWithFailover(
+                                    recordId,
                                     com.example.japanesegrammarapp.network.PromptManager.SYSTEM_PROMPT_SEGMENTS,
                                     promptSeg,
                                     imageBase64,

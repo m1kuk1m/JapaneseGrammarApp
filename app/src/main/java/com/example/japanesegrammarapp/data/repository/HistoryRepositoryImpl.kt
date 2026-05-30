@@ -1,10 +1,13 @@
 package com.example.japanesegrammarapp.data.repository
 
 import com.example.japanesegrammarapp.data.AnalysisDao
-import com.example.japanesegrammarapp.data.AnalysisEvent
 import com.example.japanesegrammarapp.data.mapper.toDomain
 import com.example.japanesegrammarapp.data.mapper.toEntity
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
+import com.example.japanesegrammarapp.domain.model.AnalysisEvent
+import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
+import com.example.japanesegrammarapp.domain.model.DailyTokenUsage
+import com.example.japanesegrammarapp.domain.repository.HistoryRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -29,8 +32,8 @@ class HistoryRepositoryImpl @Inject constructor(
     }
     
     override val totalTokensConsumed: Flow<Int?> = analysisDao.getTotalTokensConsumed()
-    override val tokenUsageByModel: Flow<List<com.example.japanesegrammarapp.data.ModelTokenUsage>> = analysisDao.getTokenUsageByModel()
-    override val dailyTokenUsage: Flow<List<com.example.japanesegrammarapp.data.DailyTokenUsage>> = analysisDao.getDailyTokenUsage()
+    override val tokenUsageByModel: Flow<List<ModelTokenUsage>> = analysisDao.getTokenUsageByModel()
+    override val dailyTokenUsage: Flow<List<DailyTokenUsage>> = analysisDao.getDailyTokenUsage()
 
     override suspend fun getRecordById(id: Int): AnalysisDomainRecord? {
         return analysisDao.getRecordById(id)?.toDomain()

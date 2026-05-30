@@ -18,6 +18,8 @@ import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.example.japanesegrammarapp.domain.repository.TtsRepository
+import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 
 @Singleton
 class TtsRepositoryImpl @Inject constructor(

@@ -1,4 +1,4 @@
-package com.example.japanesegrammarapp.data.repository
+package com.example.japanesegrammarapp.domain.repository
 
 import android.net.Uri
 

@@ -1,7 +1,9 @@
-package com.example.japanesegrammarapp.data.repository
+package com.example.japanesegrammarapp.domain.repository
 
-import com.example.japanesegrammarapp.data.AnalysisEvent
+import com.example.japanesegrammarapp.domain.model.AnalysisEvent
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
+import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
+import com.example.japanesegrammarapp.domain.model.DailyTokenUsage
 import kotlinx.coroutines.flow.Flow
 
 interface HistoryRepository {
@@ -14,6 +16,6 @@ interface HistoryRepository {
     suspend fun updateRecord(record: AnalysisDomainRecord)
     suspend fun deleteRecord(record: AnalysisDomainRecord)
     val totalTokensConsumed: Flow<Int?>
-    val tokenUsageByModel: Flow<List<com.example.japanesegrammarapp.data.ModelTokenUsage>>
-    val dailyTokenUsage: Flow<List<com.example.japanesegrammarapp.data.DailyTokenUsage>>
+    val tokenUsageByModel: Flow<List<ModelTokenUsage>>
+    val dailyTokenUsage: Flow<List<DailyTokenUsage>>
 }

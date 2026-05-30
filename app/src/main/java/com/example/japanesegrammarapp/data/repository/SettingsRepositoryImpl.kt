@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import com.example.japanesegrammarapp.di.SecurePrefs
 import com.example.japanesegrammarapp.di.StandardPrefs
 import com.example.japanesegrammarapp.network.LlmConfig
+import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.google.gson.Gson
 import javax.inject.Inject
 import javax.inject.Singleton
