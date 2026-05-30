@@ -161,6 +161,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                         }
                     } else {
                         selectedImageUriState = uri
+                        viewModel.startAnalysis("", uri)
                     }
                     navBackStackEntry.savedStateHandle["captured_image_uri"] = null
                 }
@@ -220,6 +221,11 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                     },
                     actions = {
                         if (uiState.selectedRecord != null) {
+                            IconButton(onClick = {
+                                uiState.selectedRecord?.let { viewModel.retryAnalysis(it.id) }
+                            }) {
+                                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.retry), tint = MaterialTheme.colorScheme.onSurface)
+                            }
                             IconButton(onClick = {
                                 uiState.selectedRecord?.let { viewModel.exportRecord(it) }
                             }) {
@@ -350,24 +356,48 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                                             fontSize = 12.sp,
                                             color = SumiInk.copy(alpha = 0.6f)
                                         )
-                                        TextButton(
-                                            onClick = {
-                                                viewModel.startNewAnalysisWithText(currentText)
-                                            },
-                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                            colors = ButtonDefaults.textButtonColors(contentColor = SumiInk)
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Edit,
-                                                contentDescription = stringResource(R.string.edit_and_reanalyze_desc),
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = stringResource(R.string.edit_and_reanalyze),
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
+                                            TextButton(
+                                                onClick = {
+                                                    uiState.selectedRecord?.let { viewModel.retryAnalysis(it.id) }
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                colors = ButtonDefaults.textButtonColors(contentColor = SumiInk)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Refresh,
+                                                    contentDescription = stringResource(R.string.retry),
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = stringResource(R.string.retry),
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                            TextButton(
+                                                onClick = {
+                                                    viewModel.startNewAnalysisWithText(currentText)
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                colors = ButtonDefaults.textButtonColors(contentColor = SumiInk)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Edit,
+                                                    contentDescription = stringResource(R.string.edit_and_reanalyze_desc),
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = stringResource(R.string.edit_and_reanalyze),
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
                                         }
                                     }
 

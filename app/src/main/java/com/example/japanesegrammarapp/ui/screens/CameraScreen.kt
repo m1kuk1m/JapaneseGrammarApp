@@ -929,26 +929,24 @@ fun ImageCropReviewLayout(
 }
 
 private fun cropBitmapToAspectRatio(bitmap: Bitmap, screenWidth: Float, screenHeight: Float): Bitmap {
-    val bmpW = bitmap.width.toFloat()
-    val bmpH = bitmap.height.toFloat()
-    if (bmpW <= 0f || bmpH <= 0f || screenWidth <= 0f || screenHeight <= 0f) return bitmap
+    val bmpW = bitmap.width
+    val bmpH = bitmap.height
+    if (bmpW <= 0 || bmpH <= 0 || screenWidth <= 0f || screenHeight <= 0f) return bitmap
     
     val screenRatio = screenWidth / screenHeight
-    val bmpRatio = bmpW / bmpH
+    val bmpRatio = bmpW.toFloat() / bmpH.toFloat()
     
     return try {
         if (screenRatio < bmpRatio) {
             // Screen is taller/narrower than bitmap. Crop horizontal sides.
-            val targetWidth = bmpH * screenRatio
-            val xOffset = ((bmpW - targetWidth) / 2f).toInt().coerceIn(0, (bmpW - 1).toInt())
-            val targetWidthInt = targetWidth.toInt().coerceIn(1, (bmpW - xOffset).toInt())
-            Bitmap.createBitmap(bitmap, xOffset, 0, targetWidthInt, bitmap.height)
+            val targetWidth = (bmpH * screenRatio).toInt().coerceIn(1, bmpW)
+            val xOffset = ((bmpW - targetWidth) / 2).coerceIn(0, bmpW - targetWidth)
+            Bitmap.createBitmap(bitmap, xOffset, 0, targetWidth, bmpH)
         } else {
             // Screen is wider/shorter than bitmap. Crop vertical sides.
-            val targetHeight = bmpW / screenRatio
-            val yOffset = ((bmpH - targetHeight) / 2f).toInt().coerceIn(0, (bmpH - 1).toInt())
-            val targetHeightInt = targetHeight.toInt().coerceIn(1, (bmpH - yOffset).toInt())
-            Bitmap.createBitmap(bitmap, 0, yOffset, bitmap.width, targetHeightInt)
+            val targetHeight = (bmpW / screenRatio).toInt().coerceIn(1, bmpH)
+            val yOffset = ((bmpH - targetHeight) / 2).coerceIn(0, bmpH - targetHeight)
+            Bitmap.createBitmap(bitmap, 0, yOffset, bmpW, targetHeight)
         }
     } catch (e: Exception) {
         Log.e("CameraScreen", "Failed to crop captured bitmap to screen aspect ratio", e)
