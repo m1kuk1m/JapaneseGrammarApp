@@ -905,7 +905,7 @@ fun ImageCropReviewLayout(
                             try {
                                 val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
                                 onConfirm(cropped)
-                            } catch (e: IllegalArgumentException) {
+                            } catch (e: Throwable) {
                                 e.printStackTrace()
                                 onConfirm(bitmap) // Fallback to raw captured bitmap if crop fails
                             }

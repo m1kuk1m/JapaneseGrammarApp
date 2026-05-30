@@ -14,10 +14,34 @@ object BitmapHelper {
 
     private const val TAG = "BitmapHelper"
 
-    // Loads a photo from file and corrects rotation according to EXIF
+    private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+        val height = options.outHeight
+        val width = options.outWidth
+        var inSampleSize = 1
+
+        if (height > reqHeight || width > reqWidth) {
+            val halfHeight = height / 2
+            val halfWidth = width / 2
+
+            while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
+                inSampleSize *= 2
+            }
+        }
+        return inSampleSize
+    }
+
+    // Loads a photo from file and corrects rotation according to EXIF with safe downsampling
     fun loadRotatedBitmap(file: File): Bitmap? {
         try {
-            val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null
+            val options = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            BitmapFactory.decodeFile(file.absolutePath, options)
+            
+            options.inSampleSize = calculateInSampleSize(options, 1200, 1200)
+            options.inJustDecodeBounds = false
+            
+            val bitmap = BitmapFactory.decodeFile(file.absolutePath, options) ?: return null
             val exif = ExifInterface(file.absolutePath)
             val orientation = exif.getAttributeInt(
                 ExifInterface.TAG_ORIENTATION,
@@ -32,20 +56,33 @@ object BitmapHelper {
                 else -> return bitmap
             }
             
-            return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-        } catch (e: Exception) {
+            val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+            if (rotated != bitmap) {
+                bitmap.recycle()
+            }
+            return rotated
+        } catch (e: Throwable) {
             Log.e(TAG, "Error loading rotated bitmap from file", e)
             return null
         }
     }
 
-    // Load rotated bitmap from ContentProvider Uri (Gallery selection)
+    // Load rotated bitmap from ContentProvider Uri (Gallery selection) with safe downsampling
     fun loadRotatedBitmapFromUri(context: Context, uri: Uri): Bitmap? {
         try {
+            val options = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                val bitmap = BitmapFactory.decodeStream(inputStream) ?: return null
+                BitmapFactory.decodeStream(inputStream, null, options)
+            }
+            
+            options.inSampleSize = calculateInSampleSize(options, 1200, 1200)
+            options.inJustDecodeBounds = false
+            
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val bitmap = BitmapFactory.decodeStream(inputStream, null, options) ?: return null
                 
-                // Check rotation using EXIF
                 var rotation = 0
                 context.contentResolver.openInputStream(uri)?.use { exifInputStream ->
                     try {
@@ -68,9 +105,13 @@ object BitmapHelper {
                 if (rotation == 0) return bitmap
                 
                 val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
-                return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                if (rotated != bitmap) {
+                    bitmap.recycle()
+                }
+                return rotated
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error loading bitmap from URI", e)
         }
         return null
