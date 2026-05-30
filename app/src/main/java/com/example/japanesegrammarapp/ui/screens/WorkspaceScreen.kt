@@ -97,13 +97,23 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                     snackbarHostState.showSnackbar(event.message)
                 }
                 is UiEvent.ShowLocalizedError -> {
-                    val formattedMessage = if (event.args.isNotEmpty()) {
-                        val resolvedArgs = event.args.map { arg ->
-                            if (arg is Int) context.getString(arg) else arg
+                    val formattedMessage = try {
+                        if (event.args.isNotEmpty()) {
+                            val resolvedArgs = event.args.map { arg ->
+                                if (arg is Int) {
+                                    try {
+                                        context.getString(arg)
+                                    } catch (e: android.content.res.Resources.NotFoundException) {
+                                        arg
+                                    }
+                                } else arg
+                            }
+                            context.getString(event.resId, *resolvedArgs.toTypedArray())
+                        } else {
+                            context.getString(event.resId)
                         }
-                        context.getString(event.resId, *resolvedArgs.toTypedArray())
-                    } else {
-                        context.getString(event.resId)
+                    } catch (e: android.content.res.Resources.NotFoundException) {
+                        "Notification triggered"
                     }
                     snackbarHostState.showSnackbar(formattedMessage)
                 }
