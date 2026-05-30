@@ -1,436 +1,587 @@
 package com.example.japanesegrammarapp.ui.screens
 
-import android.content.Context
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import android.net.Uri
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.japanesegrammarapp.ui.AppViewModel
+import coil.compose.AsyncImage
+import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.network.LlmConfig
+import com.example.japanesegrammarapp.ui.AppViewModel
+import com.example.japanesegrammarapp.ui.UiEvent
+import com.example.japanesegrammarapp.ui.theme.ZenColors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
-    val context = LocalContext.current
-    
-    // Traditional Japanese Colors
-    val SumiInk = Color(0xFF2B2A28)
-    val WashiBg = Color(0xFFFCF8F2)
-    val AizomeIndigo = Color(0xFFBCCCD4)
+    val SumiInk = MaterialTheme.colorScheme.onBackground
+    val WashiBg = MaterialTheme.colorScheme.background
+    val SurfaceColor = MaterialTheme.colorScheme.surface
+    val PrimaryColor = MaterialTheme.colorScheme.primary
+    val OnPrimaryColor = MaterialTheme.colorScheme.onPrimary
 
     val uiState by viewModel.uiState.collectAsState()
     val activeProvider = uiState.activeProvider
     val providerModels = uiState.providerModels
     val isFetchingModels = uiState.isFetchingModels
     val fetchingProvider = uiState.fetchingProvider
+    val totalTokensConsumed by viewModel.totalTokensConsumed.collectAsState()
+    val tokenUsageByModel by viewModel.tokenUsageByModel.collectAsState()
+
+    var showTokenDialog by remember { mutableStateOf(false) }
 
     val providers = LlmConfig.providers
     val defaultUrls = LlmConfig.defaultUrls
 
-    var keys by remember { mutableStateOf(providers.associateWith { viewModel.getApiKey(it) }) }
-    var urls by remember { mutableStateOf(providers.associateWith { viewModel.getApiUrl(it) }) }
-
-    // Toggle password visibility per provider
-    var keysVisibility by remember { mutableStateOf(providers.associateWith { false }) }
-    // Single expandable item tracking
-    var expandedProvider by remember { mutableStateOf<String?>(activeProvider) }
+    var keys by remember { mutableStateOf(providers.associateWith { "" }) }
+    var urls by remember { mutableStateOf(providers.associateWith { defaultUrls[it] ?: "" }) }
+    var isSettingsLoaded by remember { mutableStateOf(false) }
 
     fun saveSettings() {
-        providers.forEach { 
+        if (!isSettingsLoaded) return
+        providers.forEach {
             viewModel.saveApiKey(it, keys[it] ?: "")
             viewModel.saveApiUrl(it, urls[it] ?: "")
         }
     }
 
+    BackHandler(enabled = isSettingsLoaded) {
+        saveSettings()
+        if (navController.previousBackStackEntry != null) {
+            navController.popBackStack()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        val loadedKeys = withContext(Dispatchers.IO) { providers.associateWith { viewModel.getApiKey(it) } }
+        val loadedUrls = withContext(Dispatchers.IO) { providers.associateWith { viewModel.getApiUrl(it) } }
+        keys = loadedKeys
+        urls = loadedUrls
+        isSettingsLoaded = true
+    }
+
+    providers.forEach { provider ->
+        val currentKey = keys[provider] ?: ""
+        val currentUrl = urls[provider] ?: ""
+        LaunchedEffect(currentKey, currentUrl) {
+            if (isSettingsLoaded && currentKey.isNotBlank()) {
+                delay(1500)
+                viewModel.fetchModels(provider, currentUrl, currentKey)
+            }
+        }
+    }
+
+    var keysVisibility by remember { mutableStateOf(providers.associateWith { false }) }
+    var expandedProvider by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.uiEvent.collect { event ->
+            if (event is UiEvent.ShowError) {
+                snackbarHostState.showSnackbar(
+                    message = event.message,
+                    duration = SnackbarDuration.Short
+                )
+            }
+        }
+    }
+
+    val logs by com.example.japanesegrammarapp.utils.AppLogger.logs.collectAsState()
+    var showLogsDialog by remember { mutableStateOf(false) }
+
+    if (showLogsDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogsDialog = false },
+            title = { Text(stringResource(R.string.app_logs_title)) },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
+                    TextButton(onClick = { com.example.japanesegrammarapp.utils.AppLogger.clear() }) {
+                        Text(stringResource(R.string.clear_logs))
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(logs) { log ->
+                            Text(log, fontSize = 10.sp, fontFamily = FontFamily.Monospace, lineHeight = 12.sp)
+                            Divider(modifier = Modifier.padding(vertical = 4.dp))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLogsDialog = false }) { Text(stringResource(R.string.close)) }
+            }
+        )
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = WashiBg,
         topBar = {
-            LargeTopAppBar(
-                title = { Text("設定", fontWeight = FontWeight.Bold, color = SumiInk) },
+            TopAppBar(
+                title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Bold, color = SumiInk) },
                 navigationIcon = {
-                    IconButton(onClick = { 
+                    IconButton(onClick = {
                         saveSettings()
-                        navController.popBackStack() 
+                        if (navController.previousBackStackEntry != null) {
+                            navController.popBackStack()
+                        }
                     }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "戻る", tint = SumiInk)
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = SumiInk)
                     }
                 },
-                colors = TopAppBarDefaults.largeTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = WashiBg,
                     titleContentColor = SumiInk
                 )
             )
         }
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            Text(
-                "一般設定", 
-                style = MaterialTheme.typography.titleLarge, 
-                color = SumiInk, 
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.15f)),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val useOcr = uiState.useOcr
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("ローカルOCRでテキスト抽出", fontWeight = FontWeight.Bold, color = SumiInk, fontSize = 14.sp)
-                        Text(
-                            "オフにすると、画像を直接AIに送信して分析します。",
-                            fontSize = 11.sp,
-                            color = SumiInk.copy(alpha = 0.5f)
+            // Appearance Section
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                SettingsGroup(title = stringResource(R.string.appearance)) {
+                    // Theme Mode
+                    var themeDropdownExpanded by remember { mutableStateOf(false) }
+                    SettingsItem(
+                        icon = Icons.Default.BrightnessMedium,
+                        title = stringResource(R.string.theme_mode),
+                        subtitle = when (uiState.themeMode) {
+                            "Light" -> stringResource(R.string.theme_light)
+                            "Dark" -> stringResource(R.string.theme_dark)
+                            else -> stringResource(R.string.theme_system)
+                        },
+                        onClick = { themeDropdownExpanded = true },
+                        trailingContent = {
+                            Box {
+                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = SumiInk.copy(alpha=0.5f))
+                                DropdownMenu(
+                                    expanded = themeDropdownExpanded,
+                                    onDismissRequest = { themeDropdownExpanded = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.theme_system)) },
+                                        onClick = { viewModel.setThemeMode("System"); themeDropdownExpanded = false }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.theme_light)) },
+                                        onClick = { viewModel.setThemeMode("Light"); themeDropdownExpanded = false }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.theme_dark)) },
+                                        onClick = { viewModel.setThemeMode("Dark"); themeDropdownExpanded = false }
+                                    )
+                                }
+                            }
+                        }
+                    )
+                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+
+                    // Accent Color
+                    var colorDialogVisible by remember { mutableStateOf(false) }
+                    SettingsItem(
+                        icon = Icons.Default.Palette,
+                        title = stringResource(R.string.accent_color),
+                        onClick = { colorDialogVisible = true },
+                        trailingContent = {
+                            val displayColor = try {
+                                if (uiState.primaryColor != "Default") Color(android.graphics.Color.parseColor(uiState.primaryColor)) else SumiInk
+                            } catch (e: Exception) { SumiInk }
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(displayColor)
+                                    .border(1.dp, SumiInk.copy(alpha = 0.2f), CircleShape)
+                            )
+                        }
+                    )
+                    if (colorDialogVisible) {
+                        ColorPickerDialog(
+                            currentColor = uiState.primaryColor,
+                            onColorSelected = { viewModel.setPrimaryColor(it) },
+                            onDismiss = { colorDialogVisible = false }
                         )
                     }
-                    Switch(
-                        checked = useOcr,
-                        onCheckedChange = { viewModel.setUseOcr(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = WashiBg,
-                            checkedTrackColor = SumiInk,
-                            uncheckedThumbColor = SumiInk.copy(alpha = 0.4f),
-                            uncheckedTrackColor = SumiInk.copy(alpha = 0.1f)
-                        )
+
+                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+
+                    // Wallpaper
+                    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+                        if (uri != null) {
+                            viewModel.setWallpaperUri(uri.toString())
+                        }
+                    }
+                    SettingsItem(
+                        icon = Icons.Default.Wallpaper,
+                        title = stringResource(R.string.wallpaper),
+                        subtitle = if (uiState.wallpaperUri.isNotBlank()) stringResource(R.string.custom_image_set) else stringResource(R.string.none),
+                        onClick = { launcher.launch("image/*") },
+                        trailingContent = {
+                            if (uiState.wallpaperUri.isNotBlank()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    AsyncImage(
+                                        model = uiState.wallpaperUri,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(RoundedCornerShape(4.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    IconButton(
+                                        onClick = { viewModel.setWallpaperUri("") },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_wallpaper), tint = SumiInk.copy(alpha=0.5f))
+                                    }
+                                }
+                            } else {
+                                TextButton(onClick = { launcher.launch("image/*") }) {
+                                    Text(stringResource(R.string.pick_wallpaper), color = SumiInk)
+                                }
+                            }
+                        }
                     )
                 }
             }
 
-            Text(
-                "API 設定", 
-                style = MaterialTheme.typography.titleLarge, 
-                color = SumiInk, 
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                "各プロバイダーのベースURLとAPIキーを設定します。", 
-                style = MaterialTheme.typography.bodyMedium, 
-                color = SumiInk.copy(alpha = 0.6f)
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            providers.forEach { provider ->
+            // General Section
+            item {
+                SettingsGroup(title = stringResource(R.string.general)) {
+                    // Language Switcher
+                    var langDropdownExpanded by remember { mutableStateOf(false) }
+                    val currentLocales = androidx.appcompat.app.AppCompatDelegate.getApplicationLocales()
+                    val currentLangTag = if (currentLocales.isEmpty) "" else currentLocales.get(0)?.toLanguageTag() ?: ""
+                    val currentLangLabel = when {
+                        currentLangTag.startsWith("zh") -> "简体中文"
+                        currentLangTag.startsWith("ja") -> "日本語"
+                        currentLangTag.startsWith("en") -> "English"
+                        else -> stringResource(R.string.language_auto)
+                    }
+
+                    SettingsItem(
+                        icon = Icons.Default.Language,
+                        title = stringResource(R.string.language),
+                        subtitle = currentLangLabel,
+                        onClick = { langDropdownExpanded = true },
+                        trailingContent = {
+                            Box {
+                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = SumiInk.copy(alpha=0.5f))
+                                DropdownMenu(expanded = langDropdownExpanded, onDismissRequest = { langDropdownExpanded = false }) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.language_auto)) },
+                                        onClick = { 
+                                            androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(androidx.core.os.LocaleListCompat.getEmptyLocaleList())
+                                            langDropdownExpanded = false 
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("English") },
+                                        onClick = { 
+                                            androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(androidx.core.os.LocaleListCompat.forLanguageTags("en"))
+                                            langDropdownExpanded = false 
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("简体中文") },
+                                        onClick = { 
+                                            androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(androidx.core.os.LocaleListCompat.forLanguageTags("zh"))
+                                            langDropdownExpanded = false 
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("日本語") },
+                                        onClick = { 
+                                            androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(androidx.core.os.LocaleListCompat.forLanguageTags("ja"))
+                                            langDropdownExpanded = false 
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    )
+                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsItem(
+                        icon = Icons.Default.ImageSearch,
+                        title = stringResource(R.string.local_ocr),
+                        subtitle = stringResource(R.string.local_ocr_desc),
+                        trailingContent = {
+                            Switch(
+                                checked = uiState.useOcr,
+                                onCheckedChange = { viewModel.setUseOcr(it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = OnPrimaryColor,
+                                    checkedTrackColor = PrimaryColor,
+                                    uncheckedThumbColor = SumiInk.copy(alpha = 0.4f),
+                                    uncheckedTrackColor = SumiInk.copy(alpha = 0.1f)
+                                )
+                            )
+                        }
+                    )
+                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsItem(
+                        icon = Icons.Default.DataUsage,
+                        title = stringResource(R.string.token_usage),
+                        subtitle = stringResource(R.string.token_usage_desc),
+                        onClick = { showTokenDialog = true },
+                        trailingContent = {
+                            val formattedTotal = if (totalTokensConsumed >= 1000) String.format(java.util.Locale.US, "%.1fk", totalTokensConsumed / 1000.0) else totalTokensConsumed.toString()
+                            Text(text = formattedTotal, fontWeight = FontWeight.Bold, color = SumiInk)
+                        }
+                    )
+                }
+            }
+
+            // API Priority Section
+            item {
+                SettingsGroup(title = stringResource(R.string.api_config)) {
+                    var mainProviderExpanded by remember { mutableStateOf(false) }
+                    SettingsItem(
+                        icon = Icons.Default.Star,
+                        title = stringResource(R.string.main_api),
+                        subtitle = activeProvider,
+                        onClick = { mainProviderExpanded = true },
+                        trailingContent = {
+                            Box {
+                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = SumiInk.copy(alpha=0.5f))
+                                DropdownMenu(expanded = mainProviderExpanded, onDismissRequest = { mainProviderExpanded = false }) {
+                                    providers.forEach { provider ->
+                                        DropdownMenuItem(
+                                            text = { Text(provider) },
+                                            onClick = { viewModel.setActiveProvider(provider); mainProviderExpanded = false }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+
+                    var mainModelExpanded by remember { mutableStateOf(false) }
+                    val mainModels = providerModels[activeProvider] ?: emptyList()
+                    SettingsItem(
+                        icon = Icons.Default.AutoAwesome,
+                        title = stringResource(R.string.main_model),
+                        subtitle = uiState.activeModel.ifBlank { stringResource(R.string.unselected) },
+                        onClick = { mainModelExpanded = true },
+                        trailingContent = {
+                            Box {
+                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = SumiInk.copy(alpha=0.5f))
+                                DropdownMenu(expanded = mainModelExpanded, onDismissRequest = { mainModelExpanded = false }) {
+                                    mainModels.forEach { model ->
+                                        DropdownMenuItem(
+                                            text = { Text(model) },
+                                            onClick = { viewModel.setActiveModel(model); mainModelExpanded = false }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+
+                    var backupProviderExpanded by remember { mutableStateOf(false) }
+                    SettingsItem(
+                        icon = Icons.Default.Backup,
+                        title = stringResource(R.string.backup_api),
+                        subtitle = uiState.backupProvider,
+                        onClick = { backupProviderExpanded = true },
+                        trailingContent = {
+                            Box {
+                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = SumiInk.copy(alpha=0.5f))
+                                DropdownMenu(expanded = backupProviderExpanded, onDismissRequest = { backupProviderExpanded = false }) {
+                                    providers.forEach { provider ->
+                                        DropdownMenuItem(
+                                            text = { Text(provider) },
+                                            onClick = { viewModel.setBackupProvider(provider); backupProviderExpanded = false }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+
+                    var backupModelExpanded by remember { mutableStateOf(false) }
+                    val backupModels = providerModels[uiState.backupProvider] ?: emptyList()
+                    SettingsItem(
+                        icon = Icons.Default.AutoAwesome,
+                        title = stringResource(R.string.backup_model),
+                        subtitle = uiState.backupModel.ifBlank { stringResource(R.string.unselected) },
+                        onClick = { backupModelExpanded = true },
+                        trailingContent = {
+                            Box {
+                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = SumiInk.copy(alpha=0.5f))
+                                DropdownMenu(expanded = backupModelExpanded, onDismissRequest = { backupModelExpanded = false }) {
+                                    backupModels.forEach { model ->
+                                        DropdownMenuItem(
+                                            text = { Text(model) },
+                                            onClick = { viewModel.setBackupModel(model); backupModelExpanded = false }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    )
+                }
+            }
+
+            // Credentials Section
+            item {
+                Text(
+                    text = stringResource(R.string.credentials),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = SumiInk,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+                )
+            }
+
+            items(providers, key = { it }) { provider ->
                 val isExpanded = expandedProvider == provider
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp)
-                        .animateContentSize(animationSpec = spring(dampingRatio = 0.8f, stiffness = 150f)), 
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.15f)),
-                    shape = RoundedCornerShape(8.dp)
+                        .padding(bottom = 12.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceColor),
+                    border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.08f)),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(0.dp)
                 ) {
                     Column {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    expandedProvider = if (isExpanded) null else provider
-                                }
+                                .clickable { expandedProvider = if (isExpanded) null else provider }
                                 .padding(16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                    Text(
-                                        provider, 
-                                        style = MaterialTheme.typography.titleMedium, 
-                                        fontWeight = FontWeight.Bold,
-                                        color = SumiInk
-                                    )
-                                    if (activeProvider == provider) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Surface(
-                                            color = SumiInk.copy(alpha = 0.08f),
-                                            shape = RoundedCornerShape(4.dp),
-                                            border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.15f))
-                                        ) {
-                                            Text(
-                                                text = "有効",
-                                                color = SumiInk,
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                                if (provider == "Vertex AI") {
-                                    Text(
-                                        "APIキー用のExpress Modeを使用します。",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = SumiInk.copy(alpha = 0.5f)
-                                    )
-                                }
-                            }
-                            val expandIcon = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown
-                            Icon(expandIcon, contentDescription = "展開・折りたたみ", tint = SumiInk)
+                            Text(provider, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = SumiInk)
+                            Icon(if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, null, tint = SumiInk.copy(alpha=0.5f))
                         }
 
                         AnimatedVisibility(
                             visible = isExpanded,
-                            enter = expandVertically(),
-                            exit = shrinkVertically()
+                            enter = expandVertically(animationSpec = tween(200)) + fadeIn(animationSpec = tween(180)),
+                            exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(160))
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
-                            ) {
+                            Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
                                 OutlinedTextField(
                                     value = urls[provider] ?: "",
-                                    onValueChange = { newValue ->
-                                        urls = urls.toMutableMap().apply { put(provider, newValue) }
-                                    },
-                                    label = { Text("ベースURL", color = SumiInk.copy(alpha = 0.7f)) },
+                                    onValueChange = { urls = urls.toMutableMap().apply { put(provider, it) } },
+                                    label = { Text(stringResource(R.string.base_url)) },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
-                                    shape = RoundedCornerShape(6.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = SumiInk,
-                                        unfocusedBorderColor = SumiInk.copy(alpha = 0.3f),
-                                        focusedLabelColor = SumiInk,
-                                        unfocusedLabelColor = SumiInk.copy(alpha = 0.7f),
-                                        focusedTextColor = SumiInk,
-                                        unfocusedTextColor = SumiInk
-                                    )
+                                    shape = RoundedCornerShape(8.dp)
                                 )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                
+                                Spacer(modifier = Modifier.height(8.dp))
                                 val isVisible = keysVisibility[provider] == true
                                 OutlinedTextField(
                                     value = keys[provider] ?: "",
-                                    onValueChange = { newValue ->
-                                        keys = keys.toMutableMap().apply { put(provider, newValue) }
-                                    },
-                                    label = { Text("APIキー", color = SumiInk.copy(alpha = 0.7f)) },
+                                    onValueChange = { keys = keys.toMutableMap().apply { put(provider, it) } },
+                                    label = { Text(stringResource(R.string.api_key)) },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
                                     visualTransformation = if (isVisible) VisualTransformation.None else PasswordVisualTransformation(),
                                     trailingIcon = {
-                                        val buttonText = if (isVisible) "非表示" else "表示"
-                                        TextButton(
-                                            onClick = {
-                                                keysVisibility = keysVisibility.toMutableMap().apply { put(provider, !isVisible) }
-                                            }
-                                        ) {
-                                            Text(
-                                                text = buttonText,
-                                                color = SumiInk.copy(alpha = 0.6f),
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
+                                        IconButton(onClick = { keysVisibility = keysVisibility.toMutableMap().apply { put(provider, !isVisible) } }) {
+                                            Icon(if (isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null)
                                         }
                                     },
-                                    shape = RoundedCornerShape(6.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = SumiInk,
-                                        unfocusedBorderColor = SumiInk.copy(alpha = 0.3f),
-                                        focusedLabelColor = SumiInk,
-                                        unfocusedLabelColor = SumiInk.copy(alpha = 0.7f),
-                                        focusedTextColor = SumiInk,
-                                        unfocusedTextColor = SumiInk
-                                    )
+                                    shape = RoundedCornerShape(8.dp)
                                 )
-                                
-                                // Active Provider Toggle
-                                Spacer(modifier = Modifier.height(12.dp))
-                                val isActive = activeProvider == provider
-                                if (isActive) {
-                                    Button(
-                                        onClick = {},
-                                        colors = ButtonDefaults.buttonColors(containerColor = SumiInk),
-                                        shape = RoundedCornerShape(6.dp),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Icon(Icons.Default.Check, contentDescription = "Active", tint = WashiBg, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("使用中", fontWeight = FontWeight.Bold, color = WashiBg, fontSize = 13.sp)
-                                    }
-                                } else {
-                                    OutlinedButton(
-                                        onClick = { viewModel.setActiveProvider(provider) },
-                                        shape = RoundedCornerShape(6.dp),
-                                        border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.6f)),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = SumiInk),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text("有効にする", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                                    }
-                                }
-
-                                // Model Management Section
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Divider(color = SumiInk.copy(alpha = 0.1f))
-                                Spacer(modifier = Modifier.height(12.dp))
-
+                                
+                                // Custom Model Input
+                                var customModelInput by remember { mutableStateOf("") }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = "モデル管理",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = SumiInk,
-                                        fontWeight = FontWeight.Bold
+                                    OutlinedTextField(
+                                        value = customModelInput,
+                                        onValueChange = { customModelInput = it },
+                                        label = { Text(stringResource(R.string.add_custom_model)) },
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(8.dp)
                                     )
-                                    // Fetch models button
-                                    val isFetchingThis = fetchingProvider == provider
-                                    OutlinedButton(
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Button(
                                         onClick = {
-                                            val currentUrl = urls[provider] ?: ""
-                                            val currentKey = keys[provider] ?: ""
-                                            viewModel.fetchModels(provider, currentUrl, currentKey)
+                                            if (customModelInput.isNotBlank()) {
+                                                val currentModels = providerModels[provider] ?: emptyList()
+                                                if (!currentModels.contains(customModelInput)) {
+                                                    viewModel.saveModelsForProvider(provider, currentModels + customModelInput)
+                                                }
+                                                customModelInput = ""
+                                            }
                                         },
-                                        enabled = !isFetchingThis,
-                                        shape = RoundedCornerShape(6.dp),
-                                        border = BorderStroke(1.dp, if (isFetchingThis) SumiInk.copy(alpha = 0.2f) else SumiInk.copy(alpha = 0.5f)),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = SumiInk),
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                        modifier = Modifier.height(32.dp)
+                                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.padding(top = 8.dp)
                                     ) {
-                                        if (isFetchingThis) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(14.dp),
-                                                strokeWidth = 2.dp,
-                                                color = SumiInk.copy(alpha = 0.5f)
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text("取得中...", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                                        } else {
-                                            Icon(
-                                                Icons.Default.Refresh,
-                                                contentDescription = "モデルを取得",
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("モデルを取得", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                                        }
+                                        Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp), tint = OnPrimaryColor)
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                
-                                val models = providerModels[provider] ?: emptyList()
-                                
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = SumiInk.copy(alpha = 0.02f)),
-                                    border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.08f)),
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.fillMaxWidth()
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                val isFetchingThis = fetchingProvider == provider
+                                Button(
+                                    onClick = { viewModel.fetchModels(provider, urls[provider] ?: "", keys[provider] ?: "") },
+                                    enabled = !isFetchingThis,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
+                                    shape = RoundedCornerShape(8.dp)
                                 ) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
-                                        if (models.isEmpty()) {
-                                            Text("登録されているモデルはありません。", fontSize = 12.sp, color = SumiInk.copy(alpha = 0.4f))
-                                        } else {
-                                            models.forEach { model ->
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(vertical = 4.dp),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                                                ) {
-                                                    Text(model, color = SumiInk, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                                                    IconButton(
-                                                        onClick = {
-                                                            val updated = models.filter { it != model }
-                                                            viewModel.saveModelsForProvider(provider, updated)
-                                                        },
-                                                        modifier = Modifier.size(28.dp)
-                                                    ) {
-                                                        Icon(Icons.Default.Close, contentDescription = "削除", tint = Color(0xFFD32F2F), modifier = Modifier.size(16.dp))
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        
-                                        var newModelName by remember(provider) { mutableStateOf("") }
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                                        ) {
-                                            OutlinedTextField(
-                                                value = newModelName,
-                                                onValueChange = { newModelName = it },
-                                                placeholder = { Text("新規モデル名...", fontSize = 12.sp, color = SumiInk.copy(alpha = 0.4f)) },
-                                                modifier = Modifier.weight(1f),
-                                                singleLine = true,
-                                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
-                                                shape = RoundedCornerShape(6.dp),
-                                                colors = OutlinedTextFieldDefaults.colors(
-                                                    focusedBorderColor = SumiInk,
-                                                    unfocusedBorderColor = SumiInk.copy(alpha = 0.2f),
-                                                    focusedTextColor = SumiInk,
-                                                    unfocusedTextColor = SumiInk
-                                                )
-                                            )
-                                            
-                                            Button(
-                                                onClick = {
-                                                    val nameTrimmed = newModelName.trim()
-                                                    if (nameTrimmed.isNotBlank() && !models.contains(nameTrimmed)) {
-                                                        val updated = models + nameTrimmed
-                                                        viewModel.saveModelsForProvider(provider, updated)
-                                                        newModelName = ""
-                                                    }
-                                                },
-                                                colors = ButtonDefaults.buttonColors(containerColor = SumiInk),
-                                                shape = RoundedCornerShape(6.dp),
-                                                modifier = Modifier.height(36.dp)
-                                            ) {
-                                                Text("追加", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WashiBg)
-                                            }
-                                        }
+                                    if (isFetchingThis) {
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = OnPrimaryColor, strokeWidth = 2.dp)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(stringResource(R.string.fetching))
+                                    } else {
+                                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(stringResource(R.string.fetch_models))
                                     }
                                 }
                             }
@@ -438,6 +589,319 @@ fun SettingsScreen(navController: NavController, viewModel: AppViewModel) {
                     }
                 }
             }
+            // TTS Settings Section
+            item {
+                Text(
+                    text = stringResource(R.string.tts_settings_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = SumiInk,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 16.dp)
+                )
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceColor),
+                    border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.08f)),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(0.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        var selectedTtsProvider by remember { mutableStateOf(viewModel.getTtsProvider()) }
+                        var ttsProviderExpanded by remember { mutableStateOf(false) }
+                        val ttsProviders = listOf("OpenAI", "Google", "Microsoft")
+
+                        // Provider Dropdown
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { ttsProviderExpanded = true }
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(stringResource(R.string.tts_provider), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = SumiInk)
+                            Box {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(selectedTtsProvider, color = SumiInk.copy(alpha=0.7f))
+                                    Icon(Icons.Default.KeyboardArrowDown, null, tint = SumiInk.copy(alpha=0.5f))
+                                }
+                                DropdownMenu(expanded = ttsProviderExpanded, onDismissRequest = { ttsProviderExpanded = false }) {
+                                    ttsProviders.forEach { provider ->
+                                        DropdownMenuItem(
+                                            text = { Text(provider) },
+                                            onClick = { 
+                                                selectedTtsProvider = provider
+                                                viewModel.setTtsProvider(provider)
+                                                ttsProviderExpanded = false 
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        var ttsUrl by remember(selectedTtsProvider) { mutableStateOf(viewModel.getTtsApiUrl(selectedTtsProvider)) }
+                        var ttsKey by remember(selectedTtsProvider) { mutableStateOf(viewModel.getTtsApiKey(selectedTtsProvider)) }
+                        var ttsModel by remember(selectedTtsProvider) { mutableStateOf(viewModel.getTtsModel(selectedTtsProvider)) }
+                        var ttsVoice by remember(selectedTtsProvider) { mutableStateOf(viewModel.getTtsVoice(selectedTtsProvider)) }
+                        var ttsRegion by remember(selectedTtsProvider) { mutableStateOf(viewModel.getTtsRegion(selectedTtsProvider)) }
+                        var ttsKeyVisible by remember { mutableStateOf(false) }
+
+                        // Generic input update function
+                        fun saveTtsSettings() {
+                            viewModel.setTtsApiUrl(selectedTtsProvider, ttsUrl)
+                            viewModel.setTtsApiKey(selectedTtsProvider, ttsKey)
+                            viewModel.setTtsModel(selectedTtsProvider, ttsModel)
+                            viewModel.setTtsVoice(selectedTtsProvider, ttsVoice)
+                            viewModel.setTtsRegion(selectedTtsProvider, ttsRegion)
+                        }
+
+                        if (selectedTtsProvider == "OpenAI" || selectedTtsProvider == "Google") {
+                            OutlinedTextField(
+                                value = ttsUrl,
+                                onValueChange = { ttsUrl = it; saveTtsSettings() },
+                                label = { Text(stringResource(R.string.base_url)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        if (selectedTtsProvider == "Microsoft") {
+                            OutlinedTextField(
+                                value = ttsRegion,
+                                onValueChange = { ttsRegion = it; saveTtsSettings() },
+                                label = { Text(stringResource(R.string.tts_region_placeholder)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        OutlinedTextField(
+                            value = ttsKey,
+                            onValueChange = { ttsKey = it; saveTtsSettings() },
+                            label = { Text(stringResource(R.string.api_key)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            visualTransformation = if (ttsKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { ttsKeyVisible = !ttsKeyVisible }) {
+                                    Icon(if (ttsKeyVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null)
+                                }
+                            },
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        if (selectedTtsProvider == "OpenAI") {
+                            OutlinedTextField(
+                                value = ttsModel,
+                                onValueChange = { ttsModel = it; saveTtsSettings() },
+                                label = { Text(stringResource(R.string.tts_model_placeholder)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        OutlinedTextField(
+                            value = ttsVoice,
+                            onValueChange = { ttsVoice = it; saveTtsSettings() },
+                            label = { Text(stringResource(R.string.tts_voice_placeholder)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                    }
+                }
+            }
+
+            item { 
+                Spacer(modifier = Modifier.height(24.dp))
+                OutlinedButton(
+                    onClick = { showLogsDialog = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.view_dev_logs))
+                }
+                Spacer(modifier = Modifier.height(40.dp)) 
+            }
+        }
+    }
+
+    if (showTokenDialog) {
+        AlertDialog(
+            onDismissRequest = { showTokenDialog = false },
+            title = { Text(stringResource(R.string.token_usage), fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    val formattedTotal = if (totalTokensConsumed >= 1000) String.format(java.util.Locale.US, "%.1fk", totalTokensConsumed / 1000.0) else totalTokensConsumed.toString()
+                    Text(stringResource(R.string.total_tokens_format, formattedTotal), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    tokenUsageByModel.forEach { usage ->
+                        val u = if (usage.totalTokens >= 1000) String.format(java.util.Locale.US, "%.1fk", usage.totalTokens / 1000.0) else usage.totalTokens.toString()
+                        Text("${usage.modelUsed}: $u", fontSize = 13.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTokenDialog = false }) {
+                    Text(stringResource(R.string.close), color = SumiInk)
+                }
+            },
+            containerColor = WashiBg
+        )
+    }
+}
+
+@Composable
+fun ColorPickerDialog(
+    currentColor: String,
+    onColorSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val presets = listOf(
+        Pair(R.string.color_default, Color.Unspecified),
+        Pair(R.string.color_sakura, ZenColors.SakuraPink),
+        Pair(R.string.color_matcha, ZenColors.MatchaGreen),
+        Pair(R.string.color_aizome, ZenColors.AizomeIndigo),
+        Pair(R.string.color_kuri, ZenColors.KuriAmber),
+        Pair(R.string.color_hai, ZenColors.HaiMist)
+    )
+    
+    var customHexInput by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.select_accent_color)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                presets.forEach { (nameRes, color) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                if (nameRes == R.string.color_default) {
+                                    onColorSelected("Default")
+                                } else {
+                                    val hex = String.format("#%06X", 0xFFFFFF and color.toArgb())
+                                    onColorSelected(hex)
+                                }
+                                onDismiss()
+                            }
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(if (nameRes == R.string.color_default) ZenColors.SumiInk else color)
+                                .border(1.dp, ZenColors.SumiInk.copy(alpha = 0.2f), CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(stringResource(nameRes), fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
+                    }
+                }
+                
+                Divider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f))
+                
+                OutlinedTextField(
+                    value = customHexInput,
+                    onValueChange = { customHexInput = it },
+                    label = { Text(stringResource(R.string.custom_hex), fontSize = 12.sp) },
+                    singleLine = true,
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            if (customHexInput.startsWith("#") && (customHexInput.length == 7 || customHexInput.length == 9)) {
+                                try {
+                                    android.graphics.Color.parseColor(customHexInput)
+                                    onColorSelected(customHexInput)
+                                    onDismiss()
+                                } catch (e: Exception) {}
+                            }
+                        }) {
+                            Icon(Icons.Default.Check, "Apply", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    },
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.close), color = MaterialTheme.colorScheme.onBackground)
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    )
+}
+
+@Composable
+fun SettingsGroup(title: String, content: @Composable ColumnScope.() -> Unit) {
+    val SumiInk = MaterialTheme.colorScheme.onBackground
+    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            color = SumiInk,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.08f)),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String? = null,
+    onClick: (() -> Unit)? = null,
+    trailingContent: @Composable (() -> Unit)? = null
+) {
+    val SumiInk = MaterialTheme.colorScheme.onBackground
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = onClick != null, onClick = onClick ?: {})
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = SumiInk.copy(alpha = 0.7f),
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, fontSize = 15.sp, color = SumiInk, fontWeight = FontWeight.Medium)
+            if (subtitle != null) {
+                Text(text = subtitle, fontSize = 12.sp, color = SumiInk.copy(alpha = 0.5f))
+            }
+        }
+        if (trailingContent != null) {
+            Spacer(modifier = Modifier.width(16.dp))
+            trailingContent()
         }
     }
 }

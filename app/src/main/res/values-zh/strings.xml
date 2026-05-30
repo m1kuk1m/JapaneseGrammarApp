@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App General -->
+    <string name="app_name">日语语法分析</string>
+    <string name="app_title">语法分析</string>
+    <string name="app_subtitle">AI为你清晰拆解日语语法结构</string>
+    
+    <!-- Workspace -->
+    <string name="target_sentence">分析对象</string>
+    <string name="edit_and_reanalyze">编辑并重新分析</string>
+    <string name="image_analysis">图片语法分析</string>
+    <string name="error_occurred">发生错误</string>
+    <string name="delete">删除</string>
+    <string name="retry">重试</string>
+    <string name="target_sentence_header">目标例句</string>
+    <string name="analyzing_word_attributes">正在深度解析单词属性...</string>
+    <string name="segmenting_text">正在进行形态素拆分...</string>
+    <string name="pos">词性</string>
+    <string name="dictionary_form">字典形</string>
+    <string name="inflection">构成/活用</string>
+    <string name="role_in_sentence">句中作用</string>
+    <string name="meaning">中文释义</string>
+    <string name="overall_translation">全文翻译</string>
+    <string name="sentence_clauses">句子结构与解释</string>
+    <string name="grammar_points">语法要点</string>
+    
+    <!-- Input Form -->
+    <string name="input_hint">在此输入日语...</string>
+    <string name="settings">设置</string>
+    <string name="history">历史</string>
+    <string name="analyze">开始分析</string>
+    <string name="analyzing">分析中...</string>
+    
+    <!-- Sidebar -->
+    <string name="history_title">历史记录</string>
+    <string name="close">关闭</string>
+    <string name="no_history">暂无记录</string>
+    <string name="export_all">全部导出</string>
+    
+    <!-- Settings -->
+    <string name="settings_title">设置</string>
+    <string name="appearance">外观</string>
+    <string name="theme_mode">主题模式</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="accent_color">主题色</string>
+    <string name="wallpaper">自定义壁纸</string>
+    <string name="pick_wallpaper">选择图片</string>
+    <string name="clear_wallpaper">清除</string>
+    
+    <string name="general">常规</string>
+    <string name="local_ocr">本地 OCR 提取文本</string>
+    <string name="local_ocr_desc">关闭时，图片将直接发送给 AI 进行分析。</string>
+    <string name="token_usage">API Token 消耗量</string>
+    <string name="token_usage_desc">所有分析消耗的 Token 总计</string>
+    
+    <string name="api_config">API 优先级设置</string>
+    <string name="main_api">主 API</string>
+    <string name="backup_api">备用 API</string>
+    <string name="credentials">API 凭据与模型管理</string>
+    
+    <!-- Workspace Input -->
+    <string name="model_label">模型：</string>
+    <string name="select">选择</string>
+    <string name="model_not_set">未设置模型 (前往设置)</string>
+    <string name="analysis_interrupted">输入已更改，自动分析已中断。</string>
+    <string name="attached_image">附加图片</string>
+    <string name="analysis_target_image">分析目标图片</string>
+    <string name="camera_capture">拍照</string>
+    <string name="pick_image">选择图片</string>
+    <string name="start_analysis">开始分析</string>
+    
+    <!-- History Sidebar -->
+    <string name="history_status_pending">分析中</string>
+    <string name="history_status_error">错误</string>
+    <string name="export">导出</string>
+    <string name="new_analysis">新建分析</string>
+
+    <string name="language">显示语言</string>
+    <string name="language_auto">跟随系统</string>
+    <string name="base_url">接口地址 (Base URL)</string>
+    <string name="api_key">API 密钥 (API Key)</string>
+    <string name="fetching">获取中...</string>
+    <string name="fetch_models">获取可用模型</string>
+    <string name="add_custom_model">添加自定义模型</string>
+    <string name="custom_hex">自定义 Hex (如 #FF5722)</string>
+    <string name="main_model">主模型</string>
+    <string name="backup_model">备用模型</string>
+    
+    <string name="color_default">默认</string>
+    <string name="color_sakura">樱粉</string>
+    <string name="color_matcha">抹茶绿</string>
+    <string name="color_aizome">蓝染</string>
+    <string name="color_kuri">栗色</string>
+    <string name="color_hai">雾灰</string>
+    <string name="select_accent_color">选择主题色</string>
+
+    <!-- Newly added for i18n & de-hardcoding -->
+    <string name="show_action">显示</string>
+    <string name="export_chooser_title">选择导出目标</string>
+    <string name="analysis_results">分析结果</string>
+    <string name="history_menu_desc">历史记录菜单</string>
+    <string name="edit_and_reanalyze_desc">编辑并重新分析</string>
+    <string name="delete_history_title">删除历史记录</string>
+    <string name="delete_history_confirm">确定要删除“%1$s”的分析历史记录吗？</string>
+    <string name="cancel">取消</string>
+    
+    <!-- Export Selection Dialog -->
+    <string name="export_history_title">选择导出历史记录</string>
+    <string name="deselect_all">取消全选</string>
+    <string name="select_all">全选</string>
+    <string name="export_with_count">导出 (%1$d)</string>
+    
+    <!-- Zen Loading View -->
+    <string name="loading_title">AI 日语语法分析进行中</string>
+    <string name="loading_subtitle">正在分析语法结构，请稍候。</string>
+    <string name="cancel_analysis">取消分析</string>
+    <string name="completed">完成</string>
+    <string name="step_1_title">分词与形态素提取</string>
+    <string name="step_1_desc">正在对日文文本进行形态素分词</string>
+    <string name="step_2_title">语法角色与文节关系识别</string>
+    <string name="step_2_desc">正在对文节成分和语法关系进行分类</string>
+    <string name="step_3_title">语境翻译与智能对照</string>
+    <string name="step_3_desc">正在生成最符合语境的翻译和对照数据</string>
+    <string name="step_4_title">核心语法深度解析</string>
+    <string name="step_4_desc">正在为重要语法生成详细的解析卡片</string>
+    
+    <!-- Workspace Result -->
+    <string name="analysis_result_text_view">分析结果 (文本视图)</string>
+    <string name="no_analysis_result">暂无分析结果。</string>
+    <string name="stop_tts">停止朗读</string>
+    <string name="play_tts">开始朗读</string>
+    <string name="close_details">关闭详情</string>
+    <string name="translation_label">翻译</string>
+    <string name="grammar_label">语法</string>
+    
+    <!-- Settings Screen -->
+    <string name="app_logs_title">应用日志 (开发者)</string>
+    <string name="clear_logs">清除日志</string>
+    <string name="back">返回</string>
+    <string name="custom_image_set">已设置自定义壁纸</string>
+    <string name="none">无</string>
+    <string name="unselected">未选择</string>
+    <string name="tts_settings_title">TTS 语音合成设置</string>
+    <string name="tts_provider">TTS 服务商</string>
+    <string name="tts_region_placeholder">区域/服务区 (例如 eastus)</string>
+    <string name="tts_model_placeholder">语音模型 (例如 tts-1)</string>
+    <string name="tts_voice_placeholder">合成声音 (例如 alloy, ja-JP-Neural2-B)</string>
+    <string name="view_dev_logs">查看开发者日志</string>
+    <string name="total_tokens_format">总计: %1$s 词 (tokens)</string>
+</resources>

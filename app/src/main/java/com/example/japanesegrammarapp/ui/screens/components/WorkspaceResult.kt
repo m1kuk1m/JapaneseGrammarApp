@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.EaseInOutCubic
@@ -23,40 +24,76 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.network.WordSegment
 import com.example.japanesegrammarapp.ui.WorkspaceUiState
 import com.example.japanesegrammarapp.ui.theme.ZenColors.AizomeIndigo
 import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.MatchaGreen
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SakuraPink
-import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun WorkspaceResultContent(uiState: WorkspaceUiState) {
+fun WorkspaceResultContent(
+    uiState: WorkspaceUiState,
+    isPlayingTts: Boolean = false,
+    onPlayTts: () -> Unit = {},
+    onStopTts: () -> Unit = {},
+    onCancel: () -> Unit = {}
+) {
+    val SumiInk = MaterialTheme.colorScheme.onBackground
+    val SurfaceColor = MaterialTheme.colorScheme.surface
     val detailedResult = uiState.detailedResult
     val rawResult = uiState.analysisResult
 
-    AnimatedContent(
-        targetState = detailedResult,
-        transitionSpec = {
-            fadeIn(animationSpec = tween(400, easing = EaseInOutCubic))
-                .togetherWith(fadeOut(animationSpec = tween(400, easing = EaseInOutCubic)))
-        },
-        label = "ResultViewTypeTransition",
-        modifier = Modifier.fillMaxSize()
-    ) { data ->
-        if (data != null) {
-            var selectedSegmentIndex by remember(data) { mutableStateOf(-1) }
+    val data = detailedResult ?: com.example.japanesegrammarapp.network.DetailedAnalysisResult()
+    val progress = uiState.selectedRecordProgress
+    val isPending = uiState.selectedRecord?.status == "PENDING"
+
+    if (detailedResult == null && !isPending && !rawResult.isNullOrBlank()) {
+        // Robust Fallback: Show original plain text result if detailedResult is null (backward compatibility)
+        ElevatedCard(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = 8.dp),
+            colors = CardDefaults.elevatedCardColors(containerColor = SurfaceColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = stringResource(R.string.analysis_result_text_view),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = SumiInk.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                Divider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(bottom = 8.dp))
+                Text(
+                    text = rawResult ?: stringResource(R.string.no_analysis_result),
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = SumiInk,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+    } else {
+        var selectedSegmentIndex by remember(data) { mutableStateOf(-1) }
 
             Column(modifier = Modifier.fillMaxSize()) {
                 Column(
@@ -78,34 +115,73 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "対象の例文",
+                            text = stringResource(R.string.target_sentence_header),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = SumiInk
                         )
+                        Spacer(modifier = Modifier.weight(1f))
+                        if (isPlayingTts) {
+                            IconButton(onClick = onStopTts, modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Default.Stop, contentDescription = stringResource(R.string.stop_tts), tint = SumiInk.copy(alpha = 0.7f))
+                            }
+                        } else {
+                            IconButton(onClick = onPlayTts, modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.play_tts), tint = SumiInk.copy(alpha = 0.7f))
+                            }
+                        }
                     }
                     
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = SurfaceColor),
                         shape = RoundedCornerShape(12.dp),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        FlowRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            data.segments?.forEachIndexed { index, segment ->
-                                SegmentChip(
-                                    segment = segment,
-                                    isSelected = index == selectedSegmentIndex,
-                                    onClick = {
-                                        selectedSegmentIndex = if (selectedSegmentIndex == index) -1 else index
+                        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                            val isLoadingExplain = isPending && progress?.segmentsCompleted != true && !data.segments.isNullOrEmpty()
+                            
+                            if (isLoadingExplain) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
+                                    LinearProgressIndicator(
+                                        modifier = Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp)),
+                                        color = SumiInk.copy(alpha = 0.4f),
+                                        trackColor = SumiInk.copy(alpha = 0.05f)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(stringResource(R.string.analyzing_word_attributes), color = SumiInk.copy(alpha = 0.5f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                if (data.segments.isNullOrEmpty()) {
+                                    if (isPending) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp).align(Alignment.CenterVertically),
+                                            color = SumiInk.copy(alpha = 0.5f),
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(stringResource(R.string.segmenting_text), color = SumiInk.copy(alpha = 0.5f), fontSize = 14.sp)
                                     }
-                                )
+                                } else {
+                                    data.segments.forEachIndexed { index, segment ->
+                                        SegmentChip(
+                                            segment = segment,
+                                            isSelected = index == selectedSegmentIndex,
+                                            isLoading = isLoadingExplain,
+                                            onClick = {
+                                                if (!isLoadingExplain) {
+                                                    selectedSegmentIndex = if (selectedSegmentIndex == index) -1 else index
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -131,7 +207,7 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(top = 10.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                colors = CardDefaults.cardColors(containerColor = SurfaceColor),
                                 shape = RoundedCornerShape(12.dp),
                                 border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.1f)),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -146,10 +222,9 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.Bottom,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                            modifier = Modifier.weight(1f)
+                                        Column(
+                                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                                            modifier = Modifier.weight(1f).padding(end = 8.dp)
                                         ) {
                                             Text(
                                                 text = currentSegment.text ?: "",
@@ -161,8 +236,7 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                                                 Text(
                                                     text = "（${currentSegment.reading}）",
                                                     fontSize = 13.sp,
-                                                    color = SumiInk.copy(alpha = 0.6f),
-                                                    modifier = Modifier.padding(bottom = 2.dp)
+                                                    color = SumiInk.copy(alpha = 0.6f)
                                                 )
                                             }
                                         }
@@ -173,7 +247,7 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Close,
-                                                contentDescription = "Close details",
+                                                contentDescription = stringResource(R.string.close_details),
                                                 tint = SumiInk.copy(alpha = 0.5f),
                                                 modifier = Modifier.size(18.dp)
                                             )
@@ -186,18 +260,18 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                                     )
                                     
                                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        AlignedDetailRow(label = "品詞", value = currentSegment.partOfSpeech ?: "")
+                                        AlignedDetailRow(label = stringResource(R.string.pos), value = currentSegment.partOfSpeech ?: "")
                                         
                                         if (!currentSegment.dictionaryForm.isNullOrBlank() && currentSegment.dictionaryForm != currentSegment.text) {
-                                            AlignedDetailRow(label = "辞書形", value = currentSegment.dictionaryForm)
+                                            AlignedDetailRow(label = stringResource(R.string.dictionary_form), value = currentSegment.dictionaryForm)
                                         }
                                         
                                         if (!currentSegment.inflection.isNullOrBlank()) {
-                                            AlignedDetailRow(label = "構成・活用", value = currentSegment.inflection)
+                                            AlignedDetailRow(label = stringResource(R.string.inflection), value = currentSegment.inflection)
                                         }
                                         
                                         if (!currentSegment.role.isNullOrBlank()) {
-                                            AlignedDetailRow(label = "文中の役割", value = currentSegment.role)
+                                            AlignedDetailRow(label = stringResource(R.string.role_in_sentence), value = currentSegment.role)
                                         }
                                     }
                                     
@@ -210,7 +284,7 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                                         ) {
                                             Column(modifier = Modifier.padding(12.dp)) {
                                                 Text(
-                                                    text = "中国語の訳・意味",
+                                                    text = stringResource(R.string.meaning),
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = KuriAmber.copy(alpha = 1.0f)
@@ -246,7 +320,7 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "全体の翻訳",
+                            text = stringResource(R.string.overall_translation),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = SumiInk
@@ -255,7 +329,7 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                     
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = SurfaceColor),
                         shape = RoundedCornerShape(12.dp),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
@@ -264,33 +338,40 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Surface(
-                                color = SakuraPink,
+                                color = if (androidx.compose.foundation.isSystemInDarkTheme()) Color(0xFF3D1E1E) else SakuraPink,
                                 shape = RoundedCornerShape(4.dp),
                                 modifier = Modifier.padding(end = 12.dp)
                             ) {
                                 Text(
-                                    text = "翻訳",
+                                    text = stringResource(R.string.translation_label),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = SumiInk,
+                                    color = if (androidx.compose.foundation.isSystemInDarkTheme()) Color.White else Color(0xFF1E1E1E),
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 )
                             }
-                            Text(
-                                text = data.translation ?: "",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = SumiInk,
-                                modifier = Modifier.weight(1f),
-                                lineHeight = 20.sp
-                            )
+                            if (data.translation.isNullOrBlank() && isPending) {
+                                Column(modifier = Modifier.weight(1f).padding(start = 2.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    ShimmerSkeleton(modifier = Modifier.fillMaxWidth().height(16.dp))
+                                    ShimmerSkeleton(modifier = Modifier.fillMaxWidth(0.7f).height(16.dp))
+                                }
+                            } else {
+                                Text(
+                                    text = data.translation ?: "",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = SumiInk,
+                                    modifier = Modifier.weight(1f),
+                                    lineHeight = 20.sp
+                                )
+                            }
                         }
                     }
                     
                     Spacer(modifier = Modifier.height(14.dp))
                     
                     // 3. Sentence Clauses
-                    if (!data.clauses.isNullOrEmpty()) {
+                    if (!data.clauses.isNullOrEmpty() || (isPending && progress?.clausesCompleted != true)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(bottom = 8.dp, top = 4.dp)
@@ -303,7 +384,7 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "文の構造と解釈",
+                                text = stringResource(R.string.sentence_clauses),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = SumiInk
@@ -312,61 +393,80 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                         
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            colors = CardDefaults.cardColors(containerColor = SurfaceColor),
                             shape = RoundedCornerShape(12.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                data.clauses?.forEachIndexed { idx, clause ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.Top
-                                    ) {
-                                        Text(
-                                            text = "${clause.index}.",
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = SumiInk,
-                                            modifier = Modifier.width(22.dp)
-                                        )
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Surface(
-                                                    color = AizomeIndigo.copy(alpha = 0.35f),
-                                                    shape = RoundedCornerShape(4.dp)
-                                                ) {
-                                                    Text(
-                                                        text = clause.role ?: "",
-                                                        fontSize = 10.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = SumiInk,
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    )
+                                if (data.clauses.isNullOrEmpty() && isPending) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                                        repeat(2) {
+                                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                                                ShimmerSkeleton(modifier = Modifier.width(14.dp).height(14.dp).padding(top = 4.dp))
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                        ShimmerSkeleton(modifier = Modifier.width(36.dp).height(18.dp))
+                                                        ShimmerSkeleton(modifier = Modifier.width(60.dp).height(18.dp))
+                                                    }
+                                                    ShimmerSkeleton(modifier = Modifier.fillMaxWidth().height(12.dp))
+                                                    ShimmerSkeleton(modifier = Modifier.fillMaxWidth(0.5f).height(12.dp))
                                                 }
-                                                Text(
-                                                    text = clause.text ?: "",
-                                                    fontSize = 14.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = SumiInk
-                                                )
                                             }
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                text = clause.explanation ?: "",
-                                                fontSize = 13.sp,
-                                                color = SumiInk.copy(alpha = 0.7f),
-                                                lineHeight = 18.sp
-                                            )
                                         }
                                     }
-                                    if (idx < data.clauses.size - 1) {
-                                        Divider(
-                                            modifier = Modifier.padding(vertical = 12.dp),
-                                            color = SumiInk.copy(alpha = 0.08f)
-                                        )
+                                } else {
+                                    data.clauses?.forEachIndexed { idx, clause ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.Top
+                                        ) {
+                                            Text(
+                                                text = "${clause.index}.",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = SumiInk,
+                                                modifier = Modifier.width(22.dp)
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Surface(
+                                                        color = AizomeIndigo.copy(alpha = 0.35f),
+                                                        shape = RoundedCornerShape(4.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = clause.role ?: "",
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = SumiInk,
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = clause.text ?: "",
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = SumiInk
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = clause.explanation ?: "",
+                                                    fontSize = 13.sp,
+                                                    color = SumiInk.copy(alpha = 0.7f),
+                                                    lineHeight = 18.sp
+                                                )
+                                            }
+                                        }
+                                        if (idx < (data.clauses?.size ?: 0) - 1) {
+                                            Divider(
+                                                modifier = Modifier.padding(vertical = 12.dp),
+                                                color = SumiInk.copy(alpha = 0.08f)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -375,7 +475,7 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                     }
                     
                     // 4. Core Grammar Points
-                    if (!data.grammarPoints.isNullOrEmpty()) {
+                    if (!data.grammarPoints.isNullOrEmpty() || (isPending && progress?.grammarCompleted != true)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(bottom = 8.dp, top = 4.dp)
@@ -388,7 +488,7 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "文法ポイント",
+                                text = stringResource(R.string.grammar_points),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = SumiInk
@@ -397,102 +497,89 @@ fun WorkspaceResultContent(uiState: WorkspaceUiState) {
                         
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            colors = CardDefaults.cardColors(containerColor = SurfaceColor),
                             shape = RoundedCornerShape(12.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                data.grammarPoints?.forEachIndexed { idx, gp ->
-                                    Column(modifier = Modifier.fillMaxWidth()) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Surface(
-                                                color = MatchaGreen,
-                                                shape = RoundedCornerShape(4.dp)
+                                if (data.grammarPoints.isNullOrEmpty() && isPending) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                                        repeat(2) {
+                                            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                    ShimmerSkeleton(modifier = Modifier.width(32.dp).height(18.dp))
+                                                    ShimmerSkeleton(modifier = Modifier.width(100.dp).height(18.dp))
+                                                }
+                                                ShimmerSkeleton(modifier = Modifier.fillMaxWidth().height(12.dp))
+                                                ShimmerSkeleton(modifier = Modifier.fillMaxWidth(0.7f).height(12.dp))
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    data.grammarPoints?.forEachIndexed { idx, gp ->
+                                        Column(modifier = Modifier.fillMaxWidth()) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
+                                                Surface(
+                                                    color = if (androidx.compose.foundation.isSystemInDarkTheme()) Color(0xFF1E3D1E) else MatchaGreen,
+                                                    shape = RoundedCornerShape(4.dp)
+                                                ) {
+                                                    Text(
+                                                        text = stringResource(R.string.grammar_label),
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (androidx.compose.foundation.isSystemInDarkTheme()) Color.White else Color(0xFF1E1E1E),
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
                                                 Text(
-                                                    text = "文法",
-                                                    fontSize = 11.sp,
+                                                    text = gp.pattern ?: "",
+                                                    fontSize = 15.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = SumiInk,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    color = SumiInk
                                                 )
                                             }
+                                            Spacer(modifier = Modifier.height(6.dp))
                                             Text(
-                                                text = gp.pattern ?: "",
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = SumiInk
+                                                text = gp.explanation ?: "",
+                                                fontSize = 13.sp,
+                                                color = SumiInk.copy(alpha = 0.8f),
+                                                lineHeight = 20.sp
                                             )
                                         }
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        Text(
-                                            text = gp.explanation ?: "",
-                                            fontSize = 13.sp,
-                                            color = SumiInk.copy(alpha = 0.8f),
-                                            lineHeight = 20.sp
-                                        )
-                                    }
-                                    if (idx < (data.grammarPoints?.size ?: 0) - 1) {
-                                        Divider(
-                                            modifier = Modifier.padding(vertical = 14.dp),
-                                            color = SumiInk.copy(alpha = 0.08f)
-                                        )
+                                        if (idx < (data.grammarPoints?.size ?: 0) - 1) {
+                                            Divider(
+                                                modifier = Modifier.padding(vertical = 14.dp),
+                                                color = SumiInk.copy(alpha = 0.08f)
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
                         Spacer(modifier = Modifier.height(20.dp))
                     }
-                }
-            }
-        } else {
-            // Robust Fallback: Show original plain text result if detailedResult is null (backward compatibility)
-            ElevatedCard(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(vertical = 8.dp),
-                colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = "分析結果 (テキスト表示)",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = SumiInk.copy(alpha = 0.5f),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-                    Divider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(bottom = 8.dp))
-                    Text(
-                        text = rawResult ?: "分析結果はありません。",
-                        modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState()),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = SumiInk,
-                        lineHeight = 18.sp
-                    )
-                }
             }
         }
     }
 }
 
+
 // Morandi color coding helper
+@Composable
 private fun getChipColorForPos(segment: WordSegment): Color {
+    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
     val category = segment.posCategory
     if (category != null) {
         return when (category) {
-            "NOUN" -> Color(0xFFD3E0EA)       // 蓝染蓝 (Aizome)
-            "VERB" -> Color(0xFFD4ECD5)       // 抹茶绿 (Matcha)
-            "ADJECTIVE" -> Color(0xFFF6E2CD)  // 栗色 (Kuri)
-            "AUXILIARY" -> Color(0xFFE8D3EA)  // 藤紫 (Fuji)
-            "PARTICLE" -> Color(0xFFFDD4D8)   // 樱花粉 (Sakura)
-            else -> Color(0xFFEFEFEF)         // 雾灰 (Hai)
+            "NOUN" -> if (isDark) Color(0xFF1E2D3D) else Color(0xFFD3E0EA)       // 蓝染蓝 (Aizome)
+            "VERB" -> if (isDark) Color(0xFF1E3D24) else Color(0xFFD4ECD5)       // 抹茶绿 (Matcha)
+            "ADJECTIVE" -> if (isDark) Color(0xFF3D2A1E) else Color(0xFFF6E2CD)  // 栗色 (Kuri)
+            "AUXILIARY" -> if (isDark) Color(0xFF2D1E3D) else Color(0xFFE8D3EA)  // 藤紫 (Fuji)
+            "PARTICLE" -> if (isDark) Color(0xFF3D1E25) else Color(0xFFFDD4D8)   // 樱花粉 (Sakura)
+            else -> if (isDark) Color(0xFF2D2D2D) else Color(0xFFEFEFEF)         // 雾灰 (Hai)
         }
     }
 
@@ -500,17 +587,18 @@ private fun getChipColorForPos(segment: WordSegment): Color {
     val pos = segment.partOfSpeech ?: ""
     val primaryPos = pos.split("-").firstOrNull() ?: ""
     return when {
-        primaryPos.contains("助動詞") -> Color(0xFFE8D3EA) // 藤紫 (Fuji)
-        primaryPos.contains("形容") || primaryPos.contains("形状") -> Color(0xFFF6E2CD) // 栗色 (Kuri)
-        primaryPos.contains("名詞") -> Color(0xFFD3E0EA) // 蓝染蓝 (Aizome)
-        primaryPos.contains("動詞") -> Color(0xFFD4ECD5) // 抹茶绿 (Matcha)
-        primaryPos.contains("助詞") -> Color(0xFFFDD4D8) // 樱花粉 (Sakura)
-        else -> Color(0xFFEFEFEF) // 雾灰 (Hai)
+        primaryPos.contains("助動詞") -> if (isDark) Color(0xFF2D1E3D) else Color(0xFFE8D3EA) // 藤紫 (Fuji)
+        primaryPos.contains("形容") || primaryPos.contains("形状") -> if (isDark) Color(0xFF3D2A1E) else Color(0xFFF6E2CD) // 栗色 (Kuri)
+        primaryPos.contains("名詞") -> if (isDark) Color(0xFF1E2D3D) else Color(0xFFD3E0EA) // 蓝染蓝 (Aizome)
+        primaryPos.contains("動詞") -> if (isDark) Color(0xFF1E3D24) else Color(0xFFD4ECD5) // 抹茶绿 (Matcha)
+        primaryPos.contains("助詞") -> if (isDark) Color(0xFF3D1E25) else Color(0xFFFDD4D8) // 樱花粉 (Sakura)
+        else -> if (isDark) Color(0xFF2D2D2D) else Color(0xFFEFEFEF) // 雾灰 (Hai)
     }
 }
 
 @Composable
 fun AlignedDetailRow(label: String, value: String) {
+    val SumiInk = MaterialTheme.colorScheme.onBackground
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top
@@ -536,15 +624,21 @@ fun AlignedDetailRow(label: String, value: String) {
 fun SegmentChip(
     segment: WordSegment,
     isSelected: Boolean,
+    isLoading: Boolean = false,
     onClick: () -> Unit
 ) {
+    val SumiInk = MaterialTheme.colorScheme.onBackground
     val borderColor by animateColorAsState(
-        targetValue = if (isSelected) SumiInk else SumiInk.copy(alpha = 0.15f),
+        targetValue = if (isSelected) SumiInk else SumiInk.copy(alpha = if (isLoading) 0.0f else 0.15f),
         animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
         label = "borderColor"
     )
+    val bgColor = if (isLoading) Color(0xFFF3F3F3) else getChipColorForPos(segment)
+    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val ChipTextColor = if (isDark) Color(0xFFE0E0E0) else Color(0xFF1E1E1E)
+
     Surface(
-        color = getChipColorForPos(segment),
+        color = bgColor,
         shape = RoundedCornerShape(8.dp),
         border = BorderStroke(width = 1.5.dp, color = borderColor),
         modifier = Modifier.clickable(onClick = onClick)
@@ -556,14 +650,32 @@ fun SegmentChip(
             Text(
                 text = segment.reading ?: "",
                 fontSize = 9.sp,
-                color = SumiInk.copy(alpha = 0.5f)
+                color = ChipTextColor.copy(alpha = if (isLoading) 0.0f else 0.6f)
             )
             Text(
                 text = segment.text ?: "",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = SumiInk
+                color = ChipTextColor.copy(alpha = if (isLoading) 0.4f else 1.0f)
             )
         }
     }
+}
+@Composable
+fun ShimmerSkeleton(modifier: Modifier = Modifier, cornerRadius: androidx.compose.ui.unit.Dp = 4.dp) {
+    val SumiInk = MaterialTheme.colorScheme.onBackground
+    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "shimmer")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.05f,
+        targetValue = 0.15f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(800, easing = androidx.compose.animation.core.LinearEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+    Box(
+        modifier = modifier
+            .background(SumiInk.copy(alpha = alpha), RoundedCornerShape(cornerRadius))
+    )
 }

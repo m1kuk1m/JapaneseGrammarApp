@@ -12,6 +12,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.res.stringResource
+import com.example.japanesegrammarapp.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -26,10 +28,14 @@ import com.example.japanesegrammarapp.ui.theme.ZenColors.HaiMist
 import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.MatchaGreen
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
+import com.example.japanesegrammarapp.domain.usecase.AnalysisProgress
 import kotlinx.coroutines.delay
 
 @Composable
-fun ZenLoadingView(onCancel: () -> Unit) {
+fun ZenLoadingView(
+    progress: AnalysisProgress?,
+    onCancel: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -94,14 +100,14 @@ fun ZenLoadingView(onCancel: () -> Unit) {
 
         // Title
         Text(
-            text = "AIによる日本語文法解析中",
+            text = stringResource(R.string.loading_title),
             fontWeight = FontWeight.Bold,
             color = SumiInk,
             fontSize = 16.sp,
             textAlign = TextAlign.Center
         )
         Text(
-            text = "文法の構造を分析しています。少々お待ちください。",
+            text = stringResource(R.string.loading_subtitle),
             color = SumiInk.copy(alpha = 0.4f),
             fontSize = 11.sp,
             textAlign = TextAlign.Center,
@@ -113,13 +119,13 @@ fun ZenLoadingView(onCancel: () -> Unit) {
         // 2. Intelligent Thinking Stepper Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.08f)),
             shape = RoundedCornerShape(12.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                AnalysisStepTimeline()
+                AnalysisStepTimeline(progress)
             }
         }
 
@@ -134,12 +140,12 @@ fun ZenLoadingView(onCancel: () -> Unit) {
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "キャンセル",
+                contentDescription = stringResource(R.string.cancel),
                 modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "解析をキャンセル",
+                text = stringResource(R.string.cancel_analysis),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -148,23 +154,25 @@ fun ZenLoadingView(onCancel: () -> Unit) {
 }
 
 @Composable
-fun AnalysisStepTimeline() {
+fun AnalysisStepTimeline(progress: AnalysisProgress?) {
     val steps = listOf(
-        "形態素解析・単語トークンの抽出" to "和文テキストの形態素解析を行っています",
-        "統語役割・文節の関係性識別" to "文節の役割と相互関係を分类しています",
-        "日本語文脈翻訳・スマート対訳" to "適切な翻訳と対照データを生成しています",
-        "詳細な文法解説・アドバイスの構築" to "重要文法の詳細な解説カードを作成しています"
+        stringResource(R.string.step_1_title) to stringResource(R.string.step_1_desc),
+        stringResource(R.string.step_2_title) to stringResource(R.string.step_2_desc),
+        stringResource(R.string.step_3_title) to stringResource(R.string.step_3_desc),
+        stringResource(R.string.step_4_title) to stringResource(R.string.step_4_desc)
     )
 
+    // Fallback simulated progress when progress flow is null (e.g. initial loading/local parsing)
     var currentStepIndex by remember { mutableStateOf(0) }
-
-    LaunchedEffect(Unit) {
-        delay(1200L)
-        currentStepIndex = 1
-        delay(2400L)
-        currentStepIndex = 2
-        delay(2600L)
-        currentStepIndex = 3
+    if (progress == null) {
+        LaunchedEffect(Unit) {
+            delay(1200L)
+            currentStepIndex = 1
+            delay(2400L)
+            currentStepIndex = 2
+            delay(2600L)
+            currentStepIndex = 3
+        }
     }
 
     val infiniteTransition = rememberInfiniteTransition(label = "pulseDot")
@@ -178,14 +186,46 @@ fun AnalysisStepTimeline() {
         label = "dotScale"
     )
 
+    val firstUncompletedIndex = if (progress != null) {
+        val list = listOf(
+            progress.segmentsCompleted,
+            progress.clausesCompleted,
+            progress.translationCompleted,
+            progress.grammarCompleted
+        )
+        list.indexOfFirst { !it }
+    } else {
+        currentStepIndex
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         steps.forEachIndexed { index, (title, description) ->
-            val isCompleted = index < currentStepIndex
-            val isRunning = index == currentStepIndex
-            val isWaiting = index > currentStepIndex
+            val isCompleted = if (progress != null) {
+                when (index) {
+                    0 -> progress.segmentsCompleted
+                    1 -> progress.clausesCompleted
+                    2 -> progress.translationCompleted
+                    3 -> progress.grammarCompleted
+                    else -> false
+                }
+            } else {
+                index < currentStepIndex
+            }
+
+            val isRunning = if (progress != null) {
+                index == firstUncompletedIndex
+            } else {
+                index == currentStepIndex
+            }
+
+            val isWaiting = if (progress != null) {
+                !isCompleted && index != firstUncompletedIndex
+            } else {
+                index > currentStepIndex
+            }
 
             val textColor = when {
                 isCompleted -> SumiInk.copy(alpha = 0.9f)
@@ -214,7 +254,7 @@ fun AnalysisStepTimeline() {
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Check,
-                                contentDescription = "完了",
+                                contentDescription = stringResource(R.string.completed),
                                 tint = SumiInk.copy(alpha = 0.8f),
                                 modifier = Modifier.size(12.dp)
                             )

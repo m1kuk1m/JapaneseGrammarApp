@@ -15,12 +15,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.data.AnalysisRecord
 import com.example.japanesegrammarapp.ui.AppViewModel
 import com.example.japanesegrammarapp.ui.UiEvent
@@ -45,6 +47,11 @@ import androidx.compose.animation.togetherWith
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
+    val SumiInk = MaterialTheme.colorScheme.onBackground
+    val WashiBg = MaterialTheme.colorScheme.background
+    val PrimaryColor = MaterialTheme.colorScheme.primary
+    val OnPrimaryColor = MaterialTheme.colorScheme.onPrimary
+
     val context = LocalContext.current
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
@@ -56,6 +63,17 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
     var recordToDelete by remember { mutableStateOf<AnalysisRecord?>(null) }
     val currentHistory by rememberUpdatedState(history)
     var showExportDialog by remember { mutableStateOf(false) }
+    
+    val isPlayingTts by viewModel.isPlayingTts.collectAsState(initial = false)
+
+    // Intercept back button to close drawer or return to input page
+    androidx.activity.compose.BackHandler(enabled = drawerState.isOpen) {
+        coroutineScope.launch { drawerState.close() }
+    }
+
+    androidx.activity.compose.BackHandler(enabled = !drawerState.isOpen && uiState.selectedRecord != null) {
+        viewModel.clearSelectedRecord()
+    }
 
     // Single source-of-truth navigation helper. NavController.navigate() synchronously
     // updates currentDestination, so calling this twice in a row is a safe no-op:
@@ -79,7 +97,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                 is UiEvent.TaskCompleted -> {
                     val result = snackbarHostState.showSnackbar(
                         message = event.message,
-                        actionLabel = "表示",
+                        actionLabel = context.getString(R.string.show_action),
                         duration = SnackbarDuration.Short
                     )
                     if (result == SnackbarResult.ActionPerformed) {
@@ -95,7 +113,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                         putExtra(Intent.EXTRA_TEXT, event.content)
                         putExtra(Intent.EXTRA_SUBJECT, event.filename)
                     }
-                    context.startActivity(Intent.createChooser(sendIntent, "エクスポート先を選択"))
+                    context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.export_chooser_title)))
                 }
                 else -> {}
             }
@@ -107,7 +125,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet(
-                drawerContainerColor = WashiBg,
+                drawerContainerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
                 modifier = Modifier.width(310.dp).fillMaxHeight()
             ) {
                 HistorySidebar(
@@ -128,20 +146,30 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
     ) {
         // Main Screen Content
         Scaffold(
-            containerColor = WashiBg,
-            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+            containerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
+            snackbarHost = { 
+                SnackbarHost(hostState = snackbarHostState) { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = SumiInk.copy(alpha = 0.85f),
+                        contentColor = Color.White,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.padding(bottom = 60.dp, start = 16.dp, end = 16.dp)
+                    )
+                } 
+            },
             topBar = {
                 TopAppBar(
                     title = {
                         Text(
-                            text = if (uiState.selectedRecord == null) "日本語文法分析" else "分析結果",
+                            text = if (uiState.selectedRecord == null) stringResource(R.string.app_name) else stringResource(R.string.analysis_results),
                             fontWeight = FontWeight.Bold,
-                            color = SumiInk
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = "履歴メニュー", tint = SumiInk)
+                            Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = MaterialTheme.colorScheme.onSurface)
                         }
                     },
                     actions = {
@@ -150,19 +178,19 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                             IconButton(onClick = {
                                 uiState.selectedRecord?.let { viewModel.exportRecord(it) }
                             }) {
-                                Icon(Icons.Default.Share, contentDescription = "エクスポート", tint = SumiInk)
+                                Icon(Icons.Default.Share, contentDescription = stringResource(R.string.export), tint = MaterialTheme.colorScheme.onSurface)
                             }
                             IconButton(onClick = { viewModel.clearSelectedRecord() }) {
-                                Icon(Icons.Default.Add, contentDescription = "新規分析", tint = SumiInk)
+                                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_analysis), tint = MaterialTheme.colorScheme.onSurface)
                             }
                         }
                         IconButton(onClick = navigateToSettings) {
-                            Icon(Icons.Default.Settings, contentDescription = "設定", tint = SumiInk)
+                            Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings), tint = MaterialTheme.colorScheme.onSurface)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = WashiBg,
-                        titleContentColor = SumiInk
+                        containerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
+                        titleContentColor = PrimaryColor
                     )
                 )
             }
@@ -197,14 +225,14 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = "文法分析",
+                                    text = stringResource(R.string.app_title),
                                     fontSize = 28.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = SumiInk,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.padding(bottom = 6.dp)
                                 )
                                 Text(
-                                    text = "AIが日本語の文法構造をわかりやすく解説します",
+                                    text = stringResource(R.string.app_subtitle),
                                     fontSize = 13.sp,
                                     color = SumiInk.copy(alpha = 0.5f),
                                     modifier = Modifier.padding(bottom = 28.dp)
@@ -213,7 +241,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                 // Main Input Panel
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                     border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.1f)),
                                     shape = RoundedCornerShape(12.dp),
                                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -241,7 +269,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 8.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                 border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.15f)),
                                 shape = RoundedCornerShape(10.dp),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -254,7 +282,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = "分析対象",
+                                            text = stringResource(R.string.target_sentence),
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 12.sp,
                                             color = SumiInk.copy(alpha = 0.6f)
@@ -268,12 +296,12 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Edit,
-                                                contentDescription = "編集して新しく分析",
+                                                contentDescription = stringResource(R.string.edit_and_reanalyze_desc),
                                                 modifier = Modifier.size(14.dp)
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text(
-                                                text = "編集して再分析",
+                                                text = stringResource(R.string.edit_and_reanalyze),
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -281,7 +309,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                     }
 
                                     Text(
-                                        text = currentText.ifBlank { "画像文法分析" },
+                                        text = currentText.ifBlank { stringResource(R.string.image_analysis) },
                                         fontSize = 14.sp,
                                         color = SumiInk,
                                         maxLines = 2,
@@ -295,9 +323,8 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                             val record = uiState.selectedRecord
                             if (record != null) {
                                 val resultState = when {
-                                    record.status == "PENDING" || (record.status == "COMPLETED" && uiState.isParsingDetailedResult) -> "LOADING"
                                     record.status == "FAILED" -> "FAILED"
-                                    else -> "COMPLETED"
+                                    else -> "CONTENT" // PENDING and COMPLETED both render content progressively
                                 }
 
                                 Box(
@@ -315,9 +342,12 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                         modifier = Modifier.fillMaxSize()
                                     ) { state ->
                                         when (state) {
-                                            "LOADING" -> {
-                                                ZenLoadingView(
-                                                    progress = if (record.status == "PENDING") uiState.selectedRecordProgress else null,
+                                            "CONTENT" -> {
+                                                WorkspaceResultContent(
+                                                    uiState = uiState,
+                                                    isPlayingTts = isPlayingTts,
+                                                    onPlayTts = { viewModel.playTtsForCurrentRecord() },
+                                                    onStopTts = { viewModel.stopTts() },
                                                     onCancel = {
                                                         if (record.status == "PENDING") {
                                                             viewModel.cancelAnalysis(record.id)
@@ -332,7 +362,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                                     modifier = Modifier
                                                         .fillMaxWidth()
                                                         .padding(top = 16.dp),
-                                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFDF2F2)),
+                                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                                     border = BorderStroke(1.dp, Color(0xFFF3D8D8)),
                                                     shape = RoundedCornerShape(8.dp)
                                                 ) {
@@ -348,14 +378,14 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                                         )
                                                         Spacer(modifier = Modifier.height(12.dp))
                                                         Text(
-                                                            text = "エラーが発生しました",
+                                                            text = stringResource(R.string.error_occurred),
                                                             fontWeight = FontWeight.Bold,
                                                             color = Color(0xFFD32F2F),
                                                             fontSize = 14.sp
                                                         )
                                                         Spacer(modifier = Modifier.height(8.dp))
                                                         Text(
-                                                            text = record.errorMessage ?: "不明なエラーが発生しました。",
+                                                            text = record.errorMessage ?: stringResource(R.string.error_occurred),
                                                             color = SumiInk.copy(alpha = 0.7f),
                                                             fontSize = 13.sp,
                                                             textAlign = TextAlign.Center
@@ -367,23 +397,21 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD32F2F)),
                                                                 border = BorderStroke(1.dp, Color(0xFFF3D8D8))
                                                             ) {
-                                                                Text("削除", fontSize = 13.sp)
+                                                                Text(stringResource(R.string.delete), fontSize = 13.sp)
                                                             }
                                                             Button(
                                                                 onClick = { viewModel.retryAnalysis(record.id) },
-                                                                colors = ButtonDefaults.buttonColors(containerColor = SumiInk, contentColor = WashiBg)
+                                                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor, contentColor = OnPrimaryColor)
                                                             ) {
-                                                                Icon(Icons.Default.Refresh, contentDescription = "再試行", modifier = Modifier.size(16.dp))
+                                                                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.retry), modifier = Modifier.size(16.dp))
                                                                 Spacer(modifier = Modifier.width(4.dp))
-                                                                Text("再試行", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                                                Text(stringResource(R.string.retry), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                                             }
                                                         }
                                                     }
                                                 }
                                             }
-                                            "COMPLETED" -> {
-                                                WorkspaceResultContent(uiState = uiState)
-                                            }
+
                                         }
                                     }
                                 }
@@ -400,8 +428,8 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
         val record = recordToDelete!!
         AlertDialog(
             onDismissRequest = { recordToDelete = null },
-            title = { Text("履歴の削除", fontWeight = FontWeight.Bold, color = SumiInk) },
-            text = { Text("「${record.originalText.take(15)}...」の分析履歴を削除しますか？", color = SumiInk) },
+            title = { Text(stringResource(R.string.delete_history_title), fontWeight = FontWeight.Bold, color = SumiInk) },
+            text = { Text(stringResource(R.string.delete_history_confirm, record.originalText.take(15)), color = SumiInk) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -413,12 +441,12 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F), contentColor = Color.White)
                 ) {
-                    Text("削除", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.delete), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { recordToDelete = null }) {
-                    Text("キャンセル", color = SumiInk)
+                    Text(stringResource(R.string.cancel), color = SumiInk)
                 }
             },
             containerColor = Color.White
