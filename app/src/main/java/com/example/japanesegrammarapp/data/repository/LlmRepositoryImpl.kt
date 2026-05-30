@@ -1,12 +1,20 @@
 package com.example.japanesegrammarapp.data.repository
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.example.japanesegrammarapp.network.*
+import com.example.japanesegrammarapp.R
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class LlmRepositoryImpl @Inject constructor(
-    private val llmService: LlmApiService
+    private val llmService: LlmApiService,
+    private val settingsRepository: SettingsRepository,
+    @ApplicationContext private val context: Context
 ) : LlmRepository {
 
     override suspend fun fetchModels(provider: String, baseUrl: String, apiKey: String): List<String> {
@@ -18,7 +26,7 @@ class LlmRepositoryImpl @Inject constructor(
             "DeepSeek", "OpenAI Compatible" -> {
                 val cleanBase = effectiveUrl.trimEnd('/')
                 val url = "$cleanBase/models"
-                val response = llmService.getOpenAiModels(url, "Bearer $apiKey")
+                val response = llmService.getOpenAiModels(url, "Bearer ${apiKey.trim()}")
                 response.data.map { it.id }
             }
             "Qwen" -> {
@@ -27,7 +35,7 @@ class LlmRepositoryImpl @Inject constructor(
             "Gemini", "Vertex AI" -> {
                 try {
                     val cleanBase = effectiveUrl.trimEnd('/')
-                    val url = "$cleanBase/models?key=$apiKey"
+                    val url = "$cleanBase/models?key=${apiKey.trim()}"
                     val response = llmService.getGeminiModels(url)
                     response.models
                         .filter { model ->
@@ -51,7 +59,7 @@ class LlmRepositoryImpl @Inject constructor(
         modelName: String,
         effectiveUrl: String,
         apiKey: String
-    ): String {
+    ): LlmResult {
         return when (provider) {
             "DeepSeek", "OpenAI Compatible", "Qwen" -> {
                 val cleanBase = effectiveUrl.trimEnd('/')
@@ -78,12 +86,21 @@ class LlmRepositoryImpl @Inject constructor(
                     temperature = 0.1,
                     response_format = OpenAiResponseFormat("json_object")
                 )
-                val response = llmService.generateOpenAiCompatible(url, "Bearer $apiKey", request)
-                response.choices.firstOrNull()?.message?.content ?: throw Exception("No response from model")
+                val response = llmService.generateOpenAiCompatible(url, "Bearer ${apiKey.trim()}", request)
+                val text = response.choices.firstOrNull()?.message?.content ?: throw Exception("No response from model")
+                val tokens = response.usage?.total_tokens ?: 0
+                var inputTokens = response.usage?.prompt_tokens ?: 0
+                var outputTokens = response.usage?.completion_tokens ?: 0
+                if (tokens > 0 && inputTokens == 0 && outputTokens == 0) {
+                    inputTokens = tokens * 6 / 10
+                    outputTokens = tokens - inputTokens
+                }
+                LlmResult(text, tokens, inputTokens, outputTokens)
+
             }
             "Gemini", "Vertex AI" -> {
                 val cleanBase = effectiveUrl.trimEnd('/')
-                val url = "$cleanBase/models/$modelName:generateContent?key=$apiKey"
+                val url = "$cleanBase/models/$modelName:generateContent?key=${apiKey.trim()}"
 
                 val parts = mutableListOf<GeminiPart>()
                 parts.add(GeminiPart(text = userPrompt))
@@ -100,9 +117,94 @@ class LlmRepositoryImpl @Inject constructor(
                     )
                 )
                 val response = llmService.generateGemini(url, request)
-                response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: throw Exception("No response from model")
+                val text = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: throw Exception("No response from model")
+                val tokens = response.usageMetadata?.totalTokenCount ?: 0
+                var inputTokens = response.usageMetadata?.promptTokenCount ?: 0
+                var outputTokens = response.usageMetadata?.candidatesTokenCount ?: 0
+                if (tokens > 0 && inputTokens == 0 && outputTokens == 0) {
+                    inputTokens = tokens * 6 / 10
+                    outputTokens = tokens - inputTokens
+                }
+                LlmResult(text, tokens, inputTokens, outputTokens)
             }
             else -> throw Exception("Unsupported provider")
+        }
+    }
+
+    override suspend fun executeWithFailover(
+        systemPrompt: String,
+        userPrompt: String,
+        imageBase64: String?,
+        mimeType: String?,
+        apiTypeLabel: String
+    ): LlmResult {
+        val primaryProvider = settingsRepository.getActiveProvider()
+        val primaryModel = settingsRepository.getActiveModel(primaryProvider)
+        val primaryKey = settingsRepository.getApiKey(primaryProvider)
+        val primaryUrl = settingsRepository.getApiUrl(primaryProvider)
+
+        val backupProvider = settingsRepository.getBackupProvider()
+        val backupModel = settingsRepository.getBackupModel()
+        val backupKey = settingsRepository.getApiKey(backupProvider)
+        val backupUrl = settingsRepository.getApiUrl(backupProvider)
+
+        var attempt = 0
+        val maxRetries = 2
+        var lastException: Exception? = null
+
+        while (attempt <= maxRetries) {
+            try {
+                return callLlmApi(
+                    systemPrompt = systemPrompt,
+                    userPrompt = userPrompt,
+                    imageBase64 = imageBase64,
+                    mimeType = mimeType,
+                    provider = primaryProvider,
+                    modelName = primaryModel,
+                    effectiveUrl = primaryUrl,
+                    apiKey = primaryKey
+                )
+            } catch (e: Exception) {
+                lastException = e
+                attempt++
+                if (attempt <= maxRetries) {
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(R.string.llm_retry_toast, apiTypeLabel, attempt),
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    delay(1000L)
+                }
+            }
+        }
+
+        if (backupProvider.isBlank() || backupModel.isBlank() || backupKey.isBlank()) {
+            throw Exception("メインAPI（${apiTypeLabel}）の再試行に失敗し、予備APIが設定されていないか有効ではありません。メインAPIエラー: ${lastException?.localizedMessage}", lastException)
+        }
+
+        withContext(Dispatchers.Main) {
+            android.widget.Toast.makeText(
+                context,
+                context.getString(R.string.llm_backup_toast, apiTypeLabel, backupProvider),
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        try {
+            return callLlmApi(
+                systemPrompt = systemPrompt,
+                userPrompt = userPrompt,
+                imageBase64 = imageBase64,
+                mimeType = mimeType,
+                provider = backupProvider,
+                modelName = backupModel,
+                effectiveUrl = backupUrl,
+                apiKey = backupKey
+            )
+        } catch (e: Exception) {
+            throw Exception("メインAPIおよび予備APIの呼び出しに失敗しました。メインAPIエラー: ${lastException?.localizedMessage}。予備APIエラー: ${e.localizedMessage}", e)
         }
     }
 }

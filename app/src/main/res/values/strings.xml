@@ -150,4 +150,42 @@
     <string name="tts_voice_placeholder">Voice (e.g. alloy, ja-JP-Neural2-B)</string>
     <string name="view_dev_logs">View Developer Logs</string>
     <string name="total_tokens_format">Total: %1$s tokens</string>
+
+    <!-- Phase 2 De-hardcoding -->
+    <string name="llm_retry_toast">Failed to call Main API (%1$s). Performing automatic retry #%2$d...</string>
+    <string name="llm_backup_toast">Failed to retry Main API (%1$s). Calling Backup API (%2$s)...</string>
+    <string name="ocr_fallback_toast">No text detected by local OCR. Falling back to Vision Mode...</string>
+    <string name="spelling_corrected_toast">Automatically corrected spelling/grammar errors.</string>
+    <string name="analysis_started_toast">Analysis task started.</string>
+    <string name="no_history_to_export">No history records available to export.</string>
+    <string name="unknown_error">Unknown error</string>
+    <string name="export_header_title">Japanese Grammar Analysis - History Export</string>
+    <string name="export_header_time">Export Time: %1$s</string>
+    <string name="export_header_count">Total Records: %1$d</string>
+    <string name="export_record_number">[%1$d]</string>
+    <string name="export_record_time">Date: %1$s</string>
+    <string name="export_record_model">Model: %1$s</string>
+    <string name="export_record_status">Status: %1$s</string>
+    <string name="export_original_text_section">[Original Text]</string>
+    <string name="export_image_analysis_fallback">(Analyzed from image)</string>
+    <string name="export_result_section">[Analysis Result]</string>
+    <string name="export_error_section">[Error Details]</string>
+    <string name="camera_permission_required_title">Camera Permission Required</string>
+    <string name="camera_permission_required_desc">Please grant camera permission so that you can capture Japanese text for grammar analysis.</string>
+    <string name="camera_request_permission_btn">Request Permission</string>
+    <string name="camera_back_desc">Back</string>
+    <string name="camera_flash_on_desc">Flash Always On</string>
+    <string name="camera_flash_auto_desc">Flash Auto</string>
+    <string name="camera_flash_off_desc">Flash Off</string>
+    <string name="camera_flash_on_label">⚡ ON</string>
+    <string name="camera_flash_auto_label">⚡ AUTO</string>
+    <string name="camera_flash_off_label">⚡ OFF</string>
+    <string name="camera_guide_keep_inside">Position Japanese text inside the frame</string>
+    <string name="camera_guide_crop_hint">You can adjust the precise crop area after capture</string>
+    <string name="camera_crop_title">Select Text Area</string>
+    <string name="camera_crop_hint">Drag corners to adjust</string>
+    <string name="camera_cancel_desc">Cancel</string>
+    <string name="camera_recapture_btn">Recapture/Back</string>
+    <string name="camera_confirm_desc">Confirm</string>
+    <string name="camera_confirm_btn">Confirm Area</string>
 </resources>

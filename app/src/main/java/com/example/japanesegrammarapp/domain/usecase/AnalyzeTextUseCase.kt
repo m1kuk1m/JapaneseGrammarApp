@@ -11,6 +11,7 @@ import com.example.japanesegrammarapp.data.repository.OcrRepository
 import com.example.japanesegrammarapp.data.repository.SettingsRepository
 import com.example.japanesegrammarapp.network.DetailedAnalysisResult
 import com.google.gson.Gson
+import com.example.japanesegrammarapp.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -177,7 +178,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         withContext(Dispatchers.Main) {
                             android.widget.Toast.makeText(
                                 context,
-                                "ローカルOCRで文字が検出されなかったため、Visionモードにフォールバックします。",
+                                context.getString(R.string.ocr_fallback_toast),
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -217,7 +218,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         withContext(Dispatchers.Main) {
                             android.widget.Toast.makeText(
                                 context,
-                                "文章の誤りを自動修正しました。",
+                                context.getString(R.string.spelling_corrected_toast),
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
                         }

@@ -149,4 +149,42 @@
     <string name="tts_voice_placeholder">音声 (例：alloy, ja-JP-Neural2-B)</string>
     <string name="view_dev_logs">開発者用ログを表示</string>
     <string name="total_tokens_format">合計: %1$s トークン</string>
+
+    <!-- Phase 2 De-hardcoding -->
+    <string name="llm_retry_toast">メインAPI（%1$s）の呼び出しに失敗しました。%2$d回目の自動再試行を行います。</string>
+    <string name="llm_backup_toast">メインAPI（%1$s）の再試行に失敗しました。予備API（%2$s）を呼び出しています。</string>
+    <string name="ocr_fallback_toast">ローカルOCRで文字が検出されなかったため、Visionモードにフォールバックします。</string>
+    <string name="spelling_corrected_toast">文章の誤りを自動修正しました。</string>
+    <string name="analysis_started_toast">分析タスクを開始しました。</string>
+    <string name="no_history_to_export">エクスポートする履歴がありません。</string>
+    <string name="unknown_error">不明なエラー</string>
+    <string name="export_header_title">日本語文法分析 - 履歴エクスポート</string>
+    <string name="export_header_time">エクスポート日時: %1$s</string>
+    <string name="export_header_count">合計レコード数: %1$d件</string>
+    <string name="export_record_number">【%1$d】</string>
+    <string name="export_record_time">日時: %1$s</string>
+    <string name="export_record_model">モデル: %1$s</string>
+    <string name="export_record_status">ステータス: %1$s</string>
+    <string name="export_original_text_section">【原文】</string>
+    <string name="export_image_analysis_fallback">（画像から分析）</string>
+    <string name="export_result_section">【分析結果】</string>
+    <string name="export_error_section">【エラー内容】</string>
+    <string name="camera_permission_required_title">カメラのアクセス許可が必要です</string>
+    <string name="camera_permission_required_desc">文法分析する日本語をカメラで撮影するために、カメラの権限を許可してください。</string>
+    <string name="camera_request_permission_btn">許可を求める</string>
+    <string name="camera_back_desc">戻る</string>
+    <string name="camera_flash_on_desc">常時発光</string>
+    <string name="camera_flash_auto_desc">自動発光</string>
+    <string name="camera_flash_off_desc">発光禁止</string>
+    <string name="camera_flash_on_label">⚡ ON</string>
+    <string name="camera_flash_auto_label">⚡ AUTO</string>
+    <string name="camera_flash_off_label">⚡ OFF</string>
+    <string name="camera_guide_keep_inside">日本語のテキストを枠内に収めてください</string>
+    <string name="camera_guide_crop_hint">撮影後に詳細なトリミング範囲を微調整できます</string>
+    <string name="camera_crop_title">文字範囲を選択</string>
+    <string name="camera_crop_hint">角をドラッグして調整</string>
+    <string name="camera_cancel_desc">キャンセル</string>
+    <string name="camera_recapture_btn">再撮影/戻る</string>
+    <string name="camera_confirm_desc">確定</string>
+    <string name="camera_confirm_btn">範囲決定</string>
 </resources>

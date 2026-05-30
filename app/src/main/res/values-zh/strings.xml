@@ -149,4 +149,42 @@
     <string name="tts_voice_placeholder">合成声音 (例如 alloy, ja-JP-Neural2-B)</string>
     <string name="view_dev_logs">查看开发者日志</string>
     <string name="total_tokens_format">总计: %1$s 词 (tokens)</string>
+
+    <!-- Phase 2 De-hardcoding -->
+    <string name="llm_retry_toast">调用主 API (%1$s) 失败。正在进行第 %2$d 次自动重试...</string>
+    <string name="llm_backup_toast">主 API (%1$s) 重试失败。正在调用备用 API (%2$s)...</string>
+    <string name="ocr_fallback_toast">本地 OCR 未检测到文字，正在回退到 Vision 视觉模式...</string>
+    <string name="spelling_corrected_toast">已自动修正文本中的拼写错误。</string>
+    <string name="analysis_started_toast">分析任务已开始。</string>
+    <string name="no_history_to_export">没有可导出的历史记录。</string>
+    <string name="unknown_error">未知错误</string>
+    <string name="export_header_title">日语语法分析 - 历史导出</string>
+    <string name="export_header_time">导出时间: %1$s</string>
+    <string name="export_header_count">总计记录数: %1$d条</string>
+    <string name="export_record_number">【%1$d】</string>
+    <string name="export_record_time">时间: %1$s</string>
+    <string name="export_record_model">模型: %1$s</string>
+    <string name="export_record_status">状态: %1$s</string>
+    <string name="export_original_text_section">【原文】</string>
+    <string name="export_image_analysis_fallback">（图片分析）</string>
+    <string name="export_result_section">【分析结果】</string>
+    <string name="export_error_section">【错误内容】</string>
+    <string name="camera_permission_required_title">需要相机权限</string>
+    <string name="camera_permission_required_desc">请授予相机权限以拍摄日语进行语法分析。</string>
+    <string name="camera_request_permission_btn">请求授权</string>
+    <string name="camera_back_desc">返回</string>
+    <string name="camera_flash_on_desc">闪光灯常亮</string>
+    <string name="camera_flash_auto_desc">自动闪光</string>
+    <string name="camera_flash_off_desc">关闭闪光灯</string>
+    <string name="camera_flash_on_label">⚡ 开启</string>
+    <string name="camera_flash_auto_label">⚡ 自动</string>
+    <string name="camera_flash_off_label">⚡ 关闭</string>
+    <string name="camera_guide_keep_inside">请将日语文本放入框内</string>
+    <string name="camera_guide_crop_hint">拍摄后可以微调裁剪范围</string>
+    <string name="camera_crop_title">选择文字范围</string>
+    <string name="camera_crop_hint">拖动角进行调整</string>
+    <string name="camera_cancel_desc">取消</string>
+    <string name="camera_recapture_btn">重新拍摄/返回</string>
+    <string name="camera_confirm_desc">确定</string>
+    <string name="camera_confirm_btn">范围决定</string>
 </resources>
