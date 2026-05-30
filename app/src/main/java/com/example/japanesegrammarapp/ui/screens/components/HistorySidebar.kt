@@ -10,35 +10,42 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.japanesegrammarapp.data.AnalysisRecord
+import com.example.japanesegrammarapp.R
+import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
+import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import com.example.japanesegrammarapp.ui.theme.ZenColors.AizomeIndigo
 import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.MatchaGreen
-import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
-import com.example.japanesegrammarapp.ui.theme.ZenColors.WashiBg
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
 fun HistorySidebar(
-    historyList: List<AnalysisRecord>,
-    selectedRecord: AnalysisRecord?,
-    onSelectRecord: (AnalysisRecord) -> Unit,
+    historyList: List<AnalysisDomainRecord>,
+    selectedRecord: AnalysisDomainRecord?,
+    onSelectRecord: (AnalysisDomainRecord) -> Unit,
     onClearSelection: () -> Unit,
-    onDeleteRecord: (AnalysisRecord) -> Unit,
+    onDeleteRecord: (AnalysisDomainRecord) -> Unit,
+    onExportAll: () -> Unit,
+    onExportRecord: (AnalysisDomainRecord) -> Unit,
     onCloseDrawer: () -> Unit
 ) {
+    val SumiInk = MaterialTheme.colorScheme.onBackground
+    val WashiBg = MaterialTheme.colorScheme.background
     Column(
         modifier = Modifier
             .fillMaxHeight()
@@ -54,18 +61,13 @@ fun HistorySidebar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "文法分析履歴",
-                fontSize = 18.sp,
+                text = stringResource(R.string.history_title),
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = SumiInk
             )
-            IconButton(
-                onClick = {
-                    onClearSelection()
-                    onCloseDrawer()
-                }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "新規分析", tint = SumiInk)
+            IconButton(onClick = onCloseDrawer) {
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = SumiInk)
             }
         }
         
@@ -85,9 +87,26 @@ fun HistorySidebar(
             border = BorderStroke(1.dp, SumiInk),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = SumiInk)
         ) {
-            Icon(Icons.Default.Edit, contentDescription = "新規分析")
+            Icon(Icons.Default.Edit, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("新規分析を作成", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.new_analysis), fontWeight = FontWeight.Bold)
+        }
+
+        if (historyList.isNotEmpty()) {
+            OutlinedButton(
+                onClick = onExportAll,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .height(48.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = SumiInk),
+                border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.2f)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.Download, contentDescription = stringResource(R.string.export_all), modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.export_all), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -101,8 +120,8 @@ fun HistorySidebar(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "分析履歴はありません。",
-                    color = SumiInk.copy(alpha = 0.4f),
+                    text = stringResource(R.string.no_history),
+                    color = SumiInk.copy(alpha = 0.5f),
                     fontSize = 14.sp
                 )
             }
@@ -125,6 +144,9 @@ fun HistorySidebar(
                         },
                         onDeleteClick = {
                             onDeleteRecord(record)
+                        },
+                        onExportClick = {
+                            onExportRecord(record)
                         }
                     )
                 }
@@ -135,27 +157,31 @@ fun HistorySidebar(
 
 @Composable
 fun HistorySidebarItem(
-    record: AnalysisRecord,
+    record: AnalysisDomainRecord,
     isSelected: Boolean,
     onClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    onExportClick: () -> Unit
 ) {
+    val SumiInk = MaterialTheme.colorScheme.onBackground
+    val SurfaceColor = MaterialTheme.colorScheme.surface
+    val PrimaryColor = MaterialTheme.colorScheme.primary
     val sdf = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
     val dateStr = sdf.format(Date(record.timestamp))
 
-    val isFailed = record.status == "FAILED"
+    val isFailed = record.status == AnalysisStatus.FAILED
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) AizomeIndigo.copy(alpha = 0.25f) else Color.White
+            containerColor = if (isSelected) PrimaryColor.copy(alpha = 0.20f) else SurfaceColor
         ),
         border = BorderStroke(
             width = if (isSelected) 1.5.dp else 1.dp,
             color = when {
                 isFailed -> Color(0xFFD32F2F).copy(alpha = 0.3f)
-                isSelected -> SumiInk
+                isSelected -> PrimaryColor
                 else -> SumiInk.copy(alpha = 0.08f)
             }
         ),
@@ -189,8 +215,8 @@ fun HistorySidebarItem(
                             .clip(RoundedCornerShape(4.dp))
                             .background(
                                 when (record.status) {
-                                    "PENDING" -> KuriAmber
-                                    "FAILED" -> Color(0xFFD32F2F)
+                                    AnalysisStatus.PENDING -> KuriAmber
+                                    AnalysisStatus.FAILED -> Color(0xFFD32F2F)
                                     else -> MatchaGreen
                                 }
                             )
@@ -198,13 +224,22 @@ fun HistorySidebarItem(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = when (record.status) {
-                            "PENDING" -> "分析中"
-                            "FAILED" -> "エラー"
+                            AnalysisStatus.PENDING -> stringResource(R.string.history_status_pending)
+                            AnalysisStatus.FAILED -> stringResource(R.string.history_status_error)
                             else -> record.modelUsed.substringAfter(": ").take(12)
                         },
                         fontSize = 11.sp,
                         color = SumiInk.copy(alpha = 0.5f)
                     )
+                    if (record.status == AnalysisStatus.COMPLETED && record.consumedTokens > 0) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        val formattedTokens = if (record.consumedTokens >= 1000) String.format(java.util.Locale.US, "%.1fk", record.consumedTokens / 1000.0) else record.consumedTokens.toString()
+                        Text(
+                            text = "Tokens: $formattedTokens",
+                            fontSize = 11.sp,
+                            color = SumiInk.copy(alpha = 0.5f)
+                        )
+                    }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -212,14 +247,26 @@ fun HistorySidebarItem(
                         fontSize = 11.sp,
                         color = SumiInk.copy(alpha = 0.5f)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(2.dp))
+                    IconButton(
+                        onClick = onExportClick,
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = stringResource(R.string.export),
+                            tint = PrimaryColor.copy(alpha = 0.7f),
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(2.dp))
                     IconButton(
                         onClick = onDeleteClick,
                         modifier = Modifier.size(20.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "削除",
+                            contentDescription = stringResource(R.string.delete),
                             tint = SumiInk.copy(alpha = 0.4f),
                             modifier = Modifier.size(14.dp)
                         )

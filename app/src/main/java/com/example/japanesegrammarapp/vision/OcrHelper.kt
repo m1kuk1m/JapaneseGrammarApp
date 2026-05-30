@@ -6,18 +6,18 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import kotlinx.coroutines.tasks.await
-import java.io.Closeable
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
-class OcrHelper : Closeable {
-    private val recognizer = TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
-
-    suspend fun extractTextFromUri(context: Context, uri: Uri): String {
-        return try {
+class OcrHelper {
+    suspend fun extractTextFromUri(context: Context, uri: Uri): String = withContext(Dispatchers.IO) {
+        val recognizer = TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
+        try {
             val image = InputImage.fromFilePath(context, uri)
             val result = recognizer.process(image).await()
             
             val blocks = result.textBlocks
-            if (blocks.isEmpty()) return ""
+            if (blocks.isEmpty()) return@withContext ""
 
             // Determine if the layout is primarily vertical (tategaki)
             var verticalCount = 0
@@ -110,14 +110,78 @@ class OcrHelper : Closeable {
                 reconstructedText.append("\n")
             }
 
-            reconstructedText.toString().trim()
+            val rawExtracted = reconstructedText.toString().trim()
+            formatOcrText(rawExtracted)
         } catch (e: Exception) {
             e.printStackTrace()
             "Error extracting text: ${e.localizedMessage}"
+        } finally {
+            recognizer.close()
         }
     }
 
-    override fun close() {
-        recognizer.close()
+    private fun formatOcrText(rawText: String): String {
+        if (rawText.isBlank()) return ""
+        
+        val lines = rawText.split("\n")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+        
+        if (lines.isEmpty()) return ""
+        
+        val sb = StringBuilder()
+        for (i in lines.indices) {
+            val currentLine = lines[i]
+            if (sb.isEmpty()) {
+                sb.append(currentLine)
+            } else {
+                val prevChar = sb.last()
+                val nextChar = currentLine.first()
+                
+                val isPrevCjk = isCjk(prevChar)
+                val isNextCjk = isCjk(nextChar)
+                
+                if (isPrevCjk || isNextCjk) {
+                    sb.append(currentLine)
+                } else {
+                    sb.append(" ").append(currentLine)
+                }
+            }
+        }
+        
+        val cleanedText = sb.toString()
+        val finalSb = StringBuilder()
+        var j = 0
+        while (j < cleanedText.length) {
+            val c = cleanedText[j]
+            if (c == ' ' || c == '　') {
+                val prev = if (j > 0) cleanedText[j - 1] else null
+                val next = if (j < cleanedText.length - 1) cleanedText[j + 1] else null
+                
+                if (prev != null && next != null && (isCjk(prev) || isCjk(next))) {
+                    // Skip this space (remove it)
+                } else {
+                    finalSb.append(c)
+                }
+            } else {
+                finalSb.append(c)
+            }
+            j++
+        }
+        
+        return finalSb.toString().replace("\\s+".toRegex(), " ").trim()
+    }
+
+    private fun isCjk(c: Char): Boolean {
+        val block = Character.UnicodeBlock.of(c)
+        return block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS ||
+               block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS ||
+               block == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION ||
+               block == Character.UnicodeBlock.HIRAGANA ||
+               block == Character.UnicodeBlock.KATAKANA ||
+               block == Character.UnicodeBlock.HALFWIDTH_AND_FULLWIDTH_FORMS ||
+               block == Character.UnicodeBlock.HANGUL_SYLLABLES ||
+               block == Character.UnicodeBlock.HANGUL_JAMO ||
+               block == Character.UnicodeBlock.HANGUL_COMPATIBILITY_JAMO
     }
 }

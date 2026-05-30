@@ -13,5 +13,8 @@ data class AnalysisRecord(
     val timestamp: Long = System.currentTimeMillis(),
     val modelUsed: String,
     val status: String = "COMPLETED", // "PENDING", "COMPLETED", "FAILED"
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val consumedTokens: Int = 0,
+    val inputTokens: Int = 0,
+    val outputTokens: Int = 0
 )

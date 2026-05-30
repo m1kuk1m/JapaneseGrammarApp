@@ -2,10 +2,13 @@ package com.example.japanesegrammarapp.data.repository
 
 import com.example.japanesegrammarapp.data.AnalysisDao
 import com.example.japanesegrammarapp.data.AnalysisEvent
-import com.example.japanesegrammarapp.data.AnalysisRecord
+import com.example.japanesegrammarapp.data.mapper.toDomain
+import com.example.japanesegrammarapp.data.mapper.toEntity
+import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,21 +24,27 @@ class HistoryRepositoryImpl @Inject constructor(
         _analysisEvents.emit(event)
     }
 
-    override val history: Flow<List<AnalysisRecord>> = analysisDao.getAllRecords()
+    override val history: Flow<List<AnalysisDomainRecord>> = analysisDao.getAllRecords().map { list ->
+        list.map { it.toDomain() }
+    }
+    
+    override val totalTokensConsumed: Flow<Int?> = analysisDao.getTotalTokensConsumed()
+    override val tokenUsageByModel: Flow<List<com.example.japanesegrammarapp.data.ModelTokenUsage>> = analysisDao.getTokenUsageByModel()
+    override val dailyTokenUsage: Flow<List<com.example.japanesegrammarapp.data.DailyTokenUsage>> = analysisDao.getDailyTokenUsage()
 
-    override suspend fun getRecordById(id: Int): AnalysisRecord? {
-        return analysisDao.getRecordById(id)
+    override suspend fun getRecordById(id: Int): AnalysisDomainRecord? {
+        return analysisDao.getRecordById(id)?.toDomain()
     }
 
-    override suspend fun insertRecord(record: AnalysisRecord): Long {
-        return analysisDao.insert(record)
+    override suspend fun insertRecord(record: AnalysisDomainRecord): Long {
+        return analysisDao.insert(record.toEntity())
     }
 
-    override suspend fun updateRecord(record: AnalysisRecord) {
-        analysisDao.update(record)
+    override suspend fun updateRecord(record: AnalysisDomainRecord) {
+        analysisDao.update(record.toEntity())
     }
 
-    override suspend fun deleteRecord(record: AnalysisRecord) {
-        analysisDao.delete(record)
+    override suspend fun deleteRecord(record: AnalysisDomainRecord) {
+        analysisDao.delete(record.toEntity())
     }
 }

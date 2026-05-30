@@ -18,18 +18,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.japanesegrammarapp.R
+import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import com.example.japanesegrammarapp.ui.AppViewModel
 import com.example.japanesegrammarapp.ui.WorkspaceUiState
-import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
-import com.example.japanesegrammarapp.ui.theme.ZenColors.WashiBg
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,58 +41,30 @@ import kotlinx.coroutines.withContext
 fun WorkspaceInputForm(
     uiState: WorkspaceUiState,
     viewModel: AppViewModel,
-    navController: NavController
+    navController: NavController,
+    onNavigateToSettings: () -> Unit
 ) {
+    val SumiInk = MaterialTheme.colorScheme.onBackground
+    val WashiBg = MaterialTheme.colorScheme.background
+    val SurfaceColor = MaterialTheme.colorScheme.surface
+    val PrimaryColor = MaterialTheme.colorScheme.primary
+    val OnPrimaryColor = MaterialTheme.colorScheme.onPrimary
     val context = LocalContext.current
+    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
     
     val activeProvider = uiState.activeProvider
     val activeModel = uiState.activeModel
     val providerModels = uiState.providerModels
     val modelsList = providerModels[activeProvider] ?: emptyList()
     var modelExpanded by remember { mutableStateOf(false) }
-    var isNavigating by remember { mutableStateOf(false) }
 
     var textInput by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
-    val isAnalyzing = uiState.selectedRecord?.status == "PENDING"
+    val isAnalyzing = uiState.selectedRecord?.status == AnalysisStatus.PENDING
     val useOcr = uiState.useOcr
 
     val currentOriginalText = uiState.currentOriginalText
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     val coroutineScope = rememberCoroutineScope()
-
-    LaunchedEffect(currentOriginalText) {
-        textInput = currentOriginalText
-    }
-
-    // Launchers
-    val cameraFile = remember { java.io.File(context.cacheDir, "camera_capture.jpg") }
-    val cameraFileUri = remember {
-        androidx.core.content.FileProvider.getUriForFile(
-            context,
-            "com.example.japanesegrammarapp.fileprovider",
-            cameraFile
-        )
-    }
-
-    val cropFile = remember { java.io.File(context.cacheDir, "cropped_image.jpg") }
-    val cropFileUri = remember {
-        androidx.core.content.FileProvider.getUriForFile(
-            context,
-            "com.example.japanesegrammarapp.fileprovider",
-            cropFile
-        )
-    }
-
-    val galleryTempFile = remember { java.io.File(context.cacheDir, "gallery_temp.jpg") }
-    val galleryTempFileUri = remember {
-        androidx.core.content.FileProvider.getUriForFile(
-            context,
-            "com.example.japanesegrammarapp.fileprovider",
-            galleryTempFile
-        )
-    }
-
-    var lastCropSourceUri by remember { mutableStateOf<Uri?>(null) }
 
     fun handleImageCaptured(uri: Uri) {
         if (useOcr) {
@@ -98,63 +72,31 @@ fun WorkspaceInputForm(
                 val extracted = viewModel.extractTextFromImage(uri)
                 textInput = extracted
                 viewModel.setCurrentOriginalText(extracted)
+                if (extracted.isNotBlank()) {
+                    val key = viewModel.getApiKey(activeProvider)
+                    val url = viewModel.getApiUrl(activeProvider)
+                    viewModel.analyzeText(extracted, uri, activeProvider, activeModel.ifBlank { "default" }, url, key)
+                }
             }
         } else {
             selectedImageUri = uri
         }
     }
 
-    val cropLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            handleImageCaptured(Uri.fromFile(cropFile))
-        } else {
-            lastCropSourceUri?.let { fallbackUri ->
-                handleImageCaptured(fallbackUri)
-            }
-        }
+    LaunchedEffect(currentOriginalText) {
+        textInput = currentOriginalText
     }
 
-    fun launchCrop(sourceUri: Uri) {
-        lastCropSourceUri = sourceUri
-        try {
-            val intent = android.content.Intent("com.android.camera.action.CROP").apply {
-                setDataAndType(sourceUri, "image/*")
-                putExtra("crop", "true")
-                putExtra("aspectX", 1)
-                putExtra("aspectY", 1)
-                putExtra("scale", true)
-                putExtra(android.provider.MediaStore.EXTRA_OUTPUT, cropFileUri)
-                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-            }
-            val resInfoList = context.packageManager.queryIntentActivities(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
-            for (resolveInfo in resInfoList) {
-                val packageName = resolveInfo.activityInfo.packageName
-                try {
-                    context.grantUriPermission(packageName, sourceUri, android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION or android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                } catch (se: SecurityException) {
-                    se.printStackTrace()
-                }
-                try {
-                    context.grantUriPermission(packageName, cropFileUri, android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION or android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                } catch (se: SecurityException) {
-                    se.printStackTrace()
+    val navBackStackEntry = navController.currentBackStackEntry
+    LaunchedEffect(navBackStackEntry) {
+        navBackStackEntry?.savedStateHandle?.getStateFlow<String?>("captured_image_uri", null)
+            ?.collect { uriString ->
+                if (!uriString.isNullOrBlank()) {
+                    val uri = Uri.parse(uriString)
+                    handleImageCaptured(uri)
+                    navBackStackEntry.savedStateHandle["captured_image_uri"] = null
                 }
             }
-            cropLauncher.launch(intent)
-        } catch (e: Exception) {
-            handleImageCaptured(sourceUri)
-        }
-    }
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success ->
-        if (success) {
-            launchCrop(cameraFileUri)
-        }
     }
 
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -162,43 +104,40 @@ fun WorkspaceInputForm(
     ) { uri: Uri? ->
         uri?.let { sourceUri ->
             coroutineScope.launch {
+                var localUriToUse: Uri? = null
                 val success = withContext(Dispatchers.IO) {
                     try {
+                        val imagesDir = java.io.File(context.filesDir, "images")
+                        if (!imagesDir.exists()) imagesDir.mkdirs()
+                        val uniqueFileName = "gallery_${System.currentTimeMillis()}.jpg"
+                        val galleryFile = java.io.File(imagesDir, uniqueFileName)
+                        
                         context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                            java.io.FileOutputStream(galleryTempFile).use { outputStream ->
+                            java.io.FileOutputStream(galleryFile).use { outputStream ->
                                 inputStream.copyTo(outputStream)
                             }
                         }
+                        
+                        localUriToUse = androidx.core.content.FileProvider.getUriForFile(
+                            context,
+                            "com.example.japanesegrammarapp.fileprovider",
+                            galleryFile
+                        )
                         true
                     } catch (e: Exception) {
                         e.printStackTrace()
                         false
                     }
                 }
-                if (success) {
-                    launchCrop(galleryTempFileUri)
+                if (success && localUriToUse != null) {
+                    navController.navigate("camera?imageUri=${Uri.encode(localUriToUse.toString())}")
                 } else {
-                    launchCrop(sourceUri)
+                    navController.navigate("camera?imageUri=${Uri.encode(sourceUri.toString())}")
                 }
             }
         }
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            try {
-                if (cameraFile.exists()) cameraFile.delete()
-                cameraFile.createNewFile()
-                cameraLauncher.launch(cameraFileUri)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    // Sleek, low-prominence Model Selection Pill Chip (Zen Style)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -212,7 +151,7 @@ fun WorkspaceInputForm(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
             Text(
-                text = "モデル: ",
+                text = stringResource(R.string.model_label),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = SumiInk.copy(alpha = 0.5f)
@@ -232,7 +171,7 @@ fun WorkspaceInputForm(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "$activeProvider : $activeModel",
+                            text = activeModel.ifBlank { activeProvider },
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = SumiInk,
@@ -241,7 +180,7 @@ fun WorkspaceInputForm(
                         )
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = "選択",
+                            contentDescription = stringResource(R.string.select),
                             tint = SumiInk.copy(alpha = 0.6f),
                             modifier = Modifier.size(16.dp)
                         )
@@ -263,63 +202,58 @@ fun WorkspaceInputForm(
                     }
                     if (modelsList.isEmpty()) {
                         DropdownMenuItem(
-                            text = { Text("モデル未設定 (設定へ)", color = SumiInk.copy(alpha = 0.5f), fontSize = 13.sp) },
+                            text = { Text(stringResource(R.string.model_not_set), color = SumiInk.copy(alpha = 0.5f), fontSize = 13.sp) },
                             onClick = {
                                 modelExpanded = false
-                                navController.navigate("settings")
+                                onNavigateToSettings()
                             }
                         )
                     }
                 }
             }
         }
-        
-        TextButton(
-            onClick = {
-                if (!isNavigating) {
-                    isNavigating = true
-                    navController.navigate("settings")
-                }
-            },
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-        ) {
-            Text(
-                text = "設定",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = SumiInk.copy(alpha = 0.6f)
-            )
-        }
     }
 
     OutlinedTextField(
         value = textInput,
-        onValueChange = { 
-            textInput = it 
+        onValueChange = { newValue ->
+            textInput = newValue
+            if (isAnalyzing) {
+                val activeRecordId = uiState.selectedRecord?.id
+                if (activeRecordId != null) {
+                    viewModel.cancelAnalysis(activeRecordId)
+                    android.widget.Toast.makeText(
+                        context,
+                        context.getString(R.string.analysis_interrupted),
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         },
-        label = { Text("分析する日本語を入力してください", color = SumiInk.copy(alpha = 0.7f)) },
+        placeholder = { Text(stringResource(R.string.input_hint), color = SumiInk.copy(alpha = 0.4f)) },
         modifier = Modifier
             .fillMaxWidth()
-            .height(140.dp),
+            .height(140.dp)
+            .focusRequester(focusRequester),
         shape = RoundedCornerShape(8.dp),
         maxLines = 10,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = SumiInk,
-            unfocusedBorderColor = SumiInk.copy(alpha = 0.3f),
-            focusedLabelColor = SumiInk,
-            unfocusedLabelColor = SumiInk.copy(alpha = 0.7f),
-            focusedTextColor = SumiInk,
-            unfocusedTextColor = SumiInk
+            focusedBorderColor = PrimaryColor,
+            unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+            focusedLabelColor = PrimaryColor,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+            cursorColor = PrimaryColor
         )
     )
 
-    // Image Preview
     if (!useOcr && selectedImageUri != null) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = SurfaceColor),
             border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.15f)),
             shape = RoundedCornerShape(8.dp)
         ) {
@@ -330,17 +264,17 @@ fun WorkspaceInputForm(
             ) {
                 AsyncImage(
                     model = selectedImageUri,
-                    contentDescription = "添付画像",
+                    contentDescription = stringResource(R.string.attached_image),
                     modifier = Modifier
                         .size(56.dp)
                         .clip(RoundedCornerShape(6.dp)),
                     contentScale = ContentScale.Crop
                 )
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("分析対象の画像", fontWeight = FontWeight.Bold, color = SumiInk, fontSize = 12.sp)
+                    Text(stringResource(R.string.analysis_target_image), fontWeight = FontWeight.Bold, color = SumiInk, fontSize = 12.sp)
                 }
                 IconButton(onClick = { selectedImageUri = null }) {
-                    Icon(Icons.Default.Delete, contentDescription = "削除", tint = Color(0xFFD32F2F))
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), tint = Color(0xFFD32F2F))
                 }
             }
         }
@@ -348,37 +282,20 @@ fun WorkspaceInputForm(
     
     Spacer(modifier = Modifier.height(12.dp))
     
-    // Camera & Gallery actions
     Row(
         modifier = Modifier.fillMaxWidth(), 
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         OutlinedButton(
-            onClick = {
-                val permissionCheck = androidx.core.content.ContextCompat.checkSelfPermission(
-                    context,
-                    android.Manifest.permission.CAMERA
-                )
-                if (permissionCheck == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                    try {
-                        if (cameraFile.exists()) cameraFile.delete()
-                        cameraFile.createNewFile()
-                        cameraLauncher.launch(cameraFileUri)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                } else {
-                    permissionLauncher.launch(android.Manifest.permission.CAMERA)
-                }
-            }, 
+            onClick = { navController.navigate("camera") }, 
             modifier = Modifier
                 .weight(1f)
                 .height(40.dp),
             shape = RoundedCornerShape(8.dp),
-            border = BorderStroke(1.dp, SumiInk),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = SumiInk)
+            border = BorderStroke(1.dp, PrimaryColor),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryColor)
         ) {
-            Text("カメラで撮影", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text(stringResource(R.string.camera_capture), fontWeight = FontWeight.Bold, fontSize = 13.sp)
         }
 
         OutlinedButton(
@@ -387,10 +304,10 @@ fun WorkspaceInputForm(
                 .weight(1f)
                 .height(40.dp),
             shape = RoundedCornerShape(8.dp),
-            border = BorderStroke(1.dp, SumiInk),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = SumiInk)
+            border = BorderStroke(1.dp, PrimaryColor),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryColor)
         ) {
-            Text("画像を選択", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text(stringResource(R.string.pick_image), fontWeight = FontWeight.Bold, fontSize = 13.sp)
         }
     }
 
@@ -410,12 +327,12 @@ fun WorkspaceInputForm(
             .height(44.dp),
         shape = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = SumiInk,
-            contentColor = WashiBg,
-            disabledContainerColor = SumiInk.copy(alpha = 0.12f),
-            disabledContentColor = SumiInk.copy(alpha = 0.38f)
+            containerColor = PrimaryColor,
+            contentColor = OnPrimaryColor,
+            disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+            disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
         )
     ) {
-        Text("分析開始", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text(stringResource(R.string.start_analysis), fontWeight = FontWeight.Bold, fontSize = 14.sp)
     }
 }

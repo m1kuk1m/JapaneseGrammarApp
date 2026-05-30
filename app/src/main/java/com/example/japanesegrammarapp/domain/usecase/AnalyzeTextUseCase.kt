@@ -1,9 +1,9 @@
 package com.example.japanesegrammarapp.domain.usecase
 
-import android.content.Context
-import android.net.Uri
 import com.example.japanesegrammarapp.data.AnalysisEvent
-import com.example.japanesegrammarapp.data.AnalysisRecord
+import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
+import com.example.japanesegrammarapp.domain.model.AnalysisStatus
+import com.example.japanesegrammarapp.domain.repository.ImageAttachmentLoader
 import com.example.japanesegrammarapp.data.repository.HistoryRepository
 import com.example.japanesegrammarapp.data.repository.LlmRepository
 import com.example.japanesegrammarapp.data.repository.LlmResult
@@ -11,8 +11,6 @@ import com.example.japanesegrammarapp.data.repository.OcrRepository
 import com.example.japanesegrammarapp.data.repository.SettingsRepository
 import com.example.japanesegrammarapp.network.DetailedAnalysisResult
 import com.google.gson.Gson
-import com.example.japanesegrammarapp.R
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,11 +32,11 @@ data class AnalysisProgress(
 
 @Singleton
 class AnalyzeTextUseCase @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val historyRepository: HistoryRepository,
     private val settingsRepository: SettingsRepository,
     private val llmRepository: LlmRepository,
     private val ocrRepository: OcrRepository,
+    private val imageLoader: ImageAttachmentLoader,
     private val gson: Gson
 ) {
     private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -50,25 +48,25 @@ class AnalyzeTextUseCase @Inject constructor(
 
     suspend fun execute(
         text: String,
-        imageUri: Uri?,
+        imageUri: String?,
         provider: String,
         modelName: String,
         baseUrl: String,
         apiKey: String
     ): Int {
-        if (text.isBlank() && imageUri == null) {
+        if (text.isBlank() && imageUri.isNullOrBlank()) {
             throw IllegalArgumentException("Please enter text or capture an image.")
         }
         if (apiKey.isBlank()) {
             throw IllegalArgumentException("Missing API Key.")
         }
 
-        val record = AnalysisRecord(
+        val record = AnalysisDomainRecord(
             originalText = text.ifBlank { "" },
-            imageUri = imageUri?.toString(),
+            imageUri = imageUri,
             analysisResult = null,
             modelUsed = "$provider: $modelName",
-            status = "PENDING"
+            status = AnalysisStatus.PENDING
         )
         val recordId = historyRepository.insertRecord(record).toInt()
 
@@ -82,7 +80,7 @@ class AnalyzeTextUseCase @Inject constructor(
     suspend fun executeRetry(
         recordId: Int,
         text: String,
-        imageUri: Uri?,
+        imageUri: String?,
         provider: String,
         modelName: String,
         baseUrl: String,
@@ -111,7 +109,7 @@ class AnalyzeTextUseCase @Inject constructor(
     private fun launchBackgroundAnalysis(
         recordId: Int,
         text: String,
-        imageUri: Uri?,
+        imageUri: String?,
         provider: String,
         modelName: String,
         baseUrl: String,
@@ -150,15 +148,15 @@ class AnalyzeTextUseCase @Inject constructor(
 
             try {
                 val isOcrEnabled = settingsRepository.getUseOcr()
-                var isOcrMode = isOcrEnabled && imageUri != null
+                var isOcrMode = isOcrEnabled && !imageUri.isNullOrBlank()
 
                 var imageBase64: String? = null
                 var mimeType: String? = "image/jpeg"
-                if (!isOcrEnabled && imageUri != null) {
-                    val bytes = context.contentResolver.openInputStream(imageUri)?.use { it.readBytes() }
-                    if (bytes != null) {
-                        imageBase64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-                        mimeType = context.contentResolver.getType(imageUri) ?: "image/jpeg"
+                if (!isOcrEnabled && !imageUri.isNullOrBlank()) {
+                    val payload = imageLoader.loadAsBase64(imageUri)
+                    if (payload != null) {
+                        imageBase64 = payload.base64Data
+                        mimeType = payload.mimeType
                     }
                 }
 
@@ -166,7 +164,7 @@ class AnalyzeTextUseCase @Inject constructor(
                 if (isOcrMode) {
                     if (ocrText.isBlank()) {
                         try {
-                            ocrText = ocrRepository.extractTextFromImage(imageUri!!)
+                            ocrText = ocrRepository.extractTextFromImage(android.net.Uri.parse(imageUri!!))
                         } catch (e: Exception) {
                             ocrText = ""
                         }
@@ -175,19 +173,15 @@ class AnalyzeTextUseCase @Inject constructor(
                     if (ocrText.isBlank()) {
                         // Fallback to Vision Mode if local OCR yielded empty text
                         isOcrMode = false
-                        withContext(Dispatchers.Main) {
-                            android.widget.Toast.makeText(
-                                context,
-                                context.getString(R.string.ocr_fallback_toast),
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                        }
+                        historyRepository.emitEvent(AnalysisEvent.OcrFallbackTriggered(recordId))
 
                         // Re-load image bytes for Vision Mode fallback
-                        val bytes = context.contentResolver.openInputStream(imageUri!!)?.use { it.readBytes() }
-                        if (bytes != null) {
-                            imageBase64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-                            mimeType = context.contentResolver.getType(imageUri) ?: "image/jpeg"
+                        if (!imageUri.isNullOrBlank()) {
+                            val payload = imageLoader.loadAsBase64(imageUri)
+                            if (payload != null) {
+                                imageBase64 = payload.base64Data
+                                mimeType = payload.mimeType
+                            }
                         }
                     }
                 }
@@ -196,7 +190,7 @@ class AnalyzeTextUseCase @Inject constructor(
                     // ==========================================
                     // OCR Mode Flow (Sequential Tokenizer first)
                     // ==========================================
-                    val promptTokenizer = "分析対象のOCRテキスト: \"$ocrText\"\nこのテキストのOCR誤認識（て・で誤認、濁点脱落など）を自動修正した上で、トークン化し、文字列の配列として出力してください。"
+                    val promptTokenizer = "分析対象のOCRテキスト: \"$ocrText\"\nこのテキストのOCR誤認識（て・で誤認、濁点脱落など）を自动修正した上で、トークン化し、文字列の配列として出力してください。"
 
                     // 1. Execute Tokenizer first (acts as OCR correction & spelling grammar checker)
                     // No image is transmitted in OCR mode (imageBase64 = null)
@@ -215,13 +209,7 @@ class AnalyzeTextUseCase @Inject constructor(
                     var effectiveText = ocrText
                     if (!correctedText.isNullOrBlank() && correctedText != ocrText) {
                         effectiveText = correctedText
-                        withContext(Dispatchers.Main) {
-                            android.widget.Toast.makeText(
-                                context,
-                                context.getString(R.string.spelling_corrected_toast),
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                        }
+                        historyRepository.emitEvent(AnalysisEvent.SpellingCorrectedTriggered(recordId, effectiveText))
                     }
 
                     // Emit skeleton tokens to UI immediately
@@ -545,7 +533,7 @@ class AnalyzeTextUseCase @Inject constructor(
                     val updatedRecord = currentRecord.copy(
                         originalText = updatedText,
                         analysisResult = finalResultJson,
-                        status = "COMPLETED",
+                        status = AnalysisStatus.COMPLETED,
                         consumedTokens = partialResult.consumedTokens,
                         inputTokens = partialResult.inputTokens,
                         outputTokens = partialResult.outputTokens
@@ -576,7 +564,7 @@ class AnalyzeTextUseCase @Inject constructor(
                 if (currentRecord != null) {
                     historyRepository.updateRecord(
                         currentRecord.copy(
-                            status = "FAILED",
+                            status = AnalysisStatus.FAILED,
                             errorMessage = errorMsg
                         )
                     )
@@ -587,7 +575,6 @@ class AnalyzeTextUseCase @Inject constructor(
             }
         }
     }
-
 
     private fun cleanMarkdownJson(rawJson: String): String {
         var cleanJson = rawJson.trim()

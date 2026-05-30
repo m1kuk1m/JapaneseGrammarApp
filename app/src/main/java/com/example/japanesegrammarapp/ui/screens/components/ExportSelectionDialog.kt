@@ -21,7 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.japanesegrammarapp.R
-import com.example.japanesegrammarapp.data.AnalysisRecord
+import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
+import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import androidx.compose.ui.res.stringResource
 import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.MatchaGreen
@@ -32,9 +33,9 @@ import java.util.*
 
 @Composable
 fun ExportSelectionDialog(
-    historyList: List<AnalysisRecord>,
+    historyList: List<AnalysisDomainRecord>,
     onDismiss: () -> Unit,
-    onExportSelected: (List<AnalysisRecord>) -> Unit
+    onExportSelected: (List<AnalysisDomainRecord>) -> Unit
 ) {
     // Keep track of selected item IDs in a map
     // We pre-select all records by default for a better user experience
@@ -182,8 +183,8 @@ fun ExportSelectionDialog(
                                                     .clip(RoundedCornerShape(3.dp))
                                                     .background(
                                                         when (record.status) {
-                                                            "PENDING" -> KuriAmber
-                                                            "FAILED" -> Color(0xFFD32F2F)
+                                                            AnalysisStatus.PENDING -> KuriAmber
+                                                            AnalysisStatus.FAILED -> Color(0xFFD32F2F)
                                                             else -> MatchaGreen
                                                         }
                                                     )
@@ -191,8 +192,8 @@ fun ExportSelectionDialog(
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text(
                                                 text = when (record.status) {
-                                                    "PENDING" -> stringResource(R.string.history_status_pending)
-                                                    "FAILED" -> stringResource(R.string.history_status_error)
+                                                    AnalysisStatus.PENDING -> stringResource(R.string.history_status_pending)
+                                                    AnalysisStatus.FAILED -> stringResource(R.string.history_status_error)
                                                     else -> record.modelUsed.substringAfter(": ").take(15)
                                                 },
                                                 fontSize = 10.sp,

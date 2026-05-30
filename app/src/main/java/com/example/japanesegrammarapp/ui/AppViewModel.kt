@@ -6,7 +6,8 @@ import com.example.japanesegrammarapp.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.japanesegrammarapp.data.AnalysisEvent
-import com.example.japanesegrammarapp.data.AnalysisRecord
+import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
+import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import com.example.japanesegrammarapp.data.repository.HistoryRepository
 import com.example.japanesegrammarapp.data.repository.LlmRepository
 import com.example.japanesegrammarapp.data.repository.OcrRepository
@@ -110,6 +111,12 @@ class AppViewModel @Inject constructor(
                             _uiEvent.emit(UiEvent.TaskCompleted(event.recordId, event.message))
                         }
                     }
+                    is AnalysisEvent.OcrFallbackTriggered -> {
+                        _uiEvent.emit(UiEvent.ShowError(context.getString(R.string.ocr_fallback_toast)))
+                    }
+                    is AnalysisEvent.SpellingCorrectedTriggered -> {
+                        _uiEvent.emit(UiEvent.ShowError(context.getString(R.string.spelling_corrected_toast)))
+                    }
                 }
             }
         }
@@ -124,7 +131,7 @@ class AppViewModel @Inject constructor(
                         updated.analysisResult != currentSelected.analysisResult || 
                         updated.originalText != currentSelected.originalText)) {
                         
-                        if (updated.status == "COMPLETED" || updated.status == "PENDING") {
+                        if (updated.status == AnalysisStatus.COMPLETED || updated.status == AnalysisStatus.PENDING) {
                             _uiState.update { it.copy(isParsingDetailedResult = true) }
                             withContext(Dispatchers.IO) {
                                 val detail = analyzeTextUseCase.parseDetailedResult(updated.originalText, updated.analysisResult)
@@ -166,14 +173,14 @@ class AppViewModel @Inject constructor(
         }
     }
 
-    fun selectRecord(record: AnalysisRecord) {
+    fun selectRecord(record: AnalysisDomainRecord) {
         val current = _uiState.value.selectedRecord
         if (current?.id == record.id && current.analysisResult == record.analysisResult && current.status == record.status) {
             // Already selected and matches. Avoid redundant parse and state emission.
             return
         }
 
-        if (record.status != "COMPLETED") {
+        if (record.status != AnalysisStatus.COMPLETED) {
             _uiState.update { it.copy(isParsingDetailedResult = true) }
             viewModelScope.launch(Dispatchers.IO) {
                 val detail = analyzeTextUseCase.parseDetailedResult(record.originalText, record.analysisResult)
@@ -344,7 +351,7 @@ class AppViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             try {
-                val recordId = analyzeTextUseCase.execute(text, imageUri, provider, modelName, baseUrl, apiKey)
+                val recordId = analyzeTextUseCase.execute(text, imageUri?.toString(), provider, modelName, baseUrl, apiKey)
                 val record = historyRepository.getRecordById(recordId)
                 if (record != null) {
                     _uiState.update { it.copy(selectedRecord = record) }
@@ -377,13 +384,13 @@ class AppViewModel @Inject constructor(
         }
     }
 
-    fun deleteRecord(record: AnalysisRecord) {
+    fun deleteRecord(record: AnalysisDomainRecord) {
         viewModelScope.launch {
             historyRepository.deleteRecord(record)
         }
     }
 
-    fun exportRecord(record: AnalysisRecord) {
+    fun exportRecord(record: AnalysisDomainRecord) {
         viewModelScope.launch {
             val content = buildRecordExportText(record)
             val sdf = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
@@ -392,7 +399,7 @@ class AppViewModel @Inject constructor(
         }
     }
 
-    fun exportAllHistory(records: List<AnalysisRecord>) {
+    fun exportAllHistory(records: List<AnalysisDomainRecord>) {
         viewModelScope.launch {
             if (records.isEmpty()) {
                 _uiEvent.emit(UiEvent.ShowError(context.getString(R.string.no_history_to_export)))
@@ -414,7 +421,7 @@ class AppViewModel @Inject constructor(
         }
     }
 
-    private fun buildRecordExportText(record: AnalysisRecord, index: Int? = null): String {
+    private fun buildRecordExportText(record: AnalysisDomainRecord, index: Int? = null): String {
         val sdf = java.text.SimpleDateFormat("yyyy/MM/dd HH:mm:ss", java.util.Locale.getDefault())
         val sb = StringBuilder()
         if (index != null) {
@@ -423,19 +430,19 @@ class AppViewModel @Inject constructor(
         sb.appendLine(context.getString(R.string.export_record_time, sdf.format(java.util.Date(record.timestamp))))
         sb.appendLine(context.getString(R.string.export_record_model, record.modelUsed))
         val statusStr = when (record.status) {
-            "PENDING" -> context.getString(R.string.history_status_pending)
-            "FAILED" -> context.getString(R.string.history_status_error)
+            AnalysisStatus.PENDING -> context.getString(R.string.history_status_pending)
+            AnalysisStatus.FAILED -> context.getString(R.string.history_status_error)
             else -> context.getString(R.string.completed)
         }
         sb.appendLine(context.getString(R.string.export_record_status, statusStr))
         sb.appendLine("-".repeat(40))
         sb.appendLine(context.getString(R.string.export_original_text_section))
         sb.appendLine(record.originalText.ifBlank { context.getString(R.string.export_image_analysis_fallback) })
-        if (record.status == "COMPLETED" && !record.analysisResult.isNullOrBlank()) {
+        if (record.status == AnalysisStatus.COMPLETED && !record.analysisResult.isNullOrBlank()) {
             sb.appendLine()
             sb.appendLine(context.getString(R.string.export_result_section))
             sb.appendLine(record.analysisResult)
-        } else if (record.status == "FAILED") {
+        } else if (record.status == AnalysisStatus.FAILED) {
             sb.appendLine()
             sb.appendLine(context.getString(R.string.export_error_section))
             sb.appendLine(record.errorMessage ?: context.getString(R.string.unknown_error))

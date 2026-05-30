@@ -13,4 +13,29 @@ interface SettingsRepository {
     fun saveApiKey(provider: String, key: String)
     fun getApiUrl(provider: String): String
     fun saveApiUrl(provider: String, url: String)
+    fun getBackupProvider(): String
+    fun setBackupProvider(provider: String)
+    fun getBackupModel(): String
+    fun setBackupModel(model: String)
+    
+    fun getThemeMode(): String
+    fun setThemeMode(mode: String)
+    fun getPrimaryColor(): String
+    fun setPrimaryColor(colorHex: String)
+    fun getWallpaperUri(): String
+    fun setWallpaperUri(uri: String)
+
+    // TTS Settings
+    fun getTtsProvider(): String
+    fun setTtsProvider(provider: String)
+    fun getTtsApiUrl(provider: String): String
+    fun setTtsApiUrl(provider: String, url: String)
+    fun getTtsApiKey(provider: String): String
+    fun setTtsApiKey(provider: String, key: String)
+    fun getTtsModel(provider: String): String
+    fun setTtsModel(provider: String, model: String)
+    fun getTtsVoice(provider: String): String
+    fun setTtsVoice(provider: String, voice: String)
+    fun getTtsRegion(provider: String): String
+    fun setTtsRegion(provider: String, region: String)
 }

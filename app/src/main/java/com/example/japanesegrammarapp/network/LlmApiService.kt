@@ -24,7 +24,8 @@ data class OpenAiContentPart(
 data class OpenAiImageUrl(
     val url: String // "data:image/jpeg;base64,{base64}"
 )
-data class OpenAiResponse(val choices: List<OpenAiChoice>)
+data class OpenAiResponse(val choices: List<OpenAiChoice>, val usage: OpenAiUsage? = null)
+data class OpenAiUsage(val total_tokens: Int? = null, val prompt_tokens: Int? = null, val completion_tokens: Int? = null)
 data class OpenAiChoice(val message: OpenAiResponseMessage)
 data class OpenAiResponseMessage(val role: String, val content: String) // Responses are always textual content
 data class OpenAiModelListResponse(val data: List<OpenAiModel>)
@@ -44,7 +45,8 @@ data class GeminiRequest(
 data class GeminiContent(val role: String = "user", val parts: List<GeminiPart>)
 data class GeminiPart(val text: String? = null, val inlineData: GeminiInlineData? = null)
 data class GeminiInlineData(val mimeType: String, val data: String) // Base64 data
-data class GeminiResponse(val candidates: List<GeminiCandidate>?)
+data class GeminiResponse(val candidates: List<GeminiCandidate>?, val usageMetadata: GeminiUsageMetadata? = null)
+data class GeminiUsageMetadata(val totalTokenCount: Int? = null, val promptTokenCount: Int? = null, val candidatesTokenCount: Int? = null)
 data class GeminiCandidate(val content: GeminiContent?)
 data class GeminiModelListResponse(val models: List<GeminiModel>)
 data class GeminiModel(val name: String, val supportedGenerationMethods: List<String>? = null)

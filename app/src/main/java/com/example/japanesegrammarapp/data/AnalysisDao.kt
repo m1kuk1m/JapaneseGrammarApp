@@ -23,4 +23,26 @@ interface AnalysisDao {
 
     @Query("SELECT * FROM analysis_records ORDER BY timestamp DESC")
     fun getAllRecords(): Flow<List<AnalysisRecord>>
+
+    @Query("SELECT SUM(consumedTokens) FROM analysis_records")
+    fun getTotalTokensConsumed(): Flow<Int?>
+
+    @Query("SELECT modelUsed, SUM(consumedTokens) as totalTokens FROM analysis_records WHERE consumedTokens > 0 GROUP BY modelUsed ORDER BY totalTokens DESC")
+    fun getTokenUsageByModel(): Flow<List<ModelTokenUsage>>
+
+    @Query("SELECT date(timestamp / 1000, 'unixepoch', 'localtime') as date, modelUsed, SUM(inputTokens) as inputTokens, SUM(outputTokens) as outputTokens, SUM(consumedTokens) as totalTokens FROM analysis_records WHERE consumedTokens > 0 GROUP BY date, modelUsed ORDER BY date DESC, totalTokens DESC")
+    fun getDailyTokenUsage(): Flow<List<DailyTokenUsage>>
 }
+
+data class ModelTokenUsage(
+    val modelUsed: String,
+    val totalTokens: Int
+)
+
+data class DailyTokenUsage(
+    val date: String,
+    val modelUsed: String,
+    val inputTokens: Int,
+    val outputTokens: Int,
+    val totalTokens: Int
+)

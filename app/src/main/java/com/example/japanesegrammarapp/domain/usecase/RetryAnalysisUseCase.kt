@@ -1,6 +1,6 @@
 package com.example.japanesegrammarapp.domain.usecase
 
-import android.net.Uri
+import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import com.example.japanesegrammarapp.data.repository.HistoryRepository
 import com.example.japanesegrammarapp.data.repository.SettingsRepository
 import javax.inject.Inject
@@ -14,7 +14,7 @@ class RetryAnalysisUseCase @Inject constructor(
 ) {
     suspend fun execute(recordId: Int): Int {
         val record = historyRepository.getRecordById(recordId) ?: throw IllegalArgumentException("Record not found")
-        historyRepository.updateRecord(record.copy(status = "PENDING", errorMessage = null))
+        historyRepository.updateRecord(record.copy(status = AnalysisStatus.PENDING, errorMessage = null))
 
         val providerAndModel = record.modelUsed.split(": ")
         val provider = providerAndModel.getOrNull(0) ?: "Gemini"
@@ -22,9 +22,16 @@ class RetryAnalysisUseCase @Inject constructor(
 
         val key = settingsRepository.getApiKey(provider)
         val url = settingsRepository.getApiUrl(provider)
-        val imageUri = record.imageUri?.let { Uri.parse(it) }
 
-        analyzeTextUseCase.executeRetry(recordId, record.originalText, imageUri, provider, modelName, url, key)
+        analyzeTextUseCase.executeRetry(
+            recordId = recordId,
+            text = record.originalText,
+            imageUri = record.imageUri,
+            provider = provider,
+            modelName = modelName,
+            baseUrl = url,
+            apiKey = key
+        )
         return recordId
     }
 }

@@ -23,7 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.japanesegrammarapp.R
-import com.example.japanesegrammarapp.data.AnalysisRecord
+import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
+import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import com.example.japanesegrammarapp.ui.AppViewModel
 import com.example.japanesegrammarapp.ui.UiEvent
 import com.example.japanesegrammarapp.ui.screens.components.ExportSelectionDialog
@@ -60,7 +61,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
     val history by viewModel.history.collectAsState(initial = emptyList())
     val snackbarHostState = remember { SnackbarHostState() }
     
-    var recordToDelete by remember { mutableStateOf<AnalysisRecord?>(null) }
+    var recordToDelete by remember { mutableStateOf<AnalysisDomainRecord?>(null) }
     val currentHistory by rememberUpdatedState(history)
     var showExportDialog by remember { mutableStateOf(false) }
     
@@ -323,7 +324,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                             val record = uiState.selectedRecord
                             if (record != null) {
                                 val resultState = when {
-                                    record.status == "FAILED" -> "FAILED"
+                                    record.status == AnalysisStatus.FAILED -> "FAILED"
                                     else -> "CONTENT" // PENDING and COMPLETED both render content progressively
                                 }
 
@@ -349,7 +350,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: AppViewModel) {
                                                     onPlayTts = { viewModel.playTtsForCurrentRecord() },
                                                     onStopTts = { viewModel.stopTts() },
                                                     onCancel = {
-                                                        if (record.status == "PENDING") {
+                                                        if (record.status == AnalysisStatus.PENDING) {
                                                             viewModel.cancelAnalysis(record.id)
                                                         } else {
                                                             viewModel.clearSelectedRecord()

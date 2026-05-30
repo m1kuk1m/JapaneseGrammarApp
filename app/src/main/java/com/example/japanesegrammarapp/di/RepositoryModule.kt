@@ -31,7 +31,19 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
+    abstract fun bindTtsRepository(
+        ttsRepositoryImpl: TtsRepositoryImpl
+    ): TtsRepository
+
+    @Binds
+    @Singleton
     abstract fun bindLlmRepository(
         llmRepositoryImpl: LlmRepositoryImpl
     ): LlmRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindImageAttachmentLoader(
+        imageAttachmentLoaderImpl: ImageAttachmentLoaderImpl
+    ): com.example.japanesegrammarapp.domain.repository.ImageAttachmentLoader
 }

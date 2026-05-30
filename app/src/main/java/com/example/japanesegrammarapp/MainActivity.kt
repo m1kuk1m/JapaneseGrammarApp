@@ -1,18 +1,25 @@
 package com.example.japanesegrammarapp
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.japanesegrammarapp.ui.AppNavigation
+import com.example.japanesegrammarapp.ui.AppViewModel
 import com.example.japanesegrammarapp.ui.theme.AppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -29,14 +36,42 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            AppTheme {
+            val viewModel: AppViewModel = hiltViewModel()
+            val uiState by viewModel.uiState.collectAsState()
+
+            val isDarkTheme = when (uiState.themeMode) {
+                "Light" -> false
+                "Dark" -> true
+                else -> isSystemInDarkTheme()
+            }
+
+            AppTheme(
+                darkTheme = isDarkTheme,
+                primaryColorHex = uiState.primaryColor
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    // If wallpaper is set, we use transparent background for Surface so the image shows through
+                    color = if (uiState.wallpaperUri.isNotBlank()) androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.colorScheme.background
                 ) {
+                    if (uiState.wallpaperUri.isNotBlank()) {
+                        AsyncImage(
+                            model = uiState.wallpaperUri,
+                            contentDescription = "Background Wallpaper",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                     AppNavigation()
                 }
             }
         }
+    }
+
+    override fun recreate() {
+        finish()
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        startActivity(intent)
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
     }
 }

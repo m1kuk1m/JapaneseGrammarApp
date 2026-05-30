@@ -17,30 +17,53 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFFD0BCFF),
+    primary = Color(0xFFF3F3F3),
     secondary = Color(0xFFCCC2DC),
-    tertiary = Color(0xFFEFB8C8)
+    tertiary = Color(0xFFEFB8C8),
+    background = Color(0xFF1E1E1E),
+    surface = Color(0xFF2C2C2C),
+    onBackground = Color(0xFFE0E0E0),
+    onSurface = Color(0xFFE0E0E0)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF6650a4),
+    primary = ZenColors.SumiInk,
     secondary = Color(0xFF625b71),
-    tertiary = Color(0xFF7D5260)
+    tertiary = Color(0xFF7D5260),
+    background = ZenColors.WashiBg,
+    surface = Color.White,
+    onBackground = ZenColors.SumiInk,
+    onSurface = ZenColors.SumiInk
 )
 
 @Composable
 fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
+    primaryColorHex: String = "Default",
     content: @Composable () -> Unit
 ) {
+    val parsedPrimary = try {
+        if (primaryColorHex != "Default") Color(android.graphics.Color.parseColor(primaryColorHex)) else null
+    } catch (e: Exception) {
+        null
+    }
+
+    fun calculateOnPrimary(primary: Color): Color {
+        val r = primary.red
+        val g = primary.green
+        val b = primary.blue
+        val luminance = (0.299f * r + 0.587f * g + 0.114f * b)
+        return if (luminance > 0.5f) Color.Black else Color.White
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme -> if (parsedPrimary != null) DarkColorScheme.copy(primary = parsedPrimary, onPrimary = calculateOnPrimary(parsedPrimary)) else DarkColorScheme
+        else -> if (parsedPrimary != null) LightColorScheme.copy(primary = parsedPrimary, onPrimary = calculateOnPrimary(parsedPrimary)) else LightColorScheme
     }
     val view = LocalView.current
     if (!view.isInEditMode) {
