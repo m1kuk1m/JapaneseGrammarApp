@@ -316,144 +316,298 @@ class AnalyzeTextUseCase @Inject constructor(
                     // ==========================================
                     // Non-OCR Mode Flow (Tokenizer, Translation, Clauses, Grammar in parallel. Segments runs after Tokenizer.)
                     // ==========================================
-                    supervisorScope {
-                        // 1. Translation
-                        launch {
-                            try {
-                                val res = llmAnalysisService.executeTranslation(text, imageBase64, mimeType, primaryConfig, backupConfig, retryListener, backupListener)
-                                val obj = res.first
-                                val meta = res.second
-                                val snapshotInner = partialResultMutex.withLock {
-                                    partialResult = partialResult.copy(translation = obj?.translation)
-                                    partialResult.consumedTokens += meta.consumedTokens
-                                    partialResult.inputTokens += meta.inputTokens
-                                    partialResult.outputTokens += meta.outputTokens
-                                    partialResult
-                                }
-                                savePartial(snapshotInner)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            } finally {
-                                _progressFlow.update { map ->
-                                    val current = map[recordId] ?: AnalysisProgress()
-                                    map + (recordId to current.copy(translationCompleted = true))
-                                }
-                            }
+                    if (imageBase64 != null) {
+                        // ==========================================
+                        // Direct Image Upload Mode Flow (Sequential, Image uploaded to Tokenizer only)
+                        // ==========================================
+                        val tokenRes = llmAnalysisService.executeTokenizer(
+                            text = "",
+                            imageBase64 = imageBase64,
+                            mimeType = mimeType,
+                            isOcrMode = false,
+                            primaryConfig = primaryConfig,
+                            backupConfig = backupConfig,
+                            onRetry = { attempt -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmRetryTriggered(recordId, "単語分割", attempt)) } },
+                            onBackup = { provider -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmBackupTriggered(recordId, "単語分割", provider)) } }
+                        )
+                        val tokenObj = tokenRes.first
+                        val metadata = tokenRes.second
+                        val tokens = tokenObj?.tokens ?: emptyList()
+                        val correctedText = tokenObj?.correctedText
+
+                        var effectiveText = text
+                        if (!correctedText.isNullOrBlank()) {
+                            effectiveText = correctedText
+                            eventBus.post(AnalysisEvent.SpellingCorrectedTriggered(recordId, effectiveText))
+                        } else if (tokens.isNotEmpty()) {
+                            effectiveText = tokens.joinToString("")
                         }
 
-                        // 2. Clauses
-                        launch {
-                            try {
-                                val res = llmAnalysisService.executeClauses(text, imageBase64, mimeType, primaryConfig, backupConfig, retryListener, backupListener)
-                                val obj = res.first
-                                val meta = res.second
-                                val snapshotInner = partialResultMutex.withLock {
-                                    partialResult = partialResult.copy(clauses = obj?.clauses)
-                                    partialResult.consumedTokens += meta.consumedTokens
-                                    partialResult.inputTokens += meta.inputTokens
-                                    partialResult.outputTokens += meta.outputTokens
-                                    partialResult
-                                }
-                                savePartial(snapshotInner)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            } finally {
-                                _progressFlow.update { map ->
-                                    val current = map[recordId] ?: AnalysisProgress()
-                                    map + (recordId to current.copy(clausesCompleted = true))
-                                }
+                        val skeletonSegments = tokens.map { WordSegment(text = it) }
+                        if (effectiveText != text) {
+                            val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
+                            if (currentRecord != null) {
+                                saveAnalysisRecordUseCase.update(currentRecord.copy(originalText = effectiveText))
                             }
                         }
-
-                        // 3. Grammar
-                        launch {
-                            try {
-                                val res = llmAnalysisService.executeGrammar(text, imageBase64, mimeType, primaryConfig, backupConfig, retryListener, backupListener)
-                                val obj = res.first
-                                val meta = res.second
-                                val snapshotInner = partialResultMutex.withLock {
-                                    partialResult = partialResult.copy(grammarPoints = obj?.grammarPoints)
-                                    partialResult.consumedTokens += meta.consumedTokens
-                                    partialResult.inputTokens += meta.inputTokens
-                                    partialResult.outputTokens += meta.outputTokens
-                                    partialResult
-                                }
-                                savePartial(snapshotInner)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            } finally {
-                                _progressFlow.update { map ->
-                                    val current = map[recordId] ?: AnalysisProgress()
-                                    map + (recordId to current.copy(grammarCompleted = true))
-                                }
+                        val snapshot = partialResultMutex.withLock {
+                            if (skeletonSegments.isNotEmpty()) {
+                                partialResult = partialResult.copy(segments = skeletonSegments)
                             }
+                            partialResult.consumedTokens += metadata.consumedTokens
+                            partialResult.inputTokens += metadata.inputTokens
+                            partialResult.outputTokens += metadata.outputTokens
+                            partialResult
+                        }
+                        savePartial(snapshot)
+
+                        _progressFlow.update { map ->
+                            val current = map[recordId] ?: AnalysisProgress()
+                            map + (recordId to current.copy(tokenizerCompleted = true))
                         }
 
-                        // 4. Tokenizer & Segments Sequence
-                        launch {
-                            try {
-                                // 4a. Execute Tokenizer first
-                                val tokenRes = llmAnalysisService.executeTokenizer(
-                                    text = text,
-                                    imageBase64 = imageBase64,
-                                    mimeType = mimeType,
-                                    isOcrMode = false,
-                                    primaryConfig = primaryConfig,
-                                    backupConfig = backupConfig,
-                                    onRetry = { attempt -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmRetryTriggered(recordId, "単語分割", attempt)) } },
-                                    onBackup = { provider -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmBackupTriggered(recordId, "単語分割", provider)) } }
-                                )
-                                val tokenObj = tokenRes.first
-                                val tokenMeta = tokenRes.second
-                                val tokens = tokenObj?.tokens ?: emptyList()
-
-                                val skeletonSegments = tokens.map { WordSegment(text = it) }
-                                val tokenSnapshot = partialResultMutex.withLock {
-                                    if (skeletonSegments.isNotEmpty()) {
-                                        partialResult = partialResult.copy(segments = skeletonSegments)
+                        supervisorScope {
+                            // 1. Translation
+                            launch {
+                                try {
+                                    val res = llmAnalysisService.executeTranslation(effectiveText, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                    val obj = res.first
+                                    val meta = res.second
+                                    val snapshotInner = partialResultMutex.withLock {
+                                        partialResult = partialResult.copy(translation = obj?.translation)
+                                        partialResult.consumedTokens += meta.consumedTokens
+                                        partialResult.inputTokens += meta.inputTokens
+                                        partialResult.outputTokens += meta.outputTokens
+                                        partialResult
                                     }
-                                    partialResult.consumedTokens += tokenMeta.consumedTokens
-                                    partialResult.inputTokens += tokenMeta.inputTokens
-                                    partialResult.outputTokens += tokenMeta.outputTokens
-                                    partialResult
-                                }
-                                savePartial(tokenSnapshot)
-
-                                _progressFlow.update { map ->
-                                    val current = map[recordId] ?: AnalysisProgress()
-                                    map + (recordId to current.copy(tokenizerCompleted = true))
-                                }
-
-                                // 4b. Execute detailed segments analysis using the retrieved tokens
-                                val resSeg = llmAnalysisService.executeSegments(
-                                    text = text,
-                                    tokens = tokens,
-                                    imageBase64 = imageBase64,
-                                    mimeType = mimeType,
-                                    primaryConfig = primaryConfig,
-                                    backupConfig = backupConfig,
-                                    onRetry = retryListener,
-                                    onBackup = backupListener
-                                )
-                                val segObj = resSeg.first
-                                val segMeta = resSeg.second
-
-                                val segmentSnapshot = partialResultMutex.withLock {
-                                    if (segObj?.segments != null) {
-                                        partialResult = partialResult.copy(segments = segObj.segments)
+                                    savePartial(snapshotInner)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                } finally {
+                                    _progressFlow.update { map ->
+                                        val current = map[recordId] ?: AnalysisProgress()
+                                        map + (recordId to current.copy(translationCompleted = true))
                                     }
-                                    partialResult.consumedTokens += segMeta.consumedTokens
-                                    partialResult.inputTokens += segMeta.inputTokens
-                                    partialResult.outputTokens += segMeta.outputTokens
-                                    partialResult
                                 }
-                                savePartial(segmentSnapshot)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            } finally {
-                                _progressFlow.update { map ->
-                                    val current = map[recordId] ?: AnalysisProgress()
-                                    map + (recordId to current.copy(segmentsCompleted = true))
+                            }
+
+                            // 2. Clauses
+                            launch {
+                                try {
+                                    val res = llmAnalysisService.executeClauses(effectiveText, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                    val obj = res.first
+                                    val meta = res.second
+                                    val snapshotInner = partialResultMutex.withLock {
+                                        partialResult = partialResult.copy(clauses = obj?.clauses)
+                                        partialResult.consumedTokens += meta.consumedTokens
+                                        partialResult.inputTokens += meta.inputTokens
+                                        partialResult.outputTokens += meta.outputTokens
+                                        partialResult
+                                    }
+                                    savePartial(snapshotInner)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                } finally {
+                                    _progressFlow.update { map ->
+                                        val current = map[recordId] ?: AnalysisProgress()
+                                        map + (recordId to current.copy(clausesCompleted = true))
+                                    }
+                                }
+                            }
+
+                            // 3. Grammar
+                            launch {
+                                try {
+                                    val res = llmAnalysisService.executeGrammar(effectiveText, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                    val obj = res.first
+                                    val meta = res.second
+                                    val snapshotInner = partialResultMutex.withLock {
+                                        partialResult = partialResult.copy(grammarPoints = obj?.grammarPoints)
+                                        partialResult.consumedTokens += meta.consumedTokens
+                                        partialResult.inputTokens += meta.inputTokens
+                                        partialResult.outputTokens += meta.outputTokens
+                                        partialResult
+                                    }
+                                    savePartial(snapshotInner)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                } finally {
+                                    _progressFlow.update { map ->
+                                        val current = map[recordId] ?: AnalysisProgress()
+                                        map + (recordId to current.copy(grammarCompleted = true))
+                                    }
+                                }
+                            }
+
+                            // 4. Segments
+                            launch {
+                                try {
+                                    val res = llmAnalysisService.executeSegments(effectiveText, tokens, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                    val obj = res.first
+                                    val meta = res.second
+                                    val snapshotInner = partialResultMutex.withLock {
+                                        if (obj?.segments != null) {
+                                            partialResult = partialResult.copy(segments = obj.segments)
+                                        }
+                                        partialResult.consumedTokens += meta.consumedTokens
+                                        partialResult.inputTokens += meta.inputTokens
+                                        partialResult.outputTokens += meta.outputTokens
+                                        partialResult
+                                    }
+                                    savePartial(snapshotInner)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                } finally {
+                                    _progressFlow.update { map ->
+                                        val current = map[recordId] ?: AnalysisProgress()
+                                        map + (recordId to current.copy(segmentsCompleted = true))
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // ==========================================
+                        // Direct Text Mode Flow (Tokenizer, Translation, Clauses, Grammar in parallel. Segments runs after Tokenizer.)
+                        // ==========================================
+                        supervisorScope {
+                            // 1. Translation
+                            launch {
+                                try {
+                                    val res = llmAnalysisService.executeTranslation(text, imageBase64, mimeType, primaryConfig, backupConfig, retryListener, backupListener)
+                                    val obj = res.first
+                                    val meta = res.second
+                                    val snapshotInner = partialResultMutex.withLock {
+                                        partialResult = partialResult.copy(translation = obj?.translation)
+                                        partialResult.consumedTokens += meta.consumedTokens
+                                        partialResult.inputTokens += meta.inputTokens
+                                        partialResult.outputTokens += meta.outputTokens
+                                        partialResult
+                                    }
+                                    savePartial(snapshotInner)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                } finally {
+                                    _progressFlow.update { map ->
+                                        val current = map[recordId] ?: AnalysisProgress()
+                                        map + (recordId to current.copy(translationCompleted = true))
+                                    }
+                                }
+                            }
+
+                            // 2. Clauses
+                            launch {
+                                try {
+                                    val res = llmAnalysisService.executeClauses(text, imageBase64, mimeType, primaryConfig, backupConfig, retryListener, backupListener)
+                                    val obj = res.first
+                                    val meta = res.second
+                                    val snapshotInner = partialResultMutex.withLock {
+                                        partialResult = partialResult.copy(clauses = obj?.clauses)
+                                        partialResult.consumedTokens += meta.consumedTokens
+                                        partialResult.inputTokens += meta.inputTokens
+                                        partialResult.outputTokens += meta.outputTokens
+                                        partialResult
+                                    }
+                                    savePartial(snapshotInner)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                } finally {
+                                    _progressFlow.update { map ->
+                                        val current = map[recordId] ?: AnalysisProgress()
+                                        map + (recordId to current.copy(clausesCompleted = true))
+                                    }
+                                }
+                            }
+
+                            // 3. Grammar
+                            launch {
+                                try {
+                                    val res = llmAnalysisService.executeGrammar(text, imageBase64, mimeType, primaryConfig, backupConfig, retryListener, backupListener)
+                                    val obj = res.first
+                                    val meta = res.second
+                                    val snapshotInner = partialResultMutex.withLock {
+                                        partialResult = partialResult.copy(grammarPoints = obj?.grammarPoints)
+                                        partialResult.consumedTokens += meta.consumedTokens
+                                        partialResult.inputTokens += meta.inputTokens
+                                        partialResult.outputTokens += meta.outputTokens
+                                        partialResult
+                                    }
+                                    savePartial(snapshotInner)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                } finally {
+                                    _progressFlow.update { map ->
+                                        val current = map[recordId] ?: AnalysisProgress()
+                                        map + (recordId to current.copy(grammarCompleted = true))
+                                    }
+                                }
+                            }
+
+                            // 4. Tokenizer & Segments Sequence
+                            launch {
+                                try {
+                                    // 4a. Execute Tokenizer first
+                                    val tokenRes = llmAnalysisService.executeTokenizer(
+                                        text = text,
+                                        imageBase64 = imageBase64,
+                                        mimeType = mimeType,
+                                        isOcrMode = false,
+                                        primaryConfig = primaryConfig,
+                                        backupConfig = backupConfig,
+                                        onRetry = { attempt -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmRetryTriggered(recordId, "単語分割", attempt)) } },
+                                        onBackup = { provider -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmBackupTriggered(recordId, "単語分割", provider)) } }
+                                    )
+                                    val tokenObj = tokenRes.first
+                                    val tokenMeta = tokenRes.second
+                                    val tokens = tokenObj?.tokens ?: emptyList()
+
+                                    val skeletonSegments = tokens.map { WordSegment(text = it) }
+                                    val tokenSnapshot = partialResultMutex.withLock {
+                                        if (skeletonSegments.isNotEmpty()) {
+                                            partialResult = partialResult.copy(segments = skeletonSegments)
+                                        }
+                                        partialResult.consumedTokens += tokenMeta.consumedTokens
+                                        partialResult.inputTokens += tokenMeta.inputTokens
+                                        partialResult.outputTokens += tokenMeta.outputTokens
+                                        partialResult
+                                    }
+                                    savePartial(tokenSnapshot)
+
+                                    _progressFlow.update { map ->
+                                        val current = map[recordId] ?: AnalysisProgress()
+                                        map + (recordId to current.copy(tokenizerCompleted = true))
+                                    }
+
+                                    // 4b. Execute detailed segments analysis using the retrieved tokens
+                                    val resSeg = llmAnalysisService.executeSegments(
+                                        text = text,
+                                        tokens = tokens,
+                                        imageBase64 = imageBase64,
+                                        mimeType = mimeType,
+                                        primaryConfig = primaryConfig,
+                                        backupConfig = backupConfig,
+                                        onRetry = retryListener,
+                                        onBackup = backupListener
+                                    )
+                                    val segObj = resSeg.first
+                                    val segMeta = resSeg.second
+
+                                    val segmentSnapshot = partialResultMutex.withLock {
+                                        if (segObj?.segments != null) {
+                                            partialResult = partialResult.copy(segments = segObj.segments)
+                                        }
+                                        partialResult.consumedTokens += segMeta.consumedTokens
+                                        partialResult.inputTokens += segMeta.inputTokens
+                                        partialResult.outputTokens += segMeta.outputTokens
+                                        partialResult
+                                    }
+                                    savePartial(segmentSnapshot)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                } finally {
+                                    _progressFlow.update { map ->
+                                        val current = map[recordId] ?: AnalysisProgress()
+                                        map + (recordId to current.copy(segmentsCompleted = true))
+                                    }
                                 }
                             }
                         }

@@ -27,20 +27,16 @@ class LlmAnalysisServiceImpl @Inject constructor(
         onRetry: (attempt: Int) -> Unit,
         onBackup: (backupProvider: String) -> Unit
     ): Pair<TokenizationResult?, LlmResultMetadata> {
-        val systemPrompt = if (isOcrMode) {
-            PromptManager.SYSTEM_PROMPT_TOKENIZER_OCR
-        } else {
-            PromptManager.SYSTEM_PROMPT_TOKENIZER
+        val systemPrompt = when {
+            imageBase64 != null -> PromptManager.SYSTEM_PROMPT_TOKENIZER_IMAGE
+            isOcrMode -> PromptManager.SYSTEM_PROMPT_TOKENIZER_OCR
+            else -> PromptManager.SYSTEM_PROMPT_TOKENIZER
         }
 
-        val userPrompt = if (isOcrMode) {
-            "分析対象のOCRテキスト: \"$text\"\nこのテキストのOCR誤認識（て・で誤認、濁点脱落など）を自动修正した上で、トークン化し、文字列の配列として出力してください。"
-        } else {
-            if (text.isNotBlank()) {
-                "分析対象の文: \"$text\"\nこの文をトークン化し、文字列の配列として出力してください。"
-            } else {
-                "画像内の日本語テキストをトークン化し、文字列の配列として出力してください。"
-            }
+        val userPrompt = when {
+            imageBase64 != null -> "画像内の日本語テキストを認識・修正した上で、トークン化し、文字列の配列として出力してください。"
+            isOcrMode -> "分析対象のOCRテキスト: \"$text\"\nこのテキストのOCR誤認識（て・で誤認、濁点脱落など）を自动修正した上で、トークン化し、文字列の配列として出力してください。"
+            else -> "分析対象の文: \"$text\"\nこの文をトークン化し、文字列の配列として出力してください。"
         }
 
         return executeAnalysisStep(

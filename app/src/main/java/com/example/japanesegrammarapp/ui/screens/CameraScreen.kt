@@ -40,6 +40,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -58,6 +59,8 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.japanesegrammarapp.ui.SettingsViewModel
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
 import com.example.japanesegrammarapp.ui.theme.ZenColors.WashiBg
@@ -79,10 +82,14 @@ enum class CameraScreenMode {
 @Composable
 fun CameraScreen(
     navController: NavController,
-    galleryImageUriString: String? = null
+    galleryImageUriString: String? = null,
+    settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    
+    val settingsUiState by settingsViewModel.uiState.collectAsState()
+    val useOcr = settingsUiState.useOcr
     
     // Core states
     var screenMode by remember { mutableStateOf(CameraScreenMode.CAPTURE) }
@@ -254,6 +261,8 @@ fun CameraScreen(
                     capturedBitmap?.let { bitmap ->
                         ImageCropReviewLayout(
                             bitmap = bitmap,
+                            useOcr = useOcr,
+                            onOcrToggle = { settingsViewModel.setUseOcr(it) },
                             onCancel = {
                                 if (!galleryImageUriString.isNullOrBlank()) {
                                     // If started from gallery selection, go back directly
@@ -536,6 +545,8 @@ fun ZenScanningOverlay() {
 @Composable
 fun ImageCropReviewLayout(
     bitmap: Bitmap,
+    useOcr: Boolean,
+    onOcrToggle: (Boolean) -> Unit,
     onCancel: () -> Unit,
     onConfirm: (Bitmap) -> Unit
 ) {
@@ -569,11 +580,28 @@ fun ImageCropReviewLayout(
                 fontSize = 16.sp
             )
             
-            Text(
-                text = stringResource(R.string.camera_crop_hint),
-                color = Color.White.copy(alpha = 0.5f),
-                fontSize = 12.sp
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "本地OCR",
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Switch(
+                    checked = useOcr,
+                    onCheckedChange = onOcrToggle,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = SumiInk,
+                        checkedTrackColor = KuriAmber,
+                        uncheckedThumbColor = Color.LightGray,
+                        uncheckedTrackColor = Color.DarkGray
+                    ),
+                    modifier = Modifier.scale(0.8f)
+                )
+            }
         }
         
         // Image & Cropper Workspace

@@ -83,7 +83,7 @@ class SettingsRepositoryImpl @Inject constructor(
             if (cached != null) {
                 cached
             } else {
-                val value = settingPrefs.getBoolean("use_ocr", true)
+                val value = settingPrefs.getBoolean("use_ocr", false)
                 cachedUseOcr = value
                 value
             }
