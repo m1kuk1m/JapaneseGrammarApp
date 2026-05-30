@@ -129,8 +129,8 @@
     <!-- Workspace Result -->
     <string name="analysis_result_text_view">分析結果 (テキスト表示)</string>
     <string name="no_analysis_result">分析結果はありません。</string>
-    <string name="stop_tts">TTS停止</string>
-    <string name="play_tts">TTS再生</string>
+    <string name="stop_tts">音声読み上げを停止</string>
+    <string name="play_tts">音声読み上げを開始</string>
     <string name="close_details">詳細を閉じる</string>
     <string name="translation_label">翻訳</string>
     <string name="grammar_label">文法</string>
@@ -142,11 +142,11 @@
     <string name="custom_image_set">カスタム画像設定済み</string>
     <string name="none">なし</string>
     <string name="unselected">未選択</string>
-    <string name="tts_settings_title">TTS設定</string>
-    <string name="tts_provider">TTSプロバイダー</string>
-    <string name="tts_region_placeholder">リージョン (例：eastus)</string>
-    <string name="tts_model_placeholder">モデル (例：tts-1)</string>
-    <string name="tts_voice_placeholder">音声 (例：alloy, ja-JP-Neural2-B)</string>
+    <string name="tts_settings_title">音声合成 (TTS) 設定</string>
+    <string name="tts_provider">音声合成プロバイダー</string>
+    <string name="tts_region_placeholder">サービス地域 / リージョン (例：eastus)</string>
+    <string name="tts_model_placeholder">音声合成モデル (例：tts-1)</string>
+    <string name="tts_voice_placeholder">話者音声 / ボイス (例：alloy, ja-JP-Neural2-B)</string>
     <string name="view_dev_logs">開発者用ログを表示</string>
     <string name="total_tokens_format">合計: %1$s トークン</string>
 
