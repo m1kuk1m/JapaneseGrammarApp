@@ -159,6 +159,8 @@
     <string name="analysis_started_toast">Analysis task started.</string>
     <string name="no_history_to_export">No history records available to export.</string>
     <string name="unknown_error">Unknown error</string>
+    <string name="error_analysis_failed_to_start">Analysis failed to start</string>
+    <string name="error_retry_failed">Retry failed</string>
     <string name="export_header_title">Japanese Grammar Analysis - History Export</string>
     <string name="export_header_time">Export Time: %1$s</string>
     <string name="export_header_count">Total Records: %1$d</string>

@@ -158,6 +158,8 @@
     <string name="analysis_started_toast">分析任务已开始。</string>
     <string name="no_history_to_export">没有可导出的历史记录。</string>
     <string name="unknown_error">未知错误</string>
+    <string name="error_analysis_failed_to_start">分析启动失败</string>
+    <string name="error_retry_failed">重试失败</string>
     <string name="export_header_title">日语语法分析 - 历史导出</string>
     <string name="export_header_time">导出时间: %1$s</string>
     <string name="export_header_count">总计记录数: %1$d条</string>

@@ -358,7 +358,7 @@ class AppViewModel @Inject constructor(
                 }
                 _uiEvent.emit(UiEvent.ShowError(context.getString(R.string.analysis_started_toast)))
             } catch (e: Exception) {
-                _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: "Analysis failed to start"))
+                _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: context.getString(R.string.error_analysis_failed_to_start)))
             }
         }
     }
@@ -372,7 +372,7 @@ class AppViewModel @Inject constructor(
                     _uiState.update { it.copy(selectedRecord = record) }
                 }
             } catch (e: Exception) {
-                _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: "Retry failed"))
+                _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: context.getString(R.string.error_retry_failed)))
             }
         }
     }

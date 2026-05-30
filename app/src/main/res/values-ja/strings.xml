@@ -158,6 +158,8 @@
     <string name="analysis_started_toast">分析タスクを開始しました。</string>
     <string name="no_history_to_export">エクスポートする履歴がありません。</string>
     <string name="unknown_error">不明なエラー</string>
+    <string name="error_analysis_failed_to_start">分析の開始に失敗しました</string>
+    <string name="error_retry_failed">再試行に失敗しました</string>
     <string name="export_header_title">日本語文法分析 - 履歴エクスポート</string>
     <string name="export_header_time">エクスポート日時: %1$s</string>
     <string name="export_header_count">合計レコード数: %1$d件</string>
