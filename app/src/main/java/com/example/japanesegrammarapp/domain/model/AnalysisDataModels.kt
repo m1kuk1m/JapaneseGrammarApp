@@ -5,7 +5,8 @@ import androidx.compose.runtime.Immutable
 @Immutable
 data class TokenizationResult(
     val tokens: List<String>? = null,
-    val correctedText: String? = null
+    val correctedText: String? = null,
+    val recognizedText: String? = null
 )
 
 @Immutable

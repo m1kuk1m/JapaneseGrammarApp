@@ -37,9 +37,11 @@ data class GeminiGenerationConfig(
     val responseMimeType: String? = null
 )
 
+data class GeminiSystemInstruction(val parts: List<GeminiPart>)
+
 data class GeminiRequest(
     val contents: List<GeminiContent>,
-    val systemInstruction: GeminiContent? = null,
+    val systemInstruction: GeminiSystemInstruction? = null,
     val generationConfig: GeminiGenerationConfig? = null
 )
 data class GeminiContent(val role: String = "user", val parts: List<GeminiPart>)

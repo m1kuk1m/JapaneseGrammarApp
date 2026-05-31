@@ -144,6 +144,7 @@ class AnalyzeTextUseCase @Inject constructor(
 
                 // Perform OCR if needed
                 val isOcrEnabled = settingsRepository.getUseOcr()
+                val imageTokenizerMode = settingsRepository.getImageTokenizerMode()
                 val ocrResult = getOcrTextUseCase.execute(text, imageUri, isOcrEnabled, recordId)
 
                 val isOcrMode = ocrResult.isOcrMode
@@ -174,6 +175,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         imageBase64 = null,
                         mimeType = null,
                         isOcrMode = true,
+                        imageTokenizerMode = imageTokenizerMode,
                         primaryConfig = primaryConfig,
                         backupConfig = backupConfig,
                         onRetry = { attempt -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmRetryTriggered(recordId, "単語分割", attempt)) } },
@@ -325,6 +327,7 @@ class AnalyzeTextUseCase @Inject constructor(
                             imageBase64 = imageBase64,
                             mimeType = mimeType,
                             isOcrMode = false,
+                            imageTokenizerMode = imageTokenizerMode,
                             primaryConfig = primaryConfig,
                             backupConfig = backupConfig,
                             onRetry = { attempt -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmRetryTriggered(recordId, "単語分割", attempt)) } },
@@ -333,12 +336,11 @@ class AnalyzeTextUseCase @Inject constructor(
                         val tokenObj = tokenRes.first
                         val metadata = tokenRes.second
                         val tokens = tokenObj?.tokens ?: emptyList()
-                        val correctedText = tokenObj?.correctedText
+                        val recognizedText = tokenObj?.recognizedText
 
                         var effectiveText = text
-                        if (!correctedText.isNullOrBlank()) {
-                            effectiveText = correctedText
-                            eventBus.post(AnalysisEvent.SpellingCorrectedTriggered(recordId, effectiveText))
+                        if (!recognizedText.isNullOrBlank()) {
+                            effectiveText = recognizedText
                         } else if (tokens.isNotEmpty()) {
                             effectiveText = tokens.joinToString("")
                         }
@@ -551,6 +553,7 @@ class AnalyzeTextUseCase @Inject constructor(
                                         imageBase64 = imageBase64,
                                         mimeType = mimeType,
                                         isOcrMode = false,
+                                        imageTokenizerMode = imageTokenizerMode,
                                         primaryConfig = primaryConfig,
                                         backupConfig = backupConfig,
                                         onRetry = { attempt -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmRetryTriggered(recordId, "単語分割", attempt)) } },
@@ -646,16 +649,25 @@ class AnalyzeTextUseCase @Inject constructor(
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
+                com.example.japanesegrammarapp.utils.AppLogger.e("LLM_API", "Background analysis execution failed for recordId: $recordId", e)
                 e.printStackTrace()
                 dbWriteChannel.close()
                 dbWriterJob.join()
 
                 val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
                 if (currentRecord != null) {
+                    val fullMessage = buildString {
+                        append(e.localizedMessage ?: "Unknown network error")
+                        append("\n\n--- Stack Trace ---\n")
+                        append(e.stackTraceToString().take(1500))
+                        if (e.stackTraceToString().length > 1500) {
+                            append("...")
+                        }
+                    }
                     saveAnalysisRecordUseCase.update(
                         currentRecord.copy(
                             status = AnalysisStatus.FAILED,
-                            errorMessage = e.localizedMessage ?: "Unknown network error"
+                            errorMessage = fullMessage
                         )
                     )
                 }

@@ -190,4 +190,20 @@
     <string name="camera_recapture_btn">Recapture/Back</string>
     <string name="camera_confirm_desc">Confirm</string>
     <string name="camera_confirm_btn">Confirm Area</string>
+    <string name="image_tokenizer_mode_title">Image tokenizer mode</string>
+    <string name="image_tokenizer_mode_faithful">Faithful text mode</string>
+    <string name="image_tokenizer_mode_faithful_desc">No correction or guessing. Keep the text exactly as it appears.</string>
+    <string name="image_tokenizer_mode_repair">Blurred image repair</string>
+    <string name="image_tokenizer_mode_repair_desc">For blurry images, allow context-based repair of clearly unreasonable dakuten or characters.</string>
+    <string name="view_api_debug_logs">View API Debug Responses</string>
+    <string name="api_debug_logs_title">API Debug Responses</string>
+    <string name="api_debug_filter_all">All</string>
+    <string name="clear_api_debug_logs">Clear API Debug Logs</string>
+    <string name="api_debug_empty">No records yet. Run an analysis to show each API role\'s request summary, raw response, and error details.</string>
+    <string name="api_debug_meta">image=%1$s, tokens=%2$d (in=%3$d, out=%4$d)</string>
+    <string name="api_debug_user_prompt">User Prompt</string>
+    <string name="api_debug_system_prompt">System Prompt Preview</string>
+    <string name="api_debug_raw_response">Raw Response</string>
+    <string name="api_debug_error">Error</string>
+    <string name="api_debug_stack_trace">Stack Trace</string>
 </resources>

@@ -63,6 +63,7 @@ class WorkspaceViewModel @Inject constructor(
             val providerModels = LlmConfig.providers.associateWith { settingsRepository.getModelsForProvider(it) }
             val activeModel = settingsRepository.getActiveModel(activeProvider)
             val useOcr = settingsRepository.getUseOcr()
+            val imageTokenizerMode = settingsRepository.getImageTokenizerMode()
 
             val models = providerModels[activeProvider] ?: emptyList()
             val finalActiveModel = if (activeModel.isBlank() && models.isNotEmpty()) models.first() else activeModel
@@ -72,6 +73,7 @@ class WorkspaceViewModel @Inject constructor(
                     activeProvider = activeProvider,
                     activeModel = finalActiveModel,
                     useOcr = useOcr,
+                    imageTokenizerMode = imageTokenizerMode,
                     providerModels = providerModels,
                     availableModels = models
                 )
@@ -91,6 +93,8 @@ class WorkspaceViewModel @Inject constructor(
                         val currentSelected = _uiState.value.selectedRecord
                         if (currentSelected == null || currentSelected.id != event.recordId) {
                             _uiEvent.emit(UiEvent.TaskCompleted(event.recordId, event.message))
+                        } else {
+                            refreshSelectedRecordFromRepository(event.recordId, clearProgress = true)
                         }
                     }
                     is AnalysisEvent.OcrFallbackTriggered -> {
@@ -152,6 +156,9 @@ class WorkspaceViewModel @Inject constructor(
                 if (currentSelected != null) {
                     val progress = progressMap[currentSelected.id]
                     _uiState.update { it.copy(selectedRecordProgress = progress) }
+                    if (progress == null || progress.grammarCompleted || progress.translationCompleted || progress.clausesCompleted || progress.segmentsCompleted) {
+                        refreshSelectedRecordFromRepository(currentSelected.id, clearProgress = progress == null)
+                    }
                 } else {
                     _uiState.update { it.copy(selectedRecordProgress = null) }
                 }
@@ -178,6 +185,31 @@ class WorkspaceViewModel @Inject constructor(
                     analyzeTextUseCase.progressFlow.value[record.id]
                 } else null
             ) }
+        }
+    }
+
+    private suspend fun refreshSelectedRecordFromRepository(recordId: Int, clearProgress: Boolean = false) {
+        val updated = withContext(Dispatchers.IO) { historyRepository.getRecordById(recordId) } ?: return
+        val detail = withContext(Dispatchers.IO) {
+            analyzeTextUseCase.parseDetailedResult(updated.originalText, updated.analysisResult)
+        }
+        _uiState.update { state ->
+            if (state.selectedRecord?.id != recordId) {
+                state
+            } else {
+                state.copy(
+                    selectedRecord = updated,
+                    currentOriginalText = updated.originalText,
+                    analysisResult = updated.analysisResult,
+                    detailedResult = detail,
+                    isParsingDetailedResult = false,
+                    selectedRecordProgress = if (clearProgress || updated.status == AnalysisStatus.COMPLETED) {
+                        null
+                    } else {
+                        analyzeTextUseCase.progressFlow.value[recordId]
+                    }
+                )
+            }
         }
     }
 

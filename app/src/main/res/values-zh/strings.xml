@@ -189,4 +189,20 @@
     <string name="camera_recapture_btn">重新拍摄/返回</string>
     <string name="camera_confirm_desc">确定</string>
     <string name="camera_confirm_btn">范围决定</string>
+    <string name="image_tokenizer_mode_title">图片分词识别模式</string>
+    <string name="image_tokenizer_mode_faithful">清晰图片忠实原文</string>
+    <string name="image_tokenizer_mode_faithful_desc">不修正、不脑补，严格保持图片里看到的文字。</string>
+    <string name="image_tokenizer_mode_repair">模糊图片智能修复</string>
+    <string name="image_tokenizer_mode_repair_desc">图片模糊时允许按语境修复明显不合理的浊点/文字。</string>
+    <string name="view_api_debug_logs">查看 API 调试返回</string>
+    <string name="api_debug_logs_title">API 调试返回</string>
+    <string name="api_debug_filter_all">全部</string>
+    <string name="clear_api_debug_logs">清除 API 调试记录</string>
+    <string name="api_debug_empty">暂无记录。运行一次分析后，这里会显示各职责 API 的请求摘要、原始返回和错误详情。</string>
+    <string name="api_debug_meta">image=%1$s, tokens=%2$d (in=%3$d, out=%4$d)</string>
+    <string name="api_debug_user_prompt">用户提示词</string>
+    <string name="api_debug_system_prompt">系统提示词预览</string>
+    <string name="api_debug_raw_response">原始返回</string>
+    <string name="api_debug_error">错误</string>
+    <string name="api_debug_stack_trace">堆栈跟踪</string>
 </resources>

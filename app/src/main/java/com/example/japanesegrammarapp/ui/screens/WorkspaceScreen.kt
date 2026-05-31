@@ -486,12 +486,32 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                                                             fontSize = 14.sp
                                                         )
                                                         Spacer(modifier = Modifier.height(8.dp))
-                                                        Text(
-                                                            text = record.errorMessage ?: stringResource(R.string.error_occurred),
-                                                            color = SumiInk.copy(alpha = 0.7f),
-                                                            fontSize = 13.sp,
-                                                            textAlign = TextAlign.Center
-                                                        )
+                                                         androidx.compose.foundation.text.selection.SelectionContainer {
+                                                             Text(
+                                                                 text = record.errorMessage ?: stringResource(R.string.error_occurred),
+                                                                 color = SumiInk.copy(alpha = 0.7f),
+                                                                 fontSize = 13.sp,
+                                                                 textAlign = TextAlign.Center
+                                                             )
+                                                         }
+                                                         Spacer(modifier = Modifier.height(12.dp))
+                                                         val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+                                                         val errorStr = record.errorMessage ?: stringResource(R.string.error_occurred)
+                                                         TextButton(
+                                                             onClick = {
+                                                                 clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(errorStr))
+                                                             },
+                                                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                             colors = ButtonDefaults.textButtonColors(contentColor = SumiInk.copy(alpha = 0.8f))
+                                                         ) {
+                                                             Icon(
+                                                                 imageVector = Icons.Default.ContentCopy,
+                                                                 contentDescription = "Copy Error Details",
+                                                                 modifier = Modifier.size(14.dp)
+                                                             )
+                                                             Spacer(modifier = Modifier.width(4.dp))
+                                                             Text("复制完整报错日志", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                         }
                                                         Spacer(modifier = Modifier.height(16.dp))
                                                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                                             OutlinedButton(

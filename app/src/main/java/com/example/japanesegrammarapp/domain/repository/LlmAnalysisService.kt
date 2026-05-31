@@ -9,6 +9,7 @@ interface LlmAnalysisService {
         imageBase64: String?,
         mimeType: String?,
         isOcrMode: Boolean,
+        imageTokenizerMode: String = "faithful",
         primaryConfig: LlmApiConfig,
         backupConfig: LlmApiConfig?,
         onRetry: (attempt: Int) -> Unit = {},

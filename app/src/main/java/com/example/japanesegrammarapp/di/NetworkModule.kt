@@ -1,4 +1,4 @@
-package com.example.japanesegrammarapp.di
+﻿package com.example.japanesegrammarapp.di
 
 import com.example.japanesegrammarapp.BuildConfig
 import com.example.japanesegrammarapp.network.LlmApiService
@@ -27,7 +27,7 @@ object NetworkModule {
     fun provideOkHttpClient(): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.BODY
+                HttpLoggingInterceptor.Level.BASIC
             } else {
                 HttpLoggingInterceptor.Level.NONE
             }
@@ -35,7 +35,10 @@ object NetworkModule {
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
             .connectTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(120, TimeUnit.SECONDS)
+            .readTimeout(180, TimeUnit.SECONDS)
+            .callTimeout(240, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
             .build()
     }
 
@@ -55,3 +58,5 @@ object NetworkModule {
         return retrofit.create(LlmApiService::class.java)
     }
 }
+
+

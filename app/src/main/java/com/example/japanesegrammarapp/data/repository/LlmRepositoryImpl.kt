@@ -100,7 +100,7 @@ class LlmRepositoryImpl @Inject constructor(
                     inputTokens = tokens * 6 / 10
                     outputTokens = tokens - inputTokens
                 }
-                LlmResult(text, tokens, inputTokens, outputTokens)
+                LlmResult(text, tokens, inputTokens, outputTokens, provider, modelName)
 
             }
             "Gemini", "Vertex AI" -> {
@@ -115,7 +115,7 @@ class LlmRepositoryImpl @Inject constructor(
 
                 val request = GeminiRequest(
                     contents = listOf(GeminiContent(role = "user", parts = parts)),
-                    systemInstruction = GeminiContent(role = "user", parts = listOf(GeminiPart(text = systemPrompt))),
+                    systemInstruction = GeminiSystemInstruction(parts = listOf(GeminiPart(text = systemPrompt))),
                     generationConfig = GeminiGenerationConfig(
                         temperature = 0.1,
                         responseMimeType = "application/json"
@@ -130,7 +130,7 @@ class LlmRepositoryImpl @Inject constructor(
                     inputTokens = tokens * 6 / 10
                     outputTokens = tokens - inputTokens
                 }
-                LlmResult(text, tokens, inputTokens, outputTokens)
+                LlmResult(text, tokens, inputTokens, outputTokens, provider, modelName)
             }
             else -> throw Exception("Unsupported provider")
         }
@@ -175,6 +175,11 @@ class LlmRepositoryImpl @Inject constructor(
                 )
             } catch (e: Exception) {
                 lastException = e
+                com.example.japanesegrammarapp.utils.AppLogger.e(
+                    "LLM_API",
+                    "Primary LLM Call failed for [$apiTypeLabel] (attempt ${attempt + 1}) via $primaryProvider ($primaryModel). Error: ${e.localizedMessage}",
+                    e
+                )
                 attempt++
                 if (attempt <= maxRetries) {
                     onRetry(attempt)
@@ -184,7 +189,9 @@ class LlmRepositoryImpl @Inject constructor(
         }
 
         if (backupProvider.isBlank() || backupModel.isBlank() || backupKey.isBlank()) {
-            throw Exception("メインAPI（${apiTypeLabel}）の再試行に失敗し、予備APIが設定されていないか有効ではありません。メインAPIエラー: ${lastException?.localizedMessage}", lastException)
+            val errorMsg = "メインAPI（${apiTypeLabel}）の再試行に失敗し、予備APIが設定されていないか有効ではありません。メインAPIエラー: ${lastException?.localizedMessage}"
+            com.example.japanesegrammarapp.utils.AppLogger.e("LLM_API", errorMsg, lastException)
+            throw Exception(errorMsg, lastException)
         }
 
         onBackup(backupProvider)
@@ -201,6 +208,8 @@ class LlmRepositoryImpl @Inject constructor(
                 apiKey = backupKey
             )
         } catch (e: Exception) {
+            val errorMsg = "メインAPIおよび予備API的呼び出しに失败しました。メインAPIエラー: ${lastException?.localizedMessage}。予備APIエラー: ${e.localizedMessage}"
+            com.example.japanesegrammarapp.utils.AppLogger.e("LLM_API", errorMsg, e)
             throw Exception("メインAPIおよび予備APIの呼び出しに失敗しました。メインAPIエラー: ${lastException?.localizedMessage}。予備APIエラー: ${e.localizedMessage}", e)
         }
     }

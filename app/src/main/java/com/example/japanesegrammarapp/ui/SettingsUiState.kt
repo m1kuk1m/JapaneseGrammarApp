@@ -6,6 +6,7 @@ data class SettingsUiState(
     val availableModels: List<String> = emptyList(),
     val providerModels: Map<String, List<String>> = emptyMap(),
     val useOcr: Boolean = true,
+    val imageTokenizerMode: String = "faithful",
     val isFetchingModels: Boolean = false,
     val fetchingProvider: String? = null,
     val backupProvider: String = "DeepSeek",

@@ -7,6 +7,8 @@ interface SettingsRepository {
     fun setActiveModel(provider: String, model: String)
     fun getUseOcr(): Boolean
     fun setUseOcr(value: Boolean)
+    fun getImageTokenizerMode(): String
+    fun setImageTokenizerMode(mode: String)
     fun getModelsForProvider(provider: String): List<String>
     fun saveModelsForProvider(provider: String, models: List<String>)
     fun getApiKey(provider: String): String

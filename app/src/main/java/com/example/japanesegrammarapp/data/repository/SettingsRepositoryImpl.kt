@@ -20,6 +20,7 @@ class SettingsRepositoryImpl @Inject constructor(
     // Thread-safe in-memory cache for ultra-fast, non-blocking UI interactions
     @Volatile private var cachedActiveProvider: String? = null
     @Volatile private var cachedUseOcr: Boolean? = null
+    @Volatile private var cachedImageTokenizerMode: String? = null
     @Volatile private var cachedBackupProvider: String? = null
     @Volatile private var cachedBackupModel: String? = null
     private val cachedActiveModels = java.util.concurrent.ConcurrentHashMap<String, String>()
@@ -93,6 +94,24 @@ class SettingsRepositoryImpl @Inject constructor(
     override fun setUseOcr(value: Boolean) {
         cachedUseOcr = value
         settingPrefs.edit().putBoolean("use_ocr", value).apply()
+    }
+
+    override fun getImageTokenizerMode(): String {
+        return cachedImageTokenizerMode ?: synchronized(this) {
+            val cached = cachedImageTokenizerMode
+            if (cached != null) {
+                cached
+            } else {
+                val value = settingPrefs.getString("image_tokenizer_mode", "faithful") ?: "faithful"
+                cachedImageTokenizerMode = value
+                value
+            }
+        }
+    }
+
+    override fun setImageTokenizerMode(mode: String) {
+        cachedImageTokenizerMode = mode
+        settingPrefs.edit().putString("image_tokenizer_mode", mode).apply()
     }
 
     override fun getModelsForProvider(provider: String): List<String> {

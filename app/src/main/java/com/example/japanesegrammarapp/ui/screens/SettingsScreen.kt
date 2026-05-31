@@ -244,9 +244,11 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                         title = stringResource(R.string.accent_color),
                         onClick = { colorDialogVisible = true },
                         trailingContent = {
-                            val displayColor = try {
-                                if (uiState.primaryColor != "Default") Color(android.graphics.Color.parseColor(uiState.primaryColor)) else SumiInk
-                            } catch (e: Exception) { SumiInk }
+                            val displayColor = remember(uiState.primaryColor, SumiInk) {
+                                try {
+                                    if (uiState.primaryColor != "Default") Color(android.graphics.Color.parseColor(uiState.primaryColor)) else SumiInk
+                                } catch (e: Exception) { SumiInk }
+                            }
                             Box(
                                 modifier = Modifier
                                     .size(24.dp)
@@ -311,19 +313,22 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                 SettingsGroup(title = stringResource(R.string.general)) {
                     // Language Switcher
                     var langDropdownExpanded by remember { mutableStateOf(false) }
-                    val currentLocales = androidx.appcompat.app.AppCompatDelegate.getApplicationLocales()
-                    val currentLangTag = if (currentLocales.isEmpty) "" else currentLocales.get(0)?.toLanguageTag() ?: ""
-                    val currentLangLabel = when {
-                        currentLangTag.startsWith("zh") -> "简体中文"
-                        currentLangTag.startsWith("ja") -> "日本語"
-                        currentLangTag.startsWith("en") -> "English"
-                        else -> stringResource(R.string.language_auto)
+                    val currentLangLabel = remember {
+                        val currentLocales = androidx.appcompat.app.AppCompatDelegate.getApplicationLocales()
+                        val currentLangTag = if (currentLocales.isEmpty) "" else currentLocales.get(0)?.toLanguageTag() ?: ""
+                        when {
+                            currentLangTag.startsWith("zh") -> "简体中文"
+                            currentLangTag.startsWith("ja") -> "日本語"
+                            currentLangTag.startsWith("en") -> "English"
+                            else -> "AUTO"
+                        }
                     }
+                    val displayLangLabel = if (currentLangLabel == "AUTO") stringResource(R.string.language_auto) else currentLangLabel
 
                     SettingsItem(
                         icon = Icons.Default.Language,
                         title = stringResource(R.string.language),
-                        subtitle = currentLangLabel,
+                        subtitle = displayLangLabel,
                         onClick = { langDropdownExpanded = true },
                         trailingContent = {
                             Box {

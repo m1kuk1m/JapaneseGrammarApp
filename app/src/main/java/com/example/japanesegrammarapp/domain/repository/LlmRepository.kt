@@ -1,6 +1,13 @@
 package com.example.japanesegrammarapp.domain.repository
 
-data class LlmResult(val text: String, val consumedTokens: Int, val inputTokens: Int = 0, val outputTokens: Int = 0)
+data class LlmResult(
+    val text: String,
+    val consumedTokens: Int,
+    val inputTokens: Int = 0,
+    val outputTokens: Int = 0,
+    val provider: String? = null,
+    val modelName: String? = null
+)
 
 data class LlmApiConfig(
     val provider: String,

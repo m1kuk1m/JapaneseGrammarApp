@@ -189,4 +189,20 @@
     <string name="camera_recapture_btn">再撮影/戻る</string>
     <string name="camera_confirm_desc">確定</string>
     <string name="camera_confirm_btn">範囲決定</string>
+    <string name="image_tokenizer_mode_title">画像分かち書き認識モード</string>
+    <string name="image_tokenizer_mode_faithful">鮮明画像・原文忠実</string>
+    <string name="image_tokenizer_mode_faithful_desc">修正や推測をせず、画像に見える文字をそのまま保持します。</string>
+    <string name="image_tokenizer_mode_repair">不鮮明画像・文脈補正</string>
+    <string name="image_tokenizer_mode_repair_desc">画像が不鮮明な場合、文脈から明らかに不自然な濁点や文字を補正します。</string>
+    <string name="view_api_debug_logs">APIデバッグ応答を表示</string>
+    <string name="api_debug_logs_title">APIデバッグ応答</string>
+    <string name="api_debug_filter_all">すべて</string>
+    <string name="clear_api_debug_logs">APIデバッグログを消去</string>
+    <string name="api_debug_empty">まだ記録がありません。分析を実行すると、各API役割のリクエスト概要、原文応答、エラー詳細が表示されます。</string>
+    <string name="api_debug_meta">image=%1$s, tokens=%2$d (in=%3$d, out=%4$d)</string>
+    <string name="api_debug_user_prompt">ユーザープロンプト</string>
+    <string name="api_debug_system_prompt">システムプロンプトプレビュー</string>
+    <string name="api_debug_raw_response">原文応答</string>
+    <string name="api_debug_error">エラー</string>
+    <string name="api_debug_stack_trace">スタックトレース</string>
 </resources>

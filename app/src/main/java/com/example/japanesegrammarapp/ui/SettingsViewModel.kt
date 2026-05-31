@@ -39,6 +39,7 @@ class SettingsViewModel @Inject constructor(
             val providerModels = LlmConfig.providers.associateWith { settingsRepository.getModelsForProvider(it) }
             val activeModel = settingsRepository.getActiveModel(activeProvider)
             val useOcr = settingsRepository.getUseOcr()
+            val imageTokenizerMode = settingsRepository.getImageTokenizerMode()
             val backupProvider = settingsRepository.getBackupProvider()
             val backupModel = settingsRepository.getBackupModel()
 
@@ -55,6 +56,7 @@ class SettingsViewModel @Inject constructor(
                     activeProvider = activeProvider,
                     activeModel = finalActiveModel,
                     useOcr = useOcr,
+                    imageTokenizerMode = imageTokenizerMode,
                     providerModels = providerModels,
                     availableModels = models,
                     backupProvider = backupProvider,
@@ -85,6 +87,11 @@ class SettingsViewModel @Inject constructor(
     fun setUseOcr(value: Boolean) {
         settingsRepository.setUseOcr(value)
         _uiState.update { it.copy(useOcr = value) }
+    }
+
+    fun setImageTokenizerMode(mode: String) {
+        settingsRepository.setImageTokenizerMode(mode)
+        _uiState.update { it.copy(imageTokenizerMode = mode) }
     }
 
     fun setActiveProvider(provider: String) {

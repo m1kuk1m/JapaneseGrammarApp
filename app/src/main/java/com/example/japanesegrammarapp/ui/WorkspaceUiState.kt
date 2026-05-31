@@ -12,6 +12,7 @@ data class WorkspaceUiState(
     val selectedRecord: AnalysisDomainRecord? = null,
     val currentOriginalText: String = "",
     val useOcr: Boolean = true,
+    val imageTokenizerMode: String = "faithful",
     val analysisResult: String? = null,
     val detailedResult: DetailedAnalysisResult? = null,
     val isParsingDetailedResult: Boolean = false,
