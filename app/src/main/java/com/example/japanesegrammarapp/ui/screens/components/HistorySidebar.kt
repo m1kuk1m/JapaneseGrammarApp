@@ -177,47 +177,29 @@ fun HistorySidebarItem(
     val sdf = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
     val dateStr = sdf.format(Date(record.timestamp))
 
-    val isFailed = record.status == AnalysisStatus.FAILED
-
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = if (isSelected) AizomeIndigo.copy(alpha = 0.06f) else SurfaceColor,
+        shape = RoundedCornerShape(14.dp),
+        color = if (isSelected) ZenThemeColors.selectedHistoryBg() else SurfaceColor,
         border = null,
-        shadowElevation = if (isSelected) 1.5.dp else 0.5.dp,
+        shadowElevation = if (isSelected) 0.dp else 0.5.dp,
         tonalElevation = 0.dp
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick),
-            verticalAlignment = Alignment.CenterVertically
+                .clickable(onClick = onClick)
+                .padding(14.dp)
         ) {
-            // Elegant Left Accent Bar
-            Box(
-                modifier = Modifier
-                    .width(4.dp)
-                    .height(36.dp)
-                    .clip(RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp))
-                    .background(if (isSelected) AizomeIndigo else Color.Transparent)
+            Text(
+                text = record.originalText,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                color = SumiInk
             )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 14.dp, horizontal = 4.dp)
-            ) {
-                Text(
-                    text = record.originalText,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color = SumiInk
-                )
-                Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -290,7 +272,6 @@ fun HistorySidebarItem(
                     }
                 }
             }
-        }
         }
     }
 }
