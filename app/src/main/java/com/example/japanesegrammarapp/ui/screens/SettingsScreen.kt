@@ -69,12 +69,25 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
     var urls by remember { mutableStateOf(providers.associateWith { defaultUrls[it] ?: "" }) }
     var isSettingsLoaded by remember { mutableStateOf(false) }
 
+    var selectedTtsProvider by remember { mutableStateOf("OpenAI") }
+    var ttsUrl by remember { mutableStateOf("") }
+    var ttsKey by remember { mutableStateOf("") }
+    var ttsModel by remember { mutableStateOf("") }
+    var ttsVoice by remember { mutableStateOf("") }
+    var ttsRegion by remember { mutableStateOf("") }
+
     fun saveSettings() {
         if (!isSettingsLoaded) return
         providers.forEach {
             viewModel.saveApiKey(it, keys[it] ?: "")
             viewModel.saveApiUrl(it, urls[it] ?: "")
         }
+        viewModel.setTtsProvider(selectedTtsProvider)
+        viewModel.setTtsApiUrl(selectedTtsProvider, ttsUrl)
+        viewModel.setTtsApiKey(selectedTtsProvider, ttsKey)
+        viewModel.setTtsModel(selectedTtsProvider, ttsModel)
+        viewModel.setTtsVoice(selectedTtsProvider, ttsVoice)
+        viewModel.setTtsRegion(selectedTtsProvider, ttsRegion)
     }
 
     BackHandler(enabled = isSettingsLoaded) {
@@ -89,7 +102,16 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
         val loadedUrls = withContext(Dispatchers.IO) { providers.associateWith { viewModel.getApiUrl(it) } }
         keys = loadedKeys
         urls = loadedUrls
+        selectedTtsProvider = withContext(Dispatchers.IO) { viewModel.getTtsProvider() }
         isSettingsLoaded = true
+    }
+
+    LaunchedEffect(selectedTtsProvider) {
+        ttsUrl = withContext(Dispatchers.IO) { viewModel.getTtsApiUrl(selectedTtsProvider) }
+        ttsKey = withContext(Dispatchers.IO) { viewModel.getTtsApiKey(selectedTtsProvider) }
+        ttsModel = withContext(Dispatchers.IO) { viewModel.getTtsModel(selectedTtsProvider) }
+        ttsVoice = withContext(Dispatchers.IO) { viewModel.getTtsVoice(selectedTtsProvider) }
+        ttsRegion = withContext(Dispatchers.IO) { viewModel.getTtsRegion(selectedTtsProvider) }
     }
 
     providers.forEach { provider ->
@@ -608,7 +630,6 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                     elevation = CardDefaults.cardElevation(0.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        var selectedTtsProvider by remember { mutableStateOf(viewModel.getTtsProvider()) }
                         var ttsProviderExpanded by remember { mutableStateOf(false) }
                         val ttsProviders = listOf("OpenAI", "Google", "Microsoft")
 
@@ -631,10 +652,9 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                                     ttsProviders.forEach { provider ->
                                         DropdownMenuItem(
                                             text = { Text(provider) },
-                                            onClick = { 
+                                            onClick = {
                                                 selectedTtsProvider = provider
-                                                viewModel.setTtsProvider(provider)
-                                                ttsProviderExpanded = false 
+                                                ttsProviderExpanded = false
                                             }
                                         )
                                     }
@@ -643,27 +663,13 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
-                        
-                        var ttsUrl by remember(selectedTtsProvider) { mutableStateOf(viewModel.getTtsApiUrl(selectedTtsProvider)) }
-                        var ttsKey by remember(selectedTtsProvider) { mutableStateOf(viewModel.getTtsApiKey(selectedTtsProvider)) }
-                        var ttsModel by remember(selectedTtsProvider) { mutableStateOf(viewModel.getTtsModel(selectedTtsProvider)) }
-                        var ttsVoice by remember(selectedTtsProvider) { mutableStateOf(viewModel.getTtsVoice(selectedTtsProvider)) }
-                        var ttsRegion by remember(selectedTtsProvider) { mutableStateOf(viewModel.getTtsRegion(selectedTtsProvider)) }
-                        var ttsKeyVisible by remember { mutableStateOf(false) }
 
-                        // Generic input update function
-                        fun saveTtsSettings() {
-                            viewModel.setTtsApiUrl(selectedTtsProvider, ttsUrl)
-                            viewModel.setTtsApiKey(selectedTtsProvider, ttsKey)
-                            viewModel.setTtsModel(selectedTtsProvider, ttsModel)
-                            viewModel.setTtsVoice(selectedTtsProvider, ttsVoice)
-                            viewModel.setTtsRegion(selectedTtsProvider, ttsRegion)
-                        }
+                        var ttsKeyVisible by remember { mutableStateOf(false) }
 
                         if (selectedTtsProvider == "OpenAI" || selectedTtsProvider == "Google") {
                             OutlinedTextField(
                                 value = ttsUrl,
-                                onValueChange = { ttsUrl = it; saveTtsSettings() },
+                                onValueChange = { ttsUrl = it },
                                 label = { Text(stringResource(R.string.base_url)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
@@ -675,7 +681,7 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                         if (selectedTtsProvider == "Microsoft") {
                             OutlinedTextField(
                                 value = ttsRegion,
-                                onValueChange = { ttsRegion = it; saveTtsSettings() },
+                                onValueChange = { ttsRegion = it },
                                 label = { Text(stringResource(R.string.tts_region_placeholder)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
@@ -686,7 +692,7 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
 
                         OutlinedTextField(
                             value = ttsKey,
-                            onValueChange = { ttsKey = it; saveTtsSettings() },
+                            onValueChange = { ttsKey = it },
                             label = { Text(stringResource(R.string.api_key)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
@@ -703,7 +709,7 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                         if (selectedTtsProvider == "OpenAI") {
                             OutlinedTextField(
                                 value = ttsModel,
-                                onValueChange = { ttsModel = it; saveTtsSettings() },
+                                onValueChange = { ttsModel = it },
                                 label = { Text(stringResource(R.string.tts_model_placeholder)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
@@ -714,7 +720,7 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
 
                         OutlinedTextField(
                             value = ttsVoice,
-                            onValueChange = { ttsVoice = it; saveTtsSettings() },
+                            onValueChange = { ttsVoice = it },
                             label = { Text(stringResource(R.string.tts_voice_placeholder)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
