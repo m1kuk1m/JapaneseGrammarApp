@@ -182,8 +182,8 @@ fun HistorySidebarItem(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = if (isSelected) PrimaryColor.copy(alpha = 0.12f) else SurfaceColor,
-        border = if (isSelected) BorderStroke(1.dp, PrimaryColor.copy(alpha = 0.35f)) else null,
+        color = if (isSelected) AizomeIndigo.copy(alpha = 0.35f) else SurfaceColor,
+        border = null,
         shadowElevation = if (isSelected) 2.dp else 1.dp,
         tonalElevation = 0.dp
     ) {

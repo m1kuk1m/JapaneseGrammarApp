@@ -298,17 +298,13 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                             ) {
                                 IconButton(
                                     onClick = { coroutineScope.launch { drawerState.open() } },
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(SumiInk.copy(alpha = 0.05f), androidx.compose.foundation.shape.CircleShape)
+                                    modifier = Modifier.size(40.dp)
                                 ) {
                                     Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = SumiInk)
                                 }
                                 IconButton(
                                     onClick = navigateToSettings,
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(SumiInk.copy(alpha = 0.05f), androidx.compose.foundation.shape.CircleShape)
+                                    modifier = Modifier.size(40.dp)
                                 ) {
                                     Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings), tint = SumiInk)
                                 }
