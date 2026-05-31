@@ -30,6 +30,15 @@
     <string name="history">履歴</string>
     <string name="analyze">分析</string>
     <string name="analyzing">分析中...</string>
+
+    <!-- Elegant UI Strings -->
+    <string name="hero_title">解析.</string>
+    <string name="hero_subtitle">日本語の文法構造を深く理解する</string>
+    <string name="workspace_short_title">WORKSPACE</string>
+    <string name="input_hint_elegant">テキストを入力...</string>
+    <string name="camera">カメラ</string>
+    <string name="album">アルバム</string>
+    <string name="start_parse">解析開始</string>
     
     <!-- Sidebar -->
     <string name="history_title">履歴</string>

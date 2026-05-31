@@ -30,6 +30,15 @@
     <string name="history">历史</string>
     <string name="analyze">开始分析</string>
     <string name="analyzing">分析中...</string>
+
+    <!-- Elegant UI Strings -->
+    <string name="hero_title">解析.</string>
+    <string name="hero_subtitle">深入理解日语语法结构</string>
+    <string name="workspace_short_title">WORKSPACE</string>
+    <string name="input_hint_elegant">输入日文...</string>
+    <string name="camera">拍照</string>
+    <string name="album">相册</string>
+    <string name="start_parse">解析开始</string>
     
     <!-- Sidebar -->
     <string name="history_title">历史记录</string>

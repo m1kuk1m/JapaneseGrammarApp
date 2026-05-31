@@ -31,6 +31,15 @@
     <string name="analyze">Analyze</string>
     <string name="analyzing">Analyzing...</string>
     
+    <!-- Elegant UI Strings -->
+    <string name="hero_title">Parse.</string>
+    <string name="hero_subtitle">Deeply understand Japanese grammar structure</string>
+    <string name="workspace_short_title">WORKSPACE</string>
+    <string name="input_hint_elegant">Enter text here...</string>
+    <string name="camera">Camera</string>
+    <string name="album">Album</string>
+    <string name="start_parse">Start Parse</string>
+    
     <!-- Sidebar -->
     <string name="history_title">History</string>
     <string name="close">Close</string>

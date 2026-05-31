@@ -45,6 +45,7 @@ import com.example.japanesegrammarapp.ui.theme.ZenColors.AizomeIndigo
 import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.MatchaGreen
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SakuraPink
+import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -66,13 +67,14 @@ fun WorkspaceResultContent(
 
     if (detailedResult == null && !isPending && !rawResult.isNullOrBlank()) {
         // Robust Fallback: Show original plain text result if detailedResult is null (backward compatibility)
-        ElevatedCard(
+        Surface(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(vertical = 8.dp),
-            colors = CardDefaults.elevatedCardColors(containerColor = SurfaceColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-            shape = RoundedCornerShape(8.dp)
+            color = SurfaceColor,
+            shadowElevation = 3.dp,
+            tonalElevation = 0.dp,
+            shape = RoundedCornerShape(24.dp)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(
@@ -134,11 +136,12 @@ fun WorkspaceResultContent(
                         }
                     }
                     
-                    Card(
+                    Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = SurfaceColor),
-                        shape = RoundedCornerShape(12.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        color = SurfaceColor,
+                        shape = RoundedCornerShape(24.dp),
+                        shadowElevation = 3.dp,
+                        tonalElevation = 0.dp
                     ) {
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                             val isLoadingExplain = isPending && progress?.segmentsCompleted != true && !data.segments.isNullOrEmpty()
@@ -205,14 +208,14 @@ fun WorkspaceResultContent(
                     ) {
                         if (hasSelectedSegment) {
                             val currentSegment = data.segments!![selectedSegmentIndex]
-                            Card(
+                            Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(top = 10.dp),
-                                colors = CardDefaults.cardColors(containerColor = SurfaceColor),
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.1f)),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                color = SurfaceColor,
+                                shape = RoundedCornerShape(24.dp),
+                                shadowElevation = 3.dp,
+                                tonalElevation = 0.dp
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -329,18 +332,19 @@ fun WorkspaceResultContent(
                         )
                     }
                     
-                    Card(
+                    Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = SurfaceColor),
-                        shape = RoundedCornerShape(12.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        color = SurfaceColor,
+                        shape = RoundedCornerShape(24.dp),
+                        shadowElevation = 3.dp,
+                        tonalElevation = 0.dp
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Surface(
-                                color = if (androidx.compose.foundation.isSystemInDarkTheme()) Color(0xFF3D1E1E) else SakuraPink,
+                             Surface(
+                                color = if (ZenThemeColors.isDark()) Color(0xFF3D1E1E) else SakuraPink,
                                 shape = RoundedCornerShape(4.dp),
                                 modifier = Modifier.padding(end = 12.dp)
                             ) {
@@ -348,7 +352,7 @@ fun WorkspaceResultContent(
                                     text = stringResource(R.string.translation_label),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (androidx.compose.foundation.isSystemInDarkTheme()) Color.White else Color(0xFF1E1E1E),
+                                    color = if (ZenThemeColors.isDark()) Color.White else Color(0xFF1E1E1E),
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 )
                             }
@@ -393,11 +397,12 @@ fun WorkspaceResultContent(
                             )
                         }
                         
-                        Card(
+                        Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = SurfaceColor),
-                            shape = RoundedCornerShape(12.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            color = SurfaceColor,
+                            shape = RoundedCornerShape(24.dp),
+                            shadowElevation = 3.dp,
+                            tonalElevation = 0.dp
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 if (data.clauses.isNullOrEmpty() && isPending) {
@@ -497,11 +502,12 @@ fun WorkspaceResultContent(
                             )
                         }
                         
-                        Card(
+                        Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = SurfaceColor),
-                            shape = RoundedCornerShape(12.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            color = SurfaceColor,
+                            shape = RoundedCornerShape(24.dp),
+                            shadowElevation = 3.dp,
+                            tonalElevation = 0.dp
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 if (data.grammarPoints.isNullOrEmpty() && isPending) {
@@ -524,18 +530,18 @@ fun WorkspaceResultContent(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
-                                                Surface(
-                                                    color = if (androidx.compose.foundation.isSystemInDarkTheme()) Color(0xFF1E3D1E) else MatchaGreen,
-                                                    shape = RoundedCornerShape(4.dp)
-                                                ) {
-                                                    Text(
-                                                        text = stringResource(R.string.grammar_label),
-                                                        fontSize = 11.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = if (androidx.compose.foundation.isSystemInDarkTheme()) Color.White else Color(0xFF1E1E1E),
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    )
-                                                }
+                                                 Surface(
+                                                     color = if (ZenThemeColors.isDark()) Color(0xFF1E3D1E) else MatchaGreen,
+                                                     shape = RoundedCornerShape(4.dp)
+                                                 ) {
+                                                     Text(
+                                                         text = stringResource(R.string.grammar_label),
+                                                         fontSize = 11.sp,
+                                                         fontWeight = FontWeight.Bold,
+                                                         color = if (ZenThemeColors.isDark()) Color.White else Color(0xFF1E1E1E),
+                                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                     )
+                                                 }
                                                 Text(
                                                     text = gp.pattern ?: "",
                                                     fontSize = 15.sp,
@@ -572,7 +578,7 @@ fun WorkspaceResultContent(
 // Morandi color coding helper
 @Composable
 private fun getChipColorForPos(segment: WordSegment): Color {
-    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDark = ZenThemeColors.isDark()
     val category = segment.posCategory
     if (category != null) {
         return when (category) {
@@ -636,7 +642,7 @@ fun SegmentChip(
         label = "borderColor"
     )
     val bgColor = if (isLoading) Color(0xFFF3F3F3) else getChipColorForPos(segment)
-    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDark = ZenThemeColors.isDark()
     val ChipTextColor = if (isDark) Color(0xFFE0E0E0) else Color(0xFF1E1E1E)
 
     Surface(

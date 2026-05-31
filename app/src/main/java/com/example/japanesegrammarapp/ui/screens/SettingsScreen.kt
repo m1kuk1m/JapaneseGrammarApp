@@ -10,8 +10,10 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.Visibility
@@ -129,6 +131,26 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
     var expandedProvider by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
+    var customModelInputs by remember { mutableStateOf(providers.associateWith { "" }) }
+    var colorDialogVisible by remember { mutableStateOf(false) }
+
+    val wallpaperLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.setWallpaperUri(uri.toString())
+        }
+    }
+
+    val currentLangLabel = remember {
+        val currentLocales = androidx.appcompat.app.AppCompatDelegate.getApplicationLocales()
+        val currentLangTag = if (currentLocales.isEmpty) "" else currentLocales.get(0)?.toLanguageTag() ?: ""
+        when {
+            currentLangTag.startsWith("zh") -> "简体中文"
+            currentLangTag.startsWith("ja") -> "日本語"
+            currentLangTag.startsWith("en") -> "English"
+            else -> "AUTO"
+        }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.uiEvent.collect { event ->
             if (event is UiEvent.ShowError) {
@@ -142,6 +164,9 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
 
     val logs by com.example.japanesegrammarapp.utils.AppLogger.logs.collectAsState()
     var showLogsDialog by remember { mutableStateOf(false) }
+
+    val apiLogs by com.example.japanesegrammarapp.utils.AppLogger.apiLogs.collectAsState()
+    var showApiLogsDialog by remember { mutableStateOf(false) }
 
     if (showLogsDialog) {
         AlertDialog(
@@ -163,6 +188,91 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
             },
             confirmButton = {
                 TextButton(onClick = { showLogsDialog = false }) { Text(stringResource(R.string.close)) }
+            }
+        )
+    }
+
+    if (showApiLogsDialog) {
+        AlertDialog(
+            onDismissRequest = { showApiLogsDialog = false },
+            title = { Text(stringResource(R.string.api_debug_logs_title), fontWeight = FontWeight.Bold) },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = { com.example.japanesegrammarapp.utils.AppLogger.clearApiLogs() }) {
+                            Text(stringResource(R.string.clear_api_debug_logs))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (apiLogs.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize().padding(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.api_debug_empty),
+                                fontSize = 13.sp,
+                                color = SumiInk.copy(alpha = 0.5f),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(apiLogs) { log ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "[${log.apiTypeLabel}] ${log.provider} - ${log.model}",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = SumiInk
+                                            )
+                                            Text(
+                                                text = log.status,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (log.status == "SUCCESS") Color(0xFF2E7D32) else Color(0xFFC62828)
+                                            )
+                                        }
+                                        Text(
+                                            text = stringResource(R.string.api_debug_meta, log.hasImage.toString(), log.consumedTokens, log.inputTokens, log.outputTokens),
+                                            fontSize = 10.sp,
+                                            color = SumiInk.copy(alpha = 0.5f)
+                                        )
+                                        Divider(color = SumiInk.copy(alpha = 0.1f))
+                                        Text(stringResource(R.string.api_debug_user_prompt), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SumiInk)
+                                        Text(log.userPrompt, fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = SumiInk.copy(alpha = 0.8f))
+                                        if (log.rawResponse != null) {
+                                            Divider(color = SumiInk.copy(alpha = 0.05f))
+                                            Text(stringResource(R.string.api_debug_raw_response), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SumiInk)
+                                            Text(log.rawResponse, fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = SumiInk.copy(alpha = 0.8f))
+                                        }
+                                        if (log.errorMessage != null) {
+                                            Divider(color = SumiInk.copy(alpha = 0.05f))
+                                            Text(stringResource(R.string.api_debug_error), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC62828))
+                                            Text(log.errorMessage, fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = Color(0xFFC62828))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showApiLogsDialog = false }) { Text(stringResource(R.string.close)) }
             }
         )
     }
@@ -190,18 +300,19 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
             )
         }
     ) { padding ->
-        LazyColumn(
+        val scrollState = rememberScrollState()
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             // Appearance Section
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                SettingsGroup(title = stringResource(R.string.appearance)) {
-                    // Theme Mode
+            Spacer(modifier = Modifier.height(8.dp))
+            SettingsGroup(title = stringResource(R.string.appearance)) {
+                // Theme Mode
                     var themeDropdownExpanded by remember { mutableStateOf(false) }
                     SettingsItem(
                         icon = Icons.Default.BrightnessMedium,
@@ -238,7 +349,6 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                     Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
 
                     // Accent Color
-                    var colorDialogVisible by remember { mutableStateOf(false) }
                     SettingsItem(
                         icon = Icons.Default.Palette,
                         title = stringResource(R.string.accent_color),
@@ -258,27 +368,15 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                             )
                         }
                     )
-                    if (colorDialogVisible) {
-                        ColorPickerDialog(
-                            currentColor = uiState.primaryColor,
-                            onColorSelected = { viewModel.setPrimaryColor(it) },
-                            onDismiss = { colorDialogVisible = false }
-                        )
-                    }
 
                     Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
 
                     // Wallpaper
-                    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-                        if (uri != null) {
-                            viewModel.setWallpaperUri(uri.toString())
-                        }
-                    }
                     SettingsItem(
                         icon = Icons.Default.Wallpaper,
                         title = stringResource(R.string.wallpaper),
                         subtitle = if (uiState.wallpaperUri.isNotBlank()) stringResource(R.string.custom_image_set) else stringResource(R.string.none),
-                        onClick = { launcher.launch("image/*") },
+                        onClick = { wallpaperLauncher.launch("image/*") },
                         trailingContent = {
                             if (uiState.wallpaperUri.isNotBlank()) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -299,30 +397,18 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                                     }
                                 }
                             } else {
-                                TextButton(onClick = { launcher.launch("image/*") }) {
+                                TextButton(onClick = { wallpaperLauncher.launch("image/*") }) {
                                     Text(stringResource(R.string.pick_wallpaper), color = SumiInk)
                                 }
                             }
                         }
                     )
                 }
-            }
 
             // General Section
-            item {
-                SettingsGroup(title = stringResource(R.string.general)) {
-                    // Language Switcher
+            SettingsGroup(title = stringResource(R.string.general)) {
+                // Language Switcher
                     var langDropdownExpanded by remember { mutableStateOf(false) }
-                    val currentLangLabel = remember {
-                        val currentLocales = androidx.appcompat.app.AppCompatDelegate.getApplicationLocales()
-                        val currentLangTag = if (currentLocales.isEmpty) "" else currentLocales.get(0)?.toLanguageTag() ?: ""
-                        when {
-                            currentLangTag.startsWith("zh") -> "简体中文"
-                            currentLangTag.startsWith("ja") -> "日本語"
-                            currentLangTag.startsWith("en") -> "English"
-                            else -> "AUTO"
-                        }
-                    }
                     val displayLangLabel = if (currentLangLabel == "AUTO") stringResource(R.string.language_auto) else currentLangLabel
 
                     SettingsItem(
@@ -384,6 +470,52 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                             )
                         }
                     )
+                    var tokenizerModeDropdownExpanded by remember { mutableStateOf(false) }
+                    val currentModeLabel = when (uiState.imageTokenizerMode) {
+                        "repair" -> stringResource(R.string.image_tokenizer_mode_repair)
+                        else -> stringResource(R.string.image_tokenizer_mode_faithful)
+                    }
+                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsItem(
+                        icon = Icons.Default.AutoFixHigh,
+                        title = stringResource(R.string.image_tokenizer_mode_title),
+                        subtitle = currentModeLabel,
+                        onClick = { tokenizerModeDropdownExpanded = true },
+                        trailingContent = {
+                            Box {
+                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = SumiInk.copy(alpha = 0.5f))
+                                DropdownMenu(
+                                    expanded = tokenizerModeDropdownExpanded,
+                                    onDismissRequest = { tokenizerModeDropdownExpanded = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Column {
+                                                Text(stringResource(R.string.image_tokenizer_mode_faithful), fontWeight = FontWeight.Bold, color = SumiInk)
+                                                Text(stringResource(R.string.image_tokenizer_mode_faithful_desc), fontSize = 11.sp, color = SumiInk.copy(alpha = 0.5f))
+                                            }
+                                        },
+                                        onClick = {
+                                            viewModel.setImageTokenizerMode("faithful")
+                                            tokenizerModeDropdownExpanded = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = {
+                                            Column {
+                                                Text(stringResource(R.string.image_tokenizer_mode_repair), fontWeight = FontWeight.Bold, color = SumiInk)
+                                                Text(stringResource(R.string.image_tokenizer_mode_repair_desc), fontSize = 11.sp, color = SumiInk.copy(alpha = 0.5f))
+                                            }
+                                        },
+                                        onClick = {
+                                            viewModel.setImageTokenizerMode("repair")
+                                            tokenizerModeDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    )
                     Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsItem(
                         icon = Icons.Default.DataUsage,
@@ -395,13 +527,21 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                             Text(text = formattedTotal, fontWeight = FontWeight.Bold, color = SumiInk)
                         }
                     )
+                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsItem(
+                        icon = Icons.Default.Code,
+                        title = stringResource(R.string.view_api_debug_logs),
+                        subtitle = stringResource(R.string.api_debug_logs_title),
+                        onClick = { showApiLogsDialog = true },
+                        trailingContent = {
+                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = SumiInk.copy(alpha = 0.4f))
+                        }
+                    )
                 }
-            }
 
             // API Priority Section
-            item {
-                SettingsGroup(title = stringResource(R.string.api_config)) {
-                    var mainProviderExpanded by remember { mutableStateOf(false) }
+            SettingsGroup(title = stringResource(R.string.api_config)) {
+                var mainProviderExpanded by remember { mutableStateOf(false) }
                     SettingsItem(
                         icon = Icons.Default.Star,
                         title = stringResource(R.string.main_api),
@@ -490,20 +630,17 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                         }
                     )
                 }
-            }
 
             // Credentials Section
-            item {
-                Text(
-                    text = stringResource(R.string.credentials),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = SumiInk,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
-                )
-            }
+            Text(
+                text = stringResource(R.string.credentials),
+                style = MaterialTheme.typography.titleMedium,
+                color = SumiInk,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+            )
 
-            items(providers, key = { it }) { provider ->
+            providers.forEach { provider ->
                 val isExpanded = expandedProvider == provider
                 Card(
                     modifier = Modifier
@@ -560,14 +697,14 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 
                                 // Custom Model Input
-                                var customModelInput by remember { mutableStateOf("") }
+                                val customModelInput = customModelInputs[provider] ?: ""
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     OutlinedTextField(
                                         value = customModelInput,
-                                        onValueChange = { customModelInput = it },
+                                        onValueChange = { newValue -> customModelInputs = customModelInputs.toMutableMap().apply { put(provider, newValue) } },
                                         label = { Text(stringResource(R.string.add_custom_model)) },
                                         modifier = Modifier.weight(1f),
                                         singleLine = true,
@@ -581,7 +718,7 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                                                 if (!currentModels.contains(customModelInput)) {
                                                     viewModel.saveModelsForProvider(provider, currentModels + customModelInput)
                                                 }
-                                                customModelInput = ""
+                                                customModelInputs = customModelInputs.toMutableMap().apply { put(provider, "") }
                                             }
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
@@ -617,15 +754,14 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                 }
             }
             // TTS Settings Section
-            item {
-                Text(
-                    text = stringResource(R.string.tts_settings_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = SumiInk,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 16.dp)
-                )
-                Card(
+            Text(
+                text = stringResource(R.string.tts_settings_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = SumiInk,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 16.dp)
+            )
+            Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 12.dp),
@@ -733,18 +869,15 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                         )
                     }
                 }
-            }
 
-            item { 
-                Spacer(modifier = Modifier.height(24.dp))
-                OutlinedButton(
-                    onClick = { showLogsDialog = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.view_dev_logs))
-                }
-                Spacer(modifier = Modifier.height(40.dp)) 
+            Spacer(modifier = Modifier.height(24.dp))
+            OutlinedButton(
+                onClick = { showLogsDialog = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.view_dev_logs))
             }
+            Spacer(modifier = Modifier.height(40.dp)) 
         }
     }
 
@@ -769,6 +902,14 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                 }
             },
             containerColor = WashiBg
+        )
+    }
+
+    if (colorDialogVisible) {
+        ColorPickerDialog(
+            currentColor = uiState.primaryColor,
+            onColorSelected = { viewModel.setPrimaryColor(it) },
+            onDismiss = { colorDialogVisible = false }
         )
     }
 }

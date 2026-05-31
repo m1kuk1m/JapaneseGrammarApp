@@ -23,14 +23,20 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Request the highest available refresh rate (120Hz / 90Hz) for smoother animations
+        // Request the highest available refresh rate (120Hz / 90Hz) on the next frame loop to avoid blocking onCreate startup
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            window.let { win ->
-                val maxMode = win.windowManager.defaultDisplay.supportedModes.maxByOrNull { it.refreshRate }
-                if (maxMode != null) {
-                    val attrs = win.attributes
-                    attrs.preferredDisplayModeId = maxMode.modeId
-                    win.attributes = attrs
+            window.decorView.post {
+                try {
+                    window.let { win ->
+                        val maxMode = win.windowManager.defaultDisplay.supportedModes.maxByOrNull { it.refreshRate }
+                        if (maxMode != null) {
+                            val attrs = win.attributes
+                            attrs.preferredDisplayModeId = maxMode.modeId
+                            win.attributes = attrs
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         }

@@ -3,6 +3,7 @@ package com.example.japanesegrammarapp.ui.screens
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -71,6 +72,13 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
         mutableStateOf(uiState.currentOriginalText)
     }
     var selectedImageUriState by remember { mutableStateOf<Uri?>(null) }
+
+    // Clear image uri when returning to homepage (no active record)
+    LaunchedEffect(uiState.selectedRecord) {
+        if (uiState.selectedRecord == null) {
+            selectedImageUriState = null
+        }
+    }
 
     // Intercept back button to close drawer or return to input page
     androidx.activity.compose.BackHandler(enabled = drawerState.isOpen) {
@@ -216,44 +224,46 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                 } 
             },
             topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = if (uiState.selectedRecord == null) stringResource(R.string.app_name) else stringResource(R.string.analysis_results),
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                if (uiState.selectedRecord != null) {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                text = stringResource(R.string.analysis_results),
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
+                                Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = MaterialTheme.colorScheme.onSurface)
+                            }
+                        },
+                        actions = {
+                            if (uiState.selectedRecord != null) {
+                                IconButton(onClick = {
+                                    uiState.selectedRecord?.let { viewModel.retryAnalysis(it.id) }
+                                }) {
+                                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.retry), tint = MaterialTheme.colorScheme.onSurface)
+                                }
+                                IconButton(onClick = {
+                                    uiState.selectedRecord?.let { viewModel.exportRecord(it) }
+                                }) {
+                                    Icon(Icons.Default.Share, contentDescription = stringResource(R.string.export), tint = MaterialTheme.colorScheme.onSurface)
+                                }
+                                IconButton(onClick = { viewModel.clearSelectedRecord() }) {
+                                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_analysis), tint = MaterialTheme.colorScheme.onSurface)
+                                }
+                            }
+                            IconButton(onClick = navigateToSettings) {
+                                Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings), tint = MaterialTheme.colorScheme.onSurface)
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
+                            titleContentColor = PrimaryColor
                         )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = MaterialTheme.colorScheme.onSurface)
-                        }
-                    },
-                    actions = {
-                        if (uiState.selectedRecord != null) {
-                            IconButton(onClick = {
-                                uiState.selectedRecord?.let { viewModel.retryAnalysis(it.id) }
-                            }) {
-                                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.retry), tint = MaterialTheme.colorScheme.onSurface)
-                            }
-                            IconButton(onClick = {
-                                uiState.selectedRecord?.let { viewModel.exportRecord(it) }
-                            }) {
-                                Icon(Icons.Default.Share, contentDescription = stringResource(R.string.export), tint = MaterialTheme.colorScheme.onSurface)
-                            }
-                            IconButton(onClick = { viewModel.clearSelectedRecord() }) {
-                                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_analysis), tint = MaterialTheme.colorScheme.onSurface)
-                            }
-                        }
-                        IconButton(onClick = navigateToSettings) {
-                            Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings), tint = MaterialTheme.colorScheme.onSurface)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
-                        titleContentColor = PrimaryColor
                     )
-                )
+                }
             }
         ) { paddingValues ->
             Box(
@@ -272,69 +282,95 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                     modifier = Modifier.fillMaxSize()
                 ) { targetHasResult ->
                     if (!targetHasResult) {
-                        Box(
+                        Column(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .verticalScroll(rememberScrollState())
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
+                                .padding(horizontal = 24.dp)
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center,
-                                modifier = Modifier.fillMaxWidth()
+                            // Custom Top Bar for Elegant UI
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 16.dp, bottom = 48.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = stringResource(R.string.app_title),
-                                    fontSize = 28.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(bottom = 6.dp)
-                                )
-                                Text(
-                                    text = stringResource(R.string.app_subtitle),
-                                    fontSize = 13.sp,
-                                    color = SumiInk.copy(alpha = 0.5f),
-                                    modifier = Modifier.padding(bottom = 28.dp)
-                                )
-
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                    border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.1f)),
-                                    shape = RoundedCornerShape(12.dp),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                IconButton(
+                                    onClick = { coroutineScope.launch { drawerState.open() } },
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(SumiInk.copy(alpha = 0.05f), androidx.compose.foundation.shape.CircleShape)
                                 ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        WorkspaceInputForm(
-                                            uiState = uiState,
-                                            textInput = textInputState,
-                                            onTextInputChanged = { text ->
-                                                textInputState = text
-                                                viewModel.setCurrentOriginalText(text)
-                                            },
-                                            selectedImageUri = selectedImageUriState,
-                                            onSelectedImageUriChanged = { uri -> selectedImageUriState = uri },
-                                            onModelSelected = { model -> viewModel.setActiveModel(model) },
-                                            onStartAnalysis = { text, uri ->
-                                                viewModel.startAnalysis(text, uri)
-                                            },
-                                            onCancelAnalysis = {
-                                                uiState.selectedRecord?.id?.let { viewModel.cancelAnalysis(it) }
-                                            },
-                                            onNavigateToCamera = { navController.navigate("camera") },
-                                            onPickImage = { sourceUri ->
-                                                coroutineScope.launch {
-                                                    val localUri = withContext(Dispatchers.IO) {
-                                                        com.example.japanesegrammarapp.utils.BitmapHelper.copyUriToCache(context, sourceUri)
-                                                    }
-                                                    val finalUri = localUri ?: sourceUri
-                                                    navController.navigate("camera?imageUri=${Uri.encode(finalUri.toString())}")
+                                    Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = SumiInk)
+                                }
+                                IconButton(
+                                    onClick = navigateToSettings,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(SumiInk.copy(alpha = 0.05f), androidx.compose.foundation.shape.CircleShape)
+                                ) {
+                                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings), tint = SumiInk)
+                                }
+                            }
+
+                            // Hero Typography
+                            Text(
+                                text = stringResource(R.string.hero_title),
+                                fontSize = 42.sp,
+                                fontWeight = FontWeight.Black,
+                                color = SumiInk,
+                                letterSpacing = (-1).sp,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.hero_subtitle),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Light,
+                                color = SumiInk.copy(alpha = 0.6f),
+                                letterSpacing = 1.sp,
+                                modifier = Modifier.padding(bottom = 72.dp)
+                            )
+
+                            // Main Floating Panel
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 40.dp),
+                                shape = RoundedCornerShape(24.dp),
+                                color = MaterialTheme.colorScheme.surface,
+                                shadowElevation = 3.dp,
+                                tonalElevation = 0.dp
+                            ) {
+                                Column(modifier = Modifier.padding(18.dp)) {
+                                    WorkspaceInputForm(
+                                        uiState = uiState,
+                                        textInput = textInputState,
+                                        onTextInputChanged = { text ->
+                                            textInputState = text
+                                            viewModel.setCurrentOriginalText(text)
+                                        },
+                                        selectedImageUri = selectedImageUriState,
+                                        onSelectedImageUriChanged = { uri -> selectedImageUriState = uri },
+                                        onModelSelected = { model -> viewModel.setActiveModel(model) },
+                                        onStartAnalysis = { text, uri ->
+                                            viewModel.startAnalysis(text, uri)
+                                        },
+                                        onCancelAnalysis = {
+                                            uiState.selectedRecord?.id?.let { viewModel.cancelAnalysis(it) }
+                                        },
+                                        onNavigateToCamera = { navController.navigate("camera") },
+                                        onPickImage = { sourceUri ->
+                                            coroutineScope.launch {
+                                                val localUri = withContext(Dispatchers.IO) {
+                                                    com.example.japanesegrammarapp.utils.BitmapHelper.copyUriToCache(context, sourceUri)
                                                 }
-                                            },
-                                            onNavigateToSettings = navigateToSettings
-                                        )
-                                    }
+                                                val finalUri = localUri ?: sourceUri
+                                                navController.navigate("camera?imageUri=${Uri.encode(finalUri.toString())}")
+                                            }
+                                        },
+                                        onNavigateToSettings = navigateToSettings
+                                    )
                                 }
                             }
                         }
@@ -344,14 +380,14 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                                 .fillMaxSize()
                                 .padding(horizontal = 16.dp)
                         ) {
-                            Card(
+                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 8.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.15f)),
-                                shape = RoundedCornerShape(10.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                                color = MaterialTheme.colorScheme.surface,
+                                shape = RoundedCornerShape(24.dp),
+                                shadowElevation = 3.dp,
+                                tonalElevation = 0.dp
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     val currentText = uiState.currentOriginalText

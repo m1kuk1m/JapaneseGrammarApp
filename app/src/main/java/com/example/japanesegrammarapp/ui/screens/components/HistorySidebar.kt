@@ -171,21 +171,20 @@ fun HistorySidebarItem(
 
     val isFailed = record.status == AnalysisStatus.FAILED
 
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) PrimaryColor.copy(alpha = 0.20f) else SurfaceColor
-        ),
+        shape = RoundedCornerShape(16.dp),
+        color = if (isSelected) PrimaryColor.copy(alpha = 0.15f) else SurfaceColor,
         border = BorderStroke(
             width = if (isSelected) 1.5.dp else 1.dp,
             color = when {
                 isFailed -> Color(0xFFD32F2F).copy(alpha = 0.3f)
                 isSelected -> PrimaryColor
-                else -> SumiInk.copy(alpha = 0.08f)
+                else -> SumiInk.copy(alpha = 0.05f)
             }
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 2.dp else 1.dp)
+        shadowElevation = 1.dp,
+        tonalElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
