@@ -192,6 +192,7 @@
     <string name="camera_flash_off_label">⚡ OFF</string>
     <string name="camera_guide_keep_inside">日本語のテキストを枠内に収めてください</string>
     <string name="camera_guide_crop_hint">撮影後に詳細なトリミング範囲を微調整できます</string>
+    <string name="camera_local_ocr">ローカルOCR</string>
     <string name="camera_crop_title">文字範囲を選択</string>
     <string name="camera_crop_hint">角をドラッグして調整</string>
     <string name="camera_cancel_desc">キャンセル</string>

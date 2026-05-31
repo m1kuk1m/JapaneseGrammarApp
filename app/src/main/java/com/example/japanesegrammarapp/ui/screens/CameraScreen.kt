@@ -585,7 +585,7 @@ fun ImageCropReviewLayout(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "本地OCR",
+                    text = stringResource(R.string.camera_local_ocr),
                     color = Color.White.copy(alpha = 0.9f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold

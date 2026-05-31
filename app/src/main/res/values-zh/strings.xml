@@ -192,6 +192,7 @@
     <string name="camera_flash_off_label">⚡ 关闭</string>
     <string name="camera_guide_keep_inside">请将日语文本放入框内</string>
     <string name="camera_guide_crop_hint">拍摄后可以微调裁剪范围</string>
+    <string name="camera_local_ocr">本地OCR</string>
     <string name="camera_crop_title">选择文字范围</string>
     <string name="camera_crop_hint">拖动角进行调整</string>
     <string name="camera_cancel_desc">取消</string>
