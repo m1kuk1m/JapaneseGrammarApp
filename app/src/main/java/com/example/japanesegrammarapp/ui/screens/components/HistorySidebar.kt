@@ -30,6 +30,8 @@ import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import com.example.japanesegrammarapp.ui.theme.ZenColors.AizomeIndigo
 import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.MatchaGreen
+import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
+import androidx.compose.material.icons.filled.Delete
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -75,35 +77,41 @@ fun HistorySidebar(
         Spacer(modifier = Modifier.height(8.dp))
 
         // New Analysis Button
-        OutlinedButton(
+        Button(
             onClick = {
                 onClearSelection()
                 onCloseDrawer()
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            shape = RoundedCornerShape(8.dp),
-            border = BorderStroke(1.dp, SumiInk),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = SumiInk)
+                .padding(horizontal = 20.dp, vertical = 6.dp)
+                .height(44.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
         ) {
-            Icon(Icons.Default.Edit, contentDescription = null)
+            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.new_analysis), fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.new_analysis), fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
 
         if (historyList.isNotEmpty()) {
-            OutlinedButton(
+            Button(
                 onClick = onExportAll,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
-                    .height(48.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = SumiInk),
-                border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.2f)),
-                shape = RoundedCornerShape(8.dp)
+                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .height(44.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ZenThemeColors.buttonBg(),
+                    contentColor = SumiInk
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
             ) {
-                Icon(Icons.Default.Download, contentDescription = stringResource(R.string.export_all), modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Download, contentDescription = stringResource(R.string.export_all), modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.export_all), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
@@ -174,23 +182,16 @@ fun HistorySidebarItem(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = if (isSelected) PrimaryColor.copy(alpha = 0.15f) else SurfaceColor,
-        border = BorderStroke(
-            width = if (isSelected) 1.5.dp else 1.dp,
-            color = when {
-                isFailed -> Color(0xFFD32F2F).copy(alpha = 0.3f)
-                isSelected -> PrimaryColor
-                else -> SumiInk.copy(alpha = 0.05f)
-            }
-        ),
-        shadowElevation = 1.dp,
+        color = if (isSelected) PrimaryColor.copy(alpha = 0.12f) else SurfaceColor,
+        border = if (isSelected) BorderStroke(1.dp, PrimaryColor.copy(alpha = 0.35f)) else null,
+        shadowElevation = if (isSelected) 2.dp else 1.dp,
         tonalElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
-                .padding(12.dp)
+                .padding(14.dp)
         ) {
             Text(
                 text = record.originalText,
@@ -200,7 +201,7 @@ fun HistorySidebarItem(
                 overflow = TextOverflow.Ellipsis,
                 color = SumiInk
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -210,8 +211,8 @@ fun HistorySidebarItem(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(8.dp)
-                            .clip(RoundedCornerShape(4.dp))
+                            .size(6.dp)
+                            .clip(RoundedCornerShape(3.dp))
                             .background(
                                 when (record.status) {
                                     AnalysisStatus.PENDING -> KuriAmber
@@ -240,13 +241,15 @@ fun HistorySidebarItem(
                         )
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Text(
                         text = dateStr,
                         fontSize = 11.sp,
                         color = SumiInk.copy(alpha = 0.5f)
                     )
-                    Spacer(modifier = Modifier.width(2.dp))
                     IconButton(
                         onClick = onExportClick,
                         modifier = Modifier.size(20.dp)
@@ -258,16 +261,15 @@ fun HistorySidebarItem(
                             modifier = Modifier.size(13.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(2.dp))
                     IconButton(
                         onClick = onDeleteClick,
                         modifier = Modifier.size(20.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Icons.Default.Delete,
                             contentDescription = stringResource(R.string.delete),
                             tint = SumiInk.copy(alpha = 0.4f),
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(13.dp)
                         )
                     }
                 }
