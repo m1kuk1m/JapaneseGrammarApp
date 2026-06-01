@@ -24,7 +24,10 @@ interface AnalysisDao {
     suspend fun getRecordById(id: Int): AnalysisRecord?
 
     @Query("SELECT * FROM analysis_records ORDER BY timestamp DESC")
-    fun getAllRecords(): Flow<List<AnalysisRecord>>
+    fun getAllRecords(): androidx.paging.PagingSource<Int, AnalysisRecord>
+
+    @Query("SELECT * FROM analysis_records ORDER BY timestamp DESC")
+    suspend fun getAllRecordsList(): List<AnalysisRecord>
 
     @Query("SELECT SUM(consumedTokens) FROM analysis_records")
     fun getTotalTokensConsumed(): Flow<Int?>

@@ -33,16 +33,15 @@ import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.MatchaGreen
 import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
 import androidx.compose.material.icons.filled.Delete
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.itemContentType
+import androidx.paging.compose.itemKey
 import java.util.*
-
-private val historyDateFormatter = DateTimeFormatter.ofPattern("MM/dd HH:mm").withZone(ZoneId.systemDefault())
+import com.example.japanesegrammarapp.ui.HistoryUiRecord
 
 @Composable
 fun HistorySidebar(
-    historyList: List<AnalysisDomainRecord>,
+    historyList: LazyPagingItems<HistoryUiRecord>,
     selectedRecord: AnalysisDomainRecord?,
     onSelectRecord: (AnalysisDomainRecord) -> Unit,
     onClearSelection: () -> Unit,
@@ -102,7 +101,7 @@ fun HistorySidebar(
             Text(stringResource(R.string.new_analysis), fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
 
-        if (historyList.isNotEmpty()) {
+        if (historyList.itemCount > 0) {
             Button(
                 onClick = onExportAll,
                 modifier = Modifier
@@ -125,7 +124,7 @@ fun HistorySidebar(
         Spacer(modifier = Modifier.height(8.dp))
 
         // Drawer History List
-        if (historyList.isEmpty()) {
+        if (historyList.itemCount == 0) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -146,22 +145,30 @@ fun HistorySidebar(
                 contentPadding = PaddingValues(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(historyList, key = { it.id }) { record ->
-                    val isSelected = selectedRecord?.id == record.id
-                    val onSelect = remember(record.id) { {
-                        onSelectRecord(record)
-                        onCloseDrawer()
-                    } }
-                    val onDelete = remember(record.id) { { onDeleteRecord(record) } }
-                    val onExport = remember(record.id) { { onExportRecord(record) } }
-
-                    HistorySidebarItem(
-                        record = record,
-                        isSelected = isSelected,
-                        onClick = onSelect,
-                        onDeleteClick = onDelete,
-                        onExportClick = onExport
-                    )
+                items(
+                    count = historyList.itemCount,
+                    key = historyList.itemKey { it.record.id },
+                    contentType = historyList.itemContentType { "history_record_item" }
+                ) { index ->
+                    val uiRecord = historyList[index]
+                    if (uiRecord != null) {
+                        val record = uiRecord.record
+                        val isSelected = selectedRecord?.id == record.id
+                        val onSelect = remember(record.id) { {
+                            onSelectRecord(record)
+                            onCloseDrawer()
+                        } }
+                        val onDelete = remember(record.id) { { onDeleteRecord(record) } }
+                        val onExport = remember(record.id) { { onExportRecord(record) } }
+    
+                        HistorySidebarItem(
+                            uiRecord = uiRecord,
+                            isSelected = isSelected,
+                            onClick = onSelect,
+                            onDeleteClick = onDelete,
+                            onExportClick = onExport
+                        )
+                    }
                 }
             }
         }
@@ -170,22 +177,21 @@ fun HistorySidebar(
 
 @Composable
 fun HistorySidebarItem(
-    record: AnalysisDomainRecord,
+    uiRecord: HistoryUiRecord,
     isSelected: Boolean,
     onClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onExportClick: () -> Unit
 ) {
+    val record = uiRecord.record
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val SurfaceColor = MaterialTheme.colorScheme.surface
     val PrimaryColor = MaterialTheme.colorScheme.primary
-    val dateStr = remember(record.timestamp) { historyDateFormatter.format(Instant.ofEpochMilli(record.timestamp)) }
 
     val ItemTextColor = SumiInk
     val ItemSubTextColor = SumiInk.copy(alpha = 0.5f)
     val ItemIconColor = SumiInk.copy(alpha = 0.4f)
     val ItemPrimaryIconColor = PrimaryColor.copy(alpha = 0.7f)
-    val modelText = remember(record.modelUsed) { record.modelUsed.substringAfter(": ").take(12) }
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -234,18 +240,15 @@ fun HistorySidebarItem(
                         text = when (record.status) {
                             AnalysisStatus.PENDING -> stringResource(R.string.history_status_pending)
                             AnalysisStatus.FAILED -> stringResource(R.string.history_status_error)
-                            else -> modelText
+                            else -> uiRecord.modelText
                         },
                         fontSize = 11.sp,
                         color = ItemSubTextColor
                     )
-                    if (record.status == AnalysisStatus.COMPLETED && record.consumedTokens > 0) {
+                    if (uiRecord.formattedTokens != null) {
                         Spacer(modifier = Modifier.width(6.dp))
-                        val formattedTokens = remember(record.consumedTokens) { 
-                            if (record.consumedTokens >= 1000) String.format(java.util.Locale.US, "%.1fk", record.consumedTokens / 1000.0) else record.consumedTokens.toString() 
-                        }
                         Text(
-                            text = "Tokens: $formattedTokens",
+                            text = "Tokens: ${uiRecord.formattedTokens}",
                             fontSize = 11.sp,
                             color = ItemSubTextColor
                         )
@@ -256,7 +259,7 @@ fun HistorySidebarItem(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = dateStr,
+                        text = uiRecord.dateStr,
                         fontSize = 11.sp,
                         color = ItemSubTextColor
                     )

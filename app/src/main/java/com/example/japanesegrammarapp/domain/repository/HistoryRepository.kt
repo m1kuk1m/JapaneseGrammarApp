@@ -4,9 +4,11 @@ import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
 import com.example.japanesegrammarapp.domain.model.DailyTokenUsage
 import kotlinx.coroutines.flow.Flow
+import androidx.paging.PagingData
 
 interface HistoryRepository {
-    val history: Flow<List<AnalysisDomainRecord>>
+    val history: Flow<PagingData<AnalysisDomainRecord>>
+    suspend fun getAllRecordsList(): List<AnalysisDomainRecord>
     suspend fun getRecordById(id: Int): AnalysisDomainRecord?
     suspend fun insertRecord(record: AnalysisDomainRecord): Long
     suspend fun updateRecord(record: AnalysisDomainRecord)

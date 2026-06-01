@@ -9,6 +9,10 @@ import com.example.japanesegrammarapp.domain.model.DailyTokenUsage
 import com.example.japanesegrammarapp.domain.repository.HistoryRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,8 +21,15 @@ class HistoryRepositoryImpl @Inject constructor(
     private val analysisDao: AnalysisDao
 ) : HistoryRepository {
 
-    override val history: Flow<List<AnalysisDomainRecord>> = analysisDao.getAllRecords().map { list ->
-        list.map { it.toDomain() }
+    override val history: Flow<PagingData<AnalysisDomainRecord>> = Pager(
+        config = PagingConfig(pageSize = 20, enablePlaceholders = false),
+        pagingSourceFactory = { analysisDao.getAllRecords() }
+    ).flow.map { pagingData ->
+        pagingData.map { it.toDomain() }
+    }
+
+    override suspend fun getAllRecordsList(): List<AnalysisDomainRecord> {
+        return analysisDao.getAllRecordsList().map { it.toDomain() }
     }
     
     override val totalTokensConsumed: Flow<Int?> = analysisDao.getTotalTokensConsumed()

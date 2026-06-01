@@ -16,7 +16,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.paging.cachedIn
 import javax.inject.Inject
+
+import androidx.paging.map
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 sealed class UiEvent {
     data class ShowError(val message: String) : UiEvent()
@@ -26,6 +32,13 @@ sealed class UiEvent {
     data class ExportRecordEvent(val record: com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord, val filename: String) : UiEvent()
     data class ExportAllHistoryEvent(val records: List<com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord>, val filename: String) : UiEvent()
 }
+
+data class HistoryUiRecord(
+    val record: AnalysisDomainRecord,
+    val dateStr: String,
+    val modelText: String,
+    val formattedTokens: String?
+)
 
 @HiltViewModel
 class WorkspaceViewModel @Inject constructor(
@@ -41,7 +54,21 @@ class WorkspaceViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(WorkspaceUiState())
     val uiState: StateFlow<WorkspaceUiState> = _uiState.asStateFlow()
 
+    private val historyDateFormatter = DateTimeFormatter.ofPattern("MM/dd HH:mm").withZone(ZoneId.systemDefault())
+
     val history = historyRepository.history
+        .map { pagingData ->
+            pagingData.map { record ->
+                val dateStr = historyDateFormatter.format(Instant.ofEpochMilli(record.timestamp))
+                val modelText = record.modelUsed.substringAfter(": ").take(12)
+                val tokens = if (record.status == AnalysisStatus.COMPLETED && record.consumedTokens > 0) {
+                    if (record.consumedTokens >= 1000) String.format(java.util.Locale.US, "%.1fk", record.consumedTokens / 1000.0) else record.consumedTokens.toString()
+                } else null
+                HistoryUiRecord(record, dateStr, modelText, tokens)
+            }
+        }
+        .cachedIn(viewModelScope)
+
     val totalTokensConsumed: StateFlow<Int> = historyRepository.totalTokensConsumed
         .map { it ?: 0 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
@@ -53,6 +80,9 @@ class WorkspaceViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val isPlayingTts: StateFlow<Boolean> = ttsRepository.isPlaying
+
+    private val _allHistoryForExport = MutableStateFlow<List<AnalysisDomainRecord>>(emptyList())
+    val allHistoryForExport: StateFlow<List<AnalysisDomainRecord>> = _allHistoryForExport.asStateFlow()
 
     private val _uiEvent = MutableSharedFlow<UiEvent>(extraBufferCapacity = 10)
     val uiEvent: SharedFlow<UiEvent> = _uiEvent.asSharedFlow()
@@ -114,43 +144,6 @@ class WorkspaceViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            history.collectLatest { recordList ->
-                val currentSelected = _uiState.value.selectedRecord
-                if (currentSelected != null) {
-                    val updated = recordList.find { it.id == currentSelected.id }
-                    if (updated != null && (updated.status != currentSelected.status || 
-                        updated.analysisResult != currentSelected.analysisResult || 
-                        updated.originalText != currentSelected.originalText)) {
-                        
-                        if (updated.status == AnalysisStatus.COMPLETED || updated.status == AnalysisStatus.PENDING) {
-                            _uiState.update { it.copy(isParsingDetailedResult = true) }
-                            withContext(Dispatchers.IO) {
-                                val detail = analyzeTextUseCase.parseDetailedResult(updated.originalText, updated.analysisResult)
-                                _uiState.update { it.copy(
-                                    selectedRecord = updated,
-                                    currentOriginalText = updated.originalText,
-                                    analysisResult = updated.analysisResult,
-                                    detailedResult = detail,
-                                    isParsingDetailedResult = false,
-                                    selectedRecordProgress = analyzeTextUseCase.progressFlow.value[updated.id]
-                                ) }
-                            }
-                        } else {
-                            _uiState.update { it.copy(
-                                selectedRecord = updated,
-                                currentOriginalText = updated.originalText,
-                                analysisResult = updated.analysisResult,
-                                detailedResult = null,
-                                isParsingDetailedResult = false,
-                                selectedRecordProgress = null
-                            ) }
-                        }
-                    }
-                }
-            }
-        }
-
-        viewModelScope.launch {
             analyzeTextUseCase.progressFlow.collect { progressMap ->
                 val currentSelected = _uiState.value.selectedRecord
                 if (currentSelected != null) {
@@ -185,6 +178,15 @@ class WorkspaceViewModel @Inject constructor(
                     analyzeTextUseCase.progressFlow.value[record.id]
                 } else null
             ) }
+        }
+    }
+
+    fun selectRecordById(recordId: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val record = historyRepository.getRecordById(recordId)
+            if (record != null) {
+                selectRecord(record)
+            }
         }
     }
 
@@ -319,13 +321,14 @@ class WorkspaceViewModel @Inject constructor(
 
     fun exportAllHistory(records: List<AnalysisDomainRecord>) {
         viewModelScope.launch {
-            if (records.isEmpty()) {
-                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.no_history_to_export))
-                return@launch
-            }
-            val sdf = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
-            val filename = "analysis_history_${sdf.format(java.util.Date())}.txt"
+            val filename = "history_export_${System.currentTimeMillis()}.txt"
             _uiEvent.emit(UiEvent.ExportAllHistoryEvent(records, filename))
+        }
+    }
+
+    fun loadAllHistoryForExport() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _allHistoryForExport.value = historyRepository.getAllRecordsList()
         }
     }
 

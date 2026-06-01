@@ -44,6 +44,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.paging.compose.collectAsLazyPagingItems
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,11 +59,11 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
     val coroutineScope = rememberCoroutineScope()
     
     val uiState by viewModel.uiState.collectAsState()
-    val history by viewModel.history.collectAsState(initial = emptyList())
+    val history = viewModel.history.collectAsLazyPagingItems()
+    val allHistoryForExport by viewModel.allHistoryForExport.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     
     var recordToDelete by remember { mutableStateOf<AnalysisDomainRecord?>(null) }
-    val currentHistory by rememberUpdatedState(history)
     var showExportDialog by remember { mutableStateOf(false) }
     
     val isPlayingTts by viewModel.isPlayingTts.collectAsState(initial = false)
@@ -132,10 +133,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                         duration = SnackbarDuration.Short
                     )
                     if (result == SnackbarResult.ActionPerformed) {
-                        val completedRecord = currentHistory.find { it.id == event.recordId }
-                        if (completedRecord != null) {
-                            viewModel.selectRecord(completedRecord)
-                        }
+                        viewModel.selectRecordById(event.recordId)
                     }
                 }
                 is UiEvent.ExportRecordEvent -> {
@@ -202,6 +200,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                     onDeleteRecord = { record -> recordToDelete = record },
                     onExportAll = {
                         coroutineScope.launch { drawerState.close() }
+                        viewModel.loadAllHistoryForExport()
                         showExportDialog = true
                     },
                     onExportRecord = { record -> viewModel.exportRecord(record) },
@@ -609,7 +608,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
     // Export Selection Dialog
     if (showExportDialog) {
         ExportSelectionDialog(
-            historyList = history,
+            historyList = allHistoryForExport,
             onDismiss = { showExportDialog = false },
             onExportSelected = { selectedRecords ->
                 viewModel.exportAllHistory(selectedRecords)
