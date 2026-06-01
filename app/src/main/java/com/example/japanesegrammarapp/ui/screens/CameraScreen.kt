@@ -402,7 +402,7 @@ fun CameraPreviewLayout(
             ) {
                 Text(
                     text = flashIcon,
-                    color = if (flashMode != ImageCapture.FLASH_MODE_OFF) KuriAmber else Color.White,
+                    color = Color.White,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )

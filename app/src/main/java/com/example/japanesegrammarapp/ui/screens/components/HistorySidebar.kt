@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,8 +33,12 @@ import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.MatchaGreen
 import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
 import androidx.compose.material.icons.filled.Delete
-import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.*
+
+private val historyDateFormatter = DateTimeFormatter.ofPattern("MM/dd HH:mm").withZone(ZoneId.systemDefault())
 
 @Composable
 fun HistorySidebar(
@@ -143,19 +148,19 @@ fun HistorySidebar(
             ) {
                 items(historyList, key = { it.id }) { record ->
                     val isSelected = selectedRecord?.id == record.id
+                    val onSelect = remember(record.id) { {
+                        onSelectRecord(record)
+                        onCloseDrawer()
+                    } }
+                    val onDelete = remember(record.id) { { onDeleteRecord(record) } }
+                    val onExport = remember(record.id) { { onExportRecord(record) } }
+
                     HistorySidebarItem(
                         record = record,
                         isSelected = isSelected,
-                        onClick = {
-                            onSelectRecord(record)
-                            onCloseDrawer()
-                        },
-                        onDeleteClick = {
-                            onDeleteRecord(record)
-                        },
-                        onExportClick = {
-                            onExportRecord(record)
-                        }
+                        onClick = onSelect,
+                        onDeleteClick = onDelete,
+                        onExportClick = onExport
                     )
                 }
             }
@@ -174,8 +179,13 @@ fun HistorySidebarItem(
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val SurfaceColor = MaterialTheme.colorScheme.surface
     val PrimaryColor = MaterialTheme.colorScheme.primary
-    val sdf = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
-    val dateStr = sdf.format(Date(record.timestamp))
+    val dateStr = remember(record.timestamp) { historyDateFormatter.format(Instant.ofEpochMilli(record.timestamp)) }
+
+    val ItemTextColor = SumiInk
+    val ItemSubTextColor = SumiInk.copy(alpha = 0.5f)
+    val ItemIconColor = SumiInk.copy(alpha = 0.4f)
+    val ItemPrimaryIconColor = PrimaryColor.copy(alpha = 0.7f)
+    val modelText = remember(record.modelUsed) { record.modelUsed.substringAfter(": ").take(12) }
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -194,10 +204,10 @@ fun HistorySidebarItem(
             Text(
                 text = record.originalText,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                color = SumiInk
+                color = ItemTextColor
             )
             Spacer(modifier = Modifier.height(10.dp))
             Row(
@@ -224,18 +234,20 @@ fun HistorySidebarItem(
                         text = when (record.status) {
                             AnalysisStatus.PENDING -> stringResource(R.string.history_status_pending)
                             AnalysisStatus.FAILED -> stringResource(R.string.history_status_error)
-                            else -> record.modelUsed.substringAfter(": ").take(12)
+                            else -> modelText
                         },
                         fontSize = 11.sp,
-                        color = SumiInk.copy(alpha = 0.5f)
+                        color = ItemSubTextColor
                     )
                     if (record.status == AnalysisStatus.COMPLETED && record.consumedTokens > 0) {
                         Spacer(modifier = Modifier.width(6.dp))
-                        val formattedTokens = if (record.consumedTokens >= 1000) String.format(java.util.Locale.US, "%.1fk", record.consumedTokens / 1000.0) else record.consumedTokens.toString()
+                        val formattedTokens = remember(record.consumedTokens) { 
+                            if (record.consumedTokens >= 1000) String.format(java.util.Locale.US, "%.1fk", record.consumedTokens / 1000.0) else record.consumedTokens.toString() 
+                        }
                         Text(
                             text = "Tokens: $formattedTokens",
                             fontSize = 11.sp,
-                            color = SumiInk.copy(alpha = 0.5f)
+                            color = ItemSubTextColor
                         )
                     }
                 }
@@ -246,7 +258,7 @@ fun HistorySidebarItem(
                     Text(
                         text = dateStr,
                         fontSize = 11.sp,
-                        color = SumiInk.copy(alpha = 0.5f)
+                        color = ItemSubTextColor
                     )
                     IconButton(
                         onClick = onExportClick,
@@ -255,7 +267,7 @@ fun HistorySidebarItem(
                         Icon(
                             imageVector = Icons.Default.Share,
                             contentDescription = stringResource(R.string.export),
-                            tint = PrimaryColor.copy(alpha = 0.7f),
+                            tint = ItemPrimaryIconColor,
                             modifier = Modifier.size(13.dp)
                         )
                     }
@@ -266,7 +278,7 @@ fun HistorySidebarItem(
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = stringResource(R.string.delete),
-                            tint = SumiInk.copy(alpha = 0.4f),
+                            tint = ItemIconColor,
                             modifier = Modifier.size(13.dp)
                         )
                     }

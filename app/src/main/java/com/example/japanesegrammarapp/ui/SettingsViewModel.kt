@@ -72,12 +72,6 @@ class SettingsViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            settingsRepository.primaryColor.collect { color ->
-                _uiState.update { it.copy(primaryColor = color) }
-            }
-        }
-
-        viewModelScope.launch {
             settingsRepository.wallpaperUri.collect { uri ->
                 _uiState.update { it.copy(wallpaperUri = uri) }
             }
@@ -196,11 +190,6 @@ class SettingsViewModel @Inject constructor(
     fun setThemeMode(mode: String) {
         settingsRepository.setThemeMode(mode)
         _uiState.update { it.copy(themeMode = mode) }
-    }
-
-    fun setPrimaryColor(colorHex: String) {
-        settingsRepository.setPrimaryColor(colorHex)
-        _uiState.update { it.copy(primaryColor = colorHex) }
     }
 
     fun setWallpaperUri(uri: String) {

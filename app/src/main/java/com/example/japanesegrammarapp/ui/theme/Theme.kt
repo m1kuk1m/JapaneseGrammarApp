@@ -40,30 +40,15 @@ private val LightColorScheme = lightColorScheme(
 fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
-    primaryColorHex: String = "Default",
     content: @Composable () -> Unit
 ) {
-    val parsedPrimary = try {
-        if (primaryColorHex != "Default") Color(android.graphics.Color.parseColor(primaryColorHex)) else null
-    } catch (e: Exception) {
-        null
-    }
-
-    fun calculateOnPrimary(primary: Color): Color {
-        val r = primary.red
-        val g = primary.green
-        val b = primary.blue
-        val luminance = (0.299f * r + 0.587f * g + 0.114f * b)
-        return if (luminance > 0.5f) Color.Black else Color.White
-    }
-
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> if (parsedPrimary != null) DarkColorScheme.copy(primary = parsedPrimary, onPrimary = calculateOnPrimary(parsedPrimary)) else DarkColorScheme
-        else -> if (parsedPrimary != null) LightColorScheme.copy(primary = parsedPrimary, onPrimary = calculateOnPrimary(parsedPrimary)) else LightColorScheme
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
     }
     val view = LocalView.current
     if (!view.isInEditMode) {

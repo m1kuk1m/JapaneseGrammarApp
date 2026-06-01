@@ -52,8 +52,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             AppTheme(
-                darkTheme = isDarkTheme,
-                primaryColorHex = uiState.primaryColor
+                darkTheme = isDarkTheme
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),

@@ -215,4 +215,9 @@
     <string name="api_debug_raw_response">原文応答</string>
     <string name="api_debug_error">エラー</string>
     <string name="api_debug_stack_trace">スタックトレース</string>
+    <string name="dict_eudic">Eudic辞書</string>
+    <string name="dict_dictango">Dictango</string>
+    <string name="dict_moji">MOJi辞書</string>
+    <string name="dict_not_installed">アプリ %1$s がインストールされていません。</string>
+    <string name="search_in_dict">辞書で引く</string>
 </resources>

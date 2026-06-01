@@ -132,7 +132,6 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     var customModelInputs by remember { mutableStateOf(providers.associateWith { "" }) }
-    var colorDialogVisible by remember { mutableStateOf(false) }
 
     val wallpaperLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
@@ -346,29 +345,6 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                             }
                         }
                     )
-                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
-
-                    // Accent Color
-                    SettingsItem(
-                        icon = Icons.Default.Palette,
-                        title = stringResource(R.string.accent_color),
-                        onClick = { colorDialogVisible = true },
-                        trailingContent = {
-                            val displayColor = remember(uiState.primaryColor, SumiInk) {
-                                try {
-                                    if (uiState.primaryColor != "Default") Color(android.graphics.Color.parseColor(uiState.primaryColor)) else SumiInk
-                                } catch (e: Exception) { SumiInk }
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(displayColor)
-                                    .border(1.dp, SumiInk.copy(alpha = 0.2f), CircleShape)
-                            )
-                        }
-                    )
-
                     Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
 
                     // Wallpaper
@@ -905,96 +881,6 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
         )
     }
 
-    if (colorDialogVisible) {
-        ColorPickerDialog(
-            currentColor = uiState.primaryColor,
-            onColorSelected = { viewModel.setPrimaryColor(it) },
-            onDismiss = { colorDialogVisible = false }
-        )
-    }
-}
-
-@Composable
-fun ColorPickerDialog(
-    currentColor: String,
-    onColorSelected: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val presets = listOf(
-        Pair(R.string.color_default, Color.Unspecified),
-        Pair(R.string.color_sakura, ZenColors.SakuraPink),
-        Pair(R.string.color_matcha, ZenColors.MatchaGreen),
-        Pair(R.string.color_aizome, ZenColors.AizomeIndigo),
-        Pair(R.string.color_kuri, ZenColors.KuriAmber),
-        Pair(R.string.color_hai, ZenColors.HaiMist)
-    )
-    
-    var customHexInput by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.select_accent_color)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                presets.forEach { (nameRes, color) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                if (nameRes == R.string.color_default) {
-                                    onColorSelected("Default")
-                                } else {
-                                    val hex = String.format("#%06X", 0xFFFFFF and color.toArgb())
-                                    onColorSelected(hex)
-                                }
-                                onDismiss()
-                            }
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(if (nameRes == R.string.color_default) ZenColors.SumiInk else color)
-                                .border(1.dp, ZenColors.SumiInk.copy(alpha = 0.2f), CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(stringResource(nameRes), fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
-                    }
-                }
-                
-                Divider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f))
-                
-                OutlinedTextField(
-                    value = customHexInput,
-                    onValueChange = { customHexInput = it },
-                    label = { Text(stringResource(R.string.custom_hex), fontSize = 12.sp) },
-                    singleLine = true,
-                    trailingIcon = {
-                        IconButton(onClick = {
-                            if (customHexInput.startsWith("#") && (customHexInput.length == 7 || customHexInput.length == 9)) {
-                                try {
-                                    android.graphics.Color.parseColor(customHexInput)
-                                    onColorSelected(customHexInput)
-                                    onDismiss()
-                                } catch (e: Exception) {}
-                            }
-                        }) {
-                            Icon(Icons.Default.Check, "Apply", tint = MaterialTheme.colorScheme.primary)
-                        }
-                    },
-                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.close), color = MaterialTheme.colorScheme.onBackground)
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    )
 }
 
 @Composable

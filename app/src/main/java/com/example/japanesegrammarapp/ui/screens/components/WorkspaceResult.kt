@@ -36,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import com.example.japanesegrammarapp.domain.model.WordSegment
@@ -46,6 +47,8 @@ import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.MatchaGreen
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SakuraPink
 import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
+import com.example.japanesegrammarapp.utils.DictionaryHelper
+import com.example.japanesegrammarapp.utils.DictionaryApp
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +59,7 @@ fun WorkspaceResultContent(
     onStopTts: () -> Unit = {},
     onCancel: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val SurfaceColor = MaterialTheme.colorScheme.surface
     val detailedResult = uiState.detailedResult
@@ -302,6 +306,75 @@ fun WorkspaceResultContent(
                                                     color = SumiInk,
                                                     lineHeight = 20.sp
                                                 )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        val queryWord = currentSegment.dictionaryForm?.takeIf { it.isNotBlank() } ?: currentSegment.text ?: ""
+                                        if (queryWord.isNotBlank()) {
+                                            val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+                                            var isDictMenuExpanded by remember { mutableStateOf(false) }
+                                            var selectedDict by remember { 
+                                                val savedDict = prefs.getString("last_dict", DictionaryApp.EUDIC.name) ?: DictionaryApp.EUDIC.name
+                                                mutableStateOf(DictionaryApp.valueOf(savedDict))
+                                            }
+
+                                            ExposedDropdownMenuBox(
+                                                expanded = isDictMenuExpanded,
+                                                onExpandedChange = { isDictMenuExpanded = !isDictMenuExpanded },
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                OutlinedTextField(
+                                                    value = stringResource(selectedDict.nameResId),
+                                                    onValueChange = {},
+                                                    readOnly = true,
+                                                    trailingIcon = {
+                                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = isDictMenuExpanded)
+                                                    },
+                                                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                                                        unfocusedBorderColor = SumiInk.copy(alpha = 0.15f),
+                                                        focusedBorderColor = SumiInk.copy(alpha = 0.4f),
+                                                        unfocusedTextColor = SumiInk,
+                                                        focusedTextColor = SumiInk
+                                                    ),
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    modifier = Modifier.menuAnchor().fillMaxWidth().height(48.dp),
+                                                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp)
+                                                )
+                                                ExposedDropdownMenu(
+                                                    expanded = isDictMenuExpanded,
+                                                    onDismissRequest = { isDictMenuExpanded = false }
+                                                ) {
+                                                    DictionaryApp.values().forEach { dict ->
+                                                        DropdownMenuItem(
+                                                            text = { Text(stringResource(dict.nameResId), fontSize = 13.sp) },
+                                                            onClick = {
+                                                                selectedDict = dict
+                                                                prefs.edit().putString("last_dict", dict.name).apply()
+                                                                isDictMenuExpanded = false
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            FilledTonalButton(
+                                                onClick = { selectedDict.search(context, queryWord) },
+                                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                                modifier = Modifier.height(36.dp),
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = ButtonDefaults.filledTonalButtonColors(
+                                                    containerColor = SumiInk,
+                                                    contentColor = SurfaceColor
+                                                )
+                                            ) {
+                                                Text(text = stringResource(R.string.search_in_dict), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                             }
                                         }
                                     }

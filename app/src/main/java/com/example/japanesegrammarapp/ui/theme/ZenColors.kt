@@ -38,5 +38,5 @@ object ZenThemeColors {
     fun divider(): Color = if (isDark()) Color(0xFF3C3C3C) else Color(0xFFE5E4E2)
 
     @Composable
-    fun selectedHistoryBg(): Color = if (isDark()) Color(0xFF252D3A) else Color(0xFFE8EEF1)
+    fun selectedHistoryBg(): Color = if (isDark()) Color(0xFF4A4A4A) else Color(0xFFD6D6D6)
 }

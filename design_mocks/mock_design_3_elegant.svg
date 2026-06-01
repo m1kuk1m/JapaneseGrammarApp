@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 640" width="360" height="640">
+  <defs>
+    <linearGradient id="cardShadow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(43, 42, 40, 0.02)"/>
+      <stop offset="100%" stop-color="rgba(43, 42, 40, 0.08)"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background: Extremely light warm tone -->
+  <rect width="360" height="640" fill="#FDFBF7" />
+  
+  <!-- Top Bar -->
+  <circle cx="32" cy="50" r="16" fill="#E5E4E2" opacity="0.3" />
+  <path d="M26 50 l 4 -4 m -4 4 l 4 4 m -4 -4 l 12 0" fill="none" stroke="#2B2A28" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <text x="328" y="54" font-family="serif" font-style="italic" font-size="14" fill="#2B2A28" opacity="0.4" text-anchor="end">Jpn. Grammar</text>
+
+  <!-- Hero Typography -->
+  <text x="32" y="120" font-family="sans-serif" font-weight="900" font-size="36" fill="#2B2A28" letter-spacing="-1">解析.</text>
+  <text x="32" y="150" font-family="sans-serif" font-weight="300" font-size="16" fill="#2B2A28" opacity="0.6" letter-spacing="1">深入理解日语语法结构</text>
+
+  <!-- Main Floating Panel -->
+  <rect x="24" y="190" width="312" height="340" rx="32" fill="#FFFFFF" filter="drop-shadow(0px 16px 40px rgba(43, 42, 40, 0.04))" />
+
+  <!-- Provider/Model Pill -->
+  <rect x="44" y="214" width="110" height="32" rx="16" fill="#F4EFE6" />
+  <circle cx="58" cy="230" r="4" fill="#C5E2C6" /> <!-- Subtle green indicator -->
+  <text x="70" y="235" font-family="sans-serif" font-weight="600" font-size="12" fill="#2B2A28" opacity="0.8">Gemini Pro</text>
+  <path d="M138 228 l 3 3 l 3 -3" fill="none" stroke="#2B2A28" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- Text Area -->
+  <text x="44" y="280" font-family="sans-serif" font-size="20" fill="#2B2A28" opacity="0.2">输入日文...</text>
+
+  <!-- Bottom Actions of the Card -->
+  <!-- Attachment Area (Subtle dashed border) -->
+  <rect x="44" y="440" width="64" height="64" rx="16" fill="none" stroke="#2B2A28" stroke-width="1" stroke-dasharray="4 4" opacity="0.15" />
+  <path d="M76 465 v 14 m -7 -7 h 14" fill="none" stroke="#2B2A28" stroke-width="1.5" opacity="0.4" stroke-linecap="round"/>
+
+  <!-- Action Button (Absolute right alignment) -->
+  <rect x="236" y="440" width="64" height="64" rx="32" fill="#2B2A28" />
+  <path d="M262 466 l 8 6 l -8 6 m 8 -6 l -12 0" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  
+</svg>

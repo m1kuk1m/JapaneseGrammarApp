@@ -215,4 +215,9 @@
     <string name="api_debug_raw_response">原始返回</string>
     <string name="api_debug_error">错误</string>
     <string name="api_debug_stack_trace">堆栈跟踪</string>
+    <string name="dict_eudic">欧路词典</string>
+    <string name="dict_dictango">辞林(Dictango)</string>
+    <string name="dict_moji">MOJi辞书</string>
+    <string name="dict_not_installed">未安装应用 %1$s</string>
+    <string name="search_in_dict">查词典</string>
 </resources>

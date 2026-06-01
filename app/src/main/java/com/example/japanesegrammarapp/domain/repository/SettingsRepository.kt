@@ -22,13 +22,10 @@ interface SettingsRepository {
     
     fun getThemeMode(): String
     fun setThemeMode(mode: String)
-    fun getPrimaryColor(): String
-    fun setPrimaryColor(colorHex: String)
     fun getWallpaperUri(): String
     fun setWallpaperUri(uri: String)
 
     val themeMode: kotlinx.coroutines.flow.StateFlow<String>
-    val primaryColor: kotlinx.coroutines.flow.StateFlow<String>
     val wallpaperUri: kotlinx.coroutines.flow.StateFlow<String>
 
     // TTS Settings

@@ -216,4 +216,9 @@
     <string name="api_debug_raw_response">Raw Response</string>
     <string name="api_debug_error">Error</string>
     <string name="api_debug_stack_trace">Stack Trace</string>
+    <string name="dict_eudic">Eudic</string>
+    <string name="dict_dictango">Dictango</string>
+    <string name="dict_moji">MOJi Dict</string>
+    <string name="dict_not_installed">App %1$s is not installed.</string>
+    <string name="search_in_dict">Look up</string>
 </resources>

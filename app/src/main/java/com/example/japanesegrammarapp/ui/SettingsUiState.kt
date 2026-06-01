@@ -12,6 +12,5 @@ data class SettingsUiState(
     val backupProvider: String = "DeepSeek",
     val backupModel: String = "",
     val themeMode: String = "System",
-    val primaryColor: String = "Default",
     val wallpaperUri: String = ""
 )

@@ -6,7 +6,10 @@ import com.example.japanesegrammarapp.di.StandardPrefs
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.google.gson.Gson
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,17 +32,20 @@ class SettingsRepositoryImpl @Inject constructor(
     private val cachedApiUrls = java.util.concurrent.ConcurrentHashMap<String, String>()
     
     @Volatile private var cachedThemeMode: String? = null
-    @Volatile private var cachedPrimaryColor: String? = null
     @Volatile private var cachedWallpaperUri: String? = null
 
-    private val _themeMode = kotlinx.coroutines.flow.MutableStateFlow(settingPrefs.getString("theme_mode", "System") ?: "System")
+    private val _themeMode = kotlinx.coroutines.flow.MutableStateFlow("System")
     override val themeMode: kotlinx.coroutines.flow.StateFlow<String> = _themeMode.asStateFlow()
 
-    private val _primaryColor = kotlinx.coroutines.flow.MutableStateFlow(settingPrefs.getString("primary_color", "Default") ?: "Default")
-    override val primaryColor: kotlinx.coroutines.flow.StateFlow<String> = _primaryColor.asStateFlow()
-
-    private val _wallpaperUri = kotlinx.coroutines.flow.MutableStateFlow(settingPrefs.getString("wallpaper_uri", "") ?: "")
+    private val _wallpaperUri = kotlinx.coroutines.flow.MutableStateFlow("")
     override val wallpaperUri: kotlinx.coroutines.flow.StateFlow<String> = _wallpaperUri.asStateFlow()
+
+    init {
+        CoroutineScope(Dispatchers.IO).launch {
+            _themeMode.value = settingPrefs.getString("theme_mode", "System") ?: "System"
+            _wallpaperUri.value = settingPrefs.getString("wallpaper_uri", "") ?: ""
+        }
+    }
 
     override fun getActiveProvider(): String {
         return cachedActiveProvider ?: synchronized(this) {
@@ -233,23 +239,6 @@ class SettingsRepositoryImpl @Inject constructor(
         cachedThemeMode = mode
         settingPrefs.edit().putString("theme_mode", mode).apply()
         _themeMode.value = mode
-    }
-
-    override fun getPrimaryColor(): String {
-        return cachedPrimaryColor ?: synchronized(this) {
-            val cached = cachedPrimaryColor
-            if (cached != null) cached else {
-                val value = settingPrefs.getString("primary_color", "Default") ?: "Default"
-                cachedPrimaryColor = value
-                value
-            }
-        }
-    }
-
-    override fun setPrimaryColor(colorHex: String) {
-        cachedPrimaryColor = colorHex
-        settingPrefs.edit().putString("primary_color", colorHex).apply()
-        _primaryColor.value = colorHex
     }
 
     override fun getWallpaperUri(): String {
