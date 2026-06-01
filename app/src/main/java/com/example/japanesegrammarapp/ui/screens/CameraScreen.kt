@@ -597,7 +597,22 @@ fun ImageCropReviewLayout(
                                     clusters[j].any { lineJ ->
                                         val sizeI = minOf(lineI.width(), lineI.height())
                                         val sizeJ = minOf(lineJ.width(), lineJ.height())
-                                        val maxDist = maxOf(sizeI, sizeJ) * 2.0f
+                                        
+                                        // Refined clustering: Only merge if they are very close AND roughly on the same axis
+                                        // 1. Distance threshold is tightened to 0.8x of font size
+                                        val maxDist = maxOf(sizeI, sizeJ) * 0.8f
+                                        
+                                        // 2. Size difference shouldn't be too drastic (prevent merging title with small text)
+                                        val isSizeSimilar = maxOf(sizeI, sizeJ).toFloat() / minOf(sizeI, sizeJ).toFloat() < 2.5f
+                                        
+                                        // 3. Directional check (must overlap significantly on either X or Y axis)
+                                        val overlapX = maxOf(0, minOf(lineI.right, lineJ.right) - maxOf(lineI.left, lineJ.left))
+                                        val overlapY = maxOf(0, minOf(lineI.bottom, lineJ.bottom) - maxOf(lineI.top, lineJ.top))
+                                        
+                                        val isAligned = overlapX > 0 || overlapY > 0
+                                        
+                                        if (!isSizeSimilar || !isAligned) return@any false
+
                                         val expandedLine = Rect(
                                             (lineI.left - maxDist).toInt(), (lineI.top - maxDist).toInt(),
                                             (lineI.right + maxDist).toInt(), (lineI.bottom + maxDist).toInt()
