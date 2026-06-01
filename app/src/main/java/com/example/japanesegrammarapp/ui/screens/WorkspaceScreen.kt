@@ -22,13 +22,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.paging.compose.collectAsLazyPagingItems
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import com.example.japanesegrammarapp.ui.WorkspaceViewModel
 import com.example.japanesegrammarapp.ui.UiEvent
 import com.example.japanesegrammarapp.ui.screens.components.ExportSelectionDialog
+import com.example.japanesegrammarapp.ui.screens.components.FloatingActionBall
 import com.example.japanesegrammarapp.ui.screens.components.HistorySidebar
 import com.example.japanesegrammarapp.ui.screens.components.WorkspaceInputForm
 import com.example.japanesegrammarapp.ui.screens.components.WorkspaceResultContent
@@ -98,6 +104,20 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
         }
     }
 
+    // Refresh settings when returning to workspace
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshSettings()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     // UI Event Collection & Localization Handling
     LaunchedEffect(viewModel) {
         viewModel.uiEvent.collect { event ->
@@ -160,9 +180,9 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
     }
 
     // Camera Result Observer & OCR Executor
-    val navBackStackEntry = navController.currentBackStackEntry
-    LaunchedEffect(navBackStackEntry) {
-        navBackStackEntry?.savedStateHandle?.getStateFlow<String?>("captured_image_uri", null)
+    val cameraNavBackStackEntry = navController.currentBackStackEntry
+    LaunchedEffect(cameraNavBackStackEntry) {
+        cameraNavBackStackEntry?.savedStateHandle?.getStateFlow<String?>("captured_image_uri", null)
             ?.collect { uriString ->
                 if (!uriString.isNullOrBlank()) {
                     val uri = Uri.parse(uriString)
@@ -179,7 +199,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                         selectedImageUriState = uri
                         viewModel.startAnalysis("", uri)
                     }
-                    navBackStackEntry.savedStateHandle["captured_image_uri"] = null
+                    cameraNavBackStackEntry.savedStateHandle["captured_image_uri"] = null
                 }
             }
     }
@@ -616,4 +636,53 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
             }
         )
     }
+
+    // Input Dialog for Floating Action Ball
+    var showInputDialog by remember { mutableStateOf(false) }
+    var inputText by remember { mutableStateOf("") }
+    
+    if (showInputDialog) {
+        AlertDialog(
+            onDismissRequest = { showInputDialog = false },
+            title = { Text("文字入力", fontWeight = FontWeight.Bold, color = SumiInk) },
+            text = {
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
+                    placeholder = { Text("分析したいテキストを入力してください...") },
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        focusedBorderColor = PrimaryColor,
+                        unfocusedBorderColor = SumiInk.copy(alpha = 0.2f)
+                    )
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (inputText.isNotBlank()) {
+                            viewModel.startNewAnalysisWithText(inputText)
+                        }
+                        showInputDialog = false
+                        inputText = ""
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor, contentColor = OnPrimaryColor)
+                ) {
+                    Text("分析開始", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showInputDialog = false }) {
+                    Text(stringResource(R.string.cancel), color = SumiInk)
+                }
+            },
+            containerColor = Color.White
+        )
+    }
+
+    // Floating Action Ball
+    FloatingActionBall(
+        onTextClick = { showInputDialog = true },
+        onCameraClick = { navController.navigate("camera") }
+    )
 }

@@ -88,27 +88,7 @@ class WorkspaceViewModel @Inject constructor(
     val uiEvent: SharedFlow<UiEvent> = _uiEvent.asSharedFlow()
 
     init {
-        viewModelScope.launch(Dispatchers.IO) {
-            val activeProvider = settingsRepository.getActiveProvider()
-            val providerModels = LlmConfig.providers.associateWith { settingsRepository.getModelsForProvider(it) }
-            val activeModel = settingsRepository.getActiveModel(activeProvider)
-            val useOcr = settingsRepository.getUseOcr()
-            val imageTokenizerMode = settingsRepository.getImageTokenizerMode()
-
-            val models = providerModels[activeProvider] ?: emptyList()
-            val finalActiveModel = if (activeModel.isBlank() && models.isNotEmpty()) models.first() else activeModel
-
-            _uiState.update {
-                it.copy(
-                    activeProvider = activeProvider,
-                    activeModel = finalActiveModel,
-                    useOcr = useOcr,
-                    imageTokenizerMode = imageTokenizerMode,
-                    providerModels = providerModels,
-                    availableModels = models
-                )
-            }
-        }
+        refreshSettings()
 
         viewModelScope.launch {
             settingsRepository.wallpaperUri.collect { uri ->
@@ -155,6 +135,30 @@ class WorkspaceViewModel @Inject constructor(
                 } else {
                     _uiState.update { it.copy(selectedRecordProgress = null) }
                 }
+            }
+        }
+    }
+
+    fun refreshSettings() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val activeProvider = settingsRepository.getActiveProvider()
+            val providerModels = LlmConfig.providers.associateWith { settingsRepository.getModelsForProvider(it) }
+            val activeModel = settingsRepository.getActiveModel(activeProvider)
+            val useOcr = settingsRepository.getUseOcr()
+            val imageTokenizerMode = settingsRepository.getImageTokenizerMode()
+
+            val models = providerModels[activeProvider] ?: emptyList()
+            val finalActiveModel = if (activeModel.isBlank() && models.isNotEmpty()) models.first() else activeModel
+
+            _uiState.update {
+                it.copy(
+                    activeProvider = activeProvider,
+                    activeModel = finalActiveModel,
+                    useOcr = useOcr,
+                    imageTokenizerMode = imageTokenizerMode,
+                    providerModels = providerModels,
+                    availableModels = models
+                )
             }
         }
     }
@@ -277,7 +281,6 @@ class WorkspaceViewModel @Inject constructor(
                 if (record != null) {
                     _uiState.update { it.copy(selectedRecord = record) }
                 }
-                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.analysis_started_toast))
             } catch (e: Exception) {
                 _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: "Analysis failed to start"))
             }

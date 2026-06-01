@@ -21,6 +21,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -80,36 +81,39 @@ fun WorkspaceResultContent(
             tonalElevation = 0.dp,
             shape = RoundedCornerShape(24.dp)
         ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = stringResource(R.string.analysis_result_text_view),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = SumiInk.copy(alpha = 0.5f),
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
-                Divider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(bottom = 8.dp))
-                Text(
-                    text = rawResult ?: stringResource(R.string.no_analysis_result),
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState()),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = SumiInk,
-                    lineHeight = 18.sp
-                )
+            SelectionContainer {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = stringResource(R.string.analysis_result_text_view),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = SumiInk.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                    Divider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(bottom = 8.dp))
+                    Text(
+                        text = rawResult ?: stringResource(R.string.no_analysis_result),
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SumiInk,
+                        lineHeight = 18.sp
+                    )
+                }
             }
         }
     } else {
         var selectedSegmentIndex by remember(data) { mutableStateOf(-1) }
 
-            Column(modifier = Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(vertical = 8.dp)
-                ) {
+            SelectionContainer {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                            .padding(vertical = 8.dp)
+                    ) {
                     // 1. Target Sentence Header with clickable chips
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -642,6 +646,7 @@ fun WorkspaceResultContent(
                         }
                         Spacer(modifier = Modifier.height(20.dp))
                     }
+                }
             }
         }
     }

@@ -3,6 +3,7 @@ package com.example.japanesegrammarapp.ui.screens
 import android.Manifest
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Rect
 import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -50,25 +51,31 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.japanesegrammarapp.ui.SettingsViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.example.japanesegrammarapp.R
+import com.example.japanesegrammarapp.ui.SettingsViewModel
+import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
 import com.example.japanesegrammarapp.ui.theme.ZenColors.WashiBg
-import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.utils.BitmapHelper
-import kotlinx.coroutines.Dispatchers
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -551,12 +558,33 @@ fun ImageCropReviewLayout(
     onConfirm: (Bitmap) -> Unit
 ) {
     val density = LocalDensity.current
+    val context = LocalContext.current
     
     val cropState = remember(bitmap) {
         CropState(
             bitmapWidth = bitmap.width.toFloat(),
             bitmapHeight = bitmap.height.toFloat()
         )
+    }
+
+    var detectedBoxes by remember(bitmap) { mutableStateOf<List<Rect>>(emptyList()) }
+    var hideOcrBoxes by remember { mutableStateOf(false) }
+
+    LaunchedEffect(bitmap) {
+        try {
+            val recognizer = TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
+            val image = InputImage.fromBitmap(bitmap, 0)
+            recognizer.process(image)
+                .addOnSuccessListener { visionText ->
+                    val boxes = mutableListOf<Rect>()
+                    for (block in visionText.textBlocks) {
+                        block.boundingBox?.let { boxes.add(it) }
+                    }
+                    detectedBoxes = boxes
+                }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
     
     Column(
@@ -639,6 +667,49 @@ fun ImageCropReviewLayout(
                             awaitPointerEventScope {
                                 while (true) {
                                     val downEvent = awaitFirstDown(requireUnconsumed = false)
+                                    
+                                    if (!hideOcrBoxes) {
+                                        var tappedBox: Rect? = null
+                                        for (box in detectedBoxes) {
+                                            val displayLeft = cropState.imgOffsetX + box.left * cropState.scaleFactor
+                                            val displayTop = cropState.imgOffsetY + box.top * cropState.scaleFactor
+                                            val displayRight = cropState.imgOffsetX + box.right * cropState.scaleFactor
+                                            val displayBottom = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
+                                            
+                                            if (downEvent.position.x in displayLeft..displayRight && downEvent.position.y in displayTop..displayBottom) {
+                                                tappedBox = box
+                                                break
+                                            }
+                                        }
+                                        
+                                        if (tappedBox != null) {
+                                            downEvent.consume()
+                                            // Expand the tapped box slightly (5% padding)
+                                            val paddingX = (tappedBox.width() * 0.05f).toInt()
+                                            val paddingY = (tappedBox.height() * 0.05f).toInt()
+                                            
+                                            val x = maxOf(0, tappedBox.left - paddingX)
+                                            val y = maxOf(0, tappedBox.top - paddingY)
+                                            val w = minOf(bitmap.width - x, tappedBox.width() + paddingX * 2)
+                                            val h = minOf(bitmap.height - y, tappedBox.height() + paddingY * 2)
+                                            
+                                            if (w > 0 && h > 0) {
+                                                try {
+                                                    val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
+                                                    onConfirm(cropped)
+                                                } catch (e: Throwable) {
+                                                    e.printStackTrace()
+                                                    onConfirm(bitmap)
+                                                }
+                                            } else {
+                                                onConfirm(bitmap)
+                                            }
+                                            continue
+                                        }
+                                    }
+                                    
+                                    hideOcrBoxes = true
+                                    
                                     var activePointerId = downEvent.id
                                     
                                     cropState.startDrag(downEvent.position, minTolerancePx)
@@ -800,6 +871,28 @@ fun ImageCropReviewLayout(
                     val frameW = cropState.cropRight - cropState.cropLeft
                     val frameH = cropState.cropBottom - cropState.cropTop
                     
+                    if (!hideOcrBoxes) {
+                        detectedBoxes.forEach { box ->
+                            // Map bitmap coordinates to display coordinates
+                            val displayLeft = cropState.imgOffsetX + box.left * cropState.scaleFactor
+                            val displayTop = cropState.imgOffsetY + box.top * cropState.scaleFactor
+                            val displayRight = cropState.imgOffsetX + box.right * cropState.scaleFactor
+                            val displayBottom = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
+                            
+                            drawRect(
+                                color = KuriAmber.copy(alpha = 0.3f),
+                                topLeft = Offset(displayLeft, displayTop),
+                                size = Size(displayRight - displayLeft, displayBottom - displayTop)
+                            )
+                            drawRect(
+                                color = KuriAmber.copy(alpha = 0.8f),
+                                topLeft = Offset(displayLeft, displayTop),
+                                size = Size(displayRight - displayLeft, displayBottom - displayTop),
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
+                            )
+                        }
+                    }
+                    
                     drawLine(
                         color = Color.White.copy(alpha = 0.35f),
                         start = Offset(cropState.cropLeft + frameW / 3f, cropState.cropTop),
@@ -917,11 +1010,12 @@ fun ImageCropReviewLayout(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = KuriAmber,
                         contentColor = SumiInk
-                    )
+                    ),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = stringResource(R.string.camera_confirm_desc), modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(R.string.camera_confirm_btn), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Icon(Icons.Default.Check, contentDescription = stringResource(R.string.camera_confirm_desc), modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.camera_confirm_btn), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
         }

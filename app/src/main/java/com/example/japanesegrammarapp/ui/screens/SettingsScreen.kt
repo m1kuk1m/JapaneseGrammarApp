@@ -166,6 +166,7 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
 
     val apiLogs by com.example.japanesegrammarapp.utils.AppLogger.apiLogs.collectAsState()
     var showApiLogsDialog by remember { mutableStateOf(false) }
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
     if (showLogsDialog) {
         AlertDialog(
@@ -173,8 +174,19 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
             title = { Text(stringResource(R.string.app_logs_title)) },
             text = {
                 Column(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
-                    TextButton(onClick = { com.example.japanesegrammarapp.utils.AppLogger.clear() }) {
-                        Text(stringResource(R.string.clear_logs))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = { com.example.japanesegrammarapp.utils.AppLogger.clear() }) {
+                            Text(stringResource(R.string.clear_logs))
+                        }
+                        TextButton(onClick = {
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(logs.joinToString("\n")))
+                        }) {
+                            Text("Copy Logs")
+                        }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -204,6 +216,14 @@ fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel) {
                     ) {
                         TextButton(onClick = { com.example.japanesegrammarapp.utils.AppLogger.clearApiLogs() }) {
                             Text(stringResource(R.string.clear_api_debug_logs))
+                        }
+                        TextButton(onClick = {
+                            val copyText = apiLogs.joinToString("\n\n") { log ->
+                                "[${log.apiTypeLabel}] ${log.provider} - ${log.model}\nStatus: ${log.status}\nPrompt: ${log.userPrompt}\nResponse: ${log.rawResponse ?: ""}\nError: ${log.errorMessage ?: ""}"
+                            }
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(copyText))
+                        }) {
+                            Text("Copy Logs")
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
