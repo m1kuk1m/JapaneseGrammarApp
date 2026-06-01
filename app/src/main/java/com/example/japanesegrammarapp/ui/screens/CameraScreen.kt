@@ -576,11 +576,72 @@ fun ImageCropReviewLayout(
             val image = InputImage.fromBitmap(bitmap, 0)
             recognizer.process(image)
                 .addOnSuccessListener { visionText ->
-                    val boxes = mutableListOf<Rect>()
+                    val lines = mutableListOf<Rect>()
                     for (block in visionText.textBlocks) {
-                        block.boundingBox?.let { boxes.add(it) }
+                        for (line in block.lines) {
+                            line.boundingBox?.let { lines.add(it) }
+                        }
                     }
-                    detectedBoxes = boxes
+
+                    val clusters = mutableListOf<MutableList<Rect>>()
+                    for (line in lines) {
+                        clusters.add(mutableListOf(line))
+                    }
+
+                    var changed = true
+                    while (changed) {
+                        changed = false
+                        for (i in clusters.indices) {
+                            for (j in i + 1 until clusters.size) {
+                                val isClose = clusters[i].any { lineI ->
+                                    clusters[j].any { lineJ ->
+                                        val sizeI = minOf(lineI.width(), lineI.height())
+                                        val sizeJ = minOf(lineJ.width(), lineJ.height())
+                                        val maxDist = maxOf(sizeI, sizeJ) * 2.0f
+                                        val expandedLine = Rect(
+                                            (lineI.left - maxDist).toInt(), (lineI.top - maxDist).toInt(),
+                                            (lineI.right + maxDist).toInt(), (lineI.bottom + maxDist).toInt()
+                                        )
+                                        Rect.intersects(expandedLine, lineJ)
+                                    }
+                                }
+                                if (isClose) {
+                                    clusters[i].addAll(clusters[j])
+                                    clusters.removeAt(j)
+                                    changed = true
+                                    break
+                                }
+                            }
+                            if (changed) break
+                        }
+                    }
+
+                    val mergedBoxes = clusters.map { cluster ->
+                        var left = Int.MAX_VALUE
+                        var top = Int.MAX_VALUE
+                        var right = Int.MIN_VALUE
+                        var bottom = Int.MIN_VALUE
+                        for (rect in cluster) {
+                            left = minOf(left, rect.left)
+                            top = minOf(top, rect.top)
+                            right = maxOf(right, rect.right)
+                            bottom = maxOf(bottom, rect.bottom)
+                        }
+                        
+                        // Add some generous padding (e.g. 15% of width/height or fixed pixels)
+                        val w = right - left
+                        val h = bottom - top
+                        val paddingX = (w * 0.15f).toInt().coerceAtLeast(20)
+                        val paddingY = (h * 0.15f).toInt().coerceAtLeast(20)
+                        
+                        Rect(
+                            maxOf(0, left - paddingX),
+                            maxOf(0, top - paddingY),
+                            minOf(bitmap.width, right + paddingX),
+                            minOf(bitmap.height, bottom + paddingY)
+                        )
+                    }
+                    detectedBoxes = mergedBoxes
                 }
         } catch (e: Exception) {
             e.printStackTrace()
