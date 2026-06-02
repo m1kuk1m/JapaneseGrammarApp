@@ -123,39 +123,39 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 }
             }
             
-            Box(modifier = Modifier.fillMaxSize()) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                    userScrollEnabled = drawerState.currentValue == DrawerValue.Closed
-                ) { page ->
-                    when (page) {
-                        0 -> {
-                            ModalNavigationDrawer(
-                                drawerState = drawerState,
-                                gesturesEnabled = true,
-                                drawerContent = {
-                                    ModalDrawerSheet(
-                                        drawerContainerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
-                                        modifier = Modifier.width(310.dp).fillMaxHeight()
-                                    ) {
-                                        HistorySidebar(
-                                            historyList = history,
-                                            selectedRecord = uiState.selectedRecord,
-                                            onSelectRecord = { record -> workspaceViewModel.selectRecord(record) },
-                                            onClearSelection = { workspaceViewModel.clearSelectedRecord() },
-                                            onDeleteRecord = { record -> recordToDelete = record },
-                                            onExportAll = {
-                                                coroutineScope.launch { drawerState.close() }
-                                                workspaceViewModel.loadAllHistoryForExport()
-                                                showExportDialog = true
-                                            },
-                                            onExportRecord = { record -> workspaceViewModel.exportRecord(record) },
-                                            onCloseDrawer = { coroutineScope.launch { drawerState.close() } }
-                                        )
-                                    }
-                                }
-                            ) {
+            ModalNavigationDrawer(
+                drawerState = drawerState,
+                gesturesEnabled = drawerState.isOpen,
+                drawerContent = {
+                    ModalDrawerSheet(
+                        drawerContainerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
+                        modifier = Modifier.width(310.dp).fillMaxHeight()
+                    ) {
+                        HistorySidebar(
+                            historyList = history,
+                            selectedRecord = uiState.selectedRecord,
+                            onSelectRecord = { record -> workspaceViewModel.selectRecord(record) },
+                            onClearSelection = { workspaceViewModel.clearSelectedRecord() },
+                            onDeleteRecord = { record -> recordToDelete = record },
+                            onExportAll = {
+                                coroutineScope.launch { drawerState.close() }
+                                workspaceViewModel.loadAllHistoryForExport()
+                                showExportDialog = true
+                            },
+                            onExportRecord = { record -> workspaceViewModel.exportRecord(record) },
+                            onCloseDrawer = { coroutineScope.launch { drawerState.close() } }
+                        )
+                    }
+                }
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        userScrollEnabled = drawerState.currentValue == DrawerValue.Closed
+                    ) { page ->
+                        when (page) {
+                            0 -> {
                                 WorkspaceScreen(
                                     navController = navController,
                                     viewModel = workspaceViewModel,
@@ -169,19 +169,42 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                                     }
                                 )
                             }
-                        }
-                        1 -> {
-                            SettingsScreen(
-                                navController = navController,
-                                viewModel = settingsViewModel,
-                                isVisible = pagerState.currentPage == 1,
-                                onBack = {
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(0)
+                            1 -> {
+                                SettingsScreen(
+                                    navController = navController,
+                                    viewModel = settingsViewModel,
+                                    isVisible = pagerState.currentPage == 1,
+                                    onBack = {
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(0)
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
+                    }
+                    
+                    // Edge Swipe Interceptor for opening the drawer
+                    if (pagerState.currentPage == 0 && drawerState.isClosed) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(30.dp)
+                                .align(Alignment.CenterStart)
+                                .pointerInput(Unit) {
+                                    var totalDrag = 0f
+                                    detectHorizontalDragGestures(
+                                        onDragStart = { _ -> totalDrag = 0f },
+                                        onHorizontalDrag = { _, dragAmount ->
+                                            totalDrag += dragAmount
+                                            if (totalDrag > 10f) { // Swiping right
+                                                coroutineScope.launch { drawerState.open() }
+                                                totalDrag = 0f
+                                            }
+                                        }
+                                    )
+                                }
+                        )
                     }
                 }
             }
