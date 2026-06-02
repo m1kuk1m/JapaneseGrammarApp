@@ -125,7 +125,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             
             ModalNavigationDrawer(
                 drawerState = drawerState,
-                gesturesEnabled = drawerState.isOpen,
+                gesturesEnabled = drawerState.isOpen || pagerState.settledPage == 0,
                 drawerContent = {
                     ModalDrawerSheet(
                         drawerContainerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
@@ -184,22 +184,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                         }
                     }
                     
-                    // Edge Swipe Interceptor for opening the drawer
-                    if (pagerState.currentPage == 0 && drawerState.isClosed) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .width(30.dp)
-                                .align(Alignment.CenterStart)
-                                .pointerInput(Unit) {
-                                    detectHorizontalDragGestures { _, dragAmount ->
-                                        if (dragAmount > 10) { // Swiping right
-                                            coroutineScope.launch { drawerState.open() }
-                                        }
-                                    }
-                                }
-                        )
-                    }
+                    // Removed Edge Swipe Interceptor to use native gestures
                 }
             }
             
