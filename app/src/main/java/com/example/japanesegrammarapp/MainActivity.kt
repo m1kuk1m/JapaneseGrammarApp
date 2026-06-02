@@ -1,6 +1,9 @@
 package com.example.japanesegrammarapp
 
 import android.os.Bundle
+import android.content.Intent
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,8 +23,16 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+    private val externalTextChannel = Channel<String>(Channel.BUFFERED)
+    val externalTextFlow = externalTextChannel.receiveAsFlow()
+
+    private val intentChannel = Channel<Intent>(Channel.BUFFERED)
+    val intentFlow = intentChannel.receiveAsFlow()
+
+    @androidx.compose.foundation.ExperimentalFoundationApi
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleIntent(intent)
         
         // Request the highest available refresh rate (120Hz / 90Hz) on the next frame loop to avoid blocking onCreate startup
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
@@ -67,7 +78,7 @@ class MainActivity : AppCompatActivity() {
                             contentScale = ContentScale.Crop
                         )
                     }
-                    AppNavigation()
+                    AppNavigation(externalTextFlow = externalTextFlow, intentFlow = intentFlow)
                 }
             }
         }
@@ -78,5 +89,22 @@ class MainActivity : AppCompatActivity() {
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         startActivity(intent)
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        intentChannel.trySend(intent)
+        val text = when (intent.action) {
+            Intent.ACTION_PROCESS_TEXT -> intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
+            Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)
+            else -> null
+        }
+        text?.takeIf { it.isNotBlank() }?.let {
+            externalTextChannel.trySend(it)
+        }
     }
 }

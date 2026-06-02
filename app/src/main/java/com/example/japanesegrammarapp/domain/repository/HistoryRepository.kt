@@ -10,6 +10,7 @@ interface HistoryRepository {
     val history: Flow<PagingData<AnalysisDomainRecord>>
     suspend fun getAllRecordsList(): List<AnalysisDomainRecord>
     suspend fun getRecordById(id: Int): AnalysisDomainRecord?
+    suspend fun getRecordByOriginalText(originalText: String): AnalysisDomainRecord?
     suspend fun insertRecord(record: AnalysisDomainRecord): Long
     suspend fun updateRecord(record: AnalysisDomainRecord)
     suspend fun deleteRecord(record: AnalysisDomainRecord)

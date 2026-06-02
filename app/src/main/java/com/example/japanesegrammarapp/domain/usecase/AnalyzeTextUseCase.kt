@@ -24,12 +24,12 @@ data class AnalysisProgress(
 
 @Singleton
 class AnalyzeTextUseCase @Inject constructor(
-    private val settingsRepository: SettingsRepository,
-    private val llmAnalysisService: LlmAnalysisService,
-    private val getOcrTextUseCase: GetOcrTextUseCase,
     private val saveAnalysisRecordUseCase: SaveAnalysisRecordUseCase,
+    private val getOcrTextUseCase: GetOcrTextUseCase,
+    private val llmAnalysisService: LlmAnalysisService,
+    private val detailedResultSerializer: DetailedResultSerializer,
     private val eventBus: AnalysisEventBus,
-    private val detailedResultSerializer: DetailedResultSerializer
+    private val settingsRepository: SettingsRepository
 ) {
     private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val activeJobs = ConcurrentHashMap<Int, Job>()
@@ -50,6 +50,14 @@ class AnalyzeTextUseCase @Inject constructor(
         }
         if (apiKey.isBlank()) {
             throw IllegalArgumentException("Missing API Key.")
+        }
+
+        // Fast-path for explicit text input: if a record already exists, return it directly
+        if (text.isNotBlank()) {
+            val duplicate = saveAnalysisRecordUseCase.getByOriginalText(text)
+            if (duplicate != null) {
+                return duplicate.id
+            }
         }
 
         val record = AnalysisDomainRecord(
@@ -128,18 +136,18 @@ class AnalyzeTextUseCase @Inject constructor(
             try {
                 // Fetch LLM API Configurations from Settings
                 val primaryProvider = settingsRepository.getActiveProvider()
+                val primaryBase = settingsRepository.getBaseProviderType(primaryProvider)
                 val primaryModel = settingsRepository.getActiveModel(primaryProvider)
-                val primaryKey = settingsRepository.getApiKey(primaryProvider)
-                val primaryUrl = settingsRepository.getApiUrl(primaryProvider)
+                val primaryEndpoints = settingsRepository.getApiEndpoints(primaryProvider).filter { it.isEnabled }
 
                 val backupProvider = settingsRepository.getBackupProvider()
+                val backupBase = if (backupProvider.isNotBlank()) settingsRepository.getBaseProviderType(backupProvider) else ""
                 val backupModel = settingsRepository.getBackupModel()
-                val backupKey = settingsRepository.getApiKey(backupProvider)
-                val backupUrl = settingsRepository.getApiUrl(backupProvider)
+                val backupEndpoints = if (backupProvider.isNotBlank()) settingsRepository.getApiEndpoints(backupProvider).filter { it.isEnabled } else emptyList()
 
-                val primaryConfig = LlmApiConfig(primaryProvider, primaryModel, primaryUrl, primaryKey)
-                val backupConfig = if (backupProvider.isNotBlank() && backupModel.isNotBlank() && backupKey.isNotBlank()) {
-                    LlmApiConfig(backupProvider, backupModel, backupUrl, backupKey)
+                val primaryConfig = LlmApiConfig(primaryProvider, primaryBase, primaryModel, primaryEndpoints)
+                val backupConfig = if (backupProvider.isNotBlank() && backupModel.isNotBlank() && backupEndpoints.isNotEmpty()) {
+                    LlmApiConfig(backupProvider, backupBase, backupModel, backupEndpoints)
                 } else null
 
                 // Perform OCR if needed
@@ -152,18 +160,22 @@ class AnalyzeTextUseCase @Inject constructor(
                 val imageBase64 = ocrResult.imagePayload?.base64Data
                 val mimeType = ocrResult.imagePayload?.mimeType
 
-                val retryListener = { attempt: Int ->
-                    repositoryScope.launch {
-                        eventBus.post(AnalysisEvent.LlmRetryTriggered(recordId, "LlmApi", attempt))
+                val getRetryListener = { step: AnalysisStep ->
+                    { attempt: Int ->
+                        repositoryScope.launch {
+                            eventBus.post(AnalysisEvent.LlmRetryTriggered(recordId, step, attempt))
+                        }
+                        Unit
                     }
-                    Unit
                 }
 
-                val backupListener = { backupProv: String ->
-                    repositoryScope.launch {
-                        eventBus.post(AnalysisEvent.LlmBackupTriggered(recordId, "LlmApi", backupProv))
+                val getBackupListener = { step: AnalysisStep ->
+                    { backupProv: String ->
+                        repositoryScope.launch {
+                            eventBus.post(AnalysisEvent.LlmBackupTriggered(recordId, step, backupProv))
+                        }
+                        Unit
                     }
-                    Unit
                 }
 
                 if (isOcrMode) {
@@ -178,8 +190,8 @@ class AnalyzeTextUseCase @Inject constructor(
                         imageTokenizerMode = imageTokenizerMode,
                         primaryConfig = primaryConfig,
                         backupConfig = backupConfig,
-                        onRetry = { attempt -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmRetryTriggered(recordId, "単語分割", attempt)) } },
-                        onBackup = { provider -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmBackupTriggered(recordId, "単語分割", provider)) } }
+                        onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
+                        onBackup = getBackupListener(AnalysisStep.TOKENIZATION)
                     )
                     val tokenObj = tokenRes.first
                     val metadata = tokenRes.second
@@ -190,6 +202,12 @@ class AnalyzeTextUseCase @Inject constructor(
                     if (!correctedText.isNullOrBlank() && correctedText != ocrText) {
                         effectiveText = correctedText
                         eventBus.post(AnalysisEvent.SpellingCorrectedTriggered(recordId, effectiveText))
+                    }
+
+                    val duplicateRecord = saveAnalysisRecordUseCase.getByOriginalText(effectiveText)
+                    if (duplicateRecord != null && duplicateRecord.id != recordId) {
+                        eventBus.post(AnalysisEvent.DuplicateFound(recordId, duplicateRecord.id))
+                        return@launch
                     }
 
                     val skeletonSegments = tokens.map { WordSegment(text = it) }
@@ -219,7 +237,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Translation
                         launch {
                             try {
-                                val res = llmAnalysisService.executeTranslation(effectiveText, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                val res = llmAnalysisService.executeTranslation(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.TRANSLATION), getBackupListener(AnalysisStep.TRANSLATION))
                                 val obj = res.first
                                 val meta = res.second
                                 val snapshotInner = partialResultMutex.withLock {
@@ -243,7 +261,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Clauses
                         launch {
                             try {
-                                val res = llmAnalysisService.executeClauses(effectiveText, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                val res = llmAnalysisService.executeClauses(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.CLAUSE_ANALYSIS), getBackupListener(AnalysisStep.CLAUSE_ANALYSIS))
                                 val obj = res.first
                                 val meta = res.second
                                 val snapshotInner = partialResultMutex.withLock {
@@ -267,7 +285,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Grammar
                         launch {
                             try {
-                                val res = llmAnalysisService.executeGrammar(effectiveText, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                val res = llmAnalysisService.executeGrammar(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION), getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION))
                                 val obj = res.first
                                 val meta = res.second
                                 val snapshotInner = partialResultMutex.withLock {
@@ -291,7 +309,7 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Segments (detailed segmentation analysis)
                         launch {
                             try {
-                                val res = llmAnalysisService.executeSegments(effectiveText, tokens, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                val res = llmAnalysisService.executeSegments(effectiveText, tokens, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.DETAILED_GRAMMAR), getBackupListener(AnalysisStep.DETAILED_GRAMMAR))
                                 val obj = res.first
                                 val meta = res.second
                                 val snapshotInner = partialResultMutex.withLock {
@@ -330,8 +348,8 @@ class AnalyzeTextUseCase @Inject constructor(
                             imageTokenizerMode = imageTokenizerMode,
                             primaryConfig = primaryConfig,
                             backupConfig = backupConfig,
-                            onRetry = { attempt -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmRetryTriggered(recordId, "単語分割", attempt)) } },
-                            onBackup = { provider -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmBackupTriggered(recordId, "単語分割", provider)) } }
+                            onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
+                            onBackup = getBackupListener(AnalysisStep.TOKENIZATION)
                         )
                         val tokenObj = tokenRes.first
                         val metadata = tokenRes.second
@@ -343,6 +361,12 @@ class AnalyzeTextUseCase @Inject constructor(
                             effectiveText = recognizedText
                         } else if (tokens.isNotEmpty()) {
                             effectiveText = tokens.joinToString("")
+                        }
+
+                        val duplicateRecord = saveAnalysisRecordUseCase.getByOriginalText(effectiveText)
+                        if (duplicateRecord != null && duplicateRecord.id != recordId) {
+                            eventBus.post(AnalysisEvent.DuplicateFound(recordId, duplicateRecord.id))
+                            return@launch
                         }
 
                         val skeletonSegments = tokens.map { WordSegment(text = it) }
@@ -372,7 +396,7 @@ class AnalyzeTextUseCase @Inject constructor(
                             // 1. Translation
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeTranslation(effectiveText, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                    val res = llmAnalysisService.executeTranslation(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.TRANSLATION), getBackupListener(AnalysisStep.TRANSLATION))
                                     val obj = res.first
                                     val meta = res.second
                                     val snapshotInner = partialResultMutex.withLock {
@@ -396,7 +420,7 @@ class AnalyzeTextUseCase @Inject constructor(
                             // 2. Clauses
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeClauses(effectiveText, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                    val res = llmAnalysisService.executeClauses(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.CLAUSE_ANALYSIS), getBackupListener(AnalysisStep.CLAUSE_ANALYSIS))
                                     val obj = res.first
                                     val meta = res.second
                                     val snapshotInner = partialResultMutex.withLock {
@@ -420,7 +444,7 @@ class AnalyzeTextUseCase @Inject constructor(
                             // 3. Grammar
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeGrammar(effectiveText, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                    val res = llmAnalysisService.executeGrammar(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION), getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION))
                                     val obj = res.first
                                     val meta = res.second
                                     val snapshotInner = partialResultMutex.withLock {
@@ -444,7 +468,7 @@ class AnalyzeTextUseCase @Inject constructor(
                             // 4. Segments
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeSegments(effectiveText, tokens, null, null, primaryConfig, backupConfig, retryListener, backupListener)
+                                    val res = llmAnalysisService.executeSegments(effectiveText, tokens, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.DETAILED_GRAMMAR), getBackupListener(AnalysisStep.DETAILED_GRAMMAR))
                                     val obj = res.first
                                     val meta = res.second
                                     val snapshotInner = partialResultMutex.withLock {
@@ -475,7 +499,7 @@ class AnalyzeTextUseCase @Inject constructor(
                             // 1. Translation
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeTranslation(text, imageBase64, mimeType, primaryConfig, backupConfig, retryListener, backupListener)
+                                    val res = llmAnalysisService.executeTranslation(text, imageBase64, mimeType, primaryConfig, backupConfig, getRetryListener(AnalysisStep.TRANSLATION), getBackupListener(AnalysisStep.TRANSLATION))
                                     val obj = res.first
                                     val meta = res.second
                                     val snapshotInner = partialResultMutex.withLock {
@@ -499,7 +523,7 @@ class AnalyzeTextUseCase @Inject constructor(
                             // 2. Clauses
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeClauses(text, imageBase64, mimeType, primaryConfig, backupConfig, retryListener, backupListener)
+                                    val res = llmAnalysisService.executeClauses(text, imageBase64, mimeType, primaryConfig, backupConfig, getRetryListener(AnalysisStep.CLAUSE_ANALYSIS), getBackupListener(AnalysisStep.CLAUSE_ANALYSIS))
                                     val obj = res.first
                                     val meta = res.second
                                     val snapshotInner = partialResultMutex.withLock {
@@ -523,7 +547,7 @@ class AnalyzeTextUseCase @Inject constructor(
                             // 3. Grammar
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeGrammar(text, imageBase64, mimeType, primaryConfig, backupConfig, retryListener, backupListener)
+                                    val res = llmAnalysisService.executeGrammar(text, imageBase64, mimeType, primaryConfig, backupConfig, getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION), getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION))
                                     val obj = res.first
                                     val meta = res.second
                                     val snapshotInner = partialResultMutex.withLock {
@@ -556,8 +580,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                         imageTokenizerMode = imageTokenizerMode,
                                         primaryConfig = primaryConfig,
                                         backupConfig = backupConfig,
-                                        onRetry = { attempt -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmRetryTriggered(recordId, "単語分割", attempt)) } },
-                                        onBackup = { provider -> repositoryScope.launch { eventBus.post(AnalysisEvent.LlmBackupTriggered(recordId, "単語分割", provider)) } }
+                                        onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
+                                        onBackup = getBackupListener(AnalysisStep.TOKENIZATION)
                                     )
                                     val tokenObj = tokenRes.first
                                     val tokenMeta = tokenRes.second
@@ -588,8 +612,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                         mimeType = mimeType,
                                         primaryConfig = primaryConfig,
                                         backupConfig = backupConfig,
-                                        onRetry = retryListener,
-                                        onBackup = backupListener
+                                        onRetry = getRetryListener(AnalysisStep.DETAILED_GRAMMAR),
+                                        onBackup = getBackupListener(AnalysisStep.DETAILED_GRAMMAR)
                                     )
                                     val segObj = resSeg.first
                                     val segMeta = resSeg.second
@@ -640,12 +664,7 @@ class AnalyzeTextUseCase @Inject constructor(
                     )
                     saveAnalysisRecordUseCase.update(updatedRecord)
 
-                    val displayMsg = if (updatedText.length > 10) {
-                        "「${updatedText.take(10)}...」の分析が完了しました"
-                    } else {
-                        "「${updatedText}」の分析が完了しました"
-                    }
-                    eventBus.post(AnalysisEvent.TaskCompleted(recordId, displayMsg))
+                    eventBus.post(AnalysisEvent.TaskCompleted(recordId, updatedText, updatedText.length > 10))
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
@@ -670,6 +689,7 @@ class AnalyzeTextUseCase @Inject constructor(
                             errorMessage = fullMessage
                         )
                     )
+                    eventBus.post(AnalysisEvent.TaskFailed(recordId, e))
                 }
             } finally {
                 dbWriteChannel.close()

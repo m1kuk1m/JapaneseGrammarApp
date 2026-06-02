@@ -23,6 +23,9 @@ interface AnalysisDao {
     @Query("SELECT * FROM analysis_records WHERE id = :id")
     suspend fun getRecordById(id: Int): AnalysisRecord?
 
+    @Query("SELECT * FROM analysis_records WHERE originalText = :originalText ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getRecordByOriginalText(originalText: String): AnalysisRecord?
+
     @Query("SELECT * FROM analysis_records ORDER BY timestamp DESC")
     fun getAllRecords(): androidx.paging.PagingSource<Int, AnalysisRecord>
 

@@ -81,16 +81,16 @@ fun WorkspaceResultContent(
             tonalElevation = 0.dp,
             shape = RoundedCornerShape(24.dp)
         ) {
-            SelectionContainer {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = stringResource(R.string.analysis_result_text_view),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = SumiInk.copy(alpha = 0.5f),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-                    Divider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(bottom = 8.dp))
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = stringResource(R.string.analysis_result_text_view),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = SumiInk.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                Divider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(bottom = 8.dp))
+                SelectionContainer {
                     Text(
                         text = rawResult ?: stringResource(R.string.no_analysis_result),
                         modifier = Modifier
@@ -106,14 +106,13 @@ fun WorkspaceResultContent(
     } else {
         var selectedSegmentIndex by remember(data) { mutableStateOf(-1) }
 
-            SelectionContainer {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState())
-                            .padding(vertical = 8.dp)
-                    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 8.dp)
+            ) {
                     // 1. Target Sentence Header with clickable chips
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -295,21 +294,23 @@ fun WorkspaceResultContent(
                                             shape = RoundedCornerShape(8.dp),
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Column(modifier = Modifier.padding(12.dp)) {
-                                                Text(
-                                                    text = stringResource(R.string.meaning),
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = KuriAmber.copy(alpha = 1.0f)
-                                                )
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                Text(
-                                                    text = currentSegment.meaning,
-                                                    fontSize = 14.sp,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = SumiInk,
-                                                    lineHeight = 20.sp
-                                                )
+                                            SelectionContainer {
+                                                Column(modifier = Modifier.padding(12.dp)) {
+                                                    Text(
+                                                        text = stringResource(R.string.meaning),
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = KuriAmber.copy(alpha = 1.0f)
+                                                    )
+                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    Text(
+                                                        text = currentSegment.meaning,
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = SumiInk,
+                                                        lineHeight = 20.sp
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -320,7 +321,22 @@ fun WorkspaceResultContent(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        val queryWord = currentSegment.dictionaryForm?.takeIf { it.isNotBlank() } ?: currentSegment.text ?: ""
+                                        var rawQueryWord = currentSegment.dictionaryForm?.takeIf { it.isNotBlank() } ?: currentSegment.text ?: ""
+                                        // 智能去尾：针对形容动词和某些特殊情况，去掉字典形末尾的 だ 或 な，以便查词典
+                                        if (currentSegment.partOfSpeech == "形容動詞" || currentSegment.partOfSpeech == "形状詞") {
+                                            rawQueryWord = rawQueryWord.removeSuffix("だ").removeSuffix("な").removeSuffix("に").removeSuffix("で")
+                                        } else {
+                                            // 应对有些大模型可能把普通名词也加了だ的情况，只要是以 だ/な 结尾，可以考虑去掉，但要小心
+                                            rawQueryWord = rawQueryWord.removeSuffix("だ")
+                                        }
+                                        
+                                        // 应对サ变动词，去掉末尾的“する”以便查词典（保留单字“する”）
+                                        if (rawQueryWord.endsWith("する") && rawQueryWord != "する") {
+                                            rawQueryWord = rawQueryWord.removeSuffix("する")
+                                        }
+                                        
+                                        val queryWord = rawQueryWord
+                                        
                                         if (queryWord.isNotBlank()) {
                                             val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
                                             var isDictMenuExpanded by remember { mutableStateOf(false) }
@@ -348,8 +364,8 @@ fun WorkspaceResultContent(
                                                         focusedTextColor = SumiInk
                                                     ),
                                                     shape = RoundedCornerShape(12.dp),
-                                                    modifier = Modifier.menuAnchor().fillMaxWidth().height(48.dp),
-                                                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp)
+                                                    modifier = Modifier.menuAnchor().fillMaxWidth().heightIn(min = 48.dp),
+                                                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
                                                 )
                                                 ExposedDropdownMenu(
                                                     expanded = isDictMenuExpanded,
@@ -357,12 +373,13 @@ fun WorkspaceResultContent(
                                                 ) {
                                                     DictionaryApp.values().forEach { dict ->
                                                         DropdownMenuItem(
-                                                            text = { Text(stringResource(dict.nameResId), fontSize = 13.sp) },
+                                                            text = { Text(stringResource(dict.nameResId), fontSize = 14.sp) },
                                                             onClick = {
                                                                 selectedDict = dict
                                                                 prefs.edit().putString("last_dict", dict.name).apply()
                                                                 isDictMenuExpanded = false
-                                                            }
+                                                            },
+                                                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
                                                         )
                                                     }
                                                 }
@@ -370,15 +387,15 @@ fun WorkspaceResultContent(
 
                                             FilledTonalButton(
                                                 onClick = { selectedDict.search(context, queryWord) },
-                                                contentPadding = PaddingValues(horizontal = 12.dp),
-                                                modifier = Modifier.height(36.dp),
+                                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                                modifier = Modifier.height(48.dp),
                                                 shape = RoundedCornerShape(12.dp),
                                                 colors = ButtonDefaults.filledTonalButtonColors(
                                                     containerColor = SumiInk,
                                                     contentColor = SurfaceColor
                                                 )
                                             ) {
-                                                Text(text = stringResource(R.string.search_in_dict), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                                Text(text = stringResource(R.string.search_in_dict), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                                             }
                                         }
                                     }
@@ -409,47 +426,49 @@ fun WorkspaceResultContent(
                         )
                     }
                     
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = SurfaceColor,
-                        shape = RoundedCornerShape(24.dp),
-                        shadowElevation = 3.dp,
-                        tonalElevation = 0.dp
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = SurfaceColor,
+                            shape = RoundedCornerShape(24.dp),
+                            shadowElevation = 3.dp,
+                            tonalElevation = 0.dp
                         ) {
-                             Surface(
-                                color = if (ZenThemeColors.isDark()) Color(0xFF3D1E1E) else SakuraPink,
-                                shape = RoundedCornerShape(4.dp),
-                                modifier = Modifier.padding(end = 12.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.translation_label),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (ZenThemeColors.isDark()) Color.White else Color(0xFF1E1E1E),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
-                            }
-                            if (data.translation.isNullOrBlank() && isPending) {
-                                Column(modifier = Modifier.weight(1f).padding(start = 2.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    ShimmerSkeleton(modifier = Modifier.fillMaxWidth().height(16.dp))
-                                    ShimmerSkeleton(modifier = Modifier.fillMaxWidth(0.7f).height(16.dp))
+                            SelectionContainer {
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                     Surface(
+                                        color = if (ZenThemeColors.isDark()) Color(0xFF3D1E1E) else SakuraPink,
+                                        shape = RoundedCornerShape(4.dp),
+                                        modifier = Modifier.padding(end = 12.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.translation_label),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (ZenThemeColors.isDark()) Color.White else Color(0xFF1E1E1E),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                    if (data.translation.isNullOrBlank() && isPending) {
+                                        Column(modifier = Modifier.weight(1f).padding(start = 2.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            ShimmerSkeleton(modifier = Modifier.fillMaxWidth().height(16.dp))
+                                            ShimmerSkeleton(modifier = Modifier.fillMaxWidth(0.7f).height(16.dp))
+                                        }
+                                    } else {
+                                        Text(
+                                            text = data.translation ?: "",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = SumiInk,
+                                            modifier = Modifier.weight(1f),
+                                            lineHeight = 20.sp
+                                        )
+                                    }
                                 }
-                            } else {
-                                Text(
-                                    text = data.translation ?: "",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = SumiInk,
-                                    modifier = Modifier.weight(1f),
-                                    lineHeight = 20.sp
-                                )
                             }
                         }
-                    }
                     
                     Spacer(modifier = Modifier.height(14.dp))
                     
@@ -481,75 +500,77 @@ fun WorkspaceResultContent(
                             shadowElevation = 3.dp,
                             tonalElevation = 0.dp
                         ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                if (data.clauses.isNullOrEmpty() && isPending) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                                        repeat(2) {
-                                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                                                ShimmerSkeleton(modifier = Modifier.width(14.dp).height(14.dp).padding(top = 4.dp))
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                                        ShimmerSkeleton(modifier = Modifier.width(36.dp).height(18.dp))
-                                                        ShimmerSkeleton(modifier = Modifier.width(60.dp).height(18.dp))
+                            SelectionContainer {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    if (data.clauses.isNullOrEmpty() && isPending) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                                            repeat(2) {
+                                                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                                                    ShimmerSkeleton(modifier = Modifier.width(14.dp).height(14.dp).padding(top = 4.dp))
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                            ShimmerSkeleton(modifier = Modifier.width(36.dp).height(18.dp))
+                                                            ShimmerSkeleton(modifier = Modifier.width(60.dp).height(18.dp))
+                                                        }
+                                                        ShimmerSkeleton(modifier = Modifier.fillMaxWidth().height(12.dp))
+                                                        ShimmerSkeleton(modifier = Modifier.fillMaxWidth(0.5f).height(12.dp))
                                                     }
-                                                    ShimmerSkeleton(modifier = Modifier.fillMaxWidth().height(12.dp))
-                                                    ShimmerSkeleton(modifier = Modifier.fillMaxWidth(0.5f).height(12.dp))
                                                 }
                                             }
                                         }
-                                    }
-                                } else {
-                                    data.clauses?.forEachIndexed { idx, clause ->
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.Top
-                                        ) {
-                                            Text(
-                                                text = "${clause.index}.",
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = SumiInk,
-                                                modifier = Modifier.width(22.dp)
-                                            )
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Surface(
-                                                        color = AizomeIndigo.copy(alpha = 0.35f),
-                                                        shape = RoundedCornerShape(4.dp)
+                                    } else {
+                                        data.clauses?.forEachIndexed { idx, clause ->
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.Top
+                                            ) {
+                                                Text(
+                                                    text = "${clause.index}.",
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = SumiInk,
+                                                    modifier = Modifier.width(22.dp)
+                                                )
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Row(
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
                                                     ) {
+                                                        Surface(
+                                                            color = AizomeIndigo.copy(alpha = 0.35f),
+                                                            shape = RoundedCornerShape(4.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = clause.role ?: "",
+                                                                fontSize = 10.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = SumiInk,
+                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            )
+                                                        }
                                                         Text(
-                                                            text = clause.role ?: "",
-                                                            fontSize = 10.sp,
+                                                            text = clause.text ?: "",
+                                                            fontSize = 14.sp,
                                                             fontWeight = FontWeight.Bold,
-                                                            color = SumiInk,
-                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            color = SumiInk
                                                         )
                                                     }
+                                                    Spacer(modifier = Modifier.height(4.dp))
                                                     Text(
-                                                        text = clause.text ?: "",
-                                                        fontSize = 14.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = SumiInk
+                                                        text = clause.explanation ?: "",
+                                                        fontSize = 13.sp,
+                                                        color = SumiInk.copy(alpha = 0.7f),
+                                                        lineHeight = 18.sp
                                                     )
                                                 }
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                Text(
-                                                    text = clause.explanation ?: "",
-                                                    fontSize = 13.sp,
-                                                    color = SumiInk.copy(alpha = 0.7f),
-                                                    lineHeight = 18.sp
+                                            }
+                                            if (idx < (data.clauses?.size ?: 0) - 1) {
+                                                Divider(
+                                                    modifier = Modifier.padding(vertical = 12.dp),
+                                                    color = SumiInk.copy(alpha = 0.08f)
                                                 )
                                             }
-                                        }
-                                        if (idx < (data.clauses?.size ?: 0) - 1) {
-                                            Divider(
-                                                modifier = Modifier.padding(vertical = 12.dp),
-                                                color = SumiInk.copy(alpha = 0.08f)
-                                            )
                                         }
                                     }
                                 }
@@ -586,59 +607,61 @@ fun WorkspaceResultContent(
                             shadowElevation = 3.dp,
                             tonalElevation = 0.dp
                         ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                if (data.grammarPoints.isNullOrEmpty() && isPending) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                                        repeat(2) {
-                                            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                                    ShimmerSkeleton(modifier = Modifier.width(32.dp).height(18.dp))
-                                                    ShimmerSkeleton(modifier = Modifier.width(100.dp).height(18.dp))
+                            SelectionContainer {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    if (data.grammarPoints.isNullOrEmpty() && isPending) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                                            repeat(2) {
+                                                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                        ShimmerSkeleton(modifier = Modifier.width(32.dp).height(18.dp))
+                                                        ShimmerSkeleton(modifier = Modifier.width(100.dp).height(18.dp))
+                                                    }
+                                                    ShimmerSkeleton(modifier = Modifier.fillMaxWidth().height(12.dp))
+                                                    ShimmerSkeleton(modifier = Modifier.fillMaxWidth(0.7f).height(12.dp))
                                                 }
-                                                ShimmerSkeleton(modifier = Modifier.fillMaxWidth().height(12.dp))
-                                                ShimmerSkeleton(modifier = Modifier.fillMaxWidth(0.7f).height(12.dp))
                                             }
                                         }
-                                    }
-                                } else {
-                                    data.grammarPoints?.forEachIndexed { idx, gp ->
-                                        Column(modifier = Modifier.fillMaxWidth()) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                 Surface(
-                                                     color = if (ZenThemeColors.isDark()) Color(0xFF1E3D1E) else MatchaGreen,
-                                                     shape = RoundedCornerShape(4.dp)
-                                                 ) {
-                                                     Text(
-                                                         text = stringResource(R.string.grammar_label),
-                                                         fontSize = 11.sp,
-                                                         fontWeight = FontWeight.Bold,
-                                                         color = if (ZenThemeColors.isDark()) Color.White else Color(0xFF1E1E1E),
-                                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                     )
-                                                 }
+                                    } else {
+                                        data.grammarPoints?.forEachIndexed { idx, gp ->
+                                            Column(modifier = Modifier.fillMaxWidth()) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                     Surface(
+                                                         color = if (ZenThemeColors.isDark()) Color(0xFF1E3D1E) else MatchaGreen,
+                                                         shape = RoundedCornerShape(4.dp)
+                                                     ) {
+                                                         Text(
+                                                             text = stringResource(R.string.grammar_label),
+                                                             fontSize = 11.sp,
+                                                             fontWeight = FontWeight.Bold,
+                                                             color = if (ZenThemeColors.isDark()) Color.White else Color(0xFF1E1E1E),
+                                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                         )
+                                                     }
+                                                    Text(
+                                                        text = gp.pattern ?: "",
+                                                        fontSize = 15.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = SumiInk
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.height(6.dp))
                                                 Text(
-                                                    text = gp.pattern ?: "",
-                                                    fontSize = 15.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = SumiInk
+                                                    text = gp.explanation ?: "",
+                                                    fontSize = 13.sp,
+                                                    color = SumiInk.copy(alpha = 0.8f),
+                                                    lineHeight = 20.sp
                                                 )
                                             }
-                                            Spacer(modifier = Modifier.height(6.dp))
-                                            Text(
-                                                text = gp.explanation ?: "",
-                                                fontSize = 13.sp,
-                                                color = SumiInk.copy(alpha = 0.8f),
-                                                lineHeight = 20.sp
-                                            )
-                                        }
-                                        if (idx < (data.grammarPoints?.size ?: 0) - 1) {
-                                            Divider(
-                                                modifier = Modifier.padding(vertical = 14.dp),
-                                                color = SumiInk.copy(alpha = 0.08f)
-                                            )
+                                            if (idx < (data.grammarPoints?.size ?: 0) - 1) {
+                                                Divider(
+                                                    modifier = Modifier.padding(vertical = 14.dp),
+                                                    color = SumiInk.copy(alpha = 0.08f)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -647,7 +670,6 @@ fun WorkspaceResultContent(
                         Spacer(modifier = Modifier.height(20.dp))
                     }
                 }
-            }
         }
     }
 }

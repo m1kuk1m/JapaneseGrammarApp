@@ -12,10 +12,12 @@ data class WorkspaceUiState(
     val selectedRecord: AnalysisDomainRecord? = null,
     val currentOriginalText: String = "",
     val useOcr: Boolean = true,
-    val imageTokenizerMode: String = "faithful",
+    val autoNavigateResult: Boolean = true,
+    val imageTokenizerMode: String = "repair",
     val analysisResult: String? = null,
     val detailedResult: DetailedAnalysisResult? = null,
     val isParsingDetailedResult: Boolean = false,
     val selectedRecordProgress: AnalysisProgress? = null,
-    val wallpaperUri: String = ""
+    val wallpaperUri: String = "",
+    val isExternalQuery: Boolean = false
 )

@@ -1,6 +1,24 @@
-package com.example.japanesegrammarapp.domain.repository
+﻿package com.example.japanesegrammarapp.domain.repository
+
+data class ApiEndpointConfig(
+    val id: String,
+    val name: String,
+    val url: String,
+    val key: String,
+    val isEnabled: Boolean = true
+)
 
 interface SettingsRepository {
+    fun getAllProviders(): List<String>
+    fun getBaseProviderType(providerId: String): String
+
+    fun getApiEndpoints(provider: String): List<ApiEndpointConfig>
+    fun saveApiEndpoints(provider: String, endpoints: List<ApiEndpointConfig>)
+    fun getApiKey(provider: String): String
+    fun saveApiKey(provider: String, key: String)
+    fun getApiUrl(provider: String): String
+    fun saveApiUrl(provider: String, url: String)
+
     fun getActiveProvider(): String
     fun setActiveProvider(provider: String)
     fun getActiveModel(provider: String): String
@@ -9,21 +27,23 @@ interface SettingsRepository {
     fun setUseOcr(value: Boolean)
     fun getImageTokenizerMode(): String
     fun setImageTokenizerMode(mode: String)
+    fun getAutoNavigateResult(): Boolean
+    fun setAutoNavigateResult(value: Boolean)
     fun getModelsForProvider(provider: String): List<String>
     fun saveModelsForProvider(provider: String, models: List<String>)
-    fun getApiKey(provider: String): String
-    fun saveApiKey(provider: String, key: String)
-    fun getApiUrl(provider: String): String
-    fun saveApiUrl(provider: String, url: String)
     fun getBackupProvider(): String
     fun setBackupProvider(provider: String)
     fun getBackupModel(): String
     fun setBackupModel(model: String)
-    
+
     fun getThemeMode(): String
     fun setThemeMode(mode: String)
     fun getWallpaperUri(): String
     fun setWallpaperUri(uri: String)
+    fun getGlobalFloatingEnabled(): Boolean
+    fun setGlobalFloatingEnabled(enabled: Boolean)
+    fun getGlobalFloatingAction(): Int
+    fun setGlobalFloatingAction(action: Int)
 
     val themeMode: kotlinx.coroutines.flow.StateFlow<String>
     val wallpaperUri: kotlinx.coroutines.flow.StateFlow<String>

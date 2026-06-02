@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- App General -->
     <string name="app_name">日语语法分析</string>
     <string name="app_title">语法分析</string>
     <string name="app_subtitle">AI为你清晰拆解日语语法结构</string>
-    
+
     <!-- Workspace -->
     <string name="target_sentence">分析对象</string>
     <string name="edit_and_reanalyze">编辑并重新分析</string>
@@ -23,7 +23,7 @@
     <string name="overall_translation">全文翻译</string>
     <string name="sentence_clauses">句子结构与解释</string>
     <string name="grammar_points">语法要点</string>
-    
+
     <!-- Input Form -->
     <string name="input_hint">在此输入日语...</string>
     <string name="settings">设置</string>
@@ -39,13 +39,13 @@
     <string name="camera">拍照</string>
     <string name="album">相册</string>
     <string name="start_parse">解析开始</string>
-    
+
     <!-- Sidebar -->
     <string name="history_title">历史记录</string>
     <string name="close">关闭</string>
     <string name="no_history">暂无记录</string>
     <string name="export_all">全部导出</string>
-    
+
     <!-- Settings -->
     <string name="settings_title">设置</string>
     <string name="appearance">外观</string>
@@ -57,18 +57,20 @@
     <string name="wallpaper">自定义壁纸</string>
     <string name="pick_wallpaper">选择图片</string>
     <string name="clear_wallpaper">清除</string>
-    
+
     <string name="general">常规</string>
     <string name="local_ocr">本地 OCR 提取文本</string>
     <string name="local_ocr_desc">关闭时，图片将直接发送给 AI 进行分析。</string>
+    <string name="auto_navigate_result">自动跳转分析结果</string>
+    <string name="auto_navigate_result_desc">使用悬浮球上传或拍照后自动跳转。关闭时将在后台分析，可稍后在历史记录查看。</string>
     <string name="token_usage">API Token 消耗量</string>
     <string name="token_usage_desc">所有分析消耗的 Token 总计</string>
-    
+
     <string name="api_config">API 优先级设置</string>
     <string name="main_api">主 API</string>
     <string name="backup_api">备用 API</string>
     <string name="credentials">API 凭据与模型管理</string>
-    
+
     <!-- Workspace Input -->
     <string name="model_label">模型：</string>
     <string name="select">选择</string>
@@ -79,7 +81,7 @@
     <string name="camera_capture">拍照</string>
     <string name="pick_image">选择图片</string>
     <string name="start_analysis">开始分析</string>
-    
+
     <!-- History Sidebar -->
     <string name="history_status_pending">分析中</string>
     <string name="history_status_error">错误</string>
@@ -96,7 +98,7 @@
     <string name="custom_hex">自定义 Hex (如 #FF5722)</string>
     <string name="main_model">主模型</string>
     <string name="backup_model">备用模型</string>
-    
+
     <string name="color_default">默认</string>
     <string name="color_sakura">樱粉</string>
     <string name="color_matcha">抹茶绿</string>
@@ -114,13 +116,13 @@
     <string name="delete_history_title">删除历史记录</string>
     <string name="delete_history_confirm">确定要删除“%1$s”的分析历史记录吗？</string>
     <string name="cancel">取消</string>
-    
+
     <!-- Export Selection Dialog -->
     <string name="export_history_title">选择导出历史记录</string>
     <string name="deselect_all">取消全选</string>
     <string name="select_all">全选</string>
     <string name="export_with_count">导出 (%1$d)</string>
-    
+
     <!-- Zen Loading View -->
     <string name="loading_title">AI 日语语法分析进行中</string>
     <string name="loading_subtitle">正在分析语法结构，请稍候。</string>
@@ -134,7 +136,7 @@
     <string name="step_3_desc">正在生成最符合语境的翻译和对照数据</string>
     <string name="step_4_title">核心语法深度解析</string>
     <string name="step_4_desc">正在为重要语法生成详细的解析卡片</string>
-    
+
     <!-- Workspace Result -->
     <string name="analysis_result_text_view">分析结果 (文本视图)</string>
     <string name="no_analysis_result">暂无分析结果。</string>
@@ -143,7 +145,7 @@
     <string name="close_details">关闭详情</string>
     <string name="translation_label">翻译</string>
     <string name="grammar_label">语法</string>
-    
+
     <!-- Settings Screen -->
     <string name="app_logs_title">应用日志 (开发者)</string>
     <string name="clear_logs">清除日志</string>
@@ -199,6 +201,26 @@
     <string name="camera_recapture_btn">重新拍摄/返回</string>
     <string name="camera_confirm_desc">确定</string>
     <string name="camera_confirm_btn">范围决定</string>
+    <string name="global_floating_ball">全局悬浮球</string>
+    <string name="global_floating_ball_desc">在其他应用上方显示悬浮操作球</string>
+    <string name="floating_ball_action">悬浮球主操作</string>
+    <string name="action_show_menu">显示菜单</string>
+    <string name="action_screen_ocr">屏幕 OCR</string>
+    <string name="action_camera">拍照</string>
+    <string name="action_text_input">文字输入</string>
+    <string name="floating_service_title">日语语法助手</string>
+    <string name="floating_service_desc">全局悬浮球正在运行</string>
+    <string name="overlay_permission_required">需要悬浮窗权限才能显示全局悬浮球。</string>
+    <string name="input_dialog_title">文字输入</string>
+    <string name="input_dialog_placeholder">输入要分析的日语文本...</string>
+    <string name="start_analysis_btn">开始分析</string>
+    <string name="floating_camera_permission_title">需要相机权限</string>
+    <string name="floating_camera_permission_desc">请先在应用相机页授予权限，然后即可在这里使用悬浮相机。</string>
+    <string name="floating_camera_capturing">拍摄中...</string>
+    <string name="floating_camera_unavailable">相机尚未准备好。</string>
+    <string name="floating_camera_capture_failed">拍照失败。</string>
+    <string name="ocr_overlay_empty">未检测到日语文字区域。请尝试更清晰的画面，或使用拍照/图片分析。</string>
+    <string name="ocr_overlay_processing">正在准备选中区域...</string>
     <string name="image_tokenizer_mode_title">图片分词识别模式</string>
     <string name="image_tokenizer_mode_faithful">清晰图片忠实原文</string>
     <string name="image_tokenizer_mode_faithful_desc">不修正、不脑补，严格保持图片里看到的文字。</string>
@@ -220,4 +242,30 @@
     <string name="dict_moji">MOJi辞书</string>
     <string name="dict_not_installed">未安装应用 %1$s</string>
     <string name="search_in_dict">查词典</string>
+    <string name="action_process_text">分析语法</string>
+
+    <!-- API Endpoints -->
+    <string name="api_endpoints_manage">API 节点池管理</string>
+    <string name="endpoint_name">节点名称</string>
+    <string name="delete_endpoint_confirm">确定要删除此节点吗？</string>
+
+    <!-- New UI Strings -->
+    <string name="copy_full_error_log">复制完整报错日志</string>
+    <string name="copy_logs">复制日志</string>
+    <string name="screen_ocr_active">屏幕 OCR 已激活</string>
+
+    <!-- Analysis Steps -->
+    <string name="step_tokenization">单词分割</string>
+    <string name="step_translation">翻译</string>
+    <string name="step_clause_analysis">句子结构分析</string>
+    <string name="step_grammar_explanation">语法解析</string>
+    <string name="step_detailed_grammar">详细语法解析</string>
+
+    <!-- Dynamic Analysis Messages -->
+    <string name="analysis_completed_short">“%1$s...” 的分析已完成</string>
+    <string name="analysis_completed_full">“%1$s” 的分析已完成</string>
+
+    <!-- Errors -->
+    <string name="error_both_api_failed">主API和备用API均调用失败。主API错误：%1$s。备用API错误：%2$s</string>
+    <string name="error_main_api_failed_no_backup">主API（%1$s）重试失败，且备用API未设置或无效。主API错误：%2$s</string>
 </resources>

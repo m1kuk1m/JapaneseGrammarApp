@@ -52,16 +52,27 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.paging.compose.collectAsLazyPagingItems
 
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventType
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel) {
+fun WorkspaceScreen(
+    navController: NavController, 
+    viewModel: WorkspaceViewModel,
+    drawerState: DrawerState = rememberDrawerState(initialValue = DrawerValue.Closed),
+    onNavigateToSettings: () -> Unit = {
+        if (navController.currentDestination?.route == "workspace") {
+            navController.navigate("settings")
+        }
+    }
+) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val WashiBg = MaterialTheme.colorScheme.background
     val PrimaryColor = MaterialTheme.colorScheme.primary
     val OnPrimaryColor = MaterialTheme.colorScheme.onPrimary
 
     val context = LocalContext.current
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
     
     val uiState by viewModel.uiState.collectAsState()
@@ -80,6 +91,10 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
     }
     var selectedImageUriState by remember { mutableStateOf<Uri?>(null) }
 
+    // OCR Overlay States
+    var ocrScreenshot by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var ocrDetectedBoxes by remember { mutableStateOf<List<android.graphics.Rect>>(emptyList()) }
+
     // Clear image uri when returning to homepage (no active record)
     LaunchedEffect(uiState.selectedRecord) {
         if (uiState.selectedRecord == null) {
@@ -92,17 +107,11 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
         coroutineScope.launch { drawerState.close() }
     }
 
-    androidx.activity.compose.BackHandler(enabled = !drawerState.isOpen && uiState.selectedRecord != null) {
+    androidx.activity.compose.BackHandler(enabled = !drawerState.isOpen && uiState.selectedRecord != null && !uiState.isExternalQuery) {
         viewModel.clearSelectedRecord()
     }
 
-    val navigateToSettings: () -> Unit = remember(navController) {
-        {
-            if (navController.currentDestination?.route == "workspace") {
-                navController.navigate("settings")
-            }
-        }
-    }
+    val navigateToSettings = onNavigateToSettings
 
     // Refresh settings when returning to workspace
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -147,8 +156,13 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                     snackbarHostState.showSnackbar(formattedMessage)
                 }
                 is UiEvent.TaskCompleted -> {
+                    val messageStr = if (event.isShortened) {
+                        context.getString(R.string.analysis_completed_short, event.analyzedText.take(10))
+                    } else {
+                        context.getString(R.string.analysis_completed_full, event.analyzedText)
+                    }
                     val result = snackbarHostState.showSnackbar(
-                        message = event.message,
+                        message = messageStr,
                         actionLabel = context.getString(R.string.show_action),
                         duration = SnackbarDuration.Short
                     )
@@ -189,14 +203,22 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                     if (uiState.useOcr) {
                         coroutineScope.launch {
                             val extracted = viewModel.extractTextFromImage(uri)
-                            textInputState = extracted
-                            viewModel.setCurrentOriginalText(extracted)
+                            if (uiState.autoNavigateResult) {
+                                textInputState = extracted
+                                viewModel.setCurrentOriginalText(extracted)
+                            }
                             if (extracted.isNotBlank()) {
+                                if (uiState.autoNavigateResult) {
+                                    viewModel.startNewAnalysisWithText(extracted)
+                                }
                                 viewModel.startAnalysis(extracted, uri)
                             }
                         }
                     } else {
-                        selectedImageUriState = uri
+                        if (uiState.autoNavigateResult) {
+                            selectedImageUriState = uri
+                            viewModel.startNewAnalysisWithText("")
+                        }
                         viewModel.startAnalysis("", uri)
                     }
                     cameraNavBackStackEntry.savedStateHandle["captured_image_uri"] = null
@@ -207,6 +229,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
     // Modal Drawer wrapper
     ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = true,
         drawerContent = {
             ModalDrawerSheet(
                 drawerContainerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
@@ -369,7 +392,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                                         onSelectedImageUriChanged = { uri -> selectedImageUriState = uri },
                                         onModelSelected = { model -> viewModel.setActiveModel(model) },
                                         onStartAnalysis = { text, uri ->
-                                            viewModel.startAnalysis(text, uri)
+                                            viewModel.startAnalysis(text, uri, forceNavigate = true)
                                         },
                                         onCancelAnalysis = {
                                             uiState.selectedRecord?.id?.let { viewModel.cancelAnalysis(it) }
@@ -421,21 +444,30 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
+                                            val isPending = uiState.selectedRecord?.status == AnalysisStatus.PENDING
                                             TextButton(
                                                 onClick = {
-                                                    uiState.selectedRecord?.let { viewModel.retryAnalysis(it.id) }
+                                                    uiState.selectedRecord?.let { record ->
+                                                        if (isPending) {
+                                                            viewModel.cancelAnalysis(record.id)
+                                                            viewModel.deleteRecord(record)
+                                                        } else {
+                                                            viewModel.deleteRecord(record)
+                                                            viewModel.clearSelectedRecord()
+                                                        }
+                                                    }
                                                 },
                                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                                                 colors = ButtonDefaults.textButtonColors(contentColor = SumiInk)
                                             ) {
                                                 Icon(
-                                                    imageVector = Icons.Default.Refresh,
-                                                    contentDescription = stringResource(R.string.retry),
+                                                    imageVector = if (isPending) Icons.Default.Close else Icons.Default.Delete,
+                                                    contentDescription = stringResource(if (isPending) R.string.cancel else R.string.delete),
                                                     modifier = Modifier.size(14.dp)
                                                 )
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 Text(
-                                                    text = stringResource(R.string.retry),
+                                                    text = stringResource(if (isPending) R.string.cancel else R.string.delete),
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )
@@ -462,14 +494,16 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                                         }
                                     }
 
-                                    Text(
-                                        text = currentText.ifBlank { stringResource(R.string.image_analysis) },
-                                        fontSize = 14.sp,
-                                        color = SumiInk,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
+                                    androidx.compose.foundation.text.selection.SelectionContainer {
+                                        Text(
+                                            text = currentText.ifBlank { stringResource(R.string.image_analysis) },
+                                            fontSize = 14.sp,
+                                            color = SumiInk,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                    }
                                 }
                             }
 
@@ -561,7 +595,7 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                                                                  modifier = Modifier.size(14.dp)
                                                              )
                                                              Spacer(modifier = Modifier.width(4.dp))
-                                                             Text("复制完整报错日志", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                             Text(stringResource(R.string.copy_full_error_log), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                                          }
                                                         Spacer(modifier = Modifier.height(16.dp))
                                                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -638,19 +672,24 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
     }
 
     // Input Dialog for Floating Action Ball
-    var showInputDialog by remember { mutableStateOf(false) }
+    val showInputDialogFromVm by viewModel.showInputDialog.collectAsState()
+    var showInputDialogLocal by remember { mutableStateOf(false) }
+    val showInputDialog = showInputDialogFromVm || showInputDialogLocal
     var inputText by remember { mutableStateOf("") }
     
     if (showInputDialog) {
         AlertDialog(
-            onDismissRequest = { showInputDialog = false },
-            title = { Text("文字入力", fontWeight = FontWeight.Bold, color = SumiInk) },
+            onDismissRequest = { 
+                showInputDialogLocal = false
+                viewModel.hideGlobalInputDialog() 
+            },
+            title = { Text(stringResource(R.string.input_dialog_title), fontWeight = FontWeight.Bold, color = SumiInk) },
             text = {
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
-                    placeholder = { Text("分析したいテキストを入力してください...") },
+                    placeholder = { Text(stringResource(R.string.input_dialog_placeholder)) },
                     colors = TextFieldDefaults.outlinedTextFieldColors(
                         focusedBorderColor = PrimaryColor,
                         unfocusedBorderColor = SumiInk.copy(alpha = 0.2f)
@@ -661,18 +700,27 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
                 Button(
                     onClick = {
                         if (inputText.isNotBlank()) {
-                            viewModel.startNewAnalysisWithText(inputText)
+                            if (uiState.autoNavigateResult) {
+                                viewModel.startNewAnalysisWithText(inputText)
+                                viewModel.startAnalysis(inputText, null, forceNavigate = true)
+                            } else {
+                                viewModel.startAnalysis(inputText, null)
+                            }
                         }
-                        showInputDialog = false
+                        showInputDialogLocal = false
+                        viewModel.hideGlobalInputDialog()
                         inputText = ""
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor, contentColor = OnPrimaryColor)
                 ) {
-                    Text("分析開始", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.start_analysis_btn), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showInputDialog = false }) {
+                TextButton(onClick = { 
+                    showInputDialogLocal = false
+                    viewModel.hideGlobalInputDialog()
+                }) {
                     Text(stringResource(R.string.cancel), color = SumiInk)
                 }
             },
@@ -681,8 +729,26 @@ fun WorkspaceScreen(navController: NavController, viewModel: WorkspaceViewModel)
     }
 
     // Floating Action Ball
-    FloatingActionBall(
-        onTextClick = { showInputDialog = true },
-        onCameraClick = { navController.navigate("camera") }
-    )
+    val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+    var globalFloatingEnabled by remember { mutableStateOf(prefs.getBoolean("global_floating_enabled", false)) }
+    
+    // Listen for preference changes so it updates instantly if changed in settings
+    DisposableEffect(prefs) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, key ->
+            if (key == "global_floating_enabled") {
+                globalFloatingEnabled = sharedPrefs.getBoolean(key, false)
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+    if (!globalFloatingEnabled) {
+        FloatingActionBall(
+            onTextClick = { showInputDialogLocal = true },
+            onCameraClick = { navController.navigate("camera") }
+        )
+    }
 }

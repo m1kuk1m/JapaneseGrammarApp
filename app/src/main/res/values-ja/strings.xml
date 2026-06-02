@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- App General -->
     <string name="app_name">日本語文法分析</string>
     <string name="app_title">文法分析</string>
     <string name="app_subtitle">AIが日本語の文法構造をわかりやすく解説します</string>
-    
+
     <!-- Workspace -->
     <string name="target_sentence">分析対象</string>
     <string name="edit_and_reanalyze">編集して再分析</string>
@@ -23,7 +23,7 @@
     <string name="overall_translation">全体の翻訳</string>
     <string name="sentence_clauses">文の構造と解釈</string>
     <string name="grammar_points">文法ポイント</string>
-    
+
     <!-- Input Form -->
     <string name="input_hint">ここに日本語を入力してください...</string>
     <string name="settings">設定</string>
@@ -39,13 +39,13 @@
     <string name="camera">カメラ</string>
     <string name="album">アルバム</string>
     <string name="start_parse">解析開始</string>
-    
+
     <!-- Sidebar -->
     <string name="history_title">履歴</string>
     <string name="close">閉じる</string>
     <string name="no_history">履歴がありません</string>
     <string name="export_all">全てエクスポート</string>
-    
+
     <!-- Settings -->
     <string name="settings_title">設定</string>
     <string name="appearance">外観</string>
@@ -57,18 +57,20 @@
     <string name="wallpaper">壁紙</string>
     <string name="pick_wallpaper">画像を選択</string>
     <string name="clear_wallpaper">クリア</string>
-    
+
     <string name="general">一般設定</string>
     <string name="local_ocr">ローカルOCRでテキスト抽出</string>
     <string name="local_ocr_desc">オフにすると、画像を直接AIに送信して分析します。</string>
+    <string name="auto_navigate_result">分析結果へ自動ジャンプ</string>
+    <string name="auto_navigate_result_desc">フローティングボタンからアップロード後、自動で結果画面に移動します。オフの場合はバックグラウンドで分析し、履歴から確認できます。</string>
     <string name="token_usage">APIトークン消費量（累計）</string>
     <string name="token_usage_desc">すべての分析で消費されたトークンの合計です。</string>
-    
+
     <string name="api_config">API優先度設定</string>
     <string name="main_api">メインAPI</string>
     <string name="backup_api">予備API</string>
     <string name="credentials">API設定とモデル管理</string>
-    
+
     <!-- Workspace Input -->
     <string name="model_label">モデル：</string>
     <string name="select">選択</string>
@@ -79,7 +81,7 @@
     <string name="camera_capture">カメラで撮影</string>
     <string name="pick_image">画像を選択</string>
     <string name="start_analysis">分析開始</string>
-    
+
     <!-- History Sidebar -->
     <string name="history_status_pending">分析中</string>
     <string name="history_status_error">エラー</string>
@@ -114,13 +116,13 @@
     <string name="delete_history_title">履歴の削除</string>
     <string name="delete_history_confirm">「%1$s」の分析履歴を削除しますか？</string>
     <string name="cancel">キャンセル</string>
-    
+
     <!-- Export Selection Dialog -->
     <string name="export_history_title">エクスポート履歴の選択</string>
     <string name="deselect_all">選択をすべて解除</string>
     <string name="select_all">すべて選択</string>
     <string name="export_with_count">エクスポート (%1$d)</string>
-    
+
     <!-- Zen Loading View -->
     <string name="loading_title">AIによる日本語文法解析中</string>
     <string name="loading_subtitle">文法の構造を分析しています。少々お待ちください。</string>
@@ -134,7 +136,7 @@
     <string name="step_3_desc">適切な翻訳と対照データを生成しています</string>
     <string name="step_4_title">詳細な文法解説・アドバイスの構築</string>
     <string name="step_4_desc">重要文法の詳細な解説カードを作成しています</string>
-    
+
     <!-- Workspace Result -->
     <string name="analysis_result_text_view">分析結果 (テキスト表示)</string>
     <string name="no_analysis_result">分析結果はありません。</string>
@@ -143,7 +145,7 @@
     <string name="close_details">詳細を閉じる</string>
     <string name="translation_label">翻訳</string>
     <string name="grammar_label">文法</string>
-    
+
     <!-- Settings Screen -->
     <string name="app_logs_title">アプリログ (開発者向け)</string>
     <string name="clear_logs">ログ消去</string>
@@ -199,6 +201,26 @@
     <string name="camera_recapture_btn">再撮影/戻る</string>
     <string name="camera_confirm_desc">確定</string>
     <string name="camera_confirm_btn">範囲決定</string>
+    <string name="global_floating_ball">グローバル浮遊ボタン</string>
+    <string name="global_floating_ball_desc">他のアプリの上に操作ボタンを表示します</string>
+    <string name="floating_ball_action">浮遊ボタンの主操作</string>
+    <string name="action_show_menu">メニューを表示</string>
+    <string name="action_screen_ocr">画面 OCR</string>
+    <string name="action_camera">カメラ</string>
+    <string name="action_text_input">テキスト入力</string>
+    <string name="floating_service_title">日本語文法アプリ</string>
+    <string name="floating_service_desc">グローバル浮遊ボタンが有効です</string>
+    <string name="overlay_permission_required">グローバル浮遊ボタンを表示するには、オーバーレイ権限が必要です。</string>
+    <string name="input_dialog_title">テキスト入力</string>
+    <string name="input_dialog_placeholder">分析するテキストを入力...</string>
+    <string name="start_analysis_btn">分析開始</string>
+    <string name="floating_camera_permission_title">カメラ権限が必要です</string>
+    <string name="floating_camera_permission_desc">先にアプリのカメラ画面で権限を許可すると、ここで浮遊カメラを使えます。</string>
+    <string name="floating_camera_capturing">撮影中...</string>
+    <string name="floating_camera_unavailable">カメラの準備がまだ完了していません。</string>
+    <string name="floating_camera_capture_failed">撮影に失敗しました。</string>
+    <string name="ocr_overlay_empty">日本語テキスト領域が検出されませんでした。より鮮明な画面にするか、カメラ/画像分析をお試しください。</string>
+    <string name="ocr_overlay_processing">選択範囲を準備中...</string>
     <string name="image_tokenizer_mode_title">画像分かち書き認識モード</string>
     <string name="image_tokenizer_mode_faithful">鮮明画像・原文忠実</string>
     <string name="image_tokenizer_mode_faithful_desc">修正や推測をせず、画像に見える文字をそのまま保持します。</string>
@@ -220,4 +242,30 @@
     <string name="dict_moji">MOJi辞書</string>
     <string name="dict_not_installed">アプリ %1$s がインストールされていません。</string>
     <string name="search_in_dict">辞書で引く</string>
+    <string name="action_process_text">文法分析</string>
+
+    <!-- API Endpoints -->
+    <string name="api_endpoints_manage">APIエンドポイント管理</string>
+    <string name="endpoint_name">エンドポイント名</string>
+    <string name="delete_endpoint_confirm">このエンドポイントを削除してもよろしいですか？</string>
+
+    <!-- New UI Strings -->
+    <string name="copy_full_error_log">完全なエラーログをコピー</string>
+    <string name="copy_logs">ログをコピー</string>
+    <string name="screen_ocr_active">画面OCRがアクティブです</string>
+
+    <!-- Analysis Steps -->
+    <string name="step_tokenization">単語分割</string>
+    <string name="step_translation">翻訳</string>
+    <string name="step_clause_analysis">文節解析</string>
+    <string name="step_grammar_explanation">文法解説</string>
+    <string name="step_detailed_grammar">詳細文法解析</string>
+
+    <!-- Dynamic Analysis Messages -->
+    <string name="analysis_completed_short">「%1$s...」の分析が完了しました</string>
+    <string name="analysis_completed_full">「%1$s」の分析が完了しました</string>
+
+    <!-- Errors -->
+    <string name="error_both_api_failed">メインAPIおよび予備APIの呼び出しに失敗しました。メインAPIエラー: %1$s。予備APIエラー: %2$s</string>
+    <string name="error_main_api_failed_no_backup">メインAPI（%1$s）の再試行に失敗し、予備APIが設定されていないか有効ではありません。メインAPIエラー: %2$s</string>
 </resources>

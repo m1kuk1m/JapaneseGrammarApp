@@ -28,7 +28,7 @@ sealed class UiEvent {
     data class ShowError(val message: String) : UiEvent()
     data class ShowLocalizedError(val resId: Int, val args: List<Any> = emptyList()) : UiEvent()
     object NavigateToResult : UiEvent()
-    data class TaskCompleted(val recordId: Int, val message: String) : UiEvent()
+    data class TaskCompleted(val recordId: Int, val analyzedText: String, val isShortened: Boolean) : UiEvent()
     data class ExportRecordEvent(val record: com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord, val filename: String) : UiEvent()
     data class ExportAllHistoryEvent(val records: List<com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord>, val filename: String) : UiEvent()
 }
@@ -87,6 +87,17 @@ class WorkspaceViewModel @Inject constructor(
     private val _uiEvent = MutableSharedFlow<UiEvent>(extraBufferCapacity = 10)
     val uiEvent: SharedFlow<UiEvent> = _uiEvent.asSharedFlow()
 
+    private val _showInputDialog = MutableStateFlow(false)
+    val showInputDialog: StateFlow<Boolean> = _showInputDialog.asStateFlow()
+
+    fun showGlobalInputDialog() {
+        _showInputDialog.value = true
+    }
+
+    fun hideGlobalInputDialog() {
+        _showInputDialog.value = false
+    }
+
     init {
         refreshSettings()
 
@@ -102,7 +113,7 @@ class WorkspaceViewModel @Inject constructor(
                     is AnalysisEvent.TaskCompleted -> {
                         val currentSelected = _uiState.value.selectedRecord
                         if (currentSelected == null || currentSelected.id != event.recordId) {
-                            _uiEvent.emit(UiEvent.TaskCompleted(event.recordId, event.message))
+                            _uiEvent.emit(UiEvent.TaskCompleted(event.recordId, event.analyzedText, event.isShortened))
                         } else {
                             refreshSelectedRecordFromRepository(event.recordId, clearProgress = true)
                         }
@@ -114,10 +125,27 @@ class WorkspaceViewModel @Inject constructor(
                         _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.spelling_corrected_toast))
                     }
                     is AnalysisEvent.LlmRetryTriggered -> {
-                        _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.llm_retry_toast, listOf(event.apiTypeLabel, event.attempt)))
+                        _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.llm_retry_toast, listOf(event.step.labelResId, event.attempt)))
                     }
                     is AnalysisEvent.LlmBackupTriggered -> {
-                        _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.llm_backup_toast, listOf(event.apiTypeLabel, event.backupProvider)))
+                        _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.llm_backup_toast, listOf(event.step.labelResId, event.backupProvider)))
+                    }
+                    is AnalysisEvent.DuplicateFound -> {
+                        cancelAnalysis(event.currentRecordId)
+                        selectRecordById(event.existingRecordId)
+                        _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.analysis_started_toast)) // Or a custom message, but existing toast is fine or none
+                    }
+                    is AnalysisEvent.TaskFailed -> {
+                        val e = event.exception
+                        if (e is com.example.japanesegrammarapp.domain.model.LlmApiFailedException) {
+                            if (e.isBackupUsed) {
+                                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.error_both_api_failed, listOf(e.mainErrorMessage ?: "", e.backupErrorMessage ?: "")))
+                            } else {
+                                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.error_main_api_failed_no_backup, listOf(e.mainProvider, e.mainErrorMessage ?: "")))
+                            }
+                        } else {
+                            _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.unknown_error))
+                        }
                     }
                 }
             }
@@ -145,6 +173,7 @@ class WorkspaceViewModel @Inject constructor(
             val providerModels = LlmConfig.providers.associateWith { settingsRepository.getModelsForProvider(it) }
             val activeModel = settingsRepository.getActiveModel(activeProvider)
             val useOcr = settingsRepository.getUseOcr()
+            val autoNavigateResult = settingsRepository.getAutoNavigateResult()
             val imageTokenizerMode = settingsRepository.getImageTokenizerMode()
 
             val models = providerModels[activeProvider] ?: emptyList()
@@ -155,6 +184,7 @@ class WorkspaceViewModel @Inject constructor(
                     activeProvider = activeProvider,
                     activeModel = finalActiveModel,
                     useOcr = useOcr,
+                    autoNavigateResult = autoNavigateResult,
                     imageTokenizerMode = imageTokenizerMode,
                     providerModels = providerModels,
                     availableModels = models
@@ -163,33 +193,34 @@ class WorkspaceViewModel @Inject constructor(
         }
     }
 
-    fun selectRecord(record: AnalysisDomainRecord) {
+    fun selectRecord(record: AnalysisDomainRecord, clearExternalQuery: Boolean = true) {
         val current = _uiState.value.selectedRecord
         if (current?.id == record.id && current.analysisResult == record.analysisResult && current.status == record.status) {
             return
         }
 
-        _uiState.update { it.copy(isParsingDetailedResult = true) }
+        _uiState.update { it.copy(isParsingDetailedResult = true, isExternalQuery = if (clearExternalQuery) false else it.isExternalQuery) }
         viewModelScope.launch(Dispatchers.IO) {
-            val detail = analyzeTextUseCase.parseDetailedResult(record.originalText, record.analysisResult)
+            val freshRecord = historyRepository.getRecordById(record.id) ?: record
+            val detail = analyzeTextUseCase.parseDetailedResult(freshRecord.originalText, freshRecord.analysisResult)
             _uiState.update { it.copy(
-                selectedRecord = record,
-                currentOriginalText = record.originalText,
-                analysisResult = record.analysisResult,
+                selectedRecord = freshRecord,
+                currentOriginalText = freshRecord.originalText,
+                analysisResult = freshRecord.analysisResult,
                 detailedResult = detail,
                 isParsingDetailedResult = false,
-                selectedRecordProgress = if (record.status != AnalysisStatus.COMPLETED) {
-                    analyzeTextUseCase.progressFlow.value[record.id]
+                selectedRecordProgress = if (freshRecord.status != AnalysisStatus.COMPLETED) {
+                    analyzeTextUseCase.progressFlow.value[freshRecord.id]
                 } else null
             ) }
         }
     }
 
-    fun selectRecordById(recordId: Int) {
+    fun selectRecordById(recordId: Int, clearExternalQuery: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
             val record = historyRepository.getRecordById(recordId)
             if (record != null) {
-                selectRecord(record)
+                selectRecord(record, clearExternalQuery = clearExternalQuery)
             }
         }
     }
@@ -226,18 +257,20 @@ class WorkspaceViewModel @Inject constructor(
             analysisResult = null,
             detailedResult = null,
             isParsingDetailedResult = false,
-            selectedRecordProgress = null
+            selectedRecordProgress = null,
+            isExternalQuery = false
         ) }
     }
 
-    fun startNewAnalysisWithText(text: String) {
+    fun startNewAnalysisWithText(text: String, isExternal: Boolean = false) {
         _uiState.update { it.copy(
             selectedRecord = null,
             currentOriginalText = text,
             analysisResult = null,
             detailedResult = null,
             isParsingDetailedResult = false,
-            selectedRecordProgress = null
+            selectedRecordProgress = null,
+            isExternalQuery = isExternal
         ) }
     }
 
@@ -256,13 +289,14 @@ class WorkspaceViewModel @Inject constructor(
         _uiState.update { it.copy(activeModel = model) }
     }
 
-    fun startAnalysis(text: String, imageUri: Uri?) {
+    fun startAnalysis(text: String, imageUri: Uri?, forceNavigate: Boolean = false) {
         viewModelScope.launch {
             val provider = _uiState.value.activeProvider
             val model = _uiState.value.activeModel.ifBlank { "default" }
             val key = getApiKey(provider)
             val url = getApiUrl(provider)
-            analyzeText(text, imageUri, provider, model, url, key)
+            val autoNavigate = forceNavigate || _uiState.value.autoNavigateResult
+            analyzeText(text, imageUri, provider, model, url, key, autoNavigate)
         }
     }
 
@@ -272,17 +306,19 @@ class WorkspaceViewModel @Inject constructor(
         provider: String,
         modelName: String,
         baseUrl: String,
-        apiKey: String
+        apiKey: String,
+        autoNavigate: Boolean = true
     ) {
         viewModelScope.launch {
             try {
                 val recordId = analyzeTextUseCase.execute(text, imageUri?.toString(), provider, modelName, baseUrl, apiKey)
-                val record = historyRepository.getRecordById(recordId)
-                if (record != null) {
-                    _uiState.update { it.copy(selectedRecord = record) }
+                if (autoNavigate) {
+                    selectRecordById(recordId)
+                } else {
+                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.analysis_started_toast))
                 }
             } catch (e: Exception) {
-                _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: "Analysis failed to start"))
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.error_analysis_failed_to_start))
             }
         }
     }
@@ -348,11 +384,25 @@ class WorkspaceViewModel @Inject constructor(
             val segments = detail.segments
             if (!segments.isNullOrEmpty()) {
                 val readingText = segments.joinToString("") { segment: WordSegment ->
-                    val reading = segment.reading
-                    if (!reading.isNullOrBlank()) reading else (segment.text ?: "")
+                    val text = segment.text ?: ""
+                    val isPunctuation = text.matches(Regex("^[、。！？!?，．…\\s]+$")) || (segment.partOfSpeech?.contains("補助記号") == true)
+                    
+                    if (isPunctuation) {
+                        text
+                    } else {
+                        val reading = segment.reading
+                        if (!reading.isNullOrBlank()) reading else text
+                    }
                 }
                 if (readingText.isNotBlank()) {
-                    ttsRepository.playText(readingText)
+                    // TTS引擎如果收到纯假名可能没有起伏，但有些引擎也会读错发音。
+                    // 这里为了防止拼写出的标点被读出来（如“マル”），使用替换来做最后一道防线
+                    val cleanedReading = readingText
+                        .replace("マル", "。")
+                        .replace("テン", "、")
+                        .replace("まる", "。")
+                        .replace("てん", "、")
+                    ttsRepository.playText(cleanedReading)
                     return
                 }
             }

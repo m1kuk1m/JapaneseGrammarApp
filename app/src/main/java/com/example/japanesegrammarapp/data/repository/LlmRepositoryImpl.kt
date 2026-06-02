@@ -61,12 +61,13 @@ class LlmRepositoryImpl @Inject constructor(
         imageBase64: String?,
         mimeType: String?,
         provider: String,
+        baseProvider: String,
         modelName: String,
         effectiveUrl: String,
         apiKey: String
     ): LlmResult {
-        return when (provider) {
-            "DeepSeek", "OpenAI Compatible", "Qwen" -> {
+        return when (baseProvider) {
+            "OpenAI", "DeepSeek", "OpenAI Compatible", "Qwen" -> {
                 val cleanBase = effectiveUrl.trimEnd('/')
                 val url = "$cleanBase/chat/completions"
 
@@ -149,13 +150,15 @@ class LlmRepositoryImpl @Inject constructor(
     ): LlmResult {
         val primaryProvider = primaryConfig.provider
         val primaryModel = primaryConfig.modelName
-        val primaryKey = primaryConfig.apiKey
-        val primaryUrl = primaryConfig.baseUrl
+        val primaryKey = primaryConfig.endpoints.firstOrNull { it.isEnabled }?.key ?: primaryConfig.endpoints.firstOrNull()?.key ?: ""
+        val primaryUrl = primaryConfig.endpoints.firstOrNull { it.isEnabled }?.url ?: primaryConfig.endpoints.firstOrNull()?.url ?: ""
+        val primaryBaseProvider = primaryConfig.baseProvider
 
         val backupProvider = backupConfig?.provider ?: ""
         val backupModel = backupConfig?.modelName ?: ""
-        val backupKey = backupConfig?.apiKey ?: ""
-        val backupUrl = backupConfig?.baseUrl ?: ""
+        val backupKey = backupConfig?.endpoints?.firstOrNull { it.isEnabled }?.key ?: backupConfig?.endpoints?.firstOrNull()?.key ?: ""
+        val backupUrl = backupConfig?.endpoints?.firstOrNull { it.isEnabled }?.url ?: backupConfig?.endpoints?.firstOrNull()?.url ?: ""
+        val backupBaseProvider = backupConfig?.baseProvider ?: ""
 
         var attempt = 0
         val maxRetries = 2
@@ -169,6 +172,7 @@ class LlmRepositoryImpl @Inject constructor(
                     imageBase64 = imageBase64,
                     mimeType = mimeType,
                     provider = primaryProvider,
+                    baseProvider = primaryBaseProvider,
                     modelName = primaryModel,
                     effectiveUrl = primaryUrl,
                     apiKey = primaryKey
@@ -191,7 +195,7 @@ class LlmRepositoryImpl @Inject constructor(
         if (backupProvider.isBlank() || backupModel.isBlank() || backupKey.isBlank()) {
             val errorMsg = "メインAPI（${apiTypeLabel}）の再試行に失敗し、予備APIが設定されていないか有効ではありません。メインAPIエラー: ${lastException?.localizedMessage}"
             com.example.japanesegrammarapp.utils.AppLogger.e("LLM_API", errorMsg, lastException)
-            throw Exception(errorMsg, lastException)
+            throw com.example.japanesegrammarapp.domain.model.LlmApiFailedException(primaryProvider, lastException?.localizedMessage, false, null, null)
         }
 
         onBackup(backupProvider)
@@ -203,14 +207,15 @@ class LlmRepositoryImpl @Inject constructor(
                 imageBase64 = imageBase64,
                 mimeType = mimeType,
                 provider = backupProvider,
+                baseProvider = backupBaseProvider,
                 modelName = backupModel,
                 effectiveUrl = backupUrl,
                 apiKey = backupKey
             )
         } catch (e: Exception) {
-            val errorMsg = "メインAPIおよび予備API的呼び出しに失败しました。メインAPIエラー: ${lastException?.localizedMessage}。予備APIエラー: ${e.localizedMessage}"
+            val errorMsg = "メインAPIおよび予備APIの呼び出しに失敗しました。メインAPIエラー: ${lastException?.localizedMessage}。予備APIエラー: ${e.localizedMessage}"
             com.example.japanesegrammarapp.utils.AppLogger.e("LLM_API", errorMsg, e)
-            throw Exception("メインAPIおよび予備APIの呼び出しに失敗しました。メインAPIエラー: ${lastException?.localizedMessage}。予備APIエラー: ${e.localizedMessage}", e)
+            throw com.example.japanesegrammarapp.domain.model.LlmApiFailedException(primaryProvider, lastException?.localizedMessage, true, backupProvider, e.localizedMessage)
         }
     }
 }

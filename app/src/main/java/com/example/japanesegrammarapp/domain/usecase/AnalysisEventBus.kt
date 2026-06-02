@@ -9,7 +9,7 @@ import javax.inject.Singleton
 
 @Singleton
 class AnalysisEventBus @Inject constructor() {
-    private val _events = MutableSharedFlow<AnalysisEvent>(extraBufferCapacity = 64)
+    private val _events = MutableSharedFlow<AnalysisEvent>()
     val events: SharedFlow<AnalysisEvent> = _events.asSharedFlow()
 
     suspend fun post(event: AnalysisEvent) {

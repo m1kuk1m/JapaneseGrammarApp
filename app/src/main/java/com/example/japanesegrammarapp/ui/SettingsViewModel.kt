@@ -1,4 +1,4 @@
-package com.example.japanesegrammarapp.ui
+﻿package com.example.japanesegrammarapp.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -35,18 +35,18 @@ class SettingsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
+            val allProviders = settingsRepository.getAllProviders()
+            val providerEndpoints = allProviders.associateWith { settingsRepository.getApiEndpoints(it) }
             val activeProvider = settingsRepository.getActiveProvider()
-            val providerModels = LlmConfig.providers.associateWith { settingsRepository.getModelsForProvider(it) }
+            val providerModels = allProviders.associateWith { settingsRepository.getModelsForProvider(it) }
             val activeModel = settingsRepository.getActiveModel(activeProvider)
             val useOcr = settingsRepository.getUseOcr()
+            val autoNavigateResult = settingsRepository.getAutoNavigateResult()
             val imageTokenizerMode = settingsRepository.getImageTokenizerMode()
             val backupProvider = settingsRepository.getBackupProvider()
             val backupModel = settingsRepository.getBackupModel()
-
-            LlmConfig.providers.forEach { provider ->
-                settingsRepository.getApiKey(provider)
-                settingsRepository.getApiUrl(provider)
-            }
+            val globalFloatingEnabled = settingsRepository.getGlobalFloatingEnabled()
+            val globalFloatingAction = settingsRepository.getGlobalFloatingAction()
 
             val models = providerModels[activeProvider] ?: emptyList()
             val finalActiveModel = if (activeModel.isBlank() && models.isNotEmpty()) models.first() else activeModel
@@ -56,11 +56,16 @@ class SettingsViewModel @Inject constructor(
                     activeProvider = activeProvider,
                     activeModel = finalActiveModel,
                     useOcr = useOcr,
+                    autoNavigateResult = autoNavigateResult,
                     imageTokenizerMode = imageTokenizerMode,
                     providerModels = providerModels,
                     availableModels = models,
                     backupProvider = backupProvider,
-                    backupModel = backupModel
+                    backupModel = backupModel,
+                    globalFloatingEnabled = globalFloatingEnabled,
+                    globalFloatingAction = globalFloatingAction,
+                    allProviders = allProviders,
+                    providerEndpoints = providerEndpoints
                 )
             }
         }
@@ -78,9 +83,35 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun saveApiEndpoints(provider: String, endpoints: List<com.example.japanesegrammarapp.domain.repository.ApiEndpointConfig>) {
+        settingsRepository.saveApiEndpoints(provider, endpoints)
+        refreshProviders()
+    }
+
+    private fun refreshProviders() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val allProviders = settingsRepository.getAllProviders()
+            val providerEndpoints = allProviders.associateWith { settingsRepository.getApiEndpoints(it) }
+            val providerModels = allProviders.associateWith { settingsRepository.getModelsForProvider(it) }
+
+            _uiState.update {
+                it.copy(
+                    allProviders = allProviders,
+                    providerEndpoints = providerEndpoints,
+                    providerModels = providerModels
+                )
+            }
+        }
+    }
+
     fun setUseOcr(value: Boolean) {
         settingsRepository.setUseOcr(value)
         _uiState.update { it.copy(useOcr = value) }
+    }
+
+    fun setAutoNavigateResult(value: Boolean) {
+        settingsRepository.setAutoNavigateResult(value)
+        _uiState.update { it.copy(autoNavigateResult = value) }
     }
 
     fun setImageTokenizerMode(mode: String) {
@@ -171,7 +202,8 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isFetchingModels = true, fetchingProvider = provider) }
             try {
-                val fetchedModels = llmRepository.fetchModels(provider, baseUrl, apiKey)
+                val baseProvider = settingsRepository.getBaseProviderType(provider)
+                val fetchedModels = llmRepository.fetchModels(baseProvider, baseUrl, apiKey)
                 saveModelsForProvider(provider, fetchedModels)
             } catch (e: Exception) {
                 _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: "Unknown Error"))
@@ -181,12 +213,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun getApiKey(provider: String): String = settingsRepository.getApiKey(provider)
-    fun getApiUrl(provider: String): String = settingsRepository.getApiUrl(provider)
-
-    fun saveApiKey(provider: String, key: String) = settingsRepository.saveApiKey(provider, key)
-    fun saveApiUrl(provider: String, url: String) = settingsRepository.saveApiUrl(provider, url)
-
     fun setThemeMode(mode: String) {
         settingsRepository.setThemeMode(mode)
         _uiState.update { it.copy(themeMode = mode) }
@@ -195,6 +221,16 @@ class SettingsViewModel @Inject constructor(
     fun setWallpaperUri(uri: String) {
         settingsRepository.setWallpaperUri(uri)
         _uiState.update { it.copy(wallpaperUri = uri) }
+    }
+
+    fun setGlobalFloatingEnabled(enabled: Boolean) {
+        settingsRepository.setGlobalFloatingEnabled(enabled)
+        _uiState.update { it.copy(globalFloatingEnabled = enabled) }
+    }
+
+    fun setGlobalFloatingAction(action: Int) {
+        settingsRepository.setGlobalFloatingAction(action)
+        _uiState.update { it.copy(globalFloatingAction = action) }
     }
 
     // TTS Settings Accessors

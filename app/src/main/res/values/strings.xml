@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- App General -->
     <string name="app_name">Japanese Grammar App</string>
     <string name="app_title">Grammar Analysis</string>
     <string name="app_subtitle">AI breaks down Japanese grammar clearly for you</string>
-    
+
     <!-- Workspace -->
     <string name="target_sentence">Target Sentence</string>
     <string name="edit_and_reanalyze">Edit &amp; Reanalyze</string>
@@ -23,14 +23,14 @@
     <string name="overall_translation">Overall Translation</string>
     <string name="sentence_clauses">Sentence Structure</string>
     <string name="grammar_points">Grammar Points</string>
-    
+
     <!-- Input Form -->
     <string name="input_hint">Enter Japanese text here...</string>
     <string name="settings">Settings</string>
     <string name="history">History</string>
     <string name="analyze">Analyze</string>
     <string name="analyzing">Analyzing...</string>
-    
+
     <!-- Elegant UI Strings -->
     <string name="hero_title">Parse.</string>
     <string name="hero_subtitle">Deeply understand Japanese grammar structure</string>
@@ -39,13 +39,13 @@
     <string name="camera">Camera</string>
     <string name="album">Album</string>
     <string name="start_parse">Start Parse</string>
-    
+
     <!-- Sidebar -->
     <string name="history_title">History</string>
     <string name="close">Close</string>
     <string name="no_history">No history</string>
     <string name="export_all">Export All</string>
-    
+
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="appearance">Appearance</string>
@@ -57,18 +57,20 @@
     <string name="wallpaper">Wallpaper</string>
     <string name="pick_wallpaper">Select Image</string>
     <string name="clear_wallpaper">Clear</string>
-    
+
     <string name="general">General</string>
     <string name="local_ocr">Local OCR for Images</string>
     <string name="local_ocr_desc">If off, images are sent directly to AI for analysis.</string>
+    <string name="auto_navigate_result">Auto Navigate to Result</string>
+    <string name="auto_navigate_result_desc">When using the floating ball, jump to the result page automatically. If off, it runs in the background.</string>
     <string name="token_usage">API Token Usage</string>
     <string name="token_usage_desc">Total tokens consumed across all analyses.</string>
-    
+
     <string name="api_config">API Configuration</string>
     <string name="main_api">Main API</string>
     <string name="backup_api">Backup API</string>
     <string name="credentials">Credentials &amp; Models</string>
-    
+
     <!-- Workspace Input -->
     <string name="model_label">Model: </string>
     <string name="select">Select</string>
@@ -79,13 +81,13 @@
     <string name="camera_capture">Take Photo</string>
     <string name="pick_image">Select Image</string>
     <string name="start_analysis">Start Analysis</string>
-    
+
     <!-- History Sidebar -->
     <string name="history_status_pending">Analyzing</string>
     <string name="history_status_error">Error</string>
     <string name="export">Export</string>
     <string name="new_analysis">New Analysis</string>
-    
+
     <!-- Added for Custom Models & Language -->
     <string name="language">Language</string>
     <string name="language_auto">Auto (System)</string>
@@ -97,7 +99,7 @@
     <string name="custom_hex">Custom Hex (e.g. #FF5722)</string>
     <string name="main_model">Main Model</string>
     <string name="backup_model">Backup Model</string>
-    
+
     <string name="color_default">Default</string>
     <string name="color_sakura">Sakura Pink</string>
     <string name="color_matcha">Matcha Green</string>
@@ -115,13 +117,13 @@
     <string name="delete_history_title">Delete History</string>
     <string name="delete_history_confirm">Are you sure you want to delete the analysis history of \"%1$s\"?</string>
     <string name="cancel">Cancel</string>
-    
+
     <!-- Export Selection Dialog -->
     <string name="export_history_title">Select Export History</string>
     <string name="deselect_all">Deselect All</string>
     <string name="select_all">Select All</string>
     <string name="export_with_count">Export (%1$d)</string>
-    
+
     <!-- Zen Loading View -->
     <string name="loading_title">AI Japanese Grammar Analysis In Progress</string>
     <string name="loading_subtitle">Analyzing grammar structure. Please wait a moment.</string>
@@ -135,7 +137,7 @@
     <string name="step_3_desc">Generating translation and counterpart data</string>
     <string name="step_4_title">Detailed Grammar Analysis</string>
     <string name="step_4_desc">Creating detailed explanation cards for grammar</string>
-    
+
     <!-- Workspace Result -->
     <string name="analysis_result_text_view">Analysis Results (Text View)</string>
     <string name="no_analysis_result">No analysis results available.</string>
@@ -144,7 +146,7 @@
     <string name="close_details">Close Details</string>
     <string name="translation_label">Translation</string>
     <string name="grammar_label">Grammar</string>
-    
+
     <!-- Settings Screen -->
     <string name="app_logs_title">App Logs (Developer)</string>
     <string name="clear_logs">Clear Logs</string>
@@ -221,4 +223,53 @@
     <string name="dict_moji">MOJi Dict</string>
     <string name="dict_not_installed">App %1$s is not installed.</string>
     <string name="search_in_dict">Look up</string>
+    <string name="action_process_text">Analyze Grammar</string>
+
+    <!-- Custom Providers / API Endpoints -->
+    <string name="api_endpoints_manage">API Endpoints Manage</string>
+    <string name="endpoint_name">Endpoint Name</string>
+    <string name="delete_endpoint_confirm">Are you sure to delete this endpoint?</string>
+    <string name="add" translatable="false">Add</string>
+
+    <!-- Floating Ball -->
+    <string name="global_floating_ball">Global Floating Ball</string>
+    <string name="global_floating_ball_desc">Enable overlay floating action ball</string>
+    <string name="floating_ball_action">Floating Ball Primary Action</string>
+    <string name="action_show_menu">Show Menu</string>
+    <string name="action_screen_ocr">Screen OCR</string>
+    <string name="action_camera">Camera</string>
+    <string name="action_text_input">Text Input</string>
+    <string name="floating_service_title">Japanese Grammar App</string>
+    <string name="floating_service_desc">Global floating ball is active</string>
+    <string name="overlay_permission_required">Overlay permission is required to show the global floating ball.</string>
+    <string name="input_dialog_title">Text Input</string>
+    <string name="input_dialog_placeholder">Enter text to analyze...</string>
+    <string name="start_analysis_btn">Start Analysis</string>
+    <string name="floating_camera_permission_title">Camera permission required</string>
+    <string name="floating_camera_permission_desc">Grant camera permission from the app camera page, then use the floating camera here.</string>
+    <string name="floating_camera_capturing">Capturing...</string>
+    <string name="floating_camera_unavailable">Camera is not ready yet.</string>
+    <string name="floating_camera_capture_failed">Failed to capture photo.</string>
+    <string name="ocr_overlay_empty">No Japanese text areas were detected. Try a clearer screen or use camera/photo analysis.</string>
+    <string name="ocr_overlay_processing">Preparing selected area...</string>
+
+    <!-- New UI Strings -->
+    <string name="copy_full_error_log">Copy Full Error Log</string>
+    <string name="copy_logs">Copy Logs</string>
+    <string name="screen_ocr_active">Screen OCR active</string>
+
+    <!-- Analysis Steps -->
+    <string name="step_segments">Tokenization</string>
+    <string name="step_clauses">Clause Analysis</string>
+    <string name="step_grammar">Grammar Explanation</string>
+    <string name="step_translation">Translation</string>
+    <string name="step_detailed_grammar">Detailed Grammar</string>
+
+    <!-- Dynamic Analysis Messages -->
+    <string name="analysis_completed_short">Analysis completed: \"%1$s...\"</string>
+    <string name="analysis_completed_full">Analysis completed: \"%1$s\"</string>
+
+    <!-- Errors -->
+    <string name="error_both_api_failed">Failed to call both Main and Backup API. Main: %1$s. Backup: %2$s</string>
+    <string name="error_main_api_failed_no_backup">Failed to retry Main API (%1$s) and Backup API is not set or valid. Main API error: %2$s</string>
 </resources>

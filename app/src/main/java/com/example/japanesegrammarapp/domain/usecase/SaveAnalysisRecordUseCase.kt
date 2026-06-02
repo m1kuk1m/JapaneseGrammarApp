@@ -19,6 +19,10 @@ class SaveAnalysisRecordUseCase @Inject constructor(
         return historyRepository.getRecordById(id)
     }
 
+    suspend fun getByOriginalText(originalText: String): AnalysisDomainRecord? {
+        return historyRepository.getRecordByOriginalText(originalText)
+    }
+
     suspend fun delete(record: AnalysisDomainRecord) {
         historyRepository.deleteRecord(record)
     }

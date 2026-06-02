@@ -11,19 +11,20 @@ data class LlmResult(
 
 data class LlmApiConfig(
     val provider: String,
+    val baseProvider: String,
     val modelName: String,
-    val baseUrl: String,
-    val apiKey: String
+    val endpoints: List<ApiEndpointConfig>
 )
 
 interface LlmRepository {
-    suspend fun fetchModels(provider: String, baseUrl: String, apiKey: String): List<String>
+    suspend fun fetchModels(baseProvider: String, baseUrl: String, apiKey: String): List<String>
     suspend fun callLlmApi(
         systemPrompt: String,
         userPrompt: String,
         imageBase64: String?,
         mimeType: String?,
         provider: String,
+        baseProvider: String,
         modelName: String,
         effectiveUrl: String,
         apiKey: String

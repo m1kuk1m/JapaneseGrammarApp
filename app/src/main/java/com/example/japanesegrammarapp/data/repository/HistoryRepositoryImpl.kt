@@ -37,7 +37,13 @@ class HistoryRepositoryImpl @Inject constructor(
     override val dailyTokenUsage: Flow<List<DailyTokenUsage>> = analysisDao.getDailyTokenUsage()
 
     override suspend fun getRecordById(id: Int): AnalysisDomainRecord? {
-        return analysisDao.getRecordById(id)?.toDomain()
+        val entity = analysisDao.getRecordById(id)
+        return entity?.toDomain()
+    }
+
+    override suspend fun getRecordByOriginalText(originalText: String): AnalysisDomainRecord? {
+        val entity = analysisDao.getRecordByOriginalText(originalText)
+        return entity?.toDomain()
     }
 
     override suspend fun insertRecord(record: AnalysisDomainRecord): Long {
