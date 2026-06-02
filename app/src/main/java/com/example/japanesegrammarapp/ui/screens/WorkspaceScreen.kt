@@ -158,22 +158,36 @@ fun WorkspaceScreen(
                     }
                 }
                 is UiEvent.ExportRecordEvent -> {
-                    val content = com.example.japanesegrammarapp.utils.RecordExporter.buildRecordExportText(context, event.record)
+                    val uri = com.example.japanesegrammarapp.utils.RecordExporter.exportRecordToFile(context, event.record, event.filename)
                     val sendIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, content)
+                        putExtra(Intent.EXTRA_STREAM, uri)
                         putExtra(Intent.EXTRA_SUBJECT, event.filename)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
-                    context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.export_chooser_title)))
+                    val chooserIntent = Intent.createChooser(sendIntent, context.getString(R.string.export_chooser_title))
+                    val resInfoList = context.packageManager.queryIntentActivities(chooserIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+                    for (resolveInfo in resInfoList) {
+                        val packageName = resolveInfo.activityInfo.packageName
+                        context.grantUriPermission(packageName, uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(chooserIntent)
                 }
                 is UiEvent.ExportAllHistoryEvent -> {
-                    val content = com.example.japanesegrammarapp.utils.RecordExporter.buildAllHistoryExportText(context, event.records)
+                    val uri = com.example.japanesegrammarapp.utils.RecordExporter.exportAllHistoryToFile(context, event.records, event.filename)
                     val sendIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, content)
+                        putExtra(Intent.EXTRA_STREAM, uri)
                         putExtra(Intent.EXTRA_SUBJECT, event.filename)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
-                    context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.export_chooser_title)))
+                    val chooserIntent = Intent.createChooser(sendIntent, context.getString(R.string.export_chooser_title))
+                    val resInfoList = context.packageManager.queryIntentActivities(chooserIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+                    for (resolveInfo in resInfoList) {
+                        val packageName = resolveInfo.activityInfo.packageName
+                        context.grantUriPermission(packageName, uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(chooserIntent)
                 }
                 else -> {}
             }
@@ -213,8 +227,9 @@ fun WorkspaceScreen(
             }
     }
 
-    Scaffold(
-        containerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
         snackbarHost = { 
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
@@ -651,4 +666,5 @@ fun WorkspaceScreen(
         onTextClick = { showInputDialogLocal = true },
         onCameraClick = { navController.navigate("camera") }
     )
+    }
 }

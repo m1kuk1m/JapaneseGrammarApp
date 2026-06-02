@@ -53,4 +53,34 @@ object RecordExporter {
         }
         return sb.toString()
     }
+
+    fun exportRecordToFile(context: Context, record: AnalysisDomainRecord, filename: String): android.net.Uri {
+        val content = buildRecordExportText(context, record)
+        val exportDir = java.io.File(context.cacheDir, "exports")
+        if (!exportDir.exists()) {
+            exportDir.mkdirs()
+        }
+        val file = java.io.File(exportDir, filename)
+        file.writeText(content)
+        return androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "com.example.japanesegrammarapp.fileprovider",
+            file
+        )
+    }
+
+    fun exportAllHistoryToFile(context: Context, records: List<AnalysisDomainRecord>, filename: String): android.net.Uri {
+        val content = buildAllHistoryExportText(context, records)
+        val exportDir = java.io.File(context.cacheDir, "exports")
+        if (!exportDir.exists()) {
+            exportDir.mkdirs()
+        }
+        val file = java.io.File(exportDir, filename)
+        file.writeText(content)
+        return androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "com.example.japanesegrammarapp.fileprovider",
+            file
+        )
+    }
 }
