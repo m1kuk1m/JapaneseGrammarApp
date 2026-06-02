@@ -123,39 +123,39 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 }
             }
             
-            ModalNavigationDrawer(
-                drawerState = drawerState,
-                gesturesEnabled = drawerState.isOpen || pagerState.settledPage == 0,
-                drawerContent = {
-                    ModalDrawerSheet(
-                        drawerContainerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
-                        modifier = Modifier.width(310.dp).fillMaxHeight()
-                    ) {
-                        HistorySidebar(
-                            historyList = history,
-                            selectedRecord = uiState.selectedRecord,
-                            onSelectRecord = { record -> workspaceViewModel.selectRecord(record) },
-                            onClearSelection = { workspaceViewModel.clearSelectedRecord() },
-                            onDeleteRecord = { record -> recordToDelete = record },
-                            onExportAll = {
-                                coroutineScope.launch { drawerState.close() }
-                                workspaceViewModel.loadAllHistoryForExport()
-                                showExportDialog = true
-                            },
-                            onExportRecord = { record -> workspaceViewModel.exportRecord(record) },
-                            onCloseDrawer = { coroutineScope.launch { drawerState.close() } }
-                        )
-                    }
-                }
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxSize(),
-                        userScrollEnabled = drawerState.currentValue == DrawerValue.Closed
-                    ) { page ->
-                        when (page) {
-                            0 -> {
+            Box(modifier = Modifier.fillMaxSize()) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    userScrollEnabled = drawerState.currentValue == DrawerValue.Closed
+                ) { page ->
+                    when (page) {
+                        0 -> {
+                            ModalNavigationDrawer(
+                                drawerState = drawerState,
+                                gesturesEnabled = true,
+                                drawerContent = {
+                                    ModalDrawerSheet(
+                                        drawerContainerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
+                                        modifier = Modifier.width(310.dp).fillMaxHeight()
+                                    ) {
+                                        HistorySidebar(
+                                            historyList = history,
+                                            selectedRecord = uiState.selectedRecord,
+                                            onSelectRecord = { record -> workspaceViewModel.selectRecord(record) },
+                                            onClearSelection = { workspaceViewModel.clearSelectedRecord() },
+                                            onDeleteRecord = { record -> recordToDelete = record },
+                                            onExportAll = {
+                                                coroutineScope.launch { drawerState.close() }
+                                                workspaceViewModel.loadAllHistoryForExport()
+                                                showExportDialog = true
+                                            },
+                                            onExportRecord = { record -> workspaceViewModel.exportRecord(record) },
+                                            onCloseDrawer = { coroutineScope.launch { drawerState.close() } }
+                                        )
+                                    }
+                                }
+                            ) {
                                 WorkspaceScreen(
                                     navController = navController,
                                     viewModel = workspaceViewModel,
@@ -169,22 +169,20 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                                     }
                                 )
                             }
-                            1 -> {
-                                SettingsScreen(
-                                    navController = navController,
-                                    viewModel = settingsViewModel,
-                                    isVisible = pagerState.currentPage == 1,
-                                    onBack = {
-                                        coroutineScope.launch {
-                                            pagerState.animateScrollToPage(0)
-                                        }
+                        }
+                        1 -> {
+                            SettingsScreen(
+                                navController = navController,
+                                viewModel = settingsViewModel,
+                                isVisible = pagerState.currentPage == 1,
+                                onBack = {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(0)
                                     }
-                                )
-                            }
+                                }
+                            )
                         }
                     }
-                    
-                    // Removed Edge Swipe Interceptor to use native gestures
                 }
             }
             
