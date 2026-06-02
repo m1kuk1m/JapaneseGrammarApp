@@ -231,17 +231,6 @@
     <string name="delete_endpoint_confirm">Are you sure to delete this endpoint?</string>
     <string name="add" translatable="false">Add</string>
 
-    <!-- Floating Ball -->
-    <string name="global_floating_ball">Global Floating Ball</string>
-    <string name="global_floating_ball_desc">Enable overlay floating action ball</string>
-    <string name="floating_ball_action">Floating Ball Primary Action</string>
-    <string name="action_show_menu">Show Menu</string>
-    <string name="action_screen_ocr">Screen OCR</string>
-    <string name="action_camera">Camera</string>
-    <string name="action_text_input">Text Input</string>
-    <string name="floating_service_title">Japanese Grammar App</string>
-    <string name="floating_service_desc">Global floating ball is active</string>
-    <string name="overlay_permission_required">Overlay permission is required to show the global floating ball.</string>
     <string name="input_dialog_title">Text Input</string>
     <string name="input_dialog_placeholder">Enter text to analyze...</string>
     <string name="start_analysis_btn">Start Analysis</string>
@@ -264,6 +253,9 @@
     <string name="step_grammar">Grammar Explanation</string>
     <string name="step_translation">Translation</string>
     <string name="step_detailed_grammar">Detailed Grammar</string>
+    <string name="step_tokenization">Tokenization</string>
+    <string name="step_clause_analysis">Clause Analysis</string>
+    <string name="step_grammar_explanation">Grammar Explanation</string>
 
     <!-- Dynamic Analysis Messages -->
     <string name="analysis_completed_short">Analysis completed: \"%1$s...\"</string>
