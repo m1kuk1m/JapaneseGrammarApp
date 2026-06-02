@@ -150,14 +150,14 @@ class LlmRepositoryImpl @Inject constructor(
     ): LlmResult {
         val primaryProvider = primaryConfig.provider
         val primaryModel = primaryConfig.modelName
-        val primaryKey = primaryConfig.endpoints.firstOrNull { it.isEnabled }?.key ?: primaryConfig.endpoints.firstOrNull()?.key ?: ""
-        val primaryUrl = primaryConfig.endpoints.firstOrNull { it.isEnabled }?.url ?: primaryConfig.endpoints.firstOrNull()?.url ?: ""
+        val primaryKey = primaryConfig.key
+        val primaryUrl = primaryConfig.url
         val primaryBaseProvider = primaryConfig.baseProvider
 
         val backupProvider = backupConfig?.provider ?: ""
         val backupModel = backupConfig?.modelName ?: ""
-        val backupKey = backupConfig?.endpoints?.firstOrNull { it.isEnabled }?.key ?: backupConfig?.endpoints?.firstOrNull()?.key ?: ""
-        val backupUrl = backupConfig?.endpoints?.firstOrNull { it.isEnabled }?.url ?: backupConfig?.endpoints?.firstOrNull()?.url ?: ""
+        val backupKey = backupConfig?.key ?: ""
+        val backupUrl = backupConfig?.url ?: ""
         val backupBaseProvider = backupConfig?.baseProvider ?: ""
 
         var attempt = 0

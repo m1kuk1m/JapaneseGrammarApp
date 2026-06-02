@@ -138,16 +138,18 @@ class AnalyzeTextUseCase @Inject constructor(
                 val primaryProvider = settingsRepository.getActiveProvider()
                 val primaryBase = settingsRepository.getBaseProviderType(primaryProvider)
                 val primaryModel = settingsRepository.getActiveModel(primaryProvider)
-                val primaryEndpoints = settingsRepository.getApiEndpoints(primaryProvider).filter { it.isEnabled }
+                val primaryKey = settingsRepository.getApiKey(primaryProvider)
+                val primaryUrl = settingsRepository.getApiUrl(primaryProvider)
 
                 val backupProvider = settingsRepository.getBackupProvider()
                 val backupBase = if (backupProvider.isNotBlank()) settingsRepository.getBaseProviderType(backupProvider) else ""
                 val backupModel = settingsRepository.getBackupModel()
-                val backupEndpoints = if (backupProvider.isNotBlank()) settingsRepository.getApiEndpoints(backupProvider).filter { it.isEnabled } else emptyList()
+                val backupKey = if (backupProvider.isNotBlank()) settingsRepository.getApiKey(backupProvider) else ""
+                val backupUrl = if (backupProvider.isNotBlank()) settingsRepository.getApiUrl(backupProvider) else ""
 
-                val primaryConfig = LlmApiConfig(primaryProvider, primaryBase, primaryModel, primaryEndpoints)
-                val backupConfig = if (backupProvider.isNotBlank() && backupModel.isNotBlank() && backupEndpoints.isNotEmpty()) {
-                    LlmApiConfig(backupProvider, backupBase, backupModel, backupEndpoints)
+                val primaryConfig = LlmApiConfig(primaryProvider, primaryBase, primaryModel, primaryUrl, primaryKey)
+                val backupConfig = if (backupProvider.isNotBlank() && backupModel.isNotBlank() && backupKey.isNotBlank()) {
+                    LlmApiConfig(backupProvider, backupBase, backupModel, backupUrl, backupKey)
                 } else null
 
                 // Perform OCR if needed

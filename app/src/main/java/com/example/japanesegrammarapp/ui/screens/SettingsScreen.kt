@@ -91,6 +91,9 @@ fun SettingsScreen(
     var ttsVoice by remember { mutableStateOf("") }
     var ttsRegion by remember { mutableStateOf("") }
 
+    var providerUrls by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var providerKeys by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+
     fun saveSettings() {
         if (!isSettingsLoaded) return
         viewModel.setTtsProvider(selectedTtsProvider)
@@ -99,6 +102,13 @@ fun SettingsScreen(
         viewModel.setTtsModel(selectedTtsProvider, ttsModel)
         viewModel.setTtsVoice(selectedTtsProvider, ttsVoice)
         viewModel.setTtsRegion(selectedTtsProvider, ttsRegion)
+
+        providerUrls.forEach { (provider, url) ->
+            viewModel.setApiUrl(provider, url)
+        }
+        providerKeys.forEach { (provider, key) ->
+            viewModel.setApiKey(provider, key)
+        }
     }
 
     BackHandler(enabled = isVisible) {
@@ -107,6 +117,14 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(providers) {
+        val urls = mutableMapOf<String, String>()
+        val keys = mutableMapOf<String, String>()
+        providers.forEach { provider ->
+            urls[provider] = withContext(Dispatchers.IO) { viewModel.getApiUrl(provider) }
+            keys[provider] = withContext(Dispatchers.IO) { viewModel.getApiKey(provider) }
+        }
+        providerUrls = urls
+        providerKeys = keys
         selectedTtsProvider = withContext(Dispatchers.IO) { viewModel.getTtsProvider() }
         isSettingsLoaded = true
     }
@@ -122,30 +140,6 @@ fun SettingsScreen(
 
     var expandedProvider by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
-
-    fun startFloatingService() {
-        val serviceIntent = android.content.Intent(ctx, com.example.japanesegrammarapp.ui.service.FloatingService::class.java)
-        ctx.startService(serviceIntent)
-    }
-
-    fun stopFloatingService() {
-        val serviceIntent = android.content.Intent(ctx, com.example.japanesegrammarapp.ui.service.FloatingService::class.java)
-        ctx.stopService(serviceIntent)
-    }
-
-    val overlayPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) {
-        if (Settings.canDrawOverlays(ctx)) {
-            viewModel.setGlobalFloatingEnabled(true)
-            startFloatingService()
-        } else {
-            viewModel.setGlobalFloatingEnabled(false)
-            coroutineScope.launch {
-                snackbarHostState.showSnackbar(ctx.getString(R.string.overlay_permission_required))
-            }
-        }
-    }
 
     var customModelInputs by remember { mutableStateOf(providers.associateWith { "" }) }
 
@@ -498,6 +492,7 @@ fun SettingsScreen(
                             )
                         }
                     )
+                    // Image Tokenizer Mode
                     var tokenizerModeDropdownExpanded by remember { mutableStateOf(false) }
                     val currentModeLabel = when (uiState.imageTokenizerMode) {
                         "repair" -> stringResource(R.string.image_tokenizer_mode_repair)
@@ -505,83 +500,6 @@ fun SettingsScreen(
                     }
                     Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
 
-                    // Global Floating Ball Enable
-                    SettingsItem(
-                        icon = Icons.Default.TouchApp,
-                        title = stringResource(R.string.global_floating_ball),
-                        subtitle = stringResource(R.string.global_floating_ball_desc),
-                        trailingContent = {
-                            Switch(
-                                checked = uiState.globalFloatingEnabled,
-                                onCheckedChange = { enabled ->
-                                    if (enabled && !Settings.canDrawOverlays(ctx)) {
-                                        val intent = android.content.Intent(
-                                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                            android.net.Uri.parse("package:${ctx.packageName}")
-                                        )
-                                        overlayPermissionLauncher.launch(intent)
-                                    } else {
-                                        viewModel.setGlobalFloatingEnabled(enabled)
-                                        if (enabled) {
-                                            startFloatingService()
-                                        } else {
-                                            stopFloatingService()
-                                        }
-                                    }
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = OnPrimaryColor,
-                                    checkedTrackColor = PrimaryColor,
-                                    uncheckedThumbColor = SumiInk.copy(alpha = 0.4f),
-                                    uncheckedTrackColor = SumiInk.copy(alpha = 0.1f)
-                                )
-                            )
-                        }
-                    )
-
-                    // Default Action for Floating Ball
-                    var floatingActionDropdownExpanded by remember { mutableStateOf(false) }
-                    val currentFloatingActionLabel = when (uiState.globalFloatingAction) {
-                        2 -> stringResource(R.string.action_screen_ocr)
-                        3 -> stringResource(R.string.camera)
-                        4 -> stringResource(R.string.action_text_input)
-                        else -> stringResource(R.string.action_show_menu)
-                    }
-                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
-                    SettingsItem(
-                        icon = Icons.Default.Mouse,
-                        title = stringResource(R.string.floating_ball_action),
-                        subtitle = currentFloatingActionLabel,
-                        onClick = { floatingActionDropdownExpanded = true },
-                        trailingContent = {
-                            Box {
-                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = SumiInk.copy(alpha = 0.5f))
-                                DropdownMenu(
-                                    expanded = floatingActionDropdownExpanded,
-                                    onDismissRequest = { floatingActionDropdownExpanded = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.action_show_menu)) },
-                                        onClick = { viewModel.setGlobalFloatingAction(1); floatingActionDropdownExpanded = false }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.action_screen_ocr)) },
-                                        onClick = { viewModel.setGlobalFloatingAction(2); floatingActionDropdownExpanded = false }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.camera)) },
-                                        onClick = { viewModel.setGlobalFloatingAction(3); floatingActionDropdownExpanded = false }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.action_text_input)) },
-                                        onClick = { viewModel.setGlobalFloatingAction(4); floatingActionDropdownExpanded = false }
-                                    )
-                                }
-                            }
-                        }
-                    )
-
-                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsItem(
                         icon = Icons.Default.AutoFixHigh,
                         title = stringResource(R.string.image_tokenizer_mode_title),
@@ -781,112 +699,61 @@ fun SettingsScreen(
                             exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(160))
                         ) {
                             Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
-                                val endpoints = uiState.providerEndpoints[provider] ?: emptyList()
+                                var localUrl by remember(providerUrls[provider]) { mutableStateOf(providerUrls[provider] ?: defaultUrls[provider] ?: "") }
+                                var localKey by remember(providerKeys[provider]) { mutableStateOf(providerKeys[provider] ?: "") }
+                                var keyVisible by remember { mutableStateOf(false) }
 
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(stringResource(R.string.api_endpoints_manage), fontWeight = FontWeight.Bold, color = SumiInk)
-                                    IconButton(
-                                        onClick = {
-                                            val newId = java.util.UUID.randomUUID().toString()
-                                            val newEndpoint = com.example.japanesegrammarapp.domain.repository.ApiEndpointConfig(
-                                                id = newId, name = "New Endpoint", url = "", key = ""
-                                            )
-                                            viewModel.saveApiEndpoints(provider, endpoints + newEndpoint)
-                                        },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(Icons.Default.Add, contentDescription = "Add Endpoint", tint = PrimaryColor)
-                                    }
-                                }
-
-                                endpoints.forEachIndexed { index, endpoint ->
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                                        colors = CardDefaults.cardColors(containerColor = WashiBg),
-                                        border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.05f))
-                                    ) {
-                                        Column(modifier = Modifier.padding(8.dp)) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                OutlinedTextField(
-                                                    value = endpoint.name,
-                                                    onValueChange = { newName ->
-                                                        val updated = endpoints.toMutableList()
-                                                        updated[index] = endpoint.copy(name = newName)
-                                                        viewModel.saveApiEndpoints(provider, updated)
-                                                    },
-                                                    label = { Text(stringResource(R.string.endpoint_name)) },
-                                                    modifier = Modifier.weight(1f).padding(end = 8.dp),
-                                                    singleLine = true,
-                                                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp)
-                                                )
-                                                IconButton(
-                                                    onClick = {
-                                                        val updated = endpoints.toMutableList()
-                                                        updated.removeAt(index)
-                                                        viewModel.saveApiEndpoints(provider, updated)
-                                                    },
-                                                    modifier = Modifier.size(24.dp)
-                                                ) {
-                                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFD32F2F))
-                                                }
-                                            }
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            OutlinedTextField(
-                                                value = endpoint.url,
-                                                onValueChange = { newUrl ->
-                                                    val updated = endpoints.toMutableList()
-                                                    updated[index] = endpoint.copy(url = newUrl)
-                                                    viewModel.saveApiEndpoints(provider, updated)
-                                                },
-                                                label = { Text(stringResource(R.string.base_url)) },
-                                                modifier = Modifier.fillMaxWidth(),
-                                                singleLine = true,
-                                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp)
-                                            )
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            OutlinedTextField(
-                                                value = endpoint.key,
-                                                onValueChange = { newKey ->
-                                                    val updated = endpoints.toMutableList()
-                                                    updated[index] = endpoint.copy(key = newKey)
-                                                    viewModel.saveApiEndpoints(provider, updated)
-                                                },
-                                                label = { Text(stringResource(R.string.api_key)) },
-                                                modifier = Modifier.fillMaxWidth(),
-                                                singleLine = true,
-                                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp)
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            val isFetchingThis = fetchingProvider == provider
-                                            Button(
-                                                onClick = { viewModel.fetchModels(provider, endpoint.url, endpoint.key) },
-                                                enabled = !isFetchingThis && endpoint.key.isNotBlank(),
-                                                modifier = Modifier.fillMaxWidth(),
-                                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
-                                                shape = RoundedCornerShape(8.dp)
-                                            ) {
-                                                if (isFetchingThis) {
-                                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = OnPrimaryColor, strokeWidth = 2.dp)
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Text(stringResource(R.string.fetching))
-                                                } else {
-                                                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Text(stringResource(R.string.fetch_models))
-                                                }
-                                            }
+                                OutlinedTextField(
+                                    value = localUrl,
+                                    onValueChange = { 
+                                        localUrl = it
+                                        providerUrls = providerUrls.toMutableMap().apply { put(provider, it) }
+                                    },
+                                    label = { Text(stringResource(R.string.base_url)) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedTextField(
+                                    value = localKey,
+                                    onValueChange = { 
+                                        localKey = it
+                                        providerKeys = providerKeys.toMutableMap().apply { put(provider, it) }
+                                    },
+                                    label = { Text(stringResource(R.string.api_key)) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                    trailingIcon = {
+                                        IconButton(onClick = { keyVisible = !keyVisible }) {
+                                            Icon(if (keyVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null)
                                         }
+                                    },
+                                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                val isFetchingThis = fetchingProvider == provider
+                                Button(
+                                    onClick = { viewModel.fetchModels(provider, localUrl, localKey) },
+                                    enabled = !isFetchingThis && localKey.isNotBlank(),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    if (isFetchingThis) {
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = OnPrimaryColor, strokeWidth = 2.dp)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(stringResource(R.string.fetching))
+                                    } else {
+                                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(stringResource(R.string.fetch_models))
                                     }
                                 }
 
+                                Spacer(modifier = Modifier.height(16.dp))
                                 // Custom Model Input
                                 val customModelInput = customModelInputs[provider] ?: ""
                                 Row(

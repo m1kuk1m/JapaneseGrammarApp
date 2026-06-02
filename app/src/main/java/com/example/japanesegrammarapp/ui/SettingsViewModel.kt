@@ -36,7 +36,6 @@ class SettingsViewModel @Inject constructor(
     init {
         viewModelScope.launch(Dispatchers.IO) {
             val allProviders = settingsRepository.getAllProviders()
-            val providerEndpoints = allProviders.associateWith { settingsRepository.getApiEndpoints(it) }
             val activeProvider = settingsRepository.getActiveProvider()
             val providerModels = allProviders.associateWith { settingsRepository.getModelsForProvider(it) }
             val activeModel = settingsRepository.getActiveModel(activeProvider)
@@ -45,8 +44,6 @@ class SettingsViewModel @Inject constructor(
             val imageTokenizerMode = settingsRepository.getImageTokenizerMode()
             val backupProvider = settingsRepository.getBackupProvider()
             val backupModel = settingsRepository.getBackupModel()
-            val globalFloatingEnabled = settingsRepository.getGlobalFloatingEnabled()
-            val globalFloatingAction = settingsRepository.getGlobalFloatingAction()
 
             val models = providerModels[activeProvider] ?: emptyList()
             val finalActiveModel = if (activeModel.isBlank() && models.isNotEmpty()) models.first() else activeModel
@@ -62,10 +59,7 @@ class SettingsViewModel @Inject constructor(
                     availableModels = models,
                     backupProvider = backupProvider,
                     backupModel = backupModel,
-                    globalFloatingEnabled = globalFloatingEnabled,
-                    globalFloatingAction = globalFloatingAction,
-                    allProviders = allProviders,
-                    providerEndpoints = providerEndpoints
+                    allProviders = allProviders
                 )
             }
         }
@@ -83,21 +77,19 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun saveApiEndpoints(provider: String, endpoints: List<com.example.japanesegrammarapp.domain.repository.ApiEndpointConfig>) {
-        settingsRepository.saveApiEndpoints(provider, endpoints)
-        refreshProviders()
-    }
+    fun getApiKey(provider: String): String = settingsRepository.getApiKey(provider)
+    fun setApiKey(provider: String, key: String) = settingsRepository.saveApiKey(provider, key)
+    fun getApiUrl(provider: String): String = settingsRepository.getApiUrl(provider)
+    fun setApiUrl(provider: String, url: String) = settingsRepository.saveApiUrl(provider, url)
 
     private fun refreshProviders() {
         viewModelScope.launch(Dispatchers.IO) {
             val allProviders = settingsRepository.getAllProviders()
-            val providerEndpoints = allProviders.associateWith { settingsRepository.getApiEndpoints(it) }
             val providerModels = allProviders.associateWith { settingsRepository.getModelsForProvider(it) }
 
             _uiState.update {
                 it.copy(
                     allProviders = allProviders,
-                    providerEndpoints = providerEndpoints,
                     providerModels = providerModels
                 )
             }
@@ -221,16 +213,6 @@ class SettingsViewModel @Inject constructor(
     fun setWallpaperUri(uri: String) {
         settingsRepository.setWallpaperUri(uri)
         _uiState.update { it.copy(wallpaperUri = uri) }
-    }
-
-    fun setGlobalFloatingEnabled(enabled: Boolean) {
-        settingsRepository.setGlobalFloatingEnabled(enabled)
-        _uiState.update { it.copy(globalFloatingEnabled = enabled) }
-    }
-
-    fun setGlobalFloatingAction(action: Int) {
-        settingsRepository.setGlobalFloatingAction(action)
-        _uiState.update { it.copy(globalFloatingAction = action) }
     }
 
     // TTS Settings Accessors

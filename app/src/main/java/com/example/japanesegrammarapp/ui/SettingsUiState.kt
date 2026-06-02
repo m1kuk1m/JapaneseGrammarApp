@@ -1,7 +1,5 @@
 package com.example.japanesegrammarapp.ui
 
-import com.example.japanesegrammarapp.domain.repository.ApiEndpointConfig
-
 data class SettingsUiState(
     val activeProvider: String = "Gemini",
     val activeModel: String = "",
@@ -16,8 +14,5 @@ data class SettingsUiState(
     val backupModel: String = "",
     val themeMode: String = "System",
     val wallpaperUri: String = "",
-    val globalFloatingEnabled: Boolean = false,
-    val globalFloatingAction: Int = 1,
-    val allProviders: List<String> = emptyList(),
-    val providerEndpoints: Map<String, List<ApiEndpointConfig>> = emptyMap()
+    val allProviders: List<String> = emptyList()
 )

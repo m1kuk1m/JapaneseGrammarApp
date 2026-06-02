@@ -13,7 +13,8 @@ data class LlmApiConfig(
     val provider: String,
     val baseProvider: String,
     val modelName: String,
-    val endpoints: List<ApiEndpointConfig>
+    val url: String,
+    val key: String
 )
 
 interface LlmRepository {

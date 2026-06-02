@@ -59,45 +59,12 @@ class SettingsRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getApiEndpoints(provider: String): List<com.example.japanesegrammarapp.domain.repository.ApiEndpointConfig> {
-        val json = securePrefs.getString("${provider}_endpoints", null)
-        if (json != null) {
-            try {
-                val listType = object : com.google.gson.reflect.TypeToken<List<com.example.japanesegrammarapp.domain.repository.ApiEndpointConfig>>() {}.type
-                return gson.fromJson(json, listType) ?: emptyList()
-            } catch (e: Exception) {
-                // ignore
-            }
-        }
-        return emptyList()
-    }
-
-    override fun saveApiEndpoints(provider: String, endpoints: List<com.example.japanesegrammarapp.domain.repository.ApiEndpointConfig>) {
-        securePrefs.edit().putString("${provider}_endpoints", gson.toJson(endpoints)).apply()
-    }
-
     override fun getAutoNavigateResult(): Boolean {
         return settingPrefs.getBoolean("auto_navigate_result", true)
     }
 
     override fun setAutoNavigateResult(value: Boolean) {
         settingPrefs.edit().putBoolean("auto_navigate_result", value).apply()
-    }
-
-    override fun getGlobalFloatingEnabled(): Boolean {
-        return settingPrefs.getBoolean("global_floating_enabled", false)
-    }
-
-    override fun setGlobalFloatingEnabled(enabled: Boolean) {
-        settingPrefs.edit().putBoolean("global_floating_enabled", enabled).apply()
-    }
-
-    override fun getGlobalFloatingAction(): Int {
-        return settingPrefs.getInt("global_floating_action", 0)
-    }
-
-    override fun setGlobalFloatingAction(action: Int) {
-        settingPrefs.edit().putInt("global_floating_action", action).apply()
     }
 
     override fun getActiveProvider(): String {

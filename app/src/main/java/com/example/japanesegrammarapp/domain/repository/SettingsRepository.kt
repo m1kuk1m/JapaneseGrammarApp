@@ -1,19 +1,9 @@
 ﻿package com.example.japanesegrammarapp.domain.repository
 
-data class ApiEndpointConfig(
-    val id: String,
-    val name: String,
-    val url: String,
-    val key: String,
-    val isEnabled: Boolean = true
-)
-
 interface SettingsRepository {
     fun getAllProviders(): List<String>
     fun getBaseProviderType(providerId: String): String
 
-    fun getApiEndpoints(provider: String): List<ApiEndpointConfig>
-    fun saveApiEndpoints(provider: String, endpoints: List<ApiEndpointConfig>)
     fun getApiKey(provider: String): String
     fun saveApiKey(provider: String, key: String)
     fun getApiUrl(provider: String): String
@@ -40,10 +30,6 @@ interface SettingsRepository {
     fun setThemeMode(mode: String)
     fun getWallpaperUri(): String
     fun setWallpaperUri(uri: String)
-    fun getGlobalFloatingEnabled(): Boolean
-    fun setGlobalFloatingEnabled(enabled: Boolean)
-    fun getGlobalFloatingAction(): Int
-    fun setGlobalFloatingAction(action: Int)
 
     val themeMode: kotlinx.coroutines.flow.StateFlow<String>
     val wallpaperUri: kotlinx.coroutines.flow.StateFlow<String>
