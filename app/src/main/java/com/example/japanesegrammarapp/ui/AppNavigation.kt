@@ -14,7 +14,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
@@ -148,7 +151,48 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                     }
                 }
             ) {
-                Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(pagerState.currentPage, drawerState.isClosed) {
+                            if (pagerState.currentPage == 0 && drawerState.isClosed) {
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    var totalDx = 0f
+                                    var totalDy = 0f
+                                    var isDecided = false
+                                    var isRightSwipe = false
+
+                                    do {
+                                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                                        val change = event.changes.firstOrNull()
+                                        
+                                        if (change != null) {
+                                            if (!isDecided) {
+                                                totalDx += change.positionChange().x
+                                                totalDy += change.positionChange().y
+                                                
+                                                if (kotlin.math.abs(totalDx) > 20f || kotlin.math.abs(totalDy) > 20f) {
+                                                    isDecided = true
+                                                    if (totalDx > 0 && kotlin.math.abs(totalDx) > kotlin.math.abs(totalDy)) {
+                                                        isRightSwipe = true
+                                                    }
+                                                }
+                                            }
+
+                                            if (isDecided && isRightSwipe) {
+                                                change.consume()
+                                            }
+                                        }
+                                    } while (event.changes.any { it.pressed })
+
+                                    if (isDecided && isRightSwipe) {
+                                        coroutineScope.launch { drawerState.open() }
+                                    }
+                                }
+                            }
+                        }
+                ) {
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
@@ -184,28 +228,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                         }
                     }
                     
-                    // Edge Swipe Interceptor for opening the drawer
-                    if (pagerState.currentPage == 0 && drawerState.isClosed) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .width(30.dp)
-                                .align(Alignment.CenterStart)
-                                .pointerInput(Unit) {
-                                    var totalDrag = 0f
-                                    detectHorizontalDragGestures(
-                                        onDragStart = { _ -> totalDrag = 0f },
-                                        onHorizontalDrag = { _, dragAmount ->
-                                            totalDrag += dragAmount
-                                            if (totalDrag > 10f) { // Swiping right
-                                                coroutineScope.launch { drawerState.open() }
-                                                totalDrag = 0f
-                                            }
-                                        }
-                                    )
-                                }
-                        )
-                    }
+                    // Replaced Edge Swipe Interceptor with global interceptor
                 }
             }
             
