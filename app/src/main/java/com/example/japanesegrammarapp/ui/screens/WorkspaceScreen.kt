@@ -229,7 +229,7 @@ fun WorkspaceScreen(
     // Modal Drawer wrapper
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = true,
+        gesturesEnabled = drawerState.isOpen,
         drawerContent = {
             ModalDrawerSheet(
                 drawerContainerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
