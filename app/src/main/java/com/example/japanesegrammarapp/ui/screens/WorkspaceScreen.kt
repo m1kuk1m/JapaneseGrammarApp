@@ -27,15 +27,12 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.paging.compose.collectAsLazyPagingItems
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import com.example.japanesegrammarapp.ui.WorkspaceViewModel
 import com.example.japanesegrammarapp.ui.UiEvent
-import com.example.japanesegrammarapp.ui.screens.components.ExportSelectionDialog
 import com.example.japanesegrammarapp.ui.screens.components.FloatingActionBall
-import com.example.japanesegrammarapp.ui.screens.components.HistorySidebar
 import com.example.japanesegrammarapp.ui.screens.components.WorkspaceInputForm
 import com.example.japanesegrammarapp.ui.screens.components.WorkspaceResultContent
 import com.example.japanesegrammarapp.ui.screens.components.ZenLoadingView
@@ -50,7 +47,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.paging.compose.collectAsLazyPagingItems
 
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -60,7 +56,7 @@ import androidx.compose.ui.input.pointer.PointerEventType
 fun WorkspaceScreen(
     navController: NavController, 
     viewModel: WorkspaceViewModel,
-    drawerState: DrawerState = rememberDrawerState(initialValue = DrawerValue.Closed),
+    onOpenDrawer: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {
         if (navController.currentDestination?.route == "workspace") {
             navController.navigate("settings")
@@ -76,12 +72,7 @@ fun WorkspaceScreen(
     val coroutineScope = rememberCoroutineScope()
     
     val uiState by viewModel.uiState.collectAsState()
-    val history = viewModel.history.collectAsLazyPagingItems()
-    val allHistoryForExport by viewModel.allHistoryForExport.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    
-    var recordToDelete by remember { mutableStateOf<AnalysisDomainRecord?>(null) }
-    var showExportDialog by remember { mutableStateOf(false) }
     
     val isPlayingTts by viewModel.isPlayingTts.collectAsState(initial = false)
 
@@ -102,12 +93,8 @@ fun WorkspaceScreen(
         }
     }
 
-    // Intercept back button to close drawer or return to input page
-    androidx.activity.compose.BackHandler(enabled = drawerState.isOpen) {
-        coroutineScope.launch { drawerState.close() }
-    }
-
-    androidx.activity.compose.BackHandler(enabled = !drawerState.isOpen && uiState.selectedRecord != null && !uiState.isExternalQuery) {
+    // Intercept back button to return to input page
+    androidx.activity.compose.BackHandler(enabled = uiState.selectedRecord != null && !uiState.isExternalQuery) {
         viewModel.clearSelectedRecord()
     }
 
@@ -226,62 +213,36 @@ fun WorkspaceScreen(
             }
     }
 
-    // Modal Drawer wrapper
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        gesturesEnabled = drawerState.isOpen,
-        drawerContent = {
-            ModalDrawerSheet(
-                drawerContainerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
-                modifier = Modifier.width(310.dp).fillMaxHeight()
-            ) {
-                HistorySidebar(
-                    historyList = history,
-                    selectedRecord = uiState.selectedRecord,
-                    onSelectRecord = { record -> viewModel.selectRecord(record) },
-                    onClearSelection = { viewModel.clearSelectedRecord() },
-                    onDeleteRecord = { record -> recordToDelete = record },
-                    onExportAll = {
-                        coroutineScope.launch { drawerState.close() }
-                        viewModel.loadAllHistoryForExport()
-                        showExportDialog = true
-                    },
-                    onExportRecord = { record -> viewModel.exportRecord(record) },
-                    onCloseDrawer = { coroutineScope.launch { drawerState.close() } }
+    Scaffold(
+        containerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
+        snackbarHost = { 
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = SumiInk.copy(alpha = 0.85f),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.padding(bottom = 60.dp, start = 16.dp, end = 16.dp)
                 )
-            }
-        }
-    ) {
-        Scaffold(
-            containerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
-            snackbarHost = { 
-                SnackbarHost(hostState = snackbarHostState) { data ->
-                    Snackbar(
-                        snackbarData = data,
-                        containerColor = SumiInk.copy(alpha = 0.85f),
-                        contentColor = Color.White,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.padding(bottom = 60.dp, start = 16.dp, end = 16.dp)
-                    )
-                } 
-            },
-            topBar = {
-                if (uiState.selectedRecord != null) {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                text = stringResource(R.string.analysis_results),
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
-                                Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = MaterialTheme.colorScheme.onSurface)
-                            }
-                        },
-                        actions = {
-                            if (uiState.selectedRecord != null) {
+            } 
+        },
+        topBar = {
+            if (uiState.selectedRecord != null) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = stringResource(R.string.analysis_results),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onOpenDrawer) {
+                            Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = MaterialTheme.colorScheme.onSurface)
+                        }
+                    },
+                    actions = {
+                        if (uiState.selectedRecord != null) {
                                 IconButton(onClick = {
                                     uiState.selectedRecord?.let { viewModel.retryAnalysis(it.id) }
                                 }) {
@@ -339,7 +300,7 @@ fun WorkspaceScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 IconButton(
-                                    onClick = { coroutineScope.launch { drawerState.open() } },
+                                    onClick = onOpenDrawer,
                                     modifier = Modifier.size(40.dp)
                                 ) {
                                     Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = SumiInk)
@@ -627,49 +588,6 @@ fun WorkspaceScreen(
                 }
             }
         }
-    }
-
-    // Deletion Confirmation Dialog
-    if (recordToDelete != null) {
-        val record = recordToDelete!!
-        AlertDialog(
-            onDismissRequest = { recordToDelete = null },
-            title = { Text(stringResource(R.string.delete_history_title), fontWeight = FontWeight.Bold, color = SumiInk) },
-            text = { Text(stringResource(R.string.delete_history_confirm, record.originalText.take(15)), color = SumiInk) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (uiState.selectedRecord?.id == record.id) {
-                            viewModel.clearSelectedRecord()
-                        }
-                        viewModel.deleteRecord(record)
-                        recordToDelete = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F), contentColor = Color.White)
-                ) {
-                    Text(stringResource(R.string.delete), fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { recordToDelete = null }) {
-                    Text(stringResource(R.string.cancel), color = SumiInk)
-                }
-            },
-            containerColor = Color.White
-        )
-    }
-
-    // Export Selection Dialog
-    if (showExportDialog) {
-        ExportSelectionDialog(
-            historyList = allHistoryForExport,
-            onDismiss = { showExportDialog = false },
-            onExportSelected = { selectedRecords ->
-                viewModel.exportAllHistory(selectedRecords)
-                showExportDialog = false
-            }
-        )
-    }
 
     // Input Dialog for Floating Action Ball
     val showInputDialogFromVm by viewModel.showInputDialog.collectAsState()
@@ -729,26 +647,8 @@ fun WorkspaceScreen(
     }
 
     // Floating Action Ball
-    val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-    var globalFloatingEnabled by remember { mutableStateOf(prefs.getBoolean("global_floating_enabled", false)) }
-    
-    // Listen for preference changes so it updates instantly if changed in settings
-    DisposableEffect(prefs) {
-        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, key ->
-            if (key == "global_floating_enabled") {
-                globalFloatingEnabled = sharedPrefs.getBoolean(key, false)
-            }
-        }
-        prefs.registerOnSharedPreferenceChangeListener(listener)
-        onDispose {
-            prefs.unregisterOnSharedPreferenceChangeListener(listener)
-        }
-    }
-
-    if (!globalFloatingEnabled) {
-        FloatingActionBall(
-            onTextClick = { showInputDialogLocal = true },
-            onCameraClick = { navController.navigate("camera") }
-        )
-    }
+    FloatingActionBall(
+        onTextClick = { showInputDialogLocal = true },
+        onCameraClick = { navController.navigate("camera") }
+    )
 }

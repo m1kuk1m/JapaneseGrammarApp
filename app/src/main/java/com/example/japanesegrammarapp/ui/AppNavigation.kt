@@ -9,19 +9,42 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.paging.compose.collectAsLazyPagingItems
+import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
+import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.ui.screens.*
+import com.example.japanesegrammarapp.ui.screens.components.HistorySidebar
+import com.example.japanesegrammarapp.ui.screens.components.ExportSelectionDialog
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
@@ -59,6 +82,16 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
             
+            val history = workspaceViewModel.history.collectAsLazyPagingItems()
+            val allHistoryForExport by workspaceViewModel.allHistoryForExport.collectAsState()
+            val uiState by workspaceViewModel.uiState.collectAsState()
+            
+            var recordToDelete by remember { mutableStateOf<AnalysisDomainRecord?>(null) }
+            var showExportDialog by remember { mutableStateOf(false) }
+
+            val WashiBg = androidx.compose.material3.MaterialTheme.colorScheme.background
+            val SumiInk = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
+            
             LaunchedEffect(Unit) {
                 externalTextFlow.collect { text ->
                     workspaceViewModel.startNewAnalysisWithText(text, isExternal = true)
@@ -86,37 +119,107 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 }
             }
             
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                userScrollEnabled = drawerState.currentValue == DrawerValue.Closed
-            ) { page ->
-                when (page) {
-                    0 -> {
-                        WorkspaceScreen(
-                            navController = navController,
-                            viewModel = workspaceViewModel,
-                            drawerState = drawerState,
-                            onNavigateToSettings = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(1)
-                                }
-                            }
-                        )
-                    }
-                    1 -> {
-                        SettingsScreen(
-                            navController = navController,
-                            viewModel = settingsViewModel,
-                            isVisible = pagerState.currentPage == 1,
-                            onBack = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(0)
-                                }
-                            }
+            ModalNavigationDrawer(
+                drawerState = drawerState,
+                gesturesEnabled = pagerState.currentPage == 0,
+                drawerContent = {
+                    ModalDrawerSheet(
+                        drawerContainerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
+                        modifier = Modifier.width(310.dp).fillMaxHeight()
+                    ) {
+                        HistorySidebar(
+                            historyList = history,
+                            selectedRecord = uiState.selectedRecord,
+                            onSelectRecord = { record -> workspaceViewModel.selectRecord(record) },
+                            onClearSelection = { workspaceViewModel.clearSelectedRecord() },
+                            onDeleteRecord = { record -> recordToDelete = record },
+                            onExportAll = {
+                                coroutineScope.launch { drawerState.close() }
+                                workspaceViewModel.loadAllHistoryForExport()
+                                showExportDialog = true
+                            },
+                            onExportRecord = { record -> workspaceViewModel.exportRecord(record) },
+                            onCloseDrawer = { coroutineScope.launch { drawerState.close() } }
                         )
                     }
                 }
+            ) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    userScrollEnabled = drawerState.currentValue == DrawerValue.Closed
+                ) { page ->
+                    when (page) {
+                        0 -> {
+                            WorkspaceScreen(
+                                navController = navController,
+                                viewModel = workspaceViewModel,
+                                onOpenDrawer = {
+                                    coroutineScope.launch { drawerState.open() }
+                                },
+                                onNavigateToSettings = {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(1)
+                                    }
+                                }
+                            )
+                        }
+                        1 -> {
+                            SettingsScreen(
+                                navController = navController,
+                                viewModel = settingsViewModel,
+                                isVisible = pagerState.currentPage == 1,
+                                onBack = {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(0)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // Deletion Confirmation Dialog
+            if (recordToDelete != null) {
+                val record = recordToDelete!!
+                AlertDialog(
+                    onDismissRequest = { recordToDelete = null },
+                    title = { Text(stringResource(R.string.delete_history_title), fontWeight = FontWeight.Bold, color = SumiInk) },
+                    text = { Text(stringResource(R.string.delete_history_confirm, record.originalText.take(15)), color = SumiInk) },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (uiState.selectedRecord?.id == record.id) {
+                                    workspaceViewModel.clearSelectedRecord()
+                                }
+                                workspaceViewModel.deleteRecord(record)
+                                recordToDelete = null
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F), contentColor = Color.White)
+                        ) {
+                            Text(stringResource(R.string.delete), fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { recordToDelete = null }) {
+                            Text(stringResource(R.string.cancel), color = SumiInk)
+                        }
+                    },
+                    containerColor = Color.White
+                )
+            }
+
+            // Export Selection Dialog
+            if (showExportDialog) {
+                ExportSelectionDialog(
+                    historyList = allHistoryForExport,
+                    onDismiss = { showExportDialog = false },
+                    onExportSelected = { selectedRecords ->
+                        workspaceViewModel.exportAllHistory(selectedRecords)
+                        showExportDialog = false
+                    }
+                )
             }
         }
         composable(
