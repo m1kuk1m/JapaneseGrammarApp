@@ -11,8 +11,12 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
@@ -121,7 +125,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             
             ModalNavigationDrawer(
                 drawerState = drawerState,
-                gesturesEnabled = pagerState.currentPage == 0,
+                gesturesEnabled = drawerState.isOpen,
                 drawerContent = {
                     ModalDrawerSheet(
                         drawerContainerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
@@ -144,38 +148,57 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                     }
                 }
             ) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                    userScrollEnabled = drawerState.currentValue == DrawerValue.Closed
-                ) { page ->
-                    when (page) {
-                        0 -> {
-                            WorkspaceScreen(
-                                navController = navController,
-                                viewModel = workspaceViewModel,
-                                onOpenDrawer = {
-                                    coroutineScope.launch { drawerState.open() }
-                                },
-                                onNavigateToSettings = {
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(1)
+                Box(modifier = Modifier.fillMaxSize()) {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        userScrollEnabled = drawerState.currentValue == DrawerValue.Closed
+                    ) { page ->
+                        when (page) {
+                            0 -> {
+                                WorkspaceScreen(
+                                    navController = navController,
+                                    viewModel = workspaceViewModel,
+                                    onOpenDrawer = {
+                                        coroutineScope.launch { drawerState.open() }
+                                    },
+                                    onNavigateToSettings = {
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(1)
+                                        }
+                                    }
+                                )
+                            }
+                            1 -> {
+                                SettingsScreen(
+                                    navController = navController,
+                                    viewModel = settingsViewModel,
+                                    isVisible = pagerState.currentPage == 1,
+                                    onBack = {
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(0)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    
+                    // Edge Swipe Interceptor for opening the drawer
+                    if (pagerState.currentPage == 0 && drawerState.isClosed) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(30.dp)
+                                .align(Alignment.CenterStart)
+                                .pointerInput(Unit) {
+                                    detectHorizontalDragGestures { _, dragAmount ->
+                                        if (dragAmount > 10) { // Swiping right
+                                            coroutineScope.launch { drawerState.open() }
+                                        }
                                     }
                                 }
-                            )
-                        }
-                        1 -> {
-                            SettingsScreen(
-                                navController = navController,
-                                viewModel = settingsViewModel,
-                                isVisible = pagerState.currentPage == 1,
-                                onBack = {
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(0)
-                                    }
-                                }
-                            )
-                        }
+                        )
                     }
                 }
             }
