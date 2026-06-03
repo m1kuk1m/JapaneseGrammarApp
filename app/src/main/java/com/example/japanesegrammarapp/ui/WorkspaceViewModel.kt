@@ -9,6 +9,7 @@ import com.example.japanesegrammarapp.domain.repository.*
 import com.example.japanesegrammarapp.domain.usecase.AnalyzeTextUseCase
 import com.example.japanesegrammarapp.domain.usecase.RetryAnalysisUseCase
 import com.example.japanesegrammarapp.domain.usecase.AnalysisEventBus
+import com.example.japanesegrammarapp.domain.usecase.AnalysisProgress
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.utils.RecordExporter
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -157,7 +158,7 @@ class WorkspaceViewModel @Inject constructor(
                 if (currentSelected != null) {
                     val progress = progressMap[currentSelected.id]
                     _uiState.update { it.copy(selectedRecordProgress = progress) }
-                    if (progress == null || progress.grammarCompleted || progress.translationCompleted || progress.clausesCompleted || progress.segmentsCompleted) {
+                    if (progress == null || progress.tokenizerCompleted || progress.grammarCompleted || progress.translationCompleted || progress.clausesCompleted || progress.segmentsCompleted) {
                         refreshSelectedRecordFromRepository(currentSelected.id, clearProgress = progress == null)
                     }
                 } else {
@@ -195,24 +196,37 @@ class WorkspaceViewModel @Inject constructor(
 
     fun selectRecord(record: AnalysisDomainRecord, clearExternalQuery: Boolean = true) {
         val current = _uiState.value.selectedRecord
-        if (current?.id == record.id && current.analysisResult == record.analysisResult && current.status == record.status) {
+        if (current?.id == record.id && (current.status == AnalysisStatus.COMPLETED || (current.status == record.status && current.analysisResult == record.analysisResult))) {
             return
         }
 
-        _uiState.update { it.copy(isParsingDetailedResult = true, isExternalQuery = if (clearExternalQuery) false else it.isExternalQuery) }
+        // Immediately update selectedRecord synchronously on the Main thread to avoid UI lag/flicker
+        _uiState.update { it.copy(
+            selectedRecord = record,
+            currentOriginalText = record.originalText,
+            analysisResult = record.analysisResult,
+            isParsingDetailedResult = true,
+            isExternalQuery = if (clearExternalQuery) false else it.isExternalQuery,
+            selectedRecordProgress = if (record.status != AnalysisStatus.COMPLETED) {
+                analyzeTextUseCase.progressFlow.value[record.id]
+            } else null
+        ) }
+
         viewModelScope.launch(Dispatchers.IO) {
             val freshRecord = historyRepository.getRecordById(record.id) ?: record
             val detail = analyzeTextUseCase.parseDetailedResult(freshRecord.originalText, freshRecord.analysisResult)
-            _uiState.update { it.copy(
-                selectedRecord = freshRecord,
-                currentOriginalText = freshRecord.originalText,
-                analysisResult = freshRecord.analysisResult,
-                detailedResult = detail,
-                isParsingDetailedResult = false,
-                selectedRecordProgress = if (freshRecord.status != AnalysisStatus.COMPLETED) {
-                    analyzeTextUseCase.progressFlow.value[freshRecord.id]
-                } else null
-            ) }
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(
+                    selectedRecord = freshRecord,
+                    currentOriginalText = freshRecord.originalText,
+                    analysisResult = freshRecord.analysisResult,
+                    detailedResult = detail,
+                    isParsingDetailedResult = false,
+                    selectedRecordProgress = if (freshRecord.status != AnalysisStatus.COMPLETED) {
+                        analyzeTextUseCase.progressFlow.value[freshRecord.id]
+                    } else null
+                ) }
+            }
         }
     }
 
@@ -220,7 +234,9 @@ class WorkspaceViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             val record = historyRepository.getRecordById(recordId)
             if (record != null) {
-                selectRecord(record, clearExternalQuery = clearExternalQuery)
+                withContext(Dispatchers.Main) {
+                    selectRecord(record, clearExternalQuery = clearExternalQuery)
+                }
             }
         }
     }
@@ -313,6 +329,22 @@ class WorkspaceViewModel @Inject constructor(
             try {
                 val recordId = analyzeTextUseCase.execute(text, imageUri?.toString(), provider, modelName, baseUrl, apiKey)
                 if (autoNavigate) {
+                    // Instantly transition the UI state on the Main thread to avoid loading/flashing delays
+                    val initialRecord = AnalysisDomainRecord(
+                        id = recordId,
+                        originalText = text,
+                        imageUri = imageUri?.toString(),
+                        analysisResult = null,
+                        modelUsed = "$provider: $modelName",
+                        status = AnalysisStatus.PENDING
+                    )
+                    _uiState.update { it.copy(
+                        selectedRecord = initialRecord,
+                        currentOriginalText = text,
+                        analysisResult = null,
+                        detailedResult = null,
+                        selectedRecordProgress = AnalysisProgress()
+                    ) }
                     selectRecordById(recordId)
                 } else {
                     _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.analysis_started_toast))

@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.channels.Channel
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -107,19 +106,19 @@ class AnalyzeTextUseCase @Inject constructor(
             var partialResult = DetailedAnalysisResult()
             val partialResultMutex = kotlinx.coroutines.sync.Mutex()
 
-            val dbWriteChannel = Channel<DetailedAnalysisResult>(Channel.UNLIMITED)
-            val dbWriterJob = launch {
-                for (resultToSave in dbWriteChannel) {
+            suspend fun updatePartialResult(updateBlock: (DetailedAnalysisResult) -> DetailedAnalysisResult) {
+                partialResultMutex.withLock {
                     try {
+                        partialResult = updateBlock(partialResult)
                         val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
                         if (currentRecord != null) {
-                            val mergedResult = detailedResultSerializer.toJson(resultToSave)
+                            val mergedResult = detailedResultSerializer.toJson(partialResult)
                             saveAnalysisRecordUseCase.update(
                                 currentRecord.copy(
                                     analysisResult = mergedResult,
-                                    consumedTokens = resultToSave.consumedTokens,
-                                    inputTokens = resultToSave.inputTokens,
-                                    outputTokens = resultToSave.outputTokens
+                                    consumedTokens = partialResult.consumedTokens,
+                                    inputTokens = partialResult.inputTokens,
+                                    outputTokens = partialResult.outputTokens
                                 )
                             )
                         }
@@ -127,10 +126,6 @@ class AnalyzeTextUseCase @Inject constructor(
                         e.printStackTrace()
                     }
                 }
-            }
-
-            fun savePartial(snapshot: DetailedAnalysisResult) {
-                dbWriteChannel.trySend(snapshot)
             }
 
             try {
@@ -219,16 +214,17 @@ class AnalyzeTextUseCase @Inject constructor(
                             saveAnalysisRecordUseCase.update(currentRecord.copy(originalText = effectiveText))
                         }
                     }
-                    val snapshot = partialResultMutex.withLock {
+                    updatePartialResult { current ->
+                        var updated = current
                         if (skeletonSegments.isNotEmpty()) {
-                            partialResult = partialResult.copy(segments = skeletonSegments)
+                            updated = updated.copy(segments = skeletonSegments)
                         }
-                        partialResult.consumedTokens += metadata.consumedTokens
-                        partialResult.inputTokens += metadata.inputTokens
-                        partialResult.outputTokens += metadata.outputTokens
-                        partialResult
+                        updated.copy(
+                            consumedTokens = updated.consumedTokens + metadata.consumedTokens,
+                            inputTokens = updated.inputTokens + metadata.inputTokens,
+                            outputTokens = updated.outputTokens + metadata.outputTokens
+                        )
                     }
-                    savePartial(snapshot)
 
                     _progressFlow.update { map ->
                         val current = map[recordId] ?: AnalysisProgress()
@@ -242,14 +238,14 @@ class AnalyzeTextUseCase @Inject constructor(
                                 val res = llmAnalysisService.executeTranslation(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.TRANSLATION), getBackupListener(AnalysisStep.TRANSLATION))
                                 val obj = res.first
                                 val meta = res.second
-                                val snapshotInner = partialResultMutex.withLock {
-                                    partialResult = partialResult.copy(translation = obj?.translation)
-                                    partialResult.consumedTokens += meta.consumedTokens
-                                    partialResult.inputTokens += meta.inputTokens
-                                    partialResult.outputTokens += meta.outputTokens
-                                    partialResult
+                                updatePartialResult { current ->
+                                    current.copy(
+                                        translation = obj?.translation,
+                                        consumedTokens = current.consumedTokens + meta.consumedTokens,
+                                        inputTokens = current.inputTokens + meta.inputTokens,
+                                        outputTokens = current.outputTokens + meta.outputTokens
+                                    )
                                 }
-                                savePartial(snapshotInner)
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             } finally {
@@ -266,14 +262,14 @@ class AnalyzeTextUseCase @Inject constructor(
                                 val res = llmAnalysisService.executeClauses(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.CLAUSE_ANALYSIS), getBackupListener(AnalysisStep.CLAUSE_ANALYSIS))
                                 val obj = res.first
                                 val meta = res.second
-                                val snapshotInner = partialResultMutex.withLock {
-                                    partialResult = partialResult.copy(clauses = obj?.clauses)
-                                    partialResult.consumedTokens += meta.consumedTokens
-                                    partialResult.inputTokens += meta.inputTokens
-                                    partialResult.outputTokens += meta.outputTokens
-                                    partialResult
+                                updatePartialResult { current ->
+                                    current.copy(
+                                        clauses = obj?.clauses,
+                                        consumedTokens = current.consumedTokens + meta.consumedTokens,
+                                        inputTokens = current.inputTokens + meta.inputTokens,
+                                        outputTokens = current.outputTokens + meta.outputTokens
+                                    )
                                 }
-                                savePartial(snapshotInner)
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             } finally {
@@ -290,14 +286,14 @@ class AnalyzeTextUseCase @Inject constructor(
                                 val res = llmAnalysisService.executeGrammar(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION), getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION))
                                 val obj = res.first
                                 val meta = res.second
-                                val snapshotInner = partialResultMutex.withLock {
-                                    partialResult = partialResult.copy(grammarPoints = obj?.grammarPoints)
-                                    partialResult.consumedTokens += meta.consumedTokens
-                                    partialResult.inputTokens += meta.inputTokens
-                                    partialResult.outputTokens += meta.outputTokens
-                                    partialResult
+                                updatePartialResult { current ->
+                                    current.copy(
+                                        grammarPoints = obj?.grammarPoints,
+                                        consumedTokens = current.consumedTokens + meta.consumedTokens,
+                                        inputTokens = current.inputTokens + meta.inputTokens,
+                                        outputTokens = current.outputTokens + meta.outputTokens
+                                    )
                                 }
-                                savePartial(snapshotInner)
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             } finally {
@@ -314,16 +310,15 @@ class AnalyzeTextUseCase @Inject constructor(
                                 val res = llmAnalysisService.executeSegments(effectiveText, tokens, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.DETAILED_GRAMMAR), getBackupListener(AnalysisStep.DETAILED_GRAMMAR))
                                 val obj = res.first
                                 val meta = res.second
-                                val snapshotInner = partialResultMutex.withLock {
-                                    if (obj?.segments != null) {
-                                        partialResult = partialResult.copy(segments = obj.segments)
-                                    }
-                                    partialResult.consumedTokens += meta.consumedTokens
-                                    partialResult.inputTokens += meta.inputTokens
-                                    partialResult.outputTokens += meta.outputTokens
-                                    partialResult
+                                updatePartialResult { current ->
+                                    val nextSegments = obj?.segments ?: current.segments
+                                    current.copy(
+                                        segments = nextSegments,
+                                        consumedTokens = current.consumedTokens + meta.consumedTokens,
+                                        inputTokens = current.inputTokens + meta.inputTokens,
+                                        outputTokens = current.outputTokens + meta.outputTokens
+                                    )
                                 }
-                                savePartial(snapshotInner)
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             } finally {
@@ -378,16 +373,17 @@ class AnalyzeTextUseCase @Inject constructor(
                                 saveAnalysisRecordUseCase.update(currentRecord.copy(originalText = effectiveText))
                             }
                         }
-                        val snapshot = partialResultMutex.withLock {
+                        updatePartialResult { current ->
+                            var updated = current
                             if (skeletonSegments.isNotEmpty()) {
-                                partialResult = partialResult.copy(segments = skeletonSegments)
+                                updated = updated.copy(segments = skeletonSegments)
                             }
-                            partialResult.consumedTokens += metadata.consumedTokens
-                            partialResult.inputTokens += metadata.inputTokens
-                            partialResult.outputTokens += metadata.outputTokens
-                            partialResult
+                            updated.copy(
+                                consumedTokens = updated.consumedTokens + metadata.consumedTokens,
+                                inputTokens = updated.inputTokens + metadata.inputTokens,
+                                outputTokens = updated.outputTokens + metadata.outputTokens
+                            )
                         }
-                        savePartial(snapshot)
 
                         _progressFlow.update { map ->
                             val current = map[recordId] ?: AnalysisProgress()
@@ -401,14 +397,14 @@ class AnalyzeTextUseCase @Inject constructor(
                                     val res = llmAnalysisService.executeTranslation(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.TRANSLATION), getBackupListener(AnalysisStep.TRANSLATION))
                                     val obj = res.first
                                     val meta = res.second
-                                    val snapshotInner = partialResultMutex.withLock {
-                                        partialResult = partialResult.copy(translation = obj?.translation)
-                                        partialResult.consumedTokens += meta.consumedTokens
-                                        partialResult.inputTokens += meta.inputTokens
-                                        partialResult.outputTokens += meta.outputTokens
-                                        partialResult
+                                    updatePartialResult { current ->
+                                        current.copy(
+                                            translation = obj?.translation,
+                                            consumedTokens = current.consumedTokens + meta.consumedTokens,
+                                            inputTokens = current.inputTokens + meta.inputTokens,
+                                            outputTokens = current.outputTokens + meta.outputTokens
+                                        )
                                     }
-                                    savePartial(snapshotInner)
                                 } catch (e: Exception) {
                                     e.printStackTrace()
                                 } finally {
@@ -425,14 +421,14 @@ class AnalyzeTextUseCase @Inject constructor(
                                     val res = llmAnalysisService.executeClauses(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.CLAUSE_ANALYSIS), getBackupListener(AnalysisStep.CLAUSE_ANALYSIS))
                                     val obj = res.first
                                     val meta = res.second
-                                    val snapshotInner = partialResultMutex.withLock {
-                                        partialResult = partialResult.copy(clauses = obj?.clauses)
-                                        partialResult.consumedTokens += meta.consumedTokens
-                                        partialResult.inputTokens += meta.inputTokens
-                                        partialResult.outputTokens += meta.outputTokens
-                                        partialResult
+                                    updatePartialResult { current ->
+                                        current.copy(
+                                            clauses = obj?.clauses,
+                                            consumedTokens = current.consumedTokens + meta.consumedTokens,
+                                            inputTokens = current.inputTokens + meta.inputTokens,
+                                            outputTokens = current.outputTokens + meta.outputTokens
+                                        )
                                     }
-                                    savePartial(snapshotInner)
                                 } catch (e: Exception) {
                                     e.printStackTrace()
                                 } finally {
@@ -449,14 +445,14 @@ class AnalyzeTextUseCase @Inject constructor(
                                     val res = llmAnalysisService.executeGrammar(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION), getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION))
                                     val obj = res.first
                                     val meta = res.second
-                                    val snapshotInner = partialResultMutex.withLock {
-                                        partialResult = partialResult.copy(grammarPoints = obj?.grammarPoints)
-                                        partialResult.consumedTokens += meta.consumedTokens
-                                        partialResult.inputTokens += meta.inputTokens
-                                        partialResult.outputTokens += meta.outputTokens
-                                        partialResult
+                                    updatePartialResult { current ->
+                                        current.copy(
+                                            grammarPoints = obj?.grammarPoints,
+                                            consumedTokens = current.consumedTokens + meta.consumedTokens,
+                                            inputTokens = current.inputTokens + meta.inputTokens,
+                                            outputTokens = current.outputTokens + meta.outputTokens
+                                        )
                                     }
-                                    savePartial(snapshotInner)
                                 } catch (e: Exception) {
                                     e.printStackTrace()
                                 } finally {
@@ -473,16 +469,15 @@ class AnalyzeTextUseCase @Inject constructor(
                                     val res = llmAnalysisService.executeSegments(effectiveText, tokens, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.DETAILED_GRAMMAR), getBackupListener(AnalysisStep.DETAILED_GRAMMAR))
                                     val obj = res.first
                                     val meta = res.second
-                                    val snapshotInner = partialResultMutex.withLock {
-                                        if (obj?.segments != null) {
-                                            partialResult = partialResult.copy(segments = obj.segments)
-                                        }
-                                        partialResult.consumedTokens += meta.consumedTokens
-                                        partialResult.inputTokens += meta.inputTokens
-                                        partialResult.outputTokens += meta.outputTokens
-                                        partialResult
+                                    updatePartialResult { current ->
+                                        val nextSegments = obj?.segments ?: current.segments
+                                        current.copy(
+                                            segments = nextSegments,
+                                            consumedTokens = current.consumedTokens + meta.consumedTokens,
+                                            inputTokens = current.inputTokens + meta.inputTokens,
+                                            outputTokens = current.outputTokens + meta.outputTokens
+                                        )
                                     }
-                                    savePartial(snapshotInner)
                                 } catch (e: Exception) {
                                     e.printStackTrace()
                                 } finally {
@@ -504,14 +499,14 @@ class AnalyzeTextUseCase @Inject constructor(
                                     val res = llmAnalysisService.executeTranslation(text, imageBase64, mimeType, primaryConfig, backupConfig, getRetryListener(AnalysisStep.TRANSLATION), getBackupListener(AnalysisStep.TRANSLATION))
                                     val obj = res.first
                                     val meta = res.second
-                                    val snapshotInner = partialResultMutex.withLock {
-                                        partialResult = partialResult.copy(translation = obj?.translation)
-                                        partialResult.consumedTokens += meta.consumedTokens
-                                        partialResult.inputTokens += meta.inputTokens
-                                        partialResult.outputTokens += meta.outputTokens
-                                        partialResult
+                                    updatePartialResult { current ->
+                                        current.copy(
+                                            translation = obj?.translation,
+                                            consumedTokens = current.consumedTokens + meta.consumedTokens,
+                                            inputTokens = current.inputTokens + meta.inputTokens,
+                                            outputTokens = current.outputTokens + meta.outputTokens
+                                        )
                                     }
-                                    savePartial(snapshotInner)
                                 } catch (e: Exception) {
                                     e.printStackTrace()
                                 } finally {
@@ -528,14 +523,14 @@ class AnalyzeTextUseCase @Inject constructor(
                                     val res = llmAnalysisService.executeClauses(text, imageBase64, mimeType, primaryConfig, backupConfig, getRetryListener(AnalysisStep.CLAUSE_ANALYSIS), getBackupListener(AnalysisStep.CLAUSE_ANALYSIS))
                                     val obj = res.first
                                     val meta = res.second
-                                    val snapshotInner = partialResultMutex.withLock {
-                                        partialResult = partialResult.copy(clauses = obj?.clauses)
-                                        partialResult.consumedTokens += meta.consumedTokens
-                                        partialResult.inputTokens += meta.inputTokens
-                                        partialResult.outputTokens += meta.outputTokens
-                                        partialResult
+                                    updatePartialResult { current ->
+                                        current.copy(
+                                            clauses = obj?.clauses,
+                                            consumedTokens = current.consumedTokens + meta.consumedTokens,
+                                            inputTokens = current.inputTokens + meta.inputTokens,
+                                            outputTokens = current.outputTokens + meta.outputTokens
+                                        )
                                     }
-                                    savePartial(snapshotInner)
                                 } catch (e: Exception) {
                                     e.printStackTrace()
                                 } finally {
@@ -552,14 +547,14 @@ class AnalyzeTextUseCase @Inject constructor(
                                     val res = llmAnalysisService.executeGrammar(text, imageBase64, mimeType, primaryConfig, backupConfig, getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION), getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION))
                                     val obj = res.first
                                     val meta = res.second
-                                    val snapshotInner = partialResultMutex.withLock {
-                                        partialResult = partialResult.copy(grammarPoints = obj?.grammarPoints)
-                                        partialResult.consumedTokens += meta.consumedTokens
-                                        partialResult.inputTokens += meta.inputTokens
-                                        partialResult.outputTokens += meta.outputTokens
-                                        partialResult
+                                    updatePartialResult { current ->
+                                        current.copy(
+                                            grammarPoints = obj?.grammarPoints,
+                                            consumedTokens = current.consumedTokens + meta.consumedTokens,
+                                            inputTokens = current.inputTokens + meta.inputTokens,
+                                            outputTokens = current.outputTokens + meta.outputTokens
+                                        )
                                     }
-                                    savePartial(snapshotInner)
                                 } catch (e: Exception) {
                                     e.printStackTrace()
                                 } finally {
@@ -590,16 +585,17 @@ class AnalyzeTextUseCase @Inject constructor(
                                     val tokens = tokenObj?.tokens ?: emptyList()
 
                                     val skeletonSegments = tokens.map { WordSegment(text = it) }
-                                    val tokenSnapshot = partialResultMutex.withLock {
+                                    updatePartialResult { current ->
+                                        var updated = current
                                         if (skeletonSegments.isNotEmpty()) {
-                                            partialResult = partialResult.copy(segments = skeletonSegments)
+                                            updated = updated.copy(segments = skeletonSegments)
                                         }
-                                        partialResult.consumedTokens += tokenMeta.consumedTokens
-                                        partialResult.inputTokens += tokenMeta.inputTokens
-                                        partialResult.outputTokens += tokenMeta.outputTokens
-                                        partialResult
+                                        updated.copy(
+                                            consumedTokens = updated.consumedTokens + tokenMeta.consumedTokens,
+                                            inputTokens = updated.inputTokens + tokenMeta.inputTokens,
+                                            outputTokens = updated.outputTokens + tokenMeta.outputTokens
+                                        )
                                     }
-                                    savePartial(tokenSnapshot)
 
                                     _progressFlow.update { map ->
                                         val current = map[recordId] ?: AnalysisProgress()
@@ -620,16 +616,15 @@ class AnalyzeTextUseCase @Inject constructor(
                                     val segObj = resSeg.first
                                     val segMeta = resSeg.second
 
-                                    val segmentSnapshot = partialResultMutex.withLock {
-                                        if (segObj?.segments != null) {
-                                            partialResult = partialResult.copy(segments = segObj.segments)
-                                        }
-                                        partialResult.consumedTokens += segMeta.consumedTokens
-                                        partialResult.inputTokens += segMeta.inputTokens
-                                        partialResult.outputTokens += segMeta.outputTokens
-                                        partialResult
+                                    updatePartialResult { current ->
+                                        val nextSegments = segObj?.segments ?: current.segments
+                                        current.copy(
+                                            segments = nextSegments,
+                                            consumedTokens = current.consumedTokens + segMeta.consumedTokens,
+                                            inputTokens = current.inputTokens + segMeta.inputTokens,
+                                            outputTokens = current.outputTokens + segMeta.outputTokens
+                                        )
                                     }
-                                    savePartial(segmentSnapshot)
                                 } catch (e: Exception) {
                                     e.printStackTrace()
                                 } finally {
@@ -643,26 +638,28 @@ class AnalyzeTextUseCase @Inject constructor(
                     }
                 }
 
-                dbWriteChannel.close()
-                dbWriterJob.join()
-
                 val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
                 if (currentRecord != null) {
                     var updatedText = currentRecord.originalText
                     if (updatedText.isBlank()) {
-                        val combinedSentence = partialResult.segments?.joinToString("") { it.text ?: "" } ?: ""
+                        val combinedSentence = partialResultMutex.withLock {
+                            partialResult.segments?.joinToString("") { it.text ?: "" } ?: ""
+                        }
                         if (combinedSentence.isNotBlank()) {
                             updatedText = combinedSentence
                         }
                     }
-                    val finalResultJson = detailedResultSerializer.toJson(partialResult)
+                    val finalResultJson = partialResultMutex.withLock {
+                        detailedResultSerializer.toJson(partialResult)
+                    }
+                    val finalResultSnapshot = partialResultMutex.withLock { partialResult }
                     val updatedRecord = currentRecord.copy(
                         originalText = updatedText,
                         analysisResult = finalResultJson,
                         status = AnalysisStatus.COMPLETED,
-                        consumedTokens = partialResult.consumedTokens,
-                        inputTokens = partialResult.inputTokens,
-                        outputTokens = partialResult.outputTokens
+                        consumedTokens = finalResultSnapshot.consumedTokens,
+                        inputTokens = finalResultSnapshot.inputTokens,
+                        outputTokens = finalResultSnapshot.outputTokens
                     )
                     saveAnalysisRecordUseCase.update(updatedRecord)
 
@@ -672,8 +669,6 @@ class AnalyzeTextUseCase @Inject constructor(
                 if (e is CancellationException) throw e
                 com.example.japanesegrammarapp.utils.AppLogger.e("LLM_API", "Background analysis execution failed for recordId: $recordId", e)
                 e.printStackTrace()
-                dbWriteChannel.close()
-                dbWriterJob.join()
 
                 val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
                 if (currentRecord != null) {
@@ -694,7 +689,6 @@ class AnalyzeTextUseCase @Inject constructor(
                     eventBus.post(AnalysisEvent.TaskFailed(recordId, e))
                 }
             } finally {
-                dbWriteChannel.close()
                 _progressFlow.update { it - recordId }
             }
         }

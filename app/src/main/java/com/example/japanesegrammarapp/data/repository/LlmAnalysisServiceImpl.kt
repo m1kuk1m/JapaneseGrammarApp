@@ -257,6 +257,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
             )
             throw Exception(message, e)
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AppLogger.apiError(
                 apiTypeLabel = apiTypeLabel,
                 provider = providerLabel,

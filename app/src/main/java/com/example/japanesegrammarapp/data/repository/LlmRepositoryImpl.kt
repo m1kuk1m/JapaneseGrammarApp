@@ -178,6 +178,7 @@ class LlmRepositoryImpl @Inject constructor(
                     apiKey = primaryKey
                 )
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 lastException = e
                 com.example.japanesegrammarapp.utils.AppLogger.e(
                     "LLM_API",
@@ -213,6 +214,7 @@ class LlmRepositoryImpl @Inject constructor(
                 apiKey = backupKey
             )
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             val errorMsg = "メインAPIおよび予備APIの呼び出しに失敗しました。メインAPIエラー: ${lastException?.localizedMessage}。予備APIエラー: ${e.localizedMessage}"
             com.example.japanesegrammarapp.utils.AppLogger.e("LLM_API", errorMsg, e)
             throw com.example.japanesegrammarapp.domain.model.LlmApiFailedException(primaryProvider, lastException?.localizedMessage, true, backupProvider, e.localizedMessage)
