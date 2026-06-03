@@ -52,8 +52,28 @@ class WorkspaceViewModel @Inject constructor(
     private val eventBus: AnalysisEventBus
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(WorkspaceUiState())
+    private val _uiState = MutableStateFlow(createInitialUiState())
     val uiState: StateFlow<WorkspaceUiState> = _uiState.asStateFlow()
+
+    private fun createInitialUiState(): WorkspaceUiState {
+        val activeProvider = settingsRepository.getActiveProvider()
+        val activeModel = settingsRepository.getActiveModel(activeProvider)
+        val useOcr = settingsRepository.getUseOcr()
+        val autoNavigateResult = settingsRepository.getAutoNavigateResult()
+        val imageTokenizerMode = settingsRepository.getImageTokenizerMode()
+
+        val models = settingsRepository.getModelsForProvider(activeProvider)
+        val finalActiveModel = if (activeModel.isBlank() && models.isNotEmpty()) models.first() else activeModel
+
+        return WorkspaceUiState(
+            activeProvider = activeProvider,
+            activeModel = finalActiveModel,
+            useOcr = useOcr,
+            autoNavigateResult = autoNavigateResult,
+            imageTokenizerMode = imageTokenizerMode,
+            availableModels = models
+        )
+    }
 
     private val historyDateFormatter = DateTimeFormatter.ofPattern("MM/dd HH:mm").withZone(ZoneId.systemDefault())
 
@@ -308,7 +328,13 @@ class WorkspaceViewModel @Inject constructor(
     fun startAnalysis(text: String, imageUri: Uri?, forceNavigate: Boolean = false) {
         viewModelScope.launch {
             val provider = _uiState.value.activeProvider
-            val model = _uiState.value.activeModel.ifBlank { "default" }
+            val model = _uiState.value.activeModel.ifBlank {
+                val savedModel = settingsRepository.getActiveModel(provider)
+                if (savedModel.isNotBlank()) savedModel else {
+                    val models = settingsRepository.getModelsForProvider(provider)
+                    models.firstOrNull() ?: "default"
+                }
+            }
             val key = getApiKey(provider)
             val url = getApiUrl(provider)
             val autoNavigate = forceNavigate || _uiState.value.autoNavigateResult
