@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -32,8 +33,10 @@ class TtsRepositoryImpl @Inject constructor(
 
     private var mediaPlayer: MediaPlayer? = null
     private var tempAudioFile: File? = null
+    private var ttsJob: kotlinx.coroutines.Job? = null
 
     override fun playText(text: String) {
+        ttsJob?.cancel() // Cancel the active network request/processing job
         stop() // Stop any ongoing playback
         _isPlaying.value = true
 
@@ -44,9 +47,11 @@ class TtsRepositoryImpl @Inject constructor(
         val voice = settingsRepository.getTtsVoice(provider)
         val region = settingsRepository.getTtsRegion(provider)
 
-        CoroutineScope(Dispatchers.IO).launch {
+        ttsJob = CoroutineScope(Dispatchers.IO).launch {
             try {
-                tempAudioFile = File.createTempFile("tts_audio", ".mp3", context.cacheDir)
+                yield()
+                tempAudioFile?.let { if (it.exists()) it.delete() }
+                tempAudioFile = File(context.cacheDir, "tts_audio_cache.mp3")
                 
                 when (provider) {
                     "OpenAI" -> playOpenAi(text, url, key, model, voice)
@@ -55,13 +60,14 @@ class TtsRepositoryImpl @Inject constructor(
                     else -> throw Exception("Unknown TTS provider")
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 com.example.japanesegrammarapp.utils.AppLogger.e("TTS", "TTS Failure: ${e.message}", e)
                 _isPlaying.value = false
             }
         }
     }
 
-    private fun playOpenAi(text: String, url: String, key: String, model: String, voice: String) {
+    private suspend fun playOpenAi(text: String, url: String, key: String, model: String, voice: String) {
         val json = JSONObject().apply {
             put("model", model.ifBlank { "tts-1" })
             put("input", text)
@@ -77,7 +83,7 @@ class TtsRepositoryImpl @Inject constructor(
         executeAudioRequest(request)
     }
 
-    private fun playGoogle(text: String, url: String, key: String, voice: String) {
+    private suspend fun playGoogle(text: String, url: String, key: String, voice: String) {
         val json = JSONObject().apply {
             put("input", JSONObject().put("text", text))
             put("voice", JSONObject().put("languageCode", "ja-JP").put("name", voice.ifBlank { "ja-JP-Neural2-B" }))
@@ -92,11 +98,13 @@ class TtsRepositoryImpl @Inject constructor(
             .post(requestBody)
             .build()
             
+        yield()
         val response = okHttpClient.newCall(request).execute()
         if (!response.isSuccessful) {
             throw Exception("HTTP ${response.code}: ${response.body?.string()}")
         }
         
+        yield()
         val responseBodyString = response.body?.string() ?: throw Exception("Empty response body")
         val jsonResponse = JSONObject(responseBodyString)
         val audioContentBase64 = jsonResponse.optString("audioContent")
@@ -105,11 +113,13 @@ class TtsRepositoryImpl @Inject constructor(
         }
         
         val audioBytes = Base64.decode(audioContentBase64, Base64.DEFAULT)
+        yield()
         FileOutputStream(tempAudioFile).use { it.write(audioBytes) }
+        yield()
         playAudioFile()
     }
 
-    private fun playMicrosoft(text: String, region: String, key: String, voice: String) {
+    private suspend fun playMicrosoft(text: String, region: String, key: String, voice: String) {
         val ssml = "<speak version='1.0' xml:lang='ja-JP'><voice name='${voice.ifBlank { "ja-JP-NanamiNeural" }}'>${text.replace("<", "&lt;").replace(">", "&gt;")}</voice></speak>"
         val requestBody = ssml.toRequestBody("application/ssml+xml".toMediaType())
         val request = Request.Builder()
@@ -122,16 +132,19 @@ class TtsRepositoryImpl @Inject constructor(
         executeAudioRequest(request)
     }
 
-    private fun executeAudioRequest(request: Request) {
+    private suspend fun executeAudioRequest(request: Request) {
+        yield()
         val response = okHttpClient.newCall(request).execute()
         if (!response.isSuccessful) {
             throw Exception("HTTP ${response.code}: ${response.body?.string()}")
         }
         
+        yield()
         val inputStream = response.body?.byteStream() ?: throw Exception("Empty response body")
         FileOutputStream(tempAudioFile).use { output ->
             inputStream.copyTo(output)
         }
+        yield()
         playAudioFile()
     }
 
@@ -163,6 +176,7 @@ class TtsRepositoryImpl @Inject constructor(
     }
 
     override fun stop() {
+        ttsJob?.cancel()
         try {
             mediaPlayer?.stop()
             mediaPlayer?.release()

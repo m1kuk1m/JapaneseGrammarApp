@@ -1,4 +1,4 @@
-﻿package com.example.japanesegrammarapp.ui.screens
+package com.example.japanesegrammarapp.ui.screens
 
 import android.net.Uri
 import android.provider.Settings
@@ -71,7 +71,6 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val activeProvider = uiState.activeProvider
     val providerModels = uiState.providerModels
-    val isFetchingModels = uiState.isFetchingModels
     val fetchingProvider = uiState.fetchingProvider
     val totalTokensConsumed by viewModel.totalTokensConsumed.collectAsState()
     val tokenUsageByModel by viewModel.tokenUsageByModel.collectAsState()
@@ -79,29 +78,38 @@ fun SettingsScreen(
     var showTokenDialog by remember { mutableStateOf(false) }
 
     val providers = uiState.allProviders
-    val baseProviders = LlmConfig.providers
     val defaultUrls = LlmConfig.defaultUrls
 
     var isSettingsLoaded by remember { mutableStateOf(false) }
 
     var selectedTtsProvider by remember { mutableStateOf("OpenAI") }
-    var ttsUrl by remember { mutableStateOf("") }
-    var ttsKey by remember { mutableStateOf("") }
-    var ttsModel by remember { mutableStateOf("") }
-    var ttsVoice by remember { mutableStateOf("") }
-    var ttsRegion by remember { mutableStateOf("") }
+    val ttsUrls = remember { mutableStateMapOf<String, String>() }
+    val ttsKeys = remember { mutableStateMapOf<String, String>() }
+    val ttsModels = remember { mutableStateMapOf<String, String>() }
+    val ttsVoices = remember { mutableStateMapOf<String, String>() }
+    val ttsRegions = remember { mutableStateMapOf<String, String>() }
 
-    var providerUrls by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var providerKeys by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    val providerUrls = remember { mutableStateMapOf<String, String>() }
+    val providerKeys = remember { mutableStateMapOf<String, String>() }
 
     fun saveSettings() {
         if (!isSettingsLoaded) return
         viewModel.setTtsProvider(selectedTtsProvider)
-        viewModel.setTtsApiUrl(selectedTtsProvider, ttsUrl)
-        viewModel.setTtsApiKey(selectedTtsProvider, ttsKey)
-        viewModel.setTtsModel(selectedTtsProvider, ttsModel)
-        viewModel.setTtsVoice(selectedTtsProvider, ttsVoice)
-        viewModel.setTtsRegion(selectedTtsProvider, ttsRegion)
+        ttsUrls.forEach { (provider, url) ->
+            viewModel.setTtsApiUrl(provider, url)
+        }
+        ttsKeys.forEach { (provider, key) ->
+            viewModel.setTtsApiKey(provider, key)
+        }
+        ttsModels.forEach { (provider, model) ->
+            viewModel.setTtsModel(provider, model)
+        }
+        ttsVoices.forEach { (provider, voice) ->
+            viewModel.setTtsVoice(provider, voice)
+        }
+        ttsRegions.forEach { (provider, region) ->
+            viewModel.setTtsRegion(provider, region)
+        }
 
         providerUrls.forEach { (provider, url) ->
             viewModel.setApiUrl(provider, url)
@@ -116,25 +124,57 @@ fun SettingsScreen(
         onBack()
     }
 
+    LaunchedEffect(isVisible) {
+        if (!isVisible) {
+            saveSettings()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            saveSettings()
+        }
+    }
+
     LaunchedEffect(providers) {
+        if (providers.isEmpty() || isSettingsLoaded) return@LaunchedEffect
         val urls = mutableMapOf<String, String>()
         val keys = mutableMapOf<String, String>()
         providers.forEach { provider ->
             urls[provider] = withContext(Dispatchers.IO) { viewModel.getApiUrl(provider) }
             keys[provider] = withContext(Dispatchers.IO) { viewModel.getApiKey(provider) }
         }
-        providerUrls = urls
-        providerKeys = keys
+        providerUrls.clear()
+        providerUrls.putAll(urls)
+        providerKeys.clear()
+        providerKeys.putAll(keys)
+
+        val ttsProvidersList = listOf("OpenAI", "Google", "Microsoft")
+        val tUrls = mutableMapOf<String, String>()
+        val tKeys = mutableMapOf<String, String>()
+        val tModels = mutableMapOf<String, String>()
+        val tVoices = mutableMapOf<String, String>()
+        val tRegions = mutableMapOf<String, String>()
+        ttsProvidersList.forEach { provider ->
+            tUrls[provider] = withContext(Dispatchers.IO) { viewModel.getTtsApiUrl(provider) }
+            tKeys[provider] = withContext(Dispatchers.IO) { viewModel.getTtsApiKey(provider) }
+            tModels[provider] = withContext(Dispatchers.IO) { viewModel.getTtsModel(provider) }
+            tVoices[provider] = withContext(Dispatchers.IO) { viewModel.getTtsVoice(provider) }
+            tRegions[provider] = withContext(Dispatchers.IO) { viewModel.getTtsRegion(provider) }
+        }
+        ttsUrls.clear()
+        ttsUrls.putAll(tUrls)
+        ttsKeys.clear()
+        ttsKeys.putAll(tKeys)
+        ttsModels.clear()
+        ttsModels.putAll(tModels)
+        ttsVoices.clear()
+        ttsVoices.putAll(tVoices)
+        ttsRegions.clear()
+        ttsRegions.putAll(tRegions)
+
         selectedTtsProvider = withContext(Dispatchers.IO) { viewModel.getTtsProvider() }
         isSettingsLoaded = true
-    }
-
-    LaunchedEffect(selectedTtsProvider) {
-        ttsUrl = withContext(Dispatchers.IO) { viewModel.getTtsApiUrl(selectedTtsProvider) }
-        ttsKey = withContext(Dispatchers.IO) { viewModel.getTtsApiKey(selectedTtsProvider) }
-        ttsModel = withContext(Dispatchers.IO) { viewModel.getTtsModel(selectedTtsProvider) }
-        ttsVoice = withContext(Dispatchers.IO) { viewModel.getTtsVoice(selectedTtsProvider) }
-        ttsRegion = withContext(Dispatchers.IO) { viewModel.getTtsRegion(selectedTtsProvider) }
     }
 
 
@@ -145,7 +185,25 @@ fun SettingsScreen(
 
     val wallpaperLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
-            viewModel.setWallpaperUri(uri.toString())
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    ctx.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        val file = java.io.File(ctx.filesDir, "custom_wallpaper.jpg")
+                        java.io.FileOutputStream(file).use { outputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
+                        val savedUri = Uri.fromFile(file).toString()
+                        withContext(Dispatchers.Main) {
+                            viewModel.setWallpaperUri(savedUri)
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    withContext(Dispatchers.Main) {
+                        snackbarHostState.showSnackbar(ctx.getString(R.string.unknown_error))
+                    }
+                }
+            }
         }
     }
 
@@ -176,33 +234,173 @@ fun SettingsScreen(
 
     val apiLogs by com.example.japanesegrammarapp.utils.AppLogger.apiLogs.collectAsState()
     var showApiLogsDialog by remember { mutableStateOf(false) }
+    var selectedApiLogDetail by remember { mutableStateOf<com.example.japanesegrammarapp.utils.ApiDebugLog?>(null) }
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
     if (showLogsDialog) {
+        var searchQuery by remember { mutableStateOf("") }
+        var selectedLevel by remember { mutableStateOf("ALL") }
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+        val context = LocalContext.current
+
+        val filteredLogs = remember(logs, searchQuery, selectedLevel) {
+            logs.filter { log ->
+                val matchesQuery = searchQuery.isBlank() || log.contains(searchQuery, ignoreCase = true)
+                val matchesLevel = when (selectedLevel) {
+                    "DEBUG" -> log.contains(" D/")
+                    "ERROR" -> log.contains(" E/")
+                    else -> true
+                }
+                matchesQuery && matchesLevel
+            }
+        }
+
         AlertDialog(
             onDismissRequest = { showLogsDialog = false },
-            title = { Text(stringResource(R.string.app_logs_title)) },
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        stringResource(R.string.app_logs_title),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    IconButton(onClick = {
+                        val uri = com.example.japanesegrammarapp.utils.AppLogger.getLogFileUri(context, false)
+                        if (uri != null) {
+                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(android.content.Intent.createChooser(shareIntent, context.getString(R.string.share_logs)))
+                        }
+                    }) {
+                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.share_logs), tint = SumiInk)
+                    }
+                }
+            },
             text = {
-                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
+                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp)) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text(stringResource(R.string.log_search_hint), fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        singleLine = true,
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(18.dp)) {
+                                    Icon(Icons.Default.Close, contentDescription = null)
+                                }
+                            }
+                        },
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val levels = listOf("ALL", "DEBUG", "ERROR")
+                        val levelLabels = mapOf(
+                            "ALL" to stringResource(R.string.log_level_all),
+                            "DEBUG" to stringResource(R.string.log_level_debug),
+                            "ERROR" to stringResource(R.string.log_level_error)
+                        )
+                        levels.forEach { lvl ->
+                            val isSelected = selectedLevel == lvl
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedLevel = lvl },
+                                label = { Text(levelLabels[lvl] ?: lvl, fontSize = 11.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = PrimaryColor,
+                                    selectedLabelColor = OnPrimaryColor
+                                )
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(onClick = { com.example.japanesegrammarapp.utils.AppLogger.clear() }) {
-                            Text(stringResource(R.string.clear_logs))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = {
+                                com.example.japanesegrammarapp.utils.AppLogger.clear()
+                            }) {
+                                Text(stringResource(R.string.clear_logs), color = Color.Red, fontSize = 12.sp)
+                            }
+                            TextButton(onClick = {
+                                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(filteredLogs.joinToString("\n")))
+                                android.widget.Toast.makeText(context, context.getString(R.string.copy_success_toast), android.widget.Toast.LENGTH_SHORT).show()
+                            }) {
+                                Text(stringResource(R.string.copy_logs), fontSize = 12.sp)
+                            }
                         }
-                        TextButton(onClick = {
-                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(logs.joinToString("\n")))
-                        }) {
-                            Text(stringResource(R.string.copy_logs))
+                        
+                        Row {
+                            IconButton(
+                                onClick = {
+                                    coroutineScope.launch { listState.animateScrollToItem(0) }
+                                },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.KeyboardArrowUp, contentDescription = stringResource(R.string.scroll_to_top))
+                            }
+                            IconButton(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        if (filteredLogs.isNotEmpty()) {
+                                            listState.animateScrollToItem(filteredLogs.size - 1)
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.scroll_to_bottom))
+                            }
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(logs) { log ->
-                            Text(log, fontSize = 10.sp, fontFamily = FontFamily.Monospace, lineHeight = 12.sp)
-                            Divider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    val logSize = remember(logs) { com.example.japanesegrammarapp.utils.AppLogger.getLogFileSize(context) }
+                    Text(
+                        text = stringResource(R.string.log_size_label, logSize),
+                        fontSize = 10.sp,
+                        color = SumiInk.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Divider(color = SumiInk.copy(alpha = 0.1f))
+
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize().weight(1f).padding(vertical = 4.dp)
+                    ) {
+                        items(filteredLogs) { log ->
+                            val color = when {
+                                log.contains(" E/") -> Color(0xFFC62828)
+                                log.contains(" D/") -> SumiInk.copy(alpha = 0.6f)
+                                else -> SumiInk
+                            }
+                            Text(
+                                text = log,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                lineHeight = 12.sp,
+                                color = color,
+                                modifier = Modifier.padding(vertical = 2.dp)
+                            )
+                            Divider(modifier = Modifier.padding(vertical = 2.dp), color = SumiInk.copy(alpha = 0.05f))
                         }
                     }
                 }
@@ -214,32 +412,125 @@ fun SettingsScreen(
     }
 
     if (showApiLogsDialog) {
+        var searchQuery by remember { mutableStateOf("") }
+        var filterStatus by remember { mutableStateOf("ALL") }
+        val context = LocalContext.current
+
+        val filteredApiLogs = remember(apiLogs, searchQuery, filterStatus) {
+            apiLogs.filter { log ->
+                val matchesQuery = searchQuery.isBlank() ||
+                        log.provider.contains(searchQuery, ignoreCase = true) ||
+                        log.model.contains(searchQuery, ignoreCase = true) ||
+                        log.apiTypeLabel.contains(searchQuery, ignoreCase = true) ||
+                        log.userPrompt.contains(searchQuery, ignoreCase = true) ||
+                        (log.rawResponse?.contains(searchQuery, ignoreCase = true) ?: false)
+
+                val matchesStatus = when (filterStatus) {
+                    "SUCCESS" -> log.status == "SUCCESS"
+                    "ERROR" -> log.status == "ERROR"
+                    else -> true
+                }
+                matchesQuery && matchesStatus
+            }.reversed()
+        }
+
         AlertDialog(
             onDismissRequest = { showApiLogsDialog = false },
-            title = { Text(stringResource(R.string.api_debug_logs_title), fontWeight = FontWeight.Bold) },
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        stringResource(R.string.api_debug_logs_title),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    IconButton(onClick = {
+                        val uri = com.example.japanesegrammarapp.utils.AppLogger.getLogFileUri(context, true)
+                        if (uri != null) {
+                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "application/json"
+                                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(android.content.Intent.createChooser(shareIntent, context.getString(R.string.api_log_share_all)))
+                        }
+                    }) {
+                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.api_log_share_all), tint = SumiInk)
+                    }
+                }
+            },
             text = {
                 Column(modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp)) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text(stringResource(R.string.log_search_hint), fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        singleLine = true,
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(18.dp)) {
+                                    Icon(Icons.Default.Close, contentDescription = null)
+                                }
+                            }
+                        },
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val statuses = listOf("ALL", "SUCCESS", "ERROR")
+                        val statusLabels = mapOf(
+                            "ALL" to stringResource(R.string.api_debug_filter_all),
+                            "SUCCESS" to stringResource(R.string.api_debug_filter_success),
+                            "ERROR" to stringResource(R.string.api_debug_filter_error)
+                        )
+                        statuses.forEach { stat ->
+                            val isSelected = filterStatus == stat
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { filterStatus = stat },
+                                label = { Text(statusLabels[stat] ?: stat, fontSize = 11.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = PrimaryColor,
+                                    selectedLabelColor = OnPrimaryColor
+                                )
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         TextButton(onClick = { com.example.japanesegrammarapp.utils.AppLogger.clearApiLogs() }) {
-                            Text(stringResource(R.string.clear_api_debug_logs))
+                            Text(stringResource(R.string.clear_api_debug_logs), color = Color.Red, fontSize = 12.sp)
                         }
                         TextButton(onClick = {
-                            val copyText = apiLogs.joinToString("\n\n") { log ->
+                            val copyText = filteredApiLogs.joinToString("\n\n") { log ->
                                 "[${log.apiTypeLabel}] ${log.provider} - ${log.model}\nStatus: ${log.status}\nPrompt: ${log.userPrompt}\nResponse: ${log.rawResponse ?: ""}\nError: ${log.errorMessage ?: ""}"
                             }
                             clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(copyText))
+                            android.widget.Toast.makeText(context, context.getString(R.string.copy_success_toast), android.widget.Toast.LENGTH_SHORT).show()
                         }) {
-                            Text(stringResource(R.string.copy_logs))
+                            Text(stringResource(R.string.copy_logs), fontSize = 12.sp)
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    if (apiLogs.isEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Divider(color = SumiInk.copy(alpha = 0.1f))
+
+                    if (filteredApiLogs.isEmpty()) {
                         Box(
-                            modifier = Modifier.fillMaxSize().padding(24.dp),
+                            modifier = Modifier.fillMaxSize().weight(1f).padding(24.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -250,49 +541,56 @@ fun SettingsScreen(
                             )
                         }
                     } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(apiLogs) { log ->
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize().weight(1f).padding(vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(filteredApiLogs) { log ->
                                 Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                                    shape = RoundedCornerShape(12.dp)
+                                    modifier = Modifier.fillMaxWidth().clickable { selectedApiLogDetail = log },
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                                    shape = RoundedCornerShape(10.dp)
                                 ) {
-                                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = "[${log.apiTypeLabel}] ${log.provider} - ${log.model}",
+                                                text = "[${log.apiTypeLabel}] ${log.provider}",
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = SumiInk
                                             )
                                             Text(
                                                 text = log.status,
-                                                fontSize = 10.sp,
+                                                fontSize = 9.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (log.status == "SUCCESS") Color(0xFF2E7D32) else Color(0xFFC62828)
                                             )
                                         }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = log.model,
+                                                fontSize = 10.sp,
+                                                color = SumiInk.copy(alpha = 0.7f)
+                                            )
+                                            Text(
+                                                text = log.time,
+                                                fontSize = 9.sp,
+                                                color = SumiInk.copy(alpha = 0.4f)
+                                            )
+                                        }
                                         Text(
                                             text = stringResource(R.string.api_debug_meta, log.hasImage.toString(), log.consumedTokens, log.inputTokens, log.outputTokens),
-                                            fontSize = 10.sp,
+                                            fontSize = 9.sp,
                                             color = SumiInk.copy(alpha = 0.5f)
                                         )
-                                        Divider(color = SumiInk.copy(alpha = 0.1f))
-                                        Text(stringResource(R.string.api_debug_user_prompt), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SumiInk)
-                                        Text(log.userPrompt, fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = SumiInk.copy(alpha = 0.8f))
-                                        if (log.rawResponse != null) {
-                                            Divider(color = SumiInk.copy(alpha = 0.05f))
-                                            Text(stringResource(R.string.api_debug_raw_response), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SumiInk)
-                                            Text(log.rawResponse, fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = SumiInk.copy(alpha = 0.8f))
-                                        }
-                                        if (log.errorMessage != null) {
-                                            Divider(color = SumiInk.copy(alpha = 0.05f))
-                                            Text(stringResource(R.string.api_debug_error), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC62828))
-                                            Text(log.errorMessage, fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = Color(0xFFC62828))
-                                        }
                                     }
                                 }
                             }
@@ -302,6 +600,174 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showApiLogsDialog = false }) { Text(stringResource(R.string.close)) }
+            }
+        )
+    }
+
+    selectedApiLogDetail?.let { log ->
+        val context = LocalContext.current
+        val formattedResponse = remember(log.rawResponse) {
+            if (log.rawResponse == null) return@remember ""
+            try {
+                val parser = com.google.gson.JsonParser()
+                val jsonElement = parser.parse(log.rawResponse)
+                val gson = com.google.gson.GsonBuilder().setPrettyPrinting().create()
+                gson.toJson(jsonElement)
+            } catch (e: Exception) {
+                log.rawResponse
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { selectedApiLogDetail = null },
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        stringResource(R.string.api_details_title),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    IconButton(onClick = { selectedApiLogDetail = null }) {
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                    }
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(stringResource(R.string.api_details_metadata), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = SumiInk)
+                            Divider(color = SumiInk.copy(alpha = 0.05f))
+                            Text("Time: ${log.time}", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                            Text("Type: ${log.apiTypeLabel}", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                            Text("Provider: ${log.provider}", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                            Text("Model: ${log.model}", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                            Text("Status: ${log.status}", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (log.status == "SUCCESS") Color(0xFF2E7D32) else Color(0xFFC62828))
+                            Text("Tokens: ${log.consumedTokens} (Input: ${log.inputTokens}, Output: ${log.outputTokens})", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                            Text("Has Image: ${log.hasImage}", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(stringResource(R.string.api_details_prompts), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = SumiInk)
+                            TextButton(
+                                onClick = {
+                                    val promptText = "System Prompt:\n${log.systemPromptPreview}\n\nUser Prompt:\n${log.userPrompt}"
+                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(promptText))
+                                    android.widget.Toast.makeText(context, context.getString(R.string.copy_success_toast), android.widget.Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.height(24.dp),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                            ) {
+                                Text(stringResource(R.string.api_log_copy_prompt), fontSize = 10.sp)
+                            }
+                        }
+                        Divider(color = SumiInk.copy(alpha = 0.1f))
+                        
+                        Text(stringResource(R.string.api_debug_system_prompt), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SumiInk.copy(alpha = 0.7f))
+                        Box(
+                            modifier = Modifier.fillMaxWidth().background(SumiInk.copy(alpha = 0.05f), RoundedCornerShape(4.dp)).padding(6.dp)
+                        ) {
+                            Text(log.systemPromptPreview, fontSize = 9.sp, fontFamily = FontFamily.Monospace, color = SumiInk.copy(alpha = 0.8f))
+                        }
+                        
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(stringResource(R.string.api_debug_user_prompt), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SumiInk.copy(alpha = 0.7f))
+                        Box(
+                            modifier = Modifier.fillMaxWidth().background(SumiInk.copy(alpha = 0.05f), RoundedCornerShape(4.dp)).padding(6.dp)
+                        ) {
+                            Text(log.userPrompt, fontSize = 9.sp, fontFamily = FontFamily.Monospace, color = SumiInk.copy(alpha = 0.8f))
+                        }
+                    }
+
+                    if (log.status == "SUCCESS") {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(stringResource(R.string.api_details_response), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = SumiInk)
+                                TextButton(
+                                    onClick = {
+                                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(formattedResponse))
+                                        android.widget.Toast.makeText(context, context.getString(R.string.copy_success_toast), android.widget.Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.height(24.dp),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                                ) {
+                                    Text(stringResource(R.string.api_log_copy_response), fontSize = 10.sp)
+                                }
+                            }
+                            Divider(color = SumiInk.copy(alpha = 0.1f))
+                            Box(
+                                modifier = Modifier.fillMaxWidth().background(SumiInk.copy(alpha = 0.05f), RoundedCornerShape(4.dp)).padding(6.dp)
+                            ) {
+                                Text(formattedResponse, fontSize = 9.sp, fontFamily = FontFamily.Monospace, color = SumiInk.copy(alpha = 0.8f))
+                            }
+                        }
+                    }
+
+                    if (log.status == "ERROR") {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(stringResource(R.string.api_details_error_info), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFFC62828))
+                                TextButton(
+                                    onClick = {
+                                        val errText = "Error Message:\n${log.errorMessage}\n\nStack Trace:\n${log.stackTrace ?: ""}"
+                                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(errText))
+                                        android.widget.Toast.makeText(context, context.getString(R.string.copy_success_toast), android.widget.Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.height(24.dp),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                                ) {
+                                    Text(stringResource(R.string.api_log_copy_error), fontSize = 10.sp, color = Color(0xFFC62828))
+                                }
+                            }
+                            Divider(color = Color(0xFFC62828).copy(alpha = 0.2f))
+                            
+                            Text(stringResource(R.string.api_debug_error), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC62828))
+                            Box(
+                                modifier = Modifier.fillMaxWidth().background(Color(0xFFC62828).copy(alpha = 0.05f), RoundedCornerShape(4.dp)).padding(6.dp)
+                            ) {
+                                Text(log.errorMessage ?: "Unknown error", fontSize = 9.sp, fontFamily = FontFamily.Monospace, color = Color(0xFFC62828))
+                            }
+                            
+                            if (!log.stackTrace.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(stringResource(R.string.api_debug_stack_trace), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC62828))
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().background(Color(0xFFC62828).copy(alpha = 0.05f), RoundedCornerShape(4.dp)).padding(6.dp)
+                                ) {
+                                    Text(log.stackTrace, fontSize = 9.sp, fontFamily = FontFamily.Monospace, color = Color(0xFFC62828).copy(alpha = 0.8f))
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { selectedApiLogDetail = null }) { Text(stringResource(R.string.close)) }
             }
         )
     }
@@ -394,7 +860,19 @@ fun SettingsScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     IconButton(
-                                        onClick = { viewModel.setWallpaperUri("") },
+                                        onClick = {
+                                            viewModel.setWallpaperUri("")
+                                            coroutineScope.launch(Dispatchers.IO) {
+                                                try {
+                                                    val file = java.io.File(ctx.filesDir, "custom_wallpaper.jpg")
+                                                    if (file.exists()) {
+                                                        file.delete()
+                                                    }
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                }
+                                            }
+                                        },
                                         modifier = Modifier.size(24.dp)
                                     ) {
                                         Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_wallpaper), tint = SumiInk.copy(alpha=0.5f))
@@ -664,8 +1142,6 @@ fun SettingsScreen(
                 modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
             )
 
-            var showAddCustomProviderDialog by remember { mutableStateOf(false) }
-
             providers.forEach { provider ->
                 val isExpanded = expandedProvider == provider
 
@@ -707,7 +1183,7 @@ fun SettingsScreen(
                                     value = localUrl,
                                     onValueChange = { 
                                         localUrl = it
-                                        providerUrls = providerUrls.toMutableMap().apply { put(provider, it) }
+                                        providerUrls[provider] = it
                                     },
                                     label = { Text(stringResource(R.string.base_url)) },
                                     modifier = Modifier.fillMaxWidth(),
@@ -719,7 +1195,7 @@ fun SettingsScreen(
                                     value = localKey,
                                     onValueChange = { 
                                         localKey = it
-                                        providerKeys = providerKeys.toMutableMap().apply { put(provider, it) }
+                                        providerKeys[provider] = it
                                     },
                                     label = { Text(stringResource(R.string.api_key)) },
                                     modifier = Modifier.fillMaxWidth(),
@@ -848,8 +1324,10 @@ fun SettingsScreen(
 
                         if (selectedTtsProvider == "OpenAI" || selectedTtsProvider == "Google") {
                             OutlinedTextField(
-                                value = ttsUrl,
-                                onValueChange = { ttsUrl = it },
+                                value = ttsUrls[selectedTtsProvider] ?: "",
+                                onValueChange = { newValue ->
+                                    ttsUrls[selectedTtsProvider] = newValue
+                                },
                                 label = { Text(stringResource(R.string.base_url)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
@@ -860,8 +1338,10 @@ fun SettingsScreen(
 
                         if (selectedTtsProvider == "Microsoft") {
                             OutlinedTextField(
-                                value = ttsRegion,
-                                onValueChange = { ttsRegion = it },
+                                value = ttsRegions[selectedTtsProvider] ?: "",
+                                onValueChange = { newValue ->
+                                    ttsRegions[selectedTtsProvider] = newValue
+                                },
                                 label = { Text(stringResource(R.string.tts_region_placeholder)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
@@ -871,8 +1351,10 @@ fun SettingsScreen(
                         }
 
                         OutlinedTextField(
-                            value = ttsKey,
-                            onValueChange = { ttsKey = it },
+                            value = ttsKeys[selectedTtsProvider] ?: "",
+                            onValueChange = { newValue ->
+                                ttsKeys[selectedTtsProvider] = newValue
+                            },
                             label = { Text(stringResource(R.string.api_key)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
@@ -888,8 +1370,10 @@ fun SettingsScreen(
 
                         if (selectedTtsProvider == "OpenAI") {
                             OutlinedTextField(
-                                value = ttsModel,
-                                onValueChange = { ttsModel = it },
+                                value = ttsModels[selectedTtsProvider] ?: "",
+                                onValueChange = { newValue ->
+                                    ttsModels[selectedTtsProvider] = newValue
+                                },
                                 label = { Text(stringResource(R.string.tts_model_placeholder)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
@@ -899,8 +1383,10 @@ fun SettingsScreen(
                         }
 
                         OutlinedTextField(
-                            value = ttsVoice,
-                            onValueChange = { ttsVoice = it },
+                            value = ttsVoices[selectedTtsProvider] ?: "",
+                            onValueChange = { newValue ->
+                                ttsVoices[selectedTtsProvider] = newValue
+                            },
                             label = { Text(stringResource(R.string.tts_voice_placeholder)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,

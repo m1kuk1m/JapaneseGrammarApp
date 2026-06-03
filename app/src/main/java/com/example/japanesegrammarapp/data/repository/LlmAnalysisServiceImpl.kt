@@ -6,6 +6,7 @@ import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
 import com.example.japanesegrammarapp.domain.repository.LlmResultMetadata
 import com.example.japanesegrammarapp.domain.model.DetailedAnalysisResult
 import com.example.japanesegrammarapp.domain.model.TokenizationResult
+import com.example.japanesegrammarapp.domain.model.WordSegment
 import com.example.japanesegrammarapp.network.PromptManager
 import com.example.japanesegrammarapp.utils.AppLogger
 import com.google.gson.Gson
@@ -154,14 +155,23 @@ class LlmAnalysisServiceImpl @Inject constructor(
         onRetry: (attempt: Int) -> Unit,
         onBackup: (backupProvider: String) -> Unit
     ): Pair<DetailedAnalysisResult?, LlmResultMetadata> {
-        val tokensJson = gson.toJson(tokens)
-        val userPrompt = if (text.isNotBlank()) {
-            "分析対象の文: \"$text\"\nユーザーが提供したトークン配列: $tokensJson\n各トークンの詳細な文法分析を行ってください。"
-        } else {
-            "画像内の日本語テキストのトークン配列: $tokensJson\n各トークンの詳細な文法分析を行ってください。"
+        val nonPunctuationTokens = tokens.filter { !isPunctuation(it) }
+
+        // If the sentence contains only punctuation (or is empty), return immediately without calling LLM
+        if (nonPunctuationTokens.isEmpty()) {
+            val finalSegments = tokens.map { getPunctuationSegment(it) }
+            val result = DetailedAnalysisResult(segments = finalSegments)
+            return Pair(result, LlmResultMetadata(0, 0, 0))
         }
 
-        return executeAnalysisStep(
+        val tokensJson = gson.toJson(nonPunctuationTokens)
+        val userPrompt = if (text.isNotBlank()) {
+            "分析対象の文: \"$text\"\nユーザーが提供したトークン配列（記号除く）: $tokensJson\n各トークンの詳細な文法分析を行ってください。"
+        } else {
+            "画像内の日本語テキストのトークン配列（記号除く）: $tokensJson\n各トークンの詳細な文法分析を行ってください。"
+        }
+
+        val (parsed, metadata) = executeAnalysisStep(
             systemPrompt = PromptManager.SYSTEM_PROMPT_SEGMENTS,
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
@@ -173,6 +183,26 @@ class LlmAnalysisServiceImpl @Inject constructor(
             onBackup = onBackup,
             clazz = DetailedAnalysisResult::class.java
         )
+
+        val returnedSegments = parsed?.segments ?: emptyList()
+        var returnedIdx = 0
+        val finalSegments = mutableListOf<WordSegment>()
+
+        for (token in tokens) {
+            if (isPunctuation(token)) {
+                finalSegments.add(getPunctuationSegment(token))
+            } else {
+                if (returnedIdx < returnedSegments.size) {
+                    finalSegments.add(returnedSegments[returnedIdx])
+                    returnedIdx++
+                } else {
+                    finalSegments.add(WordSegment(text = token))
+                }
+            }
+        }
+
+        val optimizedResult = parsed?.copy(segments = finalSegments) ?: DetailedAnalysisResult(segments = finalSegments)
+        return Pair(optimizedResult, metadata)
     }
 
 
@@ -286,5 +316,62 @@ class LlmAnalysisServiceImpl @Inject constructor(
             cleanJson = cleanJson.removeSuffix("```").trim()
         }
         return cleanJson
+    }
+
+    private fun isPunctuation(token: String): Boolean {
+        val trimmed = token.trim()
+        if (trimmed.isEmpty()) return true
+        val punctuationChars = setOf(
+            '。', '、', '・', '？', '！', '「', '」', '『', '』', '（', '）',
+            '〔', '〕', '［', '］', '｛', '｝', '〜', '～', '…', '：', '；', '―',
+            '【', '】', '《', '》', '〈', '〉',
+            '?', '!', '(', ')', '[', ']', '{', '}', ':', ';', ',', '.', '~', '-', '_', '/', '\\', '|', '<', '>', '"', '\''
+        )
+        if (trimmed.length == 1 && trimmed[0] in punctuationChars) return true
+        if (trimmed.matches(Regex("^[wW]+$"))) return true
+        return false
+    }
+
+    private fun getPunctuationSegment(token: String): WordSegment {
+        val trimmed = token.trim()
+        val (reading, meaning, role) = when {
+            trimmed == "。" -> Triple("くてん", "（句号）", "文の終わりを示す句点。")
+            trimmed == "、" -> Triple("とうてん", "（逗号）", "文の区切りを示す読点。")
+            trimmed == "・" -> Triple("なかぐろ", "（间隔号）", "名詞の並列や、外来語・外国語の区切りを示す中黒。")
+            trimmed == "？" || trimmed == "?" -> Triple("ぎもんふ", "（问号）", "疑問や問いかけを表す疑問符（クエスチョンマーク）。")
+            trimmed == "！" || trimmed == "!" -> Triple("かんたんふ", "（感叹号）", "強い感情、驚き、または命令を表す感嘆符。")
+            trimmed == "「" -> Triple("かぎかっこ", "（前引号）", "会話、引用、または強調する語句の開始を示す鉤括弧。")
+            trimmed == "」" -> Triple("かぎかっこ", "（后引号）", "会話、引用、または強調する語句の終了を示す鉤括弧。")
+            trimmed == "『" -> Triple("にじゅうかぎかっこ", "（前双引号）", "書名、作品名、または鉤括弧内での引用の開始を示す二重鉤括弧。")
+            trimmed == "』" -> Triple("にじゅうかぎかっこ", "（后双引号）", "書名、作品名、または鉤括弧内での引用の終了を示す二重鉤括弧。")
+            trimmed == "（" || trimmed == "(" -> Triple("かっこ", "（前括号）", "注記、補足説明、または読み仮名の開始を示す丸括弧。")
+            trimmed == "）" || trimmed == ")" -> Triple("かっこ", "（后括号）", "注記、補足説明、または読み仮名の終了を示す丸括弧。")
+            trimmed == "【" -> Triple("すみつきかっこ", "（前方括号）", "見出し、強調、または特別な分類の開始を示す隅付き括弧。")
+            trimmed == "】" -> Triple("すみつきかっこ", "（后方括号）", "見出し、強調、または特別な分類の終了を示す隅付き括弧。")
+            trimmed == "〔" -> Triple("きっこうかっこ", "（前六角括号）", "引用内の補足、注記、または記号の開始を示す亀甲括弧。")
+            trimmed == "〕" -> Triple("きっこうかっこ", "（后六角括号）", "引用内の補足、注記、または記号の終了を示す亀甲括弧。")
+            trimmed == "［" || trimmed == "[" -> Triple("かくかっこ", "（前中括号）", "注記、編集上の挿入、またはグループ化の開始を示す角括弧。")
+            trimmed == "］" || trimmed == "]" -> Triple("かくかっこ", "（后中括号）", "注記、編集上の挿入、またはグループ化の終了を示す角括弧。")
+            trimmed == "｛" || trimmed == "{" -> Triple("なみかっこ", "（前大括号）", "複数の選択肢やグループの開始を示す波括弧。")
+            trimmed == "｝" || trimmed == "}" -> Triple("なみかっこ", "（后大括号）", "複数の選択肢やグループの終了を示す波括弧。")
+            trimmed == "〜" || trimmed == "～" || trimmed == "~" -> Triple("なみだっしゅ", "（波浪号）", "範囲（〜から〜まで）や起点を示す波ダッシュ。")
+            trimmed == "…" || trimmed == "..." -> Triple("さんてんりーだー", "（省略号）", "言葉の省略、余韻、または沈黙を示す三点リーダー。")
+            trimmed == "：" || trimmed == ":" -> Triple("ころん", "（冒号）", "説明、例示、または引用の提示を示すコロン。")
+            trimmed == "；" || trimmed == ";" -> Triple("せみころん", "（分号）", "文の緊密な関係にある節を区切るセミコロン。")
+            trimmed == "―" || trimmed == "—" -> Triple("だっしゅ", "（破折号）", "話の転換、説明の挿入、または余韻を示すダッシュ。")
+            trimmed.matches(Regex("^[wW]+$")) -> Triple("わら", "（笑）", "ネットスラングで笑いを表す記号。")
+            else -> Triple("きごう", "（符号）", "記号または補助記号。")
+        }
+        return WordSegment(
+            text = token,
+            reading = reading,
+            partOfSpeech = "補助記号",
+            posCategory = "OTHER",
+            dictionaryForm = null,
+            dictionaryFormReading = null,
+            meaning = meaning,
+            inflection = null,
+            role = role
+        )
     }
 }

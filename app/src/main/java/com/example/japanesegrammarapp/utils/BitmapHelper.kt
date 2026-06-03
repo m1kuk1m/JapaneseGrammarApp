@@ -52,11 +52,11 @@ object BitmapHelper {
     }
 
     fun createTempCapturedFile(context: Context): File {
-        return File.createTempFile("capture_${System.currentTimeMillis()}", ".jpg", context.cacheDir)
+        return File(context.cacheDir, "capture_temp.jpg")
     }
 
     fun saveCroppedBitmap(context: Context, bitmap: Bitmap): Uri? {
-        val file = File(context.cacheDir, "cropped_${System.currentTimeMillis()}.jpg")
+        val file = File(context.cacheDir, "cropped_temp.jpg")
         val out = FileOutputStream(file)
         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
         out.flush()
@@ -67,7 +67,7 @@ object BitmapHelper {
     fun copyUriToCache(context: Context, uri: Uri): Uri? {
         return try {
             val stream = context.contentResolver.openInputStream(uri) ?: return null
-            val file = File(context.cacheDir, "copied_${System.currentTimeMillis()}.jpg")
+            val file = File(context.cacheDir, "copied_temp.jpg")
             val out = FileOutputStream(file)
             stream.copyTo(out)
             stream.close()

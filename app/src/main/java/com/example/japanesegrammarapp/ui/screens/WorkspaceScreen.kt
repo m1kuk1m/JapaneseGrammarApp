@@ -82,9 +82,6 @@ fun WorkspaceScreen(
     }
     var selectedImageUriState by remember { mutableStateOf<Uri?>(null) }
 
-    // OCR Overlay States
-    var ocrScreenshot by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-    var ocrDetectedBoxes by remember { mutableStateOf<List<android.graphics.Rect>>(emptyList()) }
 
     // Clear image uri when returning to homepage (no active record)
     LaunchedEffect(uiState.selectedRecord) {
@@ -106,6 +103,8 @@ fun WorkspaceScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshSettings()
+            } else if (event == Lifecycle.Event.ON_PAUSE) {
+                viewModel.stopTts()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -222,7 +221,7 @@ fun WorkspaceScreen(
                         }
                         viewModel.startAnalysis("", uri)
                     }
-                    cameraNavBackStackEntry.savedStateHandle["captured_image_uri"] = null
+                    cameraNavBackStackEntry?.savedStateHandle?.set("captured_image_uri", null)
                 }
             }
     }

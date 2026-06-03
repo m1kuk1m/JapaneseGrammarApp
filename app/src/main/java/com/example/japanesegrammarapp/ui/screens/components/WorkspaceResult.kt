@@ -321,7 +321,7 @@ fun WorkspaceResultContent(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        var rawQueryWord = currentSegment.dictionaryForm?.takeIf { it.isNotBlank() } ?: currentSegment.text ?: ""
+                                        var rawQueryWord = currentSegment.dictionaryFormReading?.takeIf { it.isNotBlank() } ?: currentSegment.dictionaryForm?.takeIf { it.isNotBlank() } ?: currentSegment.text ?: ""
                                         // 智能去尾：针对形容动词和某些特殊情况，去掉字典形末尾的 だ 或 な，以便查词典
                                         if (currentSegment.partOfSpeech == "形容動詞" || currentSegment.partOfSpeech == "形状詞") {
                                             rawQueryWord = rawQueryWord.removeSuffix("だ").removeSuffix("な").removeSuffix("に").removeSuffix("で")

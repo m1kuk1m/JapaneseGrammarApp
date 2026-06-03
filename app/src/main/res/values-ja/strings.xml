@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- App General -->
     <string name="app_name">日本語文法分析</string>
@@ -201,16 +201,6 @@
     <string name="camera_recapture_btn">再撮影/戻る</string>
     <string name="camera_confirm_desc">確定</string>
     <string name="camera_confirm_btn">範囲決定</string>
-    <string name="global_floating_ball">グローバル浮遊ボタン</string>
-    <string name="global_floating_ball_desc">他のアプリの上に操作ボタンを表示します</string>
-    <string name="floating_ball_action">浮遊ボタンの主操作</string>
-    <string name="action_show_menu">メニューを表示</string>
-    <string name="action_screen_ocr">画面 OCR</string>
-    <string name="action_camera">カメラ</string>
-    <string name="action_text_input">テキスト入力</string>
-    <string name="floating_service_title">日本語文法アプリ</string>
-    <string name="floating_service_desc">グローバル浮遊ボタンが有効です</string>
-    <string name="overlay_permission_required">グローバル浮遊ボタンを表示するには、オーバーレイ権限が必要です。</string>
     <string name="input_dialog_title">テキスト入力</string>
     <string name="input_dialog_placeholder">分析するテキストを入力...</string>
     <string name="start_analysis_btn">分析開始</string>
@@ -267,5 +257,37 @@
 
     <!-- Errors -->
     <string name="error_both_api_failed">メインAPIおよび予備APIの呼び出しに失敗しました。メインAPIエラー: %1$s。予備APIエラー: %2$s</string>
-    <string name="error_main_api_failed_no_backup">メインAPI（%1$s）の再試行に失敗し、予備APIが設定されていないか有効ではありません。メインAPIエラー: %2$s</string>
+    <string name="error_main_api_failed_no_backup">メインAPI（%1$s）の再試行に失败し、予備APIが設定されていないか有効ではありません。メインAPIエラー: %2$s</string>
+
+    <!-- Enhanced Developer Logs -->
+    <string name="log_search_hint">ログを検索...</string>
+    <string name="log_level_all">すべて</string>
+    <string name="log_level_debug">デバッグ</string>
+    <string name="log_level_info">情報</string>
+    <string name="log_level_warn">警告</string>
+    <string name="log_level_error">エラー</string>
+    <string name="share_logs">ログファイルを共有</string>
+    <string name="log_size_label">ログストレージ容量: %1$s</string>
+    <string name="delete_log_files">ローカルログファイルを削除</string>
+    <string name="delete_log_files_success">ローカルログファイルを正常に削除しました</string>
+    <string name="delete_log_files_confirm">すべてのローカル永続化ログファイルを削除してもよろしいですか？</string>
+    <string name="scroll_to_top">トップへ戻る</string>
+    <string name="scroll_to_bottom">一番下へスクロール</string>
+    <string name="api_details_title">APIレスポンス詳細</string>
+    <string name="api_log_copy_prompt">プロンプトをコピー</string>
+    <string name="copy_success_toast">クリップボードにコピーしました</string>
+    <string name="api_log_copy_response">レスポンスをコピー</string>
+    <string name="api_log_copy_error">エラーをコピー</string>
+    <string name="api_log_share_all">APIデバッグログをエクスポート</string>
+    <string name="api_debug_filter_success">成功</string>
+    <string name="api_debug_filter_error">失敗</string>
+    <string name="api_details_metadata">メタデータ</string>
+    <string name="api_details_prompts">プロンプト</string>
+    <string name="api_details_response">レスポンス</string>
+    <string name="api_details_error_info">エラー情報</string>
+    <string name="import_history">インポート</string>
+    <string name="import_no_valid_records">有効な履歴レコードが見つかりません</string>
+    <string name="import_success">%1$d 件のレコードが正常にインポートされました</string>
+    <string name="import_failed">インポート失敗: %1$s</string>
 </resources>
+

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- App General -->
     <string name="app_name">日语语法分析</string>
@@ -201,16 +201,6 @@
     <string name="camera_recapture_btn">重新拍摄/返回</string>
     <string name="camera_confirm_desc">确定</string>
     <string name="camera_confirm_btn">范围决定</string>
-    <string name="global_floating_ball">全局悬浮球</string>
-    <string name="global_floating_ball_desc">在其他应用上方显示悬浮操作球</string>
-    <string name="floating_ball_action">悬浮球主操作</string>
-    <string name="action_show_menu">显示菜单</string>
-    <string name="action_screen_ocr">屏幕 OCR</string>
-    <string name="action_camera">拍照</string>
-    <string name="action_text_input">文字输入</string>
-    <string name="floating_service_title">日语语法助手</string>
-    <string name="floating_service_desc">全局悬浮球正在运行</string>
-    <string name="overlay_permission_required">需要悬浮窗权限才能显示全局悬浮球。</string>
     <string name="input_dialog_title">文字输入</string>
     <string name="input_dialog_placeholder">输入要分析的日语文本...</string>
     <string name="start_analysis_btn">开始分析</string>
@@ -268,4 +258,36 @@
     <!-- Errors -->
     <string name="error_both_api_failed">主API和备用API均调用失败。主API错误：%1$s。备用API错误：%2$s</string>
     <string name="error_main_api_failed_no_backup">主API（%1$s）重试失败，且备用API未设置或无效。主API错误：%2$s</string>
+
+    <!-- Enhanced Developer Logs -->
+    <string name="log_search_hint">搜索日志...</string>
+    <string name="log_level_all">全部</string>
+    <string name="log_level_debug">调试</string>
+    <string name="log_level_info">信息</string>
+    <string name="log_level_warn">警告</string>
+    <string name="log_level_error">错误</string>
+    <string name="share_logs">分享日志文件</string>
+    <string name="log_size_label">日志存储容量: %1$s</string>
+    <string name="delete_log_files">清除本地日志文件</string>
+    <string name="delete_log_files_success">已成功删除本地日志文件</string>
+    <string name="delete_log_files_confirm">确定要清除所有本地持久化日志文件吗？</string>
+    <string name="scroll_to_top">返回顶部</string>
+    <string name="scroll_to_bottom">滚到底部</string>
+    <string name="api_details_title">API 响应详情</string>
+    <string name="api_log_copy_prompt">复制提示词</string>
+    <string name="copy_success_toast">已成功复制到剪贴板</string>
+    <string name="api_log_copy_response">复制原始返回</string>
+    <string name="api_log_copy_error">复制报错内容</string>
+    <string name="api_log_share_all">导出 API 调试日志</string>
+    <string name="api_debug_filter_success">成功</string>
+    <string name="api_debug_filter_error">失败</string>
+    <string name="api_details_metadata">元数据</string>
+    <string name="api_details_prompts">提示词</string>
+    <string name="api_details_response">接口返回</string>
+    <string name="api_details_error_info">错误信息</string>
+    <string name="import_history">导入记录</string>
+    <string name="import_no_valid_records">未找到有效的历史记录</string>
+    <string name="import_success">成功导入 %1$d 条记录</string>
+    <string name="import_failed">导入失败：%1$s</string>
 </resources>
+

@@ -220,6 +220,8 @@ class WorkspaceViewModel @Inject constructor(
             return
         }
 
+        ttsRepository.stop()
+
         // Immediately update selectedRecord synchronously on the Main thread to avoid UI lag/flicker
         _uiState.update { it.copy(
             selectedRecord = record,
@@ -287,6 +289,7 @@ class WorkspaceViewModel @Inject constructor(
     }
 
     fun clearSelectedRecord() {
+        ttsRepository.stop()
         _uiState.update { it.copy(
             selectedRecord = null,
             currentOriginalText = "",
@@ -473,6 +476,32 @@ class WorkspaceViewModel @Inject constructor(
 
     fun stopTts() {
         ttsRepository.stop()
+    }
+
+    fun importHistoryFromText(content: String) {
+        viewModelScope.launch {
+            try {
+                val records = RecordExporter.parseRecordsFromExportText(content)
+                if (records.isEmpty()) {
+                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.import_no_valid_records))
+                    return@launch
+                }
+                var importedCount = 0
+                withContext(Dispatchers.IO) {
+                    records.forEach { record ->
+                        // De-duplication check: if a record with the same originalText and timestamp exists, skip it
+                        val existing = historyRepository.getRecordByOriginalText(record.originalText)
+                        if (existing == null || existing.timestamp != record.timestamp) {
+                            historyRepository.insertRecord(record)
+                            importedCount++
+                        }
+                    }
+                }
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.import_success, listOf(importedCount)))
+            } catch (e: Exception) {
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.import_failed, listOf(e.localizedMessage ?: "")))
+            }
+        }
     }
 
     override fun onCleared() {

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- App General -->
     <string name="app_name">Japanese Grammar App</string>
@@ -264,4 +264,36 @@
     <!-- Errors -->
     <string name="error_both_api_failed">Failed to call both Main and Backup API. Main: %1$s. Backup: %2$s</string>
     <string name="error_main_api_failed_no_backup">Failed to retry Main API (%1$s) and Backup API is not set or valid. Main API error: %2$s</string>
+
+    <!-- Enhanced Developer Logs -->
+    <string name="log_search_hint">Search logs...</string>
+    <string name="log_level_all">ALL</string>
+    <string name="log_level_debug">DEBUG</string>
+    <string name="log_level_info">INFO</string>
+    <string name="log_level_warn">WARN</string>
+    <string name="log_level_error">ERROR</string>
+    <string name="share_logs">Share Logs</string>
+    <string name="log_size_label">Log Storage: %1$s</string>
+    <string name="delete_log_files">Delete Log Files</string>
+    <string name="delete_log_files_success">Log files successfully deleted</string>
+    <string name="delete_log_files_confirm">Are you sure you want to delete all persistent log files?</string>
+    <string name="scroll_to_top">Scroll to Top</string>
+    <string name="scroll_to_bottom">Scroll to Bottom</string>
+    <string name="api_details_title">API Response Details</string>
+    <string name="api_log_copy_prompt">Copy Prompt</string>
+    <string name="copy_success_toast">Copied to clipboard</string>
+    <string name="api_log_copy_response">Copy Response</string>
+    <string name="api_log_copy_error">Copy Error</string>
+    <string name="api_log_share_all">Export API Logs</string>
+    <string name="api_debug_filter_success">Success</string>
+    <string name="api_debug_filter_error">Error</string>
+    <string name="api_details_metadata">Metadata</string>
+    <string name="api_details_prompts">Prompts</string>
+    <string name="api_details_response">Response</string>
+    <string name="api_details_error_info">Error Info</string>
+    <string name="import_history">Import</string>
+    <string name="import_no_valid_records">No valid history records found</string>
+    <string name="import_success">Successfully imported %1$d records</string>
+    <string name="import_failed">Import failed: %1$s</string>
 </resources>
+
