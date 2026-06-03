@@ -33,6 +33,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalTextToolbar
+import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -98,6 +100,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
 
             val WashiBg = androidx.compose.material3.MaterialTheme.colorScheme.background
             val SumiInk = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
+            val textToolbar = LocalTextToolbar.current
             
             LaunchedEffect(Unit) {
                 externalTextFlow.collect { text ->
@@ -125,6 +128,12 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                     }
                 }
             }
+
+            LaunchedEffect(pagerState.currentPage) {
+                if (pagerState.currentPage != 0) {
+                    workspaceViewModel.stopTts()
+                }
+            }
             
             ModalNavigationDrawer(
                 drawerState = drawerState,
@@ -146,7 +155,8 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                                 showExportDialog = true
                             },
                             onExportRecord = { record -> workspaceViewModel.exportRecord(record) },
-                            onCloseDrawer = { coroutineScope.launch { drawerState.close() } }
+                            onCloseDrawer = { coroutineScope.launch { drawerState.close() } },
+                            onImportHistory = { content -> workspaceViewModel.importHistoryFromText(content) }
                         )
                     }
                 }
@@ -158,6 +168,14 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                             if (pagerState.currentPage == 0 && drawerState.isClosed) {
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
+                                    if (textToolbar.status == TextToolbarStatus.Shown) {
+                                        // If selection is already active, skip this gesture to allow dragging selection handles
+                                        do {
+                                            val event = awaitPointerEvent()
+                                        } while (event.changes.any { it.pressed })
+                                        return@awaitEachGesture
+                                    }
+
                                     var totalDx = 0f
                                     var totalDy = 0f
                                     var isDecided = false
@@ -168,14 +186,22 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                                         val change = event.changes.firstOrNull()
                                         
                                         if (change != null) {
+                                            val timeElapsed = change.uptimeMillis - down.uptimeMillis
                                             if (!isDecided) {
-                                                totalDx += change.positionChange().x
-                                                totalDy += change.positionChange().y
-                                                
-                                                if (kotlin.math.abs(totalDx) > 20f || kotlin.math.abs(totalDy) > 20f) {
+                                                if (timeElapsed > 300L || textToolbar.status == TextToolbarStatus.Shown) {
+                                                    // Cancel swipe detection if held for >300ms (long-press text selection)
+                                                    // or if selection becomes active
                                                     isDecided = true
-                                                    if (totalDx > 0 && kotlin.math.abs(totalDx) > kotlin.math.abs(totalDy)) {
-                                                        isRightSwipe = true
+                                                    isRightSwipe = false
+                                                } else {
+                                                    totalDx += change.positionChange().x
+                                                    totalDy += change.positionChange().y
+                                                    
+                                                    if (kotlin.math.abs(totalDx) > 20f || kotlin.math.abs(totalDy) > 20f) {
+                                                        isDecided = true
+                                                        if (totalDx > 0 && kotlin.math.abs(totalDx) > kotlin.math.abs(totalDy)) {
+                                                            isRightSwipe = true
+                                                        }
                                                     }
                                                 }
                                             }
