@@ -226,6 +226,17 @@ fun WorkspaceScreen(
             }
     }
 
+    // Observe navigation-to-record requests from BookmarksScreen
+    LaunchedEffect(cameraNavBackStackEntry) {
+        cameraNavBackStackEntry?.savedStateHandle?.getStateFlow<Int?>("navigate_to_record_id", null)
+            ?.collect { recordId ->
+                if (recordId != null) {
+                    viewModel.selectRecordById(recordId)
+                    cameraNavBackStackEntry?.savedStateHandle?.set("navigate_to_record_id", null)
+                }
+            }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
@@ -270,6 +281,9 @@ fun WorkspaceScreen(
                                 IconButton(onClick = { viewModel.clearSelectedRecord() }) {
                                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_analysis), tint = MaterialTheme.colorScheme.onSurface)
                                 }
+                            }
+                            IconButton(onClick = { navController.navigate("bookmarks") }) {
+                                Icon(Icons.Default.Star, contentDescription = "收藏", tint = MaterialTheme.colorScheme.onSurface)
                             }
                             IconButton(onClick = navigateToSettings) {
                                 Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings), tint = MaterialTheme.colorScheme.onSurface)
@@ -319,11 +333,19 @@ fun WorkspaceScreen(
                                 ) {
                                     Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = SumiInk)
                                 }
-                                IconButton(
-                                    onClick = navigateToSettings,
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings), tint = SumiInk)
+                                Row {
+                                    IconButton(
+                                        onClick = { navController.navigate("bookmarks") },
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Icon(Icons.Default.Star, contentDescription = "收藏", tint = SumiInk)
+                                    }
+                                    IconButton(
+                                        onClick = navigateToSettings,
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings), tint = SumiInk)
+                                    }
                                 }
                             }
 
@@ -516,6 +538,9 @@ fun WorkspaceScreen(
                                                         } else {
                                                             viewModel.clearSelectedRecord()
                                                         }
+                                                    },
+                                                    onToggleBookmark = { segment ->
+                                                        viewModel.toggleBookmark(segment)
                                                     }
                                                 )
                                             }

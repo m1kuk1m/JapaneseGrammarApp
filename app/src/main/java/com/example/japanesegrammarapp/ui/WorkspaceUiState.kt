@@ -19,5 +19,7 @@ data class WorkspaceUiState(
     val isParsingDetailedResult: Boolean = false,
     val selectedRecordProgress: AnalysisProgress? = null,
     val wallpaperUri: String = "",
-    val isExternalQuery: Boolean = false
+    val isExternalQuery: Boolean = false,
+    /** segmentText values bookmarked for the currently selected record */
+    val bookmarkedSegmentTexts: Set<String> = emptySet()
 )

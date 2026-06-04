@@ -49,7 +49,8 @@ class WorkspaceViewModel @Inject constructor(
     private val ttsRepository: TtsRepository,
     private val analyzeTextUseCase: AnalyzeTextUseCase,
     private val retryAnalysisUseCase: RetryAnalysisUseCase,
-    private val eventBus: AnalysisEventBus
+    private val eventBus: AnalysisEventBus,
+    private val bookmarkRepository: BookmarkRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(createInitialUiState())
@@ -126,6 +127,23 @@ class WorkspaceViewModel @Inject constructor(
             settingsRepository.wallpaperUri.collect { uri ->
                 _uiState.update { it.copy(wallpaperUri = uri) }
             }
+        }
+
+        // Observe bookmarks for the currently selected record
+        viewModelScope.launch {
+            _uiState
+                .map { it.selectedRecord?.id }
+                .distinctUntilChanged()
+                .collect { recordId ->
+                    if (recordId != null) {
+                        bookmarkRepository.bookmarkedTextsForRecord(recordId)
+                            .collect { texts ->
+                                _uiState.update { it.copy(bookmarkedSegmentTexts = texts) }
+                            }
+                    } else {
+                        _uiState.update { it.copy(bookmarkedSegmentTexts = emptySet()) }
+                    }
+                }
         }
 
         viewModelScope.launch {
@@ -502,6 +520,23 @@ class WorkspaceViewModel @Inject constructor(
                 _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.import_failed, listOf(e.localizedMessage ?: "")))
             }
         }
+    }
+
+    /**
+     * Toggle the bookmark state for a word segment in the currently selected record.
+     * @return true if now bookmarked, false if removed (or null if no record is selected)
+     */
+    fun toggleBookmark(segment: WordSegment): Boolean? {
+        val record = _uiState.value.selectedRecord ?: return null
+        var result: Boolean? = null
+        viewModelScope.launch {
+            result = bookmarkRepository.toggleBookmark(
+                segment = segment,
+                recordId = record.id,
+                sourceText = record.originalText
+            )
+        }
+        return result
     }
 
     override fun onCleared() {

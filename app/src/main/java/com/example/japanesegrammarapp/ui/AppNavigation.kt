@@ -316,5 +316,29 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 galleryImageUriString = galleryImageUriString
             )
         }
+
+        composable("bookmarks") {
+            val bookmarkViewModel: com.example.japanesegrammarapp.ui.BookmarkViewModel = hiltViewModel()
+            BookmarksScreen(
+                navController = navController,
+                viewModel = bookmarkViewModel,
+                onNavigateToRecord = { recordId ->
+                    // Pop back to home and select the record
+                    navController.popBackStack("home_pager", inclusive = false)
+                    // WorkspaceViewModel is recreated at home; we pass the id via savedStateHandle
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("navigate_to_record_id", recordId)
+                }
+            )
+        }
+
+        composable("flashcard") {
+            val bookmarkViewModel: com.example.japanesegrammarapp.ui.BookmarkViewModel = hiltViewModel()
+            FlashcardScreen(
+                navController = navController,
+                viewModel = bookmarkViewModel
+            )
+        }
     }
 }

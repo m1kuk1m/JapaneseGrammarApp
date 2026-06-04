@@ -59,4 +59,10 @@ abstract class RepositoryModule {
     abstract fun bindDetailedResultSerializer(
         detailedResultSerializerImpl: DetailedResultSerializerImpl
     ): DetailedResultSerializer
+
+    @Binds
+    @Singleton
+    abstract fun bindBookmarkRepository(
+        bookmarkRepositoryImpl: BookmarkRepositoryImpl
+    ): BookmarkRepository
 }

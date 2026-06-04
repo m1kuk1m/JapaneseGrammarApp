@@ -5,9 +5,10 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [AnalysisRecord::class], version = 4, exportSchema = false)
+@Database(entities = [AnalysisRecord::class, BookmarkedSegment::class], version = 5, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun analysisDao(): AnalysisDao
+    abstract fun bookmarkDao(): BookmarkDao
 
     companion object {
         @Volatile
@@ -49,6 +50,34 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS bookmarked_segments (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        recordId INTEGER NOT NULL,
+                        segmentText TEXT NOT NULL,
+                        reading TEXT,
+                        partOfSpeech TEXT,
+                        posCategory TEXT,
+                        dictionaryForm TEXT,
+                        dictionaryFormReading TEXT,
+                        meaning TEXT,
+                        inflection TEXT,
+                        role TEXT,
+                        bookmarkedAt INTEGER NOT NULL,
+                        sourceText TEXT NOT NULL DEFAULT ''
+                    )
+                    """.trimIndent()
+                )
+                database.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_bookmarked_segments_recordId_segmentText " +
+                    "ON bookmarked_segments (recordId, segmentText)"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return Instance ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -56,7 +85,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "app_database"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .fallbackToDestructiveMigration()
                 .build()
                 .also { Instance = it }

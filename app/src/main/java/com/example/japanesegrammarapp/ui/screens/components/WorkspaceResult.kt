@@ -18,6 +18,8 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,6 +36,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -51,14 +56,15 @@ import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
 import com.example.japanesegrammarapp.utils.DictionaryHelper
 import com.example.japanesegrammarapp.utils.DictionaryApp
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun WorkspaceResultContent(
     uiState: WorkspaceUiState,
     isPlayingTts: Boolean = false,
     onPlayTts: () -> Unit = {},
     onStopTts: () -> Unit = {},
-    onCancel: () -> Unit = {}
+    onCancel: () -> Unit = {},
+    onToggleBookmark: (WordSegment) -> Unit = {}
 ) {
     val context = LocalContext.current
     val SumiInk = MaterialTheme.colorScheme.onBackground
@@ -186,10 +192,14 @@ fun WorkspaceResultContent(
                                             segment = segment,
                                             isSelected = index == selectedSegmentIndex,
                                             isLoading = isLoadingExplain,
+                                            isBookmarked = uiState.bookmarkedSegmentTexts.contains(segment.text),
                                             onClick = {
                                                 if (!isLoadingExplain) {
                                                     selectedSegmentIndex = if (selectedSegmentIndex == index) -1 else index
                                                 }
+                                            },
+                                            onLongClick = {
+                                                if (!isLoadingExplain) onToggleBookmark(segment)
                                             }
                                         )
                                     }
@@ -728,43 +738,77 @@ fun AlignedDetailRow(label: String, value: String) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SegmentChip(
     segment: WordSegment,
     isSelected: Boolean,
     isLoading: Boolean = false,
-    onClick: () -> Unit
+    isBookmarked: Boolean = false,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
+    val haptic = LocalHapticFeedback.current
+    // Selected → SumiInk border; Bookmarked → gold border; default → faint
     val borderColor by animateColorAsState(
-        targetValue = if (isSelected) SumiInk else SumiInk.copy(alpha = if (isLoading) 0.0f else 0.15f),
+        targetValue = when {
+            isSelected -> SumiInk
+            isBookmarked -> Color(0xFFD4A017)   // warm gold
+            isLoading -> Color.Transparent
+            else -> SumiInk.copy(alpha = 0.15f)
+        },
         animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
         label = "borderColor"
+    )
+    val borderWidth by animateDpAsState(
+        targetValue = if (isBookmarked && !isSelected) 2.dp else 1.5.dp,
+        label = "borderWidth"
     )
     val bgColor = if (isLoading) Color(0xFFF3F3F3) else getChipColorForPos(segment)
     val isDark = ZenThemeColors.isDark()
     val ChipTextColor = if (isDark) Color(0xFFE0E0E0) else Color(0xFF1E1E1E)
 
-    Surface(
-        color = bgColor,
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(width = 1.5.dp, color = borderColor),
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = segment.reading ?: "",
-                fontSize = 9.sp,
-                color = ChipTextColor.copy(alpha = if (isLoading) 0.0f else 0.6f)
+    Box {
+        Surface(
+            color = bgColor,
+            shape = RoundedCornerShape(8.dp),
+            border = BorderStroke(width = borderWidth, color = borderColor),
+            modifier = Modifier.combinedClickable(
+                onClick = onClick,
+                onLongClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongClick()
+                }
             )
-            Text(
-                text = segment.text ?: "",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = ChipTextColor.copy(alpha = if (isLoading) 0.4f else 1.0f)
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = segment.reading ?: "",
+                    fontSize = 9.sp,
+                    color = ChipTextColor.copy(alpha = if (isLoading) 0.0f else 0.6f)
+                )
+                Text(
+                    text = segment.text ?: "",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ChipTextColor.copy(alpha = if (isLoading) 0.4f else 1.0f)
+                )
+            }
+        }
+        // Star badge shown when bookmarked
+        if (isBookmarked) {
+            Icon(
+                imageVector = Icons.Default.Star,
+                contentDescription = null,
+                tint = Color(0xFFD4A017),
+                modifier = Modifier
+                    .size(11.dp)
+                    .align(Alignment.TopEnd)
+                    .offset(x = 3.dp, y = (-3).dp)
             )
         }
     }
