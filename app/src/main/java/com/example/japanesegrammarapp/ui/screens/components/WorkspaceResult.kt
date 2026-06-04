@@ -6,6 +6,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.EaseInOutCubic
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -63,7 +66,6 @@ fun WorkspaceResultContent(
     isPlayingTts: Boolean = false,
     onPlayTts: () -> Unit = {},
     onStopTts: () -> Unit = {},
-    onCancel: () -> Unit = {},
     onToggleBookmark: (WordSegment) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -98,7 +100,7 @@ fun WorkspaceResultContent(
                 Divider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(bottom = 8.dp))
                 SelectionContainer {
                     Text(
-                        text = rawResult ?: stringResource(R.string.no_analysis_result),
+                        text = rawResult,
                         modifier = Modifier
                             .weight(1f)
                             .verticalScroll(rememberScrollState()),
@@ -192,7 +194,8 @@ fun WorkspaceResultContent(
                                             segment = segment,
                                             isSelected = index == selectedSegmentIndex,
                                             isLoading = isLoadingExplain,
-                                            isBookmarked = uiState.bookmarkedSegmentTexts.contains(segment.text),
+                                            isBookmarked = uiState.bookmarkedSegmentTexts.contains(segment.text) || 
+                                                    uiState.bookmarkedSegmentTexts.contains(segment.dictionaryForm ?: ""),
                                             onClick = {
                                                 if (!isLoadingExplain) {
                                                     selectedSegmentIndex = if (selectedSegmentIndex == index) -1 else index
@@ -248,12 +251,28 @@ fun WorkspaceResultContent(
                                             verticalArrangement = Arrangement.spacedBy(4.dp),
                                             modifier = Modifier.weight(1f).padding(end = 8.dp)
                                         ) {
-                                            Text(
-                                                text = currentSegment.text ?: "",
-                                                fontSize = 20.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = SumiInk
-                                            )
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = currentSegment.text ?: "",
+                                                    fontSize = 20.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = SumiInk
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                val isCurrentBookmarked = uiState.bookmarkedSegmentTexts.contains(currentSegment.text) || 
+                                                        uiState.bookmarkedSegmentTexts.contains(currentSegment.dictionaryForm ?: "")
+                                                IconButton(
+                                                    onClick = { onToggleBookmark(currentSegment) },
+                                                    modifier = Modifier.size(28.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (isCurrentBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
+                                                        contentDescription = stringResource(if (isCurrentBookmarked) R.string.delete_bookmark else R.string.long_press_to_bookmark),
+                                                        tint = if (isCurrentBookmarked) Color(0xFFD4A017) else SumiInk.copy(alpha = 0.35f),
+                                                        modifier = Modifier.size(22.dp)
+                                                    )
+                                                }
+                                            }
                                             if (!currentSegment.reading.isNullOrBlank() && currentSegment.reading != currentSegment.text) {
                                                 Text(
                                                     text = "（${currentSegment.reading}）",
@@ -750,11 +769,28 @@ fun SegmentChip(
 ) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val haptic = LocalHapticFeedback.current
+
+    // Star pulse animation when bookmark state changes
+    var wasBookmarked by remember { mutableStateOf(isBookmarked) }
+    var starScale by remember { mutableFloatStateOf(1f) }
+    LaunchedEffect(isBookmarked) {
+        if (isBookmarked && !wasBookmarked) {
+            // pulse: 1.0 → 1.3 → 1.0
+            val pulse = Animatable(1f)
+            pulse.animateTo(1.3f, animationSpec = tween(120, easing = FastOutSlowInEasing))
+            pulse.animateTo(1.0f, animationSpec = tween(150, easing = FastOutSlowInEasing))
+            starScale = 1f
+        }
+        wasBookmarked = isBookmarked
+    }
+
+    val goldColor = Color(0xFFD4A017)
+
     // Selected → SumiInk border; Bookmarked → gold border; default → faint
     val borderColor by animateColorAsState(
         targetValue = when {
             isSelected -> SumiInk
-            isBookmarked -> Color(0xFFD4A017)   // warm gold
+            isBookmarked -> goldColor
             isLoading -> Color.Transparent
             else -> SumiInk.copy(alpha = 0.15f)
         },
@@ -769,15 +805,31 @@ fun SegmentChip(
     val isDark = ZenThemeColors.isDark()
     val ChipTextColor = if (isDark) Color(0xFFE0E0E0) else Color(0xFF1E1E1E)
 
+    // Brief glow animation on bookmark (only on transition from false→true when triggered by user)
+    var showGlowAnimation by remember { mutableStateOf(false) }
+    val glow = remember { Animatable(0f) }
+    LaunchedEffect(isBookmarked) {
+        if (isBookmarked && showGlowAnimation) {
+            glow.snapTo(0.4f)
+            glow.animateTo(0f, animationSpec = tween(600, easing = EaseInOutCubic))
+            showGlowAnimation = false
+        }
+    }
+
     Box {
         Surface(
             color = bgColor,
             shape = RoundedCornerShape(8.dp),
             border = BorderStroke(width = borderWidth, color = borderColor),
-            modifier = Modifier.combinedClickable(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .combinedClickable(
                 onClick = onClick,
                 onLongClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    if (!isBookmarked) {
+                        showGlowAnimation = true
+                    }
                     onLongClick()
                 }
             )
@@ -799,16 +851,29 @@ fun SegmentChip(
                 )
             }
         }
-        // Star badge shown when bookmarked
+        // Star badge with pulse animation when bookmarked
         if (isBookmarked) {
             Icon(
                 imageVector = Icons.Default.Star,
                 contentDescription = null,
-                tint = Color(0xFFD4A017),
+                tint = goldColor,
                 modifier = Modifier
                     .size(11.dp)
                     .align(Alignment.TopEnd)
                     .offset(x = 3.dp, y = (-3).dp)
+                    .graphicsLayer {
+                        scaleX = starScale
+                        scaleY = starScale
+                    }
+            )
+        }
+        // Golden glow ring overlay on bookmark
+        if (isBookmarked && glow.value > 0.01f) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(goldColor.copy(alpha = glow.value))
             )
         }
     }

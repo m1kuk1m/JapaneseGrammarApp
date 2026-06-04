@@ -547,7 +547,10 @@ fun SettingsScreen(
                         ) {
                             items(filteredApiLogs) { log ->
                                 Card(
-                                    modifier = Modifier.fillMaxWidth().clickable { selectedApiLogDetail = log },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable { selectedApiLogDetail = log },
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
@@ -1148,7 +1151,8 @@ fun SettingsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp),
+                        .padding(bottom = 12.dp)
+                        .clip(RoundedCornerShape(16.dp)),
                     colors = CardDefaults.cardColors(containerColor = SurfaceColor),
                     border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.08f)),
                     shape = RoundedCornerShape(16.dp),
@@ -1279,7 +1283,8 @@ fun SettingsScreen(
             Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp),
+                        .padding(bottom = 12.dp)
+                        .clip(RoundedCornerShape(16.dp)),
                     colors = CardDefaults.cardColors(containerColor = SurfaceColor),
                     border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.08f)),
                     shape = RoundedCornerShape(16.dp),
@@ -1444,7 +1449,9 @@ fun SettingsGroup(title: String, content: @Composable ColumnScope.() -> Unit) {
             modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
         )
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp)),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.08f)),

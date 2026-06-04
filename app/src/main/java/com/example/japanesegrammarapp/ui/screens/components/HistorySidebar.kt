@@ -253,7 +253,10 @@ fun HistorySidebarItem(
     val ItemPrimaryIconColor = PrimaryColor.copy(alpha = 0.7f)
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         color = if (isSelected) ZenThemeColors.selectedHistoryBg() else SurfaceColor,
         border = null,
@@ -263,7 +266,6 @@ fun HistorySidebarItem(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             Text(

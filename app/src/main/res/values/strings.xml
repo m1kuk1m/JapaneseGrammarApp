@@ -295,5 +295,107 @@
     <string name="import_no_valid_records">No valid history records found</string>
     <string name="import_success">Successfully imported %1$d records</string>
     <string name="import_failed">Import failed: %1$s</string>
+
+    <!-- Bookmarks & Flashcard -->
+    <string name="bookmarks_title">Bookmarked Words</string>
+    <string name="bookmarks_empty_title">No bookmarks yet</string>
+    <string name="bookmarks_empty_hint">Long-press a word chip in analysis to bookmark</string>
+    <string name="bookmarks_count">%1$d</string>
+    <string name="bookmark_added">Added to bookmarks</string>
+    <string name="bookmark_deleted">Bookmark deleted</string>
+    <string name="bookmark_already_exists">Already bookmarked</string>
+    <string name="import_bookmarks">Import</string>
+    <string name="export_bookmarks">Export</string>
+    <string name="import_success_msg">Successfully imported %1$d bookmarks</string>
+    <string name="import_failed_msg">Import failed, please check file format</string>
+    <string name="import_error_msg">Import failed: %1$s</string>
+    <string name="delete_bookmark">Delete</string>
+    <string name="delete_bookmark_confirm">Delete this bookmark?</string>
+    <string name="cancel_delete">Cancel</string>
+    <string name="view_source">View Source</string>
+    <string name="source_sentence_prefix">From: %1$s</string>
+
+    <!-- Bookmark Filters -->
+    <string name="filter_all">All</string>
+    <string name="filter_by_pos">By POS</string>
+    <string name="filter_by_date">By Date</string>
+    <string name="filter_today">Today</string>
+    <string name="filter_week">This Week</string>
+    <string name="filter_older">Older</string>
+
+    <!-- Flashcard -->
+    <string name="flashcard_title">Flashcards</string>
+    <string name="flashcard_session_complete">Session Complete</string>
+    <string name="flashcard_no_cards">No bookmarks to practice</string>
+    <string name="flashcard_front_hint">Tap to reveal meaning</string>
+    <string name="flashcard_back_hint">Tap to flip back</string>
+    <string name="flashcard_forgot">Forgot</string>
+    <string name="flashcard_remembered">Remembered</string>
+    <string name="flashcard_retry_weak">Retry Weak Cards</string>
+    <string name="flashcard_restart">Restart</string>
+    <string name="flashcard_back_to_bookmarks">Back to Bookmarks</string>
+    <string name="flashcard_total_cards">Total Cards</string>
+    <string name="flashcard_mastered_count">Mastered</string>
+    <string name="flashcard_accuracy">Accuracy</string>
+    <string name="flashcard_inflection_label">Inflection: %1$s</string>
+    <string name="flashcard_role_label">Role: %1$s</string>
+    <string name="flashcard_dict_form_label">Dict form: %1$s</string>
+    <string name="flashcard_no_meaning">(No meaning)</string>
+    <string name="flashcard_round_label">Round %1$d</string>
+
+    <!-- Dictionary lookup bookmark shortcut -->
+    <string name="long_press_to_bookmark">Long-press to bookmark</string>
+
+    <!-- POS Category Names (for filter localization) -->
+    <string name="pos_NOUN">Noun</string>
+    <string name="pos_VERB">Verb</string>
+    <string name="pos_ADJECTIVE">Adjective</string>
+    <string name="pos_AUXILIARY">Auxiliary</string>
+    <string name="pos_PARTICLE">Particle</string>
+    <string name="pos_ADVERB">Adverb</string>
+    <string name="pos_CONJUNCTION">Conjunction</string>
+    <string name="pos_PRONOUN">Pronoun</string>
+    <string name="pos_INTERJECTION">Interjection</string>
+    <string name="pos_other">Other</string>
+
+    <!-- Archiving and feedback -->
+    <string name="filter_archived">Archived</string>
+    <string name="bookmark_archive">Archive</string>
+    <string name="bookmark_restore">Restore</string>
+    <string name="bookmark_archived_toast">Archived successfully</string>
+    <string name="bookmark_restored_toast">Restored from archives</string>
+    <string name="flashcard_archived_auto_hint">%1$d mastered words auto-archived</string>
+    <string name="view_bookmarks_desc">View Bookmarks</string>
+    <string name="flashcard_mastered_label">Mastered</string>
+    <string name="archive_filter_unarchived">Active</string>
+    <string name="archive_filter_archived">Archived</string>
+
+    <!-- Flashcard Settings & Enhancements -->
+    <string name="flashcard_settings_title">Flashcard Settings</string>
+    <string name="flashcard_mode_label">Study Mode</string>
+    <string name="flashcard_mode_ja_to_zh">Japanese ➔ Chinese (Recognition)</string>
+    <string name="flashcard_mode_zh_to_ja">Chinese ➔ Japanese (Recall)</string>
+    <string name="flashcard_count_label">Card Count</string>
+    <string name="flashcard_count_all">All (%1$d)</string>
+    <string name="flashcard_pos_label">POS Filter</string>
+    <string name="flashcard_pos_all">All POS</string>
+    <string name="flashcard_auto_tts">Auto Play TTS</string>
+    <string name="flashcard_speak">Speak</string>
+    <string name="flashcard_archive_mastered_btn">Archive Mastered Cards</string>
+    <string name="flashcard_archive_success">Mastered cards archived successfully</string>
+    <string name="flashcard_start_btn">Start Practice</string>
+    <string name="flashcard_scope_label">Review Scope</string>
+    <string name="flashcard_scope_unarchived">Unarchived Only (Routine)</string>
+    <string name="flashcard_scope_archived">Archived Only (Review)</string>
+    <string name="flashcard_scope_all">All Vocabulary (Inc. Archived)</string>
+    <string name="flashcard_eval_oops">Forgot / Oops</string>
+    <string name="flashcard_eval_next">Next</string>
+    <string name="flashcard_eval_actually_remembered">Actually Remembered</string>
+    <string name="flashcard_show_answer">Show Answer</string>
+    <string name="flashcard_next_card">Next</string>
+    <string name="flashcard_unmastered_list">Unmastered Words</string>
+    <string name="flashcard_summary_total">Practiced %1$d words in total</string>
+    <string name="flashcard_unmastered_section">Unmastered Words (%1$d)</string>
+    <string name="flashcard_mastered_section">Mastered Words (%1$d)</string>
 </resources>
 

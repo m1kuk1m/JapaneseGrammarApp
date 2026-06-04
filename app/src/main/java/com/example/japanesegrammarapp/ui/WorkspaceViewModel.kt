@@ -14,6 +14,7 @@ import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.utils.RecordExporter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,6 +42,7 @@ data class HistoryUiRecord(
     val formattedTokens: String?
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class WorkspaceViewModel @Inject constructor(
     private val historyRepository: HistoryRepository,
@@ -129,20 +131,20 @@ class WorkspaceViewModel @Inject constructor(
             }
         }
 
-        // Observe bookmarks for the currently selected record
+        // Observe bookmarks for the currently selected record reactively
         viewModelScope.launch {
             _uiState
                 .map { it.selectedRecord?.id }
                 .distinctUntilChanged()
-                .collect { recordId ->
+                .flatMapLatest { recordId ->
                     if (recordId != null) {
                         bookmarkRepository.bookmarkedTextsForRecord(recordId)
-                            .collect { texts ->
-                                _uiState.update { it.copy(bookmarkedSegmentTexts = texts) }
-                            }
                     } else {
-                        _uiState.update { it.copy(bookmarkedSegmentTexts = emptySet()) }
+                        flowOf(emptySet())
                     }
+                }
+                .collect { texts ->
+                    _uiState.update { it.copy(bookmarkedSegmentTexts = texts) }
                 }
         }
 
@@ -523,20 +525,25 @@ class WorkspaceViewModel @Inject constructor(
     }
 
     /**
-     * Toggle the bookmark state for a word segment in the currently selected record.
-     * @return true if now bookmarked, false if removed (or null if no record is selected)
+     * Toggle bookmark for a word segment from the currently selected record.
+     * Same sentence + same surfaceForm → cancels the bookmark.
+     * Different sentence → adds a new bookmark (allowed for same word across sentences).
+     * @return true if bookmarked, false if removed, null on failure/no record
      */
-    fun toggleBookmark(segment: WordSegment): Boolean? {
-        val record = _uiState.value.selectedRecord ?: return null
-        var result: Boolean? = null
+    fun toggleBookmark(segment: WordSegment) {
+        val record = _uiState.value.selectedRecord ?: return
         viewModelScope.launch {
-            result = bookmarkRepository.toggleBookmark(
+            val added = bookmarkRepository.toggleBookmark(
                 segment = segment,
                 recordId = record.id,
                 sourceText = record.originalText
             )
+            if (added == true) {
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.bookmark_added))
+            } else if (added == false) {
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.bookmark_deleted))
+            }
         }
-        return result
     }
 
     override fun onCleared() {

@@ -31,31 +31,37 @@ class BookmarkRepositoryImpl @Inject constructor(
         segment: WordSegment,
         recordId: Int,
         sourceText: String
-    ): Boolean {
-        val text = segment.text ?: return false
-        val isCurrentlyBookmarked = dao.exists(recordId, text).first()
-        return if (isCurrentlyBookmarked) {
-            dao.deleteByKey(recordId, text)
-            false
-        } else {
-            dao.insert(
-                BookmarkedSegment(
-                    recordId = recordId,
-                    segmentText = text,
-                    reading = segment.reading,
-                    partOfSpeech = segment.partOfSpeech,
-                    posCategory = segment.posCategory,
-                    dictionaryForm = segment.dictionaryForm,
-                    dictionaryFormReading = segment.dictionaryFormReading,
-                    meaning = segment.meaning,
-                    inflection = segment.inflection,
-                    role = segment.role,
-                    bookmarkedAt = System.currentTimeMillis(),
-                    sourceText = sourceText
-                )
-            )
-            true
+    ): Boolean? {
+        val surfaceForm = segment.text ?: return null
+        val dictForm = segment.dictionaryForm?.takeIf { it.isNotBlank() } ?: surfaceForm
+        val dictReading = segment.dictionaryFormReading?.takeIf { it.isNotBlank() } ?: segment.reading
+
+        // Check if already bookmarked in this sentence by dictionary form → cancel
+        val exists = dao.existsByDictForm(recordId, dictForm).first()
+        if (exists) {
+            dao.deleteByDictForm(recordId, dictForm)
+            return false // removed
         }
+
+        // Not yet bookmarked → add (only dictionary form info)
+        val result = dao.insert(
+            BookmarkedSegment(
+                recordId = recordId,
+                segmentText = dictForm,
+                surfaceForm = null, // Set null to ignore surface form in card displays
+                reading = dictReading,
+                partOfSpeech = segment.partOfSpeech,
+                posCategory = segment.posCategory,
+                dictionaryForm = dictForm,
+                dictionaryFormReading = dictReading,
+                meaning = segment.meaning,
+                inflection = segment.inflection,
+                role = segment.role,
+                bookmarkedAt = System.currentTimeMillis(),
+                sourceText = sourceText
+            )
+        )
+        return result != -1L // true if inserted
     }
 
     override suspend fun removeBookmarkById(id: Int) {
@@ -74,6 +80,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                         put("id", b.id)
                         put("recordId", b.recordId)
                         put("text", b.segmentText)
+                        putOpt("surfaceForm", b.surfaceForm)
                         putOpt("reading", b.reading)
                         putOpt("partOfSpeech", b.partOfSpeech)
                         putOpt("posCategory", b.posCategory)
@@ -84,6 +91,7 @@ class BookmarkRepositoryImpl @Inject constructor(
                         putOpt("role", b.role)
                         put("bookmarkedAt", b.bookmarkedAt)
                         put("sourceText", b.sourceText)
+                        put("isArchived", b.isArchived)
                     })
                 }
             })
@@ -100,6 +108,7 @@ class BookmarkRepositoryImpl @Inject constructor(
             val entity = BookmarkedSegment(
                 recordId = obj.optInt("recordId", -1),
                 segmentText = obj.optString("text", ""),
+                surfaceForm = obj.optStringOrNull("surfaceForm"),
                 reading = obj.optStringOrNull("reading"),
                 partOfSpeech = obj.optStringOrNull("partOfSpeech"),
                 posCategory = obj.optStringOrNull("posCategory"),
@@ -109,7 +118,8 @@ class BookmarkRepositoryImpl @Inject constructor(
                 inflection = obj.optStringOrNull("inflection"),
                 role = obj.optStringOrNull("role"),
                 bookmarkedAt = obj.optLong("bookmarkedAt", System.currentTimeMillis()),
-                sourceText = obj.optString("sourceText", "")
+                sourceText = obj.optString("sourceText", ""),
+                isArchived = obj.optBoolean("isArchived", false)
             )
             if (entity.recordId >= 0 && entity.segmentText.isNotBlank()) {
                 val result = dao.insert(entity)
@@ -119,12 +129,21 @@ class BookmarkRepositoryImpl @Inject constructor(
         return inserted
     }
 
+    override suspend fun updateArchivedStatus(id: Int, isArchived: Boolean) {
+        dao.updateArchivedStatus(id, isArchived)
+    }
+
+    override suspend fun archiveMultiple(ids: List<Int>) {
+        dao.archiveMultiple(ids)
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private fun BookmarkedSegment.toDomain() = BookmarkedSegmentDomain(
         id = id,
         recordId = recordId,
         segmentText = segmentText,
+        surfaceForm = surfaceForm,
         reading = reading,
         partOfSpeech = partOfSpeech,
         posCategory = posCategory,
@@ -134,7 +153,8 @@ class BookmarkRepositoryImpl @Inject constructor(
         inflection = inflection,
         role = role,
         bookmarkedAt = bookmarkedAt,
-        sourceText = sourceText
+        sourceText = sourceText,
+        isArchived = isArchived
     )
 
     private fun JSONObject.optStringOrNull(key: String): String? {

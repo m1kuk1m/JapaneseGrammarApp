@@ -61,7 +61,6 @@ fun WorkspaceInputForm(
     onNavigateToSettings: () -> Unit
 ) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
-    val SurfaceColor = MaterialTheme.colorScheme.surface
     val PrimaryColor = MaterialTheme.colorScheme.primary
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
@@ -103,6 +102,7 @@ fun WorkspaceInputForm(
                 shape = CircleShape,
                 modifier = Modifier
                     .padding(bottom = 16.dp)
+                    .clip(CircleShape)
                     .clickable { modelExpanded = true }
             ) {
                 Row(
@@ -256,6 +256,7 @@ fun WorkspaceInputForm(
                     onClick = onNavigateToCamera,
                     modifier = Modifier
                         .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .background(ZenThemeColors.buttonBg(), RoundedCornerShape(12.dp))
                         .drawBehind {
                             drawRoundRect(
@@ -280,6 +281,7 @@ fun WorkspaceInputForm(
                     onClick = { galleryLauncher.launch("image/*") },
                     modifier = Modifier
                         .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .background(ZenThemeColors.buttonBg(), RoundedCornerShape(12.dp))
                         .drawBehind {
                             drawRoundRect(
@@ -313,6 +315,7 @@ fun WorkspaceInputForm(
                 },
                 modifier = Modifier
                     .size(56.dp)
+                    .clip(CircleShape)
                     .background(if (canSubmit) SumiInk else SumiInk.copy(alpha = 0.2f), CircleShape)
             ) {
                 Icon(

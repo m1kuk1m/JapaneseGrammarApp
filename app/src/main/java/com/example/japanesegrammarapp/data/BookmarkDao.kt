@@ -15,18 +15,33 @@ interface BookmarkDao {
     @Query("SELECT * FROM bookmarked_segments ORDER BY bookmarkedAt DESC")
     fun getAll(): Flow<List<BookmarkedSegment>>
 
-    @Query("SELECT segmentText FROM bookmarked_segments WHERE recordId = :recordId")
+    @Query("SELECT segmentText FROM bookmarked_segments WHERE recordId = :recordId UNION SELECT surfaceForm FROM bookmarked_segments WHERE recordId = :recordId AND surfaceForm IS NOT NULL")
     fun getSegmentTextsForRecord(recordId: Int): Flow<List<String>>
 
-    @Query("SELECT EXISTS(SELECT 1 FROM bookmarked_segments WHERE recordId = :recordId AND segmentText = :text)")
-    fun exists(recordId: Int, text: String): Flow<Boolean>
+    @Query("SELECT * FROM bookmarked_segments WHERE recordId = :recordId AND dictionaryForm = :dictForm")
+    fun getByRecordAndDictForm(recordId: Int, dictForm: String): Flow<List<BookmarkedSegment>>
 
-    @Query("DELETE FROM bookmarked_segments WHERE recordId = :recordId AND segmentText = :text")
-    suspend fun deleteByKey(recordId: Int, text: String)
+    @Query("SELECT EXISTS(SELECT 1 FROM bookmarked_segments WHERE recordId = :recordId AND (surfaceForm = :surfaceForm OR (surfaceForm IS NULL AND segmentText = :surfaceForm)))")
+    fun existsBySurfaceForm(recordId: Int, surfaceForm: String): Flow<Boolean>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM bookmarked_segments WHERE recordId = :recordId AND segmentText = :dictForm)")
+    fun existsByDictForm(recordId: Int, dictForm: String): Flow<Boolean>
+
+    @Query("DELETE FROM bookmarked_segments WHERE recordId = :recordId AND (surfaceForm = :surfaceForm OR (surfaceForm IS NULL AND segmentText = :surfaceForm)) AND segmentText = :dictForm")
+    suspend fun deleteByKey(recordId: Int, surfaceForm: String, dictForm: String)
+
+    @Query("DELETE FROM bookmarked_segments WHERE recordId = :recordId AND segmentText = :dictForm")
+    suspend fun deleteByDictForm(recordId: Int, dictForm: String)
 
     @Query("DELETE FROM bookmarked_segments WHERE id = :id")
     suspend fun deleteById(id: Int)
 
     @Query("SELECT COUNT(*) FROM bookmarked_segments")
     fun getCount(): Flow<Int>
+
+    @Query("UPDATE bookmarked_segments SET isArchived = :isArchived WHERE id = :id")
+    suspend fun updateArchivedStatus(id: Int, isArchived: Boolean)
+
+    @Query("UPDATE bookmarked_segments SET isArchived = 1 WHERE id IN (:ids)")
+    suspend fun archiveMultiple(ids: List<Int>)
 }

@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [AnalysisRecord::class, BookmarkedSegment::class], version = 5, exportSchema = false)
+@Database(entities = [AnalysisRecord::class, BookmarkedSegment::class], version = 7, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun analysisDao(): AnalysisDao
     abstract fun bookmarkDao(): BookmarkDao
@@ -78,6 +78,25 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // Add surfaceForm column to support duplicate bookmarking with different surface forms
+                database.execSQL("ALTER TABLE bookmarked_segments ADD COLUMN surfaceForm TEXT")
+                // Drop old unique index and create new one including surfaceForm + dictionaryForm
+                database.execSQL("DROP INDEX IF EXISTS index_bookmarked_segments_recordId_segmentText")
+                database.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_bookmarked_segments_recordId_surfaceForm_dictForm " +
+                    "ON bookmarked_segments (recordId, surfaceForm, dictionaryForm)"
+                )
+            }
+        }
+
+        private val MIGRATION_6_7 = object : androidx.room.migration.Migration(6, 7) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE bookmarked_segments ADD COLUMN isArchived INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return Instance ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -85,7 +104,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "app_database"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .fallbackToDestructiveMigration()
                 .build()
                 .also { Instance = it }

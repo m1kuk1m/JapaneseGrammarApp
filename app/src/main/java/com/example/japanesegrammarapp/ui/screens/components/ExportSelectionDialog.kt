@@ -134,7 +134,9 @@ fun ExportSelectionDialog(
                         val dateStr = sdf.format(Date(record.timestamp))
 
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp)),
                             shape = RoundedCornerShape(8.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = if (isSelected) SumiInk.copy(alpha = 0.05f) else MaterialTheme.colorScheme.surface

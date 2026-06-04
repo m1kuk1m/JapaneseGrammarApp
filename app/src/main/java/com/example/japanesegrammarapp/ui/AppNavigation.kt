@@ -82,10 +82,25 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             fadeOut(animationSpec = tween(300, easing = EaseInOutQuart))
         }
     ) {
-        composable("home_pager") {
+        composable(
+            route = "home_pager?selectRecordId={selectRecordId}&fromBookmarks={fromBookmarks}",
+            arguments = listOf(
+                androidx.navigation.navArgument("selectRecordId") {
+                    type = androidx.navigation.NavType.IntType
+                    defaultValue = -1
+                },
+                androidx.navigation.navArgument("fromBookmarks") {
+                    type = androidx.navigation.NavType.BoolType
+                    defaultValue = false
+                }
+            )
+        ) { backStackEntry ->
             val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
             val coroutineScope = rememberCoroutineScope()
-            
+
+            val selectRecordId = backStackEntry.arguments?.getInt("selectRecordId") ?: -1
+            val fromBookmarks = backStackEntry.arguments?.getBoolean("fromBookmarks") ?: false
+
             val workspaceViewModel: WorkspaceViewModel = hiltViewModel()
             val settingsViewModel: SettingsViewModel = hiltViewModel()
             
@@ -107,6 +122,15 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                     workspaceViewModel.startNewAnalysisWithText(text, isExternal = true)
                     workspaceViewModel.startAnalysis(text, null, forceNavigate = true)
                     pagerState.animateScrollToPage(0)
+                }
+            }
+
+            // Handle navigation from bookmarks screen: select a record by ID
+            // We navigate (not pop) so the bookmark screen stays in the back stack
+            LaunchedEffect(selectRecordId) {
+                if (selectRecordId > 0) {
+                    pagerState.animateScrollToPage(0)
+                    workspaceViewModel.selectRecordById(selectRecordId)
                 }
             }
 
@@ -229,6 +253,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                                 WorkspaceScreen(
                                     navController = navController,
                                     viewModel = workspaceViewModel,
+                                    fromBookmarks = fromBookmarks,
                                     onOpenDrawer = {
                                         coroutineScope.launch { drawerState.open() }
                                     },
@@ -317,27 +342,103 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             )
         }
 
-        composable("bookmarks") {
+        composable(
+            route = "bookmarks",
+            enterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            popEnterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            popExitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            }
+        ) {
             val bookmarkViewModel: com.example.japanesegrammarapp.ui.BookmarkViewModel = hiltViewModel()
             BookmarksScreen(
                 navController = navController,
                 viewModel = bookmarkViewModel,
                 onNavigateToRecord = { recordId ->
-                    // Pop back to home and select the record
-                    navController.popBackStack("home_pager", inclusive = false)
-                    // WorkspaceViewModel is recreated at home; we pass the id via savedStateHandle
-                    navController.currentBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("navigate_to_record_id", recordId)
+                    // Navigate to home_pager with record ID — bookmarks stays in back stack
+                    // so pressing back from workspace returns to bookmarks
+                    navController.navigate("home_pager?selectRecordId=$recordId&fromBookmarks=true")
                 }
             )
         }
 
-        composable("flashcard") {
+        composable(
+            route = "flashcard?mode={mode}&limit={limit}&pos={pos}&scope={scope}",
+            arguments = listOf(
+                androidx.navigation.navArgument("mode") {
+                    type = androidx.navigation.NavType.StringType
+                    defaultValue = "ja_to_zh"
+                },
+                androidx.navigation.navArgument("limit") {
+                    type = androidx.navigation.NavType.IntType
+                    defaultValue = -1
+                },
+                androidx.navigation.navArgument("pos") {
+                    type = androidx.navigation.NavType.StringType
+                    defaultValue = "ALL"
+                },
+                androidx.navigation.navArgument("scope") {
+                    type = androidx.navigation.NavType.StringType
+                    defaultValue = "unarchived"
+                }
+            ),
+            enterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            popEnterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            popExitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            }
+        ) { backStackEntry ->
+            val mode = backStackEntry.arguments?.getString("mode") ?: "ja_to_zh"
+            val limit = backStackEntry.arguments?.getInt("limit") ?: -1
+            val pos = backStackEntry.arguments?.getString("pos") ?: "ALL"
+            val scope = backStackEntry.arguments?.getString("scope") ?: "unarchived"
+
             val bookmarkViewModel: com.example.japanesegrammarapp.ui.BookmarkViewModel = hiltViewModel()
             FlashcardScreen(
                 navController = navController,
-                viewModel = bookmarkViewModel
+                viewModel = bookmarkViewModel,
+                studyMode = mode,
+                cardLimit = limit,
+                posFilter = pos,
+                archiveScope = scope
             )
         }
     }

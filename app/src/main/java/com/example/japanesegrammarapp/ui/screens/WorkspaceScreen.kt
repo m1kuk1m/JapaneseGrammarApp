@@ -56,6 +56,7 @@ import androidx.compose.ui.input.pointer.PointerEventType
 fun WorkspaceScreen(
     navController: NavController, 
     viewModel: WorkspaceViewModel,
+    fromBookmarks: Boolean = false,
     onOpenDrawer: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {
         if (navController.currentDestination?.route == "workspace") {
@@ -90,8 +91,8 @@ fun WorkspaceScreen(
         }
     }
 
-    // Intercept back button to return to input page
-    androidx.activity.compose.BackHandler(enabled = uiState.selectedRecord != null && !uiState.isExternalQuery) {
+    // Intercept back button to return to input page (unless we came from Bookmarks)
+    androidx.activity.compose.BackHandler(enabled = uiState.selectedRecord != null && !uiState.isExternalQuery && !fromBookmarks) {
         viewModel.clearSelectedRecord()
     }
 
@@ -262,8 +263,14 @@ fun WorkspaceScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = onOpenDrawer) {
-                            Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = MaterialTheme.colorScheme.onSurface)
+                        if (fromBookmarks) {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = MaterialTheme.colorScheme.onSurface)
+                            }
+                        } else {
+                            IconButton(onClick = onOpenDrawer) {
+                                Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = MaterialTheme.colorScheme.onSurface)
+                            }
                         }
                     },
                     actions = {
@@ -273,17 +280,12 @@ fun WorkspaceScreen(
                                 }) {
                                     Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.retry), tint = MaterialTheme.colorScheme.onSurface)
                                 }
-                                IconButton(onClick = {
-                                    uiState.selectedRecord?.let { viewModel.exportRecord(it) }
-                                }) {
-                                    Icon(Icons.Default.Share, contentDescription = stringResource(R.string.export), tint = MaterialTheme.colorScheme.onSurface)
-                                }
                                 IconButton(onClick = { viewModel.clearSelectedRecord() }) {
                                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_analysis), tint = MaterialTheme.colorScheme.onSurface)
                                 }
                             }
                             IconButton(onClick = { navController.navigate("bookmarks") }) {
-                                Icon(Icons.Default.Star, contentDescription = "收藏", tint = MaterialTheme.colorScheme.onSurface)
+                                Icon(Icons.Default.Star, contentDescription = stringResource(R.string.view_bookmarks_desc), tint = MaterialTheme.colorScheme.onSurface)
                             }
                             IconButton(onClick = navigateToSettings) {
                                 Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings), tint = MaterialTheme.colorScheme.onSurface)
@@ -338,7 +340,7 @@ fun WorkspaceScreen(
                                         onClick = { navController.navigate("bookmarks") },
                                         modifier = Modifier.size(40.dp)
                                     ) {
-                                        Icon(Icons.Default.Star, contentDescription = "收藏", tint = SumiInk)
+                                        Icon(Icons.Default.Star, contentDescription = stringResource(R.string.view_bookmarks_desc), tint = SumiInk)
                                     }
                                     IconButton(
                                         onClick = navigateToSettings,
@@ -532,13 +534,6 @@ fun WorkspaceScreen(
                                                     isPlayingTts = isPlayingTts,
                                                     onPlayTts = { viewModel.playTtsForCurrentRecord() },
                                                     onStopTts = { viewModel.stopTts() },
-                                                    onCancel = {
-                                                        if (record.status == AnalysisStatus.PENDING) {
-                                                            viewModel.cancelAnalysis(record.id)
-                                                        } else {
-                                                            viewModel.clearSelectedRecord()
-                                                        }
-                                                    },
                                                     onToggleBookmark = { segment ->
                                                         viewModel.toggleBookmark(segment)
                                                     }

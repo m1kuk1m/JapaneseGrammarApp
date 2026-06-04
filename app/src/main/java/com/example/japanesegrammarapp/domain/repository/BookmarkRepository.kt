@@ -12,16 +12,16 @@ interface BookmarkRepository {
     fun bookmarkedTextsForRecord(recordId: Int): Flow<Set<String>>
 
     /**
-     * Toggle bookmark:
-     *  - If the segment is already bookmarked for this record, removes it.
-     *  - Otherwise, inserts a new bookmark.
-     * @return true if the segment is now bookmarked, false if removed.
+     * Toggle bookmark for a word segment within a sentence.
+     * - If the specific surfaceForm is already bookmarked in this sentence → removes it (取消收藏)
+     * - Otherwise → inserts a new bookmark, keyed by dictionaryForm (falling back to surface text)
+     * @return true if the segment is now bookmarked, false if removed, -1 on failure
      */
     suspend fun toggleBookmark(
         segment: WordSegment,
         recordId: Int,
         sourceText: String
-    ): Boolean
+    ): Boolean?
 
     suspend fun removeBookmarkById(id: Int)
 
@@ -30,8 +30,12 @@ interface BookmarkRepository {
 
     /**
      * Import bookmarks from a JSON string (produced by [exportToJson]).
-     * Duplicates (same recordId + segmentText) are silently skipped.
+     * Duplicates are silently skipped.
      * @return number of newly inserted bookmarks
      */
     suspend fun importFromJson(json: String): Int
+
+    suspend fun updateArchivedStatus(id: Int, isArchived: Boolean)
+
+    suspend fun archiveMultiple(ids: List<Int>)
 }

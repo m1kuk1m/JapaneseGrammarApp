@@ -289,5 +289,107 @@
     <string name="import_no_valid_records">未找到有效的历史记录</string>
     <string name="import_success">成功导入 %1$d 条记录</string>
     <string name="import_failed">导入失败：%1$s</string>
+
+    <!-- Bookmarks & Flashcard -->
+    <string name="bookmarks_title">收藏の単語</string>
+    <string name="bookmarks_empty_title">还没有收藏</string>
+    <string name="bookmarks_empty_hint">在分析页面长按分词卡片即可收藏</string>
+    <string name="bookmarks_count">%1$d</string>
+    <string name="bookmark_added">已加入收藏</string>
+    <string name="bookmark_deleted">已删除收藏</string>
+    <string name="bookmark_already_exists">已收藏过</string>
+    <string name="import_bookmarks">导入收藏</string>
+    <string name="export_bookmarks">导出收藏</string>
+    <string name="import_success_msg">成功导入 %1$d 条收藏</string>
+    <string name="import_failed_msg">导入失败，请检查文件格式</string>
+    <string name="import_error_msg">导入失败：%1$s</string>
+    <string name="delete_bookmark">删除收藏</string>
+    <string name="delete_bookmark_confirm">确定要删除这项收藏吗？</string>
+    <string name="cancel_delete">取消</string>
+    <string name="view_source">查看原句</string>
+    <string name="source_sentence_prefix">来自：%1$s</string>
+
+    <!-- Bookmark Filters -->
+    <string name="filter_all">全部</string>
+    <string name="filter_by_pos">词性</string>
+    <string name="filter_by_date">日期</string>
+    <string name="filter_today">今天</string>
+    <string name="filter_week">本周</string>
+    <string name="filter_older">更早</string>
+
+    <!-- Flashcard -->
+    <string name="flashcard_title">闪卡练习</string>
+    <string name="flashcard_session_complete">练习完成</string>
+    <string name="flashcard_no_cards">没有可练习的收藏</string>
+    <string name="flashcard_front_hint">点击翻转查看释义</string>
+    <string name="flashcard_back_hint">点击翻转回到正面</string>
+    <string name="flashcard_forgot">不认识</string>
+    <string name="flashcard_remembered">记住了</string>
+    <string name="flashcard_retry_weak">再练不熟的</string>
+    <string name="flashcard_restart">重新开始</string>
+    <string name="flashcard_back_to_bookmarks">返回收藏</string>
+    <string name="flashcard_total_cards">总卡数</string>
+    <string name="flashcard_mastered_count">已掌握</string>
+    <string name="flashcard_accuracy">正确率</string>
+    <string name="flashcard_inflection_label">活用：%1$s</string>
+    <string name="flashcard_role_label">角色：%1$s</string>
+    <string name="flashcard_dict_form_label">原形：%1$s</string>
+    <string name="flashcard_no_meaning">（暂无释义）</string>
+    <string name="flashcard_round_label">第 %1$d 轮</string>
+
+    <!-- Dictionary lookup bookmark shortcut -->
+    <string name="long_press_to_bookmark">长按收藏</string>
+
+    <!-- POS Category Names (for filter localization) -->
+    <string name="pos_NOUN">名詞</string>
+    <string name="pos_VERB">動詞</string>
+    <string name="pos_ADJECTIVE">形容詞</string>
+    <string name="pos_AUXILIARY">助動詞</string>
+    <string name="pos_PARTICLE">助詞</string>
+    <string name="pos_ADVERB">副詞</string>
+    <string name="pos_CONJUNCTION">接続詞</string>
+    <string name="pos_PRONOUN">代名詞</string>
+    <string name="pos_INTERJECTION">感動詞</string>
+    <string name="pos_other">其他</string>
+
+    <!-- Archiving and feedback -->
+    <string name="filter_archived">已归档</string>
+    <string name="bookmark_archive">归档单词</string>
+    <string name="bookmark_restore">移出归档</string>
+    <string name="bookmark_archived_toast">已移入归档</string>
+    <string name="bookmark_restored_toast">已恢复至收藏</string>
+    <string name="flashcard_archived_auto_hint">已掌握的 %1$d 个单词已自动移入归档</string>
+    <string name="view_bookmarks_desc">查看收藏夹</string>
+    <string name="flashcard_mastered_label">已掌握</string>
+    <string name="archive_filter_unarchived">未归档</string>
+    <string name="archive_filter_archived">已归档</string>
+
+    <!-- Flashcard Settings & Enhancements -->
+    <string name="flashcard_settings_title">闪卡练习设置</string>
+    <string name="flashcard_mode_label">练习模式</string>
+    <string name="flashcard_mode_ja_to_zh">日文 ➔ 中文 (识记)</string>
+    <string name="flashcard_mode_zh_to_ja">中文 ➔ 日文 (回忆)</string>
+    <string name="flashcard_count_label">卡片数量</string>
+    <string name="flashcard_count_all">全部 (%1$d)</string>
+    <string name="flashcard_pos_label">词性过滤</string>
+    <string name="flashcard_pos_all">全部词性</string>
+    <string name="flashcard_auto_tts">自动朗读</string>
+    <string name="flashcard_speak">朗读</string>
+    <string name="flashcard_archive_mastered_btn">将已掌握单词移入归档</string>
+    <string name="flashcard_archive_success">已归档已掌握的单词</string>
+    <string name="flashcard_start_btn">开始练习</string>
+    <string name="flashcard_scope_label">复习范围</string>
+    <string name="flashcard_scope_unarchived">仅未归档 (日常复习)</string>
+    <string name="flashcard_scope_archived">仅已归档 (重新温习)</string>
+    <string name="flashcard_scope_all">全部词汇 (含归档)</string>
+    <string name="flashcard_eval_oops">记错了</string>
+    <string name="flashcard_eval_next">下一个</string>
+    <string name="flashcard_eval_actually_remembered">其实记住了</string>
+    <string name="flashcard_show_answer">查看答案</string>
+    <string name="flashcard_next_card">下一张</string>
+    <string name="flashcard_unmastered_list">未掌握单词清单</string>
+    <string name="flashcard_summary_total">共练习了 %1$d 个单词</string>
+    <string name="flashcard_unmastered_section">未掌握的单词 (%1$d)</string>
+    <string name="flashcard_mastered_section">已掌握的单词 (%1$d)</string>
 </resources>
 
