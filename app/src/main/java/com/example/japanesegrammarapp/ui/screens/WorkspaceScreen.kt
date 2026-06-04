@@ -398,14 +398,18 @@ fun WorkspaceScreen(
                                         },
                                         onNavigateToCamera = { navController.navigate("camera") },
                                         onPickImage = { sourceUri ->
-                                            coroutineScope.launch {
-                                                val localUri = withContext(Dispatchers.IO) {
-                                                    com.example.japanesegrammarapp.utils.BitmapHelper.copyUriToCache(context, sourceUri)
-                                                }
-                                                val finalUri = localUri ?: sourceUri
-                                                navController.navigate("camera?imageUri=${Uri.encode(finalUri.toString())}")
-                                            }
-                                        },
+                                             coroutineScope.launch {
+                                                 val finalUri = if (sourceUri.scheme == "file") {
+                                                     sourceUri
+                                                 } else {
+                                                     val localUri = withContext(Dispatchers.IO) {
+                                                         com.example.japanesegrammarapp.utils.BitmapHelper.copyUriToCache(context, sourceUri)
+                                                     }
+                                                     localUri ?: sourceUri
+                                                 }
+                                                 navController.navigate("camera?imageUri=${Uri.encode(finalUri.toString())}")
+                                             }
+                                         },
                                         onNavigateToSettings = navigateToSettings
                                     )
                                 }

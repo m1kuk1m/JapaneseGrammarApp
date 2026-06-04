@@ -35,6 +35,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.platform.TextToolbarStatus
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -159,6 +162,18 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 }
             }
             
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val fabPrefs = remember { context.getSharedPreferences("fab_prefs", android.content.Context.MODE_PRIVATE) }
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+            
+            val ballSizePx = with(density) { 56.dp.toPx() }
+            val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
+            val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+            
+            val defaultFabX = screenWidthPx - ballSizePx - with(density) { 16.dp.toPx() }
+            val defaultFabY = screenHeightPx - ballSizePx - with(density) { 120.dp.toPx() }
+
             ModalNavigationDrawer(
                 drawerState = drawerState,
                 gesturesEnabled = drawerState.isOpen,
@@ -192,6 +207,21 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                             if (pagerState.currentPage == 0 && drawerState.isClosed) {
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
+                                    
+                                    val fabX = fabPrefs.getFloat("fab_x", defaultFabX)
+                                    val fabY = fabPrefs.getFloat("fab_y", defaultFabY)
+                                    val isTouchOnFab = down.position.x >= fabX &&
+                                            down.position.x <= fabX + ballSizePx &&
+                                            down.position.y >= fabY &&
+                                            down.position.y <= fabY + ballSizePx
+
+                                    if (isTouchOnFab) {
+                                        do {
+                                            val event = awaitPointerEvent()
+                                        } while (event.changes.any { it.pressed })
+                                        return@awaitEachGesture
+                                    }
+
                                     if (textToolbar.status == TextToolbarStatus.Shown) {
                                         // If selection is already active, skip this gesture to allow dragging selection handles
                                         do {

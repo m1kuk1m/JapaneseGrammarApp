@@ -25,8 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -41,7 +39,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.graphics.toArgb
 import com.example.japanesegrammarapp.R
+
 import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import com.example.japanesegrammarapp.ui.WorkspaceUiState
 import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
@@ -63,7 +64,6 @@ fun WorkspaceInputForm(
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val PrimaryColor = MaterialTheme.colorScheme.primary
     val context = LocalContext.current
-    val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     
     val activeProvider = uiState.activeProvider
@@ -153,54 +153,93 @@ fun WorkspaceInputForm(
             }
         }
 
-        // Text Area (Borderless)
+        // Text Area (Borderless AppCompatEditText to support Gboard paste)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 120.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { focusRequester.requestFocus() }
         ) {
-            if (textInput.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.input_hint_elegant),
-                    color = SumiInk.copy(alpha = 0.2f),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Normal,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-            BasicTextField(
-                value = textInput,
-                onValueChange = { newValue ->
-                    onTextInputChanged(newValue)
-                    if (isAnalyzing) {
-                        onCancelAnalysis()
-                        android.widget.Toast.makeText(
-                            context,
-                            context.getString(R.string.analysis_interrupted),
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
+            AndroidView(
+                factory = { ctx ->
+                    androidx.appcompat.widget.AppCompatEditText(ctx).apply {
+                        // Multi-line configuration
+                        inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                                    android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+                                    android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+                        isSingleLine = false
+                        setHorizontallyScrolling(false)
+                        background = null
+                        setPadding(0, 0, 0, 0)
+                        
+                        // Text styles matching Compose design
+                        textSize = 20f
+                        setTextColor(SumiInk.toArgb())
+                        setHintTextColor(SumiInk.copy(alpha = 0.2f).toArgb())
+                        hint = context.getString(R.string.input_hint_elegant)
+                        gravity = android.view.Gravity.TOP or android.view.Gravity.START
+                        
+                        setText(textInput)
+                        setSelection(textInput.length)
+                        
+                        // Custom MatchaGreen cursor color matching the Zen design
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                            textCursorDrawable = android.graphics.drawable.GradientDrawable().apply {
+                                setSize(2.dp.value.toInt(), 0)
+                                setColor(PrimaryColor.toArgb())
+                            }
+                        }
+                        
+                        addTextChangedListener(object : android.text.TextWatcher {
+                            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                                val newText = s?.toString() ?: ""
+                                if (newText != textInput) {
+                                    onTextInputChanged(newText)
+                                    if (isAnalyzing) {
+                                        onCancelAnalysis()
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            context.getString(R.string.analysis_interrupted),
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            }
+                            override fun afterTextChanged(s: android.text.Editable?) {}
+                        })
+                        
+                        // Clipboard / Keyboard Content Receiver for Gboard images
+                        androidx.core.view.ViewCompat.setOnReceiveContentListener(
+                            this,
+                            arrayOf("image/*"),
+                            androidx.core.view.OnReceiveContentListener { _, contentInfo ->
+                                val split = contentInfo.partition { item -> item.uri != null }
+                                val parts = split.first
+                                val remaining = split.second
+                                if (parts != null) {
+                                    val uri = parts.clip.getItemAt(0).uri
+                                    if (uri != null) {
+                                        // Copy to app's cache directory immediately to maintain read permissions
+                                        val cachedUri = com.example.japanesegrammarapp.utils.BitmapHelper.copyUriToCache(context, uri)
+                                        if (cachedUri != null) {
+                                            onPickImage(cachedUri)
+                                        }
+                                    }
+                                }
+                                remaining
+                            }
+                        )
+                    }
+                },
+                update = { editText ->
+                    if (editText.text.toString() != textInput) {
+                        editText.setText(textInput)
+                        editText.setSelection(textInput.length)
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight()
-                    .focusRequester(focusRequester),
-                textStyle = TextStyle(
-                    color = SumiInk,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Normal,
-                    lineHeight = 28.sp
-                ),
-                cursorBrush = SolidColor(PrimaryColor),
-                decorationBox = { innerTextField ->
-                    Box(modifier = Modifier.padding(top = 4.dp).fillMaxSize()) {
-                        innerTextField()
-                    }
-                }
+                    .heightIn(min = 120.dp)
             )
         }
 

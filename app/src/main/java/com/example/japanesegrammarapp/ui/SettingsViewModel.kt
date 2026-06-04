@@ -1,4 +1,4 @@
-﻿package com.example.japanesegrammarapp.ui
+package com.example.japanesegrammarapp.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -194,8 +194,9 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isFetchingModels = true, fetchingProvider = provider) }
             try {
-                val baseProvider = settingsRepository.getBaseProviderType(provider)
-                val fetchedModels = llmRepository.fetchModels(baseProvider, baseUrl, apiKey)
+                val fetchedModels = llmRepository.fetchModels(provider, baseUrl, apiKey)
+                settingsRepository.saveApiUrl(provider, baseUrl)
+                settingsRepository.saveApiKey(provider, apiKey)
                 saveModelsForProvider(provider, fetchedModels)
             } catch (e: Exception) {
                 _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: "Unknown Error"))

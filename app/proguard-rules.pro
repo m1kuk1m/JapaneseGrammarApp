@@ -22,3 +22,7 @@
 -keep class com.example.japanesegrammarapp.data.** { *; }
 
 # Coil and Coroutines usually have their own bundled proguard rules
+
+# Protect logger models
+-keep class com.example.japanesegrammarapp.utils.ApiDebugLog { *; }
+

@@ -67,7 +67,8 @@ object BitmapHelper {
     fun copyUriToCache(context: Context, uri: Uri): Uri? {
         return try {
             val stream = context.contentResolver.openInputStream(uri) ?: return null
-            val file = File(context.cacheDir, "copied_temp.jpg")
+            val uniqueName = "copied_temp_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}.jpg"
+            val file = File(context.cacheDir, uniqueName)
             val out = FileOutputStream(file)
             stream.copyTo(out)
             stream.close()

@@ -296,6 +296,9 @@ fun CameraScreen(
                                         isCapturing = false
                                     }
                                 }
+                            },
+                            onImagePasted = { pastedBitmap ->
+                                capturedBitmap = pastedBitmap
                             }
                         )
                     }
@@ -555,10 +558,12 @@ fun ImageCropReviewLayout(
     useOcr: Boolean,
     onOcrToggle: (Boolean) -> Unit,
     onCancel: () -> Unit,
-    onConfirm: (Bitmap) -> Unit
+    onConfirm: (Bitmap) -> Unit,
+    onImagePasted: (Bitmap) -> Unit
 ) {
     val density = LocalDensity.current
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
     val cropState = remember(bitmap) {
         CropState(
@@ -668,6 +673,59 @@ fun ImageCropReviewLayout(
             .fillMaxSize()
             .background(SumiInk)
     ) {
+        // Invisible focused view to request Gboard paste suggestions inside crop review mode
+        var focusRequested by remember(bitmap) { mutableStateOf(false) }
+        AndroidView(
+            factory = { ctx ->
+                androidx.appcompat.widget.AppCompatEditText(ctx).apply {
+                    layoutParams = android.view.ViewGroup.LayoutParams(1, 1)
+                    alpha = 0.01f
+                    background = null
+                    
+                    isFocusable = true
+                    isFocusableInTouchMode = true
+                    
+                    // Allow Gboard / Clipboard content paste suggestions for image/* MIME types
+                    androidx.core.view.ViewCompat.setOnReceiveContentListener(
+                        this,
+                        arrayOf("image/*"),
+                        androidx.core.view.OnReceiveContentListener { _, contentInfo ->
+                            val split = contentInfo.partition { item -> item.uri != null }
+                            val parts = split.first
+                            val remaining = split.second
+                            if (parts != null) {
+                                val uri = parts.clip.getItemAt(0).uri
+                                if (uri != null) {
+                                    scope.launch(Dispatchers.IO) {
+                                        val cachedUri = BitmapHelper.copyUriToCache(ctx, uri)
+                                        if (cachedUri != null) {
+                                            val loadedBitmap = BitmapHelper.loadRotatedBitmapFromUri(ctx, cachedUri)
+                                            if (loadedBitmap != null) {
+                                                withContext(Dispatchers.Main) {
+                                                    onImagePasted(loadedBitmap)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            remaining
+                        }
+                    )
+                }
+            },
+            update = { editText ->
+                if (!focusRequested) {
+                    editText.post {
+                        editText.requestFocus()
+                        val imm = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+                        imm?.showSoftInput(editText, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                    }
+                    focusRequested = true
+                }
+            },
+            modifier = Modifier.size(1.dp)
+        )
         // Top instruction bar
         Row(
             modifier = Modifier

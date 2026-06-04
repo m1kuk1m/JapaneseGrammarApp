@@ -533,16 +533,11 @@ class WorkspaceViewModel @Inject constructor(
     fun toggleBookmark(segment: WordSegment) {
         val record = _uiState.value.selectedRecord ?: return
         viewModelScope.launch {
-            val added = bookmarkRepository.toggleBookmark(
+            bookmarkRepository.toggleBookmark(
                 segment = segment,
                 recordId = record.id,
                 sourceText = record.originalText
             )
-            if (added == true) {
-                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.bookmark_added))
-            } else if (added == false) {
-                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.bookmark_deleted))
-            }
         }
     }
 

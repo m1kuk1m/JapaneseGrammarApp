@@ -119,20 +119,22 @@ fun SettingsScreen(
         }
     }
 
+    val currentSaveSettings by rememberUpdatedState(newValue = ::saveSettings)
+
     BackHandler(enabled = isVisible) {
-        saveSettings()
+        currentSaveSettings()
         onBack()
     }
 
     LaunchedEffect(isVisible) {
         if (!isVisible) {
-            saveSettings()
+            currentSaveSettings()
         }
     }
 
     DisposableEffect(Unit) {
         onDispose {
-            saveSettings()
+            currentSaveSettings()
         }
     }
 

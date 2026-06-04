@@ -73,7 +73,7 @@ class SettingsRepositoryImpl @Inject constructor(
             if (cached != null) {
                 cached
             } else {
-                val value = securePrefs.getString("active_provider", "Gemini") ?: "Gemini"
+                val value = settingPrefs.getString("active_provider", "Gemini") ?: "Gemini"
                 cachedActiveProvider = value
                 value
             }
@@ -82,7 +82,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override fun setActiveProvider(provider: String) {
         cachedActiveProvider = provider
-        securePrefs.edit().putString("active_provider", provider).apply()
+        settingPrefs.edit().putString("active_provider", provider).apply()
     }
 
     override fun getActiveModel(provider: String): String {
@@ -91,7 +91,7 @@ class SettingsRepositoryImpl @Inject constructor(
             synchronized(cachedActiveModels) {
                 cached = cachedActiveModels[provider]
                 if (cached == null) {
-                    cached = securePrefs.getString("${provider}_selected_model", "") ?: ""
+                    cached = settingPrefs.getString("${provider}_selected_model", "") ?: ""
                     cachedActiveModels[provider] = cached!!
                 }
             }
@@ -101,7 +101,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override fun setActiveModel(provider: String, model: String) {
         cachedActiveModels[provider] = model
-        securePrefs.edit().putString("${provider}_selected_model", model).apply()
+        settingPrefs.edit().putString("${provider}_selected_model", model).apply()
     }
 
     override fun getUseOcr(): Boolean {
@@ -146,11 +146,10 @@ class SettingsRepositoryImpl @Inject constructor(
             synchronized(cachedModelsList) {
                 cached = cachedModelsList[provider]
                 if (cached == null) {
-                    val json = securePrefs.getString("${provider}_models_list_json", null)
+                    val json = settingPrefs.getString("${provider}_models_list_json", null)
                     cached = if (json != null) {
                         try {
-                            val listType = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
-                            gson.fromJson(json, listType) ?: (LlmConfig.defaultModels[provider] ?: emptyList())
+                            gson.fromJson(json, Array<String>::class.java)?.toList() ?: (LlmConfig.defaultModels[provider] ?: emptyList())
                         } catch (e: Exception) {
                             LlmConfig.defaultModels[provider] ?: emptyList()
                         }
@@ -166,7 +165,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override fun saveModelsForProvider(provider: String, models: List<String>) {
         cachedModelsList[provider] = models
-        securePrefs.edit().putString("${provider}_models_list_json", gson.toJson(models)).apply()
+        settingPrefs.edit().putString("${provider}_models_list_json", gson.toJson(models)).apply()
     }
 
     override fun getApiKey(provider: String): String {
@@ -195,7 +194,7 @@ class SettingsRepositoryImpl @Inject constructor(
                 cached = cachedApiUrls[provider]
                 if (cached == null) {
                     val defaultUrl = LlmConfig.defaultUrls[provider] ?: ""
-                    cached = securePrefs.getString("${provider}_url", defaultUrl) ?: defaultUrl
+                    cached = settingPrefs.getString("${provider}_url", defaultUrl) ?: defaultUrl
                     cachedApiUrls[provider] = cached!!
                 }
             }
@@ -205,7 +204,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override fun saveApiUrl(provider: String, url: String) {
         cachedApiUrls[provider] = url
-        securePrefs.edit().putString("${provider}_url", url).apply()
+        settingPrefs.edit().putString("${provider}_url", url).apply()
     }
 
     override fun getBackupProvider(): String {
@@ -214,7 +213,7 @@ class SettingsRepositoryImpl @Inject constructor(
             if (cached != null) {
                 cached
             } else {
-                val value = securePrefs.getString("backup_provider", "DeepSeek") ?: "DeepSeek"
+                val value = settingPrefs.getString("backup_provider", "DeepSeek") ?: "DeepSeek"
                 cachedBackupProvider = value
                 value
             }
@@ -223,7 +222,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override fun setBackupProvider(provider: String) {
         cachedBackupProvider = provider
-        securePrefs.edit().putString("backup_provider", provider).apply()
+        settingPrefs.edit().putString("backup_provider", provider).apply()
     }
 
     override fun getBackupModel(): String {
@@ -232,7 +231,7 @@ class SettingsRepositoryImpl @Inject constructor(
             if (cached != null) {
                 cached
             } else {
-                val value = securePrefs.getString("backup_model", "") ?: ""
+                val value = settingPrefs.getString("backup_model", "") ?: ""
                 cachedBackupModel = value
                 value
             }
@@ -241,7 +240,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override fun setBackupModel(model: String) {
         cachedBackupModel = model
-        securePrefs.edit().putString("backup_model", model).apply()
+        settingPrefs.edit().putString("backup_model", model).apply()
     }
 
     override fun getThemeMode(): String {
@@ -290,7 +289,7 @@ class SettingsRepositoryImpl @Inject constructor(
         return cachedTtsProvider ?: synchronized(this) {
             val cached = cachedTtsProvider
             if (cached != null) cached else {
-                val value = securePrefs.getString("tts_provider", "OpenAI") ?: "OpenAI"
+                val value = settingPrefs.getString("tts_provider", "OpenAI") ?: "OpenAI"
                 cachedTtsProvider = value
                 value
             }
@@ -299,7 +298,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override fun setTtsProvider(provider: String) {
         cachedTtsProvider = provider
-        securePrefs.edit().putString("tts_provider", provider).apply()
+        settingPrefs.edit().putString("tts_provider", provider).apply()
     }
 
     override fun getTtsApiUrl(provider: String): String {
@@ -314,7 +313,7 @@ class SettingsRepositoryImpl @Inject constructor(
                         "Microsoft" -> "" // Region based, constructed dynamically or input by user
                         else -> ""
                     }
-                    cached = securePrefs.getString("tts_${provider}_url", defaultUrl) ?: defaultUrl
+                    cached = settingPrefs.getString("tts_${provider}_url", defaultUrl) ?: defaultUrl
                     cachedTtsApiUrls[provider] = cached!!
                 }
             }
@@ -324,7 +323,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override fun setTtsApiUrl(provider: String, url: String) {
         cachedTtsApiUrls[provider] = url
-        securePrefs.edit().putString("tts_${provider}_url", url).apply()
+        settingPrefs.edit().putString("tts_${provider}_url", url).apply()
     }
 
     override fun getTtsApiKey(provider: String): String {
@@ -356,7 +355,7 @@ class SettingsRepositoryImpl @Inject constructor(
                         "OpenAI" -> "tts-1"
                         else -> ""
                     }
-                    cached = securePrefs.getString("tts_${provider}_model", defaultModel) ?: defaultModel
+                    cached = settingPrefs.getString("tts_${provider}_model", defaultModel) ?: defaultModel
                     cachedTtsModels[provider] = cached!!
                 }
             }
@@ -366,7 +365,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override fun setTtsModel(provider: String, model: String) {
         cachedTtsModels[provider] = model
-        securePrefs.edit().putString("tts_${provider}_model", model).apply()
+        settingPrefs.edit().putString("tts_${provider}_model", model).apply()
     }
 
     override fun getTtsVoice(provider: String): String {
@@ -381,7 +380,7 @@ class SettingsRepositoryImpl @Inject constructor(
                         "Microsoft" -> "ja-JP-NanamiNeural"
                         else -> ""
                     }
-                    cached = securePrefs.getString("tts_${provider}_voice", defaultVoice) ?: defaultVoice
+                    cached = settingPrefs.getString("tts_${provider}_voice", defaultVoice) ?: defaultVoice
                     cachedTtsVoices[provider] = cached!!
                 }
             }
@@ -391,7 +390,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override fun setTtsVoice(provider: String, voice: String) {
         cachedTtsVoices[provider] = voice
-        securePrefs.edit().putString("tts_${provider}_voice", voice).apply()
+        settingPrefs.edit().putString("tts_${provider}_voice", voice).apply()
     }
 
     override fun getTtsRegion(provider: String): String {
@@ -400,7 +399,7 @@ class SettingsRepositoryImpl @Inject constructor(
             synchronized(cachedTtsRegions) {
                 cached = cachedTtsRegions[provider]
                 if (cached == null) {
-                    cached = securePrefs.getString("tts_${provider}_region", "eastus") ?: "eastus"
+                    cached = settingPrefs.getString("tts_${provider}_region", "eastus") ?: "eastus"
                     cachedTtsRegions[provider] = cached!!
                 }
             }
@@ -410,6 +409,6 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override fun setTtsRegion(provider: String, region: String) {
         cachedTtsRegions[provider] = region
-        securePrefs.edit().putString("tts_${provider}_region", region).apply()
+        settingPrefs.edit().putString("tts_${provider}_region", region).apply()
     }
 }

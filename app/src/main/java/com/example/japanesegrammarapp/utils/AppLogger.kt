@@ -62,8 +62,7 @@ object AppLogger {
                 if (apiLogFile.exists()) {
                     try {
                         val json = apiLogFile.readText()
-                        val type = object : com.google.gson.reflect.TypeToken<List<ApiDebugLog>>() {}.type
-                        val loaded: List<ApiDebugLog> = com.google.gson.Gson().fromJson(json, type) ?: emptyList()
+                        val loaded: List<ApiDebugLog> = com.google.gson.Gson().fromJson(json, Array<ApiDebugLog>::class.java)?.toList() ?: emptyList()
                         _apiLogs.value = loaded.takeLast(80)
                     } catch (e: Exception) {
                         android.util.Log.e("AppLogger", "Failed to load api logs", e)
