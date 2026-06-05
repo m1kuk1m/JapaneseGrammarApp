@@ -197,9 +197,11 @@ class WorkspaceViewModel @Inject constructor(
                 val currentSelected = _uiState.value.selectedRecord
                 if (currentSelected != null) {
                     val progress = progressMap[currentSelected.id]
-                    _uiState.update { it.copy(selectedRecordProgress = progress) }
-                    if (progress == null || progress.tokenizerCompleted || progress.grammarCompleted || progress.translationCompleted || progress.clausesCompleted || progress.segmentsCompleted) {
+                    val needsRefresh = progress == null || progress.tokenizerCompleted || progress.grammarCompleted || progress.translationCompleted || progress.clausesCompleted || progress.segmentsCompleted
+                    if (needsRefresh) {
                         refreshSelectedRecordFromRepository(currentSelected.id, clearProgress = progress == null)
+                    } else {
+                        _uiState.update { it.copy(selectedRecordProgress = progress) }
                     }
                 } else {
                     _uiState.update { it.copy(selectedRecordProgress = null) }

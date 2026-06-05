@@ -10,6 +10,10 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.EaseInOutCubic
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.fadeIn
@@ -801,7 +805,17 @@ fun SegmentChip(
         targetValue = if (isBookmarked && !isSelected) 2.dp else 1.5.dp,
         label = "borderWidth"
     )
-    val bgColor = if (isLoading) Color(0xFFF3F3F3) else getChipColorForPos(segment)
+    val infiniteTransition = rememberInfiniteTransition(label = "chipShimmer")
+    val shimmerAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.05f,
+        targetValue = 0.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "shimmerAlpha"
+    )
+    val bgColor = if (isLoading) SumiInk.copy(alpha = shimmerAlpha) else getChipColorForPos(segment)
     val isDark = ZenThemeColors.isDark()
     val ChipTextColor = if (isDark) Color(0xFFE0E0E0) else Color(0xFF1E1E1E)
 
