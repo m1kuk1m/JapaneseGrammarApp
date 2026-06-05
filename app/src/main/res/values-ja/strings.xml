@@ -185,6 +185,9 @@
     <string name="camera_permission_required_title">カメラのアクセス許可が必要です</string>
     <string name="camera_permission_required_desc">文法分析する日本語をカメラで撮影するために、カメラの権限を許可してください。</string>
     <string name="camera_request_permission_btn">許可を求める</string>
+    <string name="camera_permission_denied_permanently_title">カメラ権限が拒否されました</string>
+    <string name="camera_permission_denied_permanently_desc">カメラのアクセス許可が永久に拒否されています。カメラ機能を利用するには、端末の設定から権限を有効にしてください。</string>
+    <string name="camera_go_to_settings_btn">設定へ移動</string>
     <string name="camera_back_desc">戻る</string>
     <string name="camera_flash_on_desc">常時発光</string>
     <string name="camera_flash_auto_desc">自動発光</string>

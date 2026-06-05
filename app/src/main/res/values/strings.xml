@@ -186,6 +186,9 @@
     <string name="camera_permission_required_title">Camera Permission Required</string>
     <string name="camera_permission_required_desc">Please grant camera permission so that you can capture Japanese text for grammar analysis.</string>
     <string name="camera_request_permission_btn">Request Permission</string>
+    <string name="camera_permission_denied_permanently_title">Camera Access Denied</string>
+    <string name="camera_permission_denied_permanently_desc">Camera permission is permanently denied. Please enable it in system settings to use camera features.</string>
+    <string name="camera_go_to_settings_btn">Go to Settings</string>
     <string name="camera_back_desc">Back</string>
     <string name="camera_flash_on_desc">Flash Always On</string>
     <string name="camera_flash_auto_desc">Flash Auto</string>

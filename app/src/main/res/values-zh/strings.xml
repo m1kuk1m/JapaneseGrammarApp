@@ -185,6 +185,9 @@
     <string name="camera_permission_required_title">需要相机权限</string>
     <string name="camera_permission_required_desc">请授予相机权限以拍摄日语进行语法分析。</string>
     <string name="camera_request_permission_btn">请求授权</string>
+    <string name="camera_permission_denied_permanently_title">相机权限已被禁用</string>
+    <string name="camera_permission_denied_permanently_desc">已永久拒绝相机权限。请前往系统设置启用相机权限，以便使用拍摄分析功能。</string>
+    <string name="camera_go_to_settings_btn">前往设置</string>
     <string name="camera_back_desc">返回</string>
     <string name="camera_flash_on_desc">闪光灯常亮</string>
     <string name="camera_flash_auto_desc">自动闪光</string>

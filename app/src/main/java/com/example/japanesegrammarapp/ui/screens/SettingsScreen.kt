@@ -612,8 +612,7 @@ fun SettingsScreen(
         val formattedResponse = remember(log.rawResponse) {
             if (log.rawResponse == null) return@remember ""
             try {
-                val parser = com.google.gson.JsonParser()
-                val jsonElement = parser.parse(log.rawResponse)
+                val jsonElement = com.google.gson.JsonParser.parseString(log.rawResponse)
                 val gson = com.google.gson.GsonBuilder().setPrettyPrinting().create()
                 gson.toJson(jsonElement)
             } catch (e: Exception) {

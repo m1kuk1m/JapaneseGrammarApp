@@ -76,8 +76,8 @@ fun FlashcardScreen(
     // Smart queue state
     data class CardState(val card: BookmarkedSegmentDomain, val round: Int = 1)
 
-    var pendingQueue by remember { mutableStateOf(mutableListOf<CardState>()) }
-    var retryQueue by remember { mutableStateOf(mutableListOf<CardState>()) }
+    var pendingQueue by remember { mutableStateOf(emptyList<CardState>()) }
+    var retryQueue by remember { mutableStateOf(emptyList<CardState>()) }
     var masteredIds by remember { mutableStateOf(emptySet<Int>()) }
     var forgotIds by remember { mutableStateOf(emptySet<Int>()) }
     var currentRound by remember { mutableStateOf(1) }
@@ -85,7 +85,7 @@ fun FlashcardScreen(
 
     LaunchedEffect(initialCards) {
         if (initialCards.isNotEmpty() && !hasInitializedQueue) {
-            pendingQueue = initialCards.map { CardState(it) }.toMutableList()
+            pendingQueue = initialCards.map { CardState(it) }
             hasInitializedQueue = true
         }
     }
@@ -124,8 +124,8 @@ fun FlashcardScreen(
             if (retryQueue.isNotEmpty()) {
                 // Shuffle retry cards into pending queue for next round
                 currentRound++
-                pendingQueue = retryQueue.toMutableList().also { it.shuffle() }
-                retryQueue = mutableListOf()
+                pendingQueue = retryQueue.shuffled()
+                retryQueue = emptyList()
                 currentIndex = 0
                 isFlipped = false
             } else {
@@ -252,8 +252,8 @@ fun FlashcardScreen(
                 onRetryWeak = {
                     val weakCards = initialCards.filter { it.id in forgotIds }
                     sessionTotal = weakCards.size
-                    pendingQueue = weakCards.shuffled().map { CardState(it) }.toMutableList()
-                    retryQueue = mutableListOf()
+                    pendingQueue = weakCards.shuffled().map { CardState(it) }
+                    retryQueue = emptyList()
                     masteredIds = emptySet()
                     forgotIds = emptySet()
                     currentRound = 1
@@ -264,8 +264,8 @@ fun FlashcardScreen(
                 },
                 onRestart = {
                     sessionTotal = initialCards.size
-                    pendingQueue = initialCards.shuffled().map { CardState(it) }.toMutableList()
-                    retryQueue = mutableListOf()
+                    pendingQueue = initialCards.shuffled().map { CardState(it) }
+                    retryQueue = emptyList()
                     masteredIds = emptySet()
                     forgotIds = emptySet()
                     currentRound = 1
@@ -350,7 +350,7 @@ fun FlashcardScreen(
                                                 scope.launch {
                                                     offsetX.animateTo(-800f, tween(200))
                                                     if (card.card.id !in retryQueue.map { it.card.id }) {
-                                                        retryQueue.add(card)
+                                                        retryQueue = retryQueue + card
                                                     }
                                                     forgotIds = forgotIds + card.card.id
                                                     advanceToNext()
@@ -378,7 +378,7 @@ fun FlashcardScreen(
                                                 scope.launch {
                                                     offsetX.animateTo(-800f, tween(200))
                                                     if (card.card.id !in retryQueue.map { it.card.id }) {
-                                                        retryQueue.add(card)
+                                                        retryQueue = retryQueue + card
                                                     }
                                                     forgotIds = forgotIds + card.card.id
                                                     isFlipped = true
@@ -543,7 +543,7 @@ fun FlashcardScreen(
                         OutlinedButton(
                             onClick = {
                                 if (card.card.id !in retryQueue.map { it.card.id }) {
-                                    retryQueue.add(card)
+                                    retryQueue = retryQueue + card
                                 }
                                 forgotIds = forgotIds + card.card.id
                                 advanceToNext()
@@ -587,7 +587,7 @@ fun FlashcardScreen(
                         OutlinedButton(
                             onClick = {
                                 if (card.card.id !in retryQueue.map { it.card.id }) {
-                                    retryQueue.add(card)
+                                    retryQueue = retryQueue + card
                                 }
                                 forgotIds = forgotIds + card.card.id
                                 isFlipped = true

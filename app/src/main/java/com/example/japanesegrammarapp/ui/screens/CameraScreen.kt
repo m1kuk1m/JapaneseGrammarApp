@@ -236,11 +236,23 @@ fun CameraScreen(
         }
     }
     
+    var hasRequestedPermission by remember { mutableStateOf(false) }
+    
+    val showGoToSettings = remember(hasCameraPermission, hasRequestedPermission) {
+        if (!hasCameraPermission && hasRequestedPermission) {
+            val act = context as? Activity
+            act != null && !androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(act, Manifest.permission.CAMERA)
+        } else {
+            false
+        }
+    }
+
     // Permission launcher
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasCameraPermission = isGranted
+        hasRequestedPermission = true
     }
     
     LaunchedEffect(hasCameraPermission, galleryImageUriString) {
@@ -337,24 +349,53 @@ fun CameraScreen(
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = stringResource(R.string.camera_permission_required_title),
+                                text = stringResource(
+                                    if (showGoToSettings) R.string.camera_permission_denied_permanently_title
+                                    else R.string.camera_permission_required_title
+                                ),
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = stringResource(R.string.camera_permission_required_desc),
+                                text = stringResource(
+                                    if (showGoToSettings) R.string.camera_permission_denied_permanently_desc
+                                    else R.string.camera_permission_required_desc
+                                ),
                                 color = Color.White.copy(alpha = 0.7f),
                                 fontSize = 14.sp,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                             Spacer(modifier = Modifier.height(24.dp))
                             Button(
-                                onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                                onClick = {
+                                    if (showGoToSettings) {
+                                        val intent = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                            data = android.net.Uri.fromParts("package", context.packageName, null)
+                                        }
+                                        context.startActivity(intent)
+                                    } else {
+                                        permissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
+                                },
                                 colors = ButtonDefaults.buttonColors(containerColor = WashiBg, contentColor = SumiInk)
                             ) {
-                                Text(stringResource(R.string.camera_request_permission_btn), fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = stringResource(
+                                        if (showGoToSettings) R.string.camera_go_to_settings_btn
+                                        else R.string.camera_request_permission_btn
+                                    ),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedButton(
+                                onClick = { navController.popBackStack() },
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
+                            ) {
+                                Text(stringResource(R.string.back), fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
