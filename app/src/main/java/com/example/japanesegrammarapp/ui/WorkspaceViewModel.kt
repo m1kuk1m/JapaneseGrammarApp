@@ -80,7 +80,14 @@ class WorkspaceViewModel @Inject constructor(
 
     private val historyDateFormatter = DateTimeFormatter.ofPattern("MM/dd HH:mm").withZone(ZoneId.systemDefault())
 
-    val history = historyRepository.history
+    private val _historySearchQuery = MutableStateFlow("")
+    val historySearchQuery: StateFlow<String> = _historySearchQuery.asStateFlow()
+
+    val history = _historySearchQuery
+        .debounce(250)
+        .map { it.trim() }
+        .distinctUntilChanged()
+        .flatMapLatest { query -> historyRepository.getHistory(query) }
         .map { pagingData ->
             pagingData.map { record ->
                 val dateStr = historyDateFormatter.format(Instant.ofEpochMilli(record.timestamp))
@@ -92,6 +99,10 @@ class WorkspaceViewModel @Inject constructor(
             }
         }
         .cachedIn(viewModelScope)
+
+    fun setHistorySearchQuery(query: String) {
+        _historySearchQuery.value = query
+    }
 
     val totalTokensConsumed: StateFlow<Int> = historyRepository.totalTokensConsumed
         .map { it ?: 0 }

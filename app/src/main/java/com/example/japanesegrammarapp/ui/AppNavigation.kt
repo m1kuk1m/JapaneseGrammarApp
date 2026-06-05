@@ -8,6 +8,7 @@ import androidx.compose.animation.core.EaseInOutQuart
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
@@ -50,6 +51,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -101,7 +103,40 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                     type = androidx.navigation.NavType.BoolType
                     defaultValue = false
                 }
-            )
+            ),
+            enterTransition = {
+                if (targetState.arguments?.getBoolean("fromBookmarks") == true) {
+                    slideIntoContainer(
+                        AnimatedContentTransitionScope.SlideDirection.Left,
+                        animationSpec = tween(300, easing = EaseInOutQuart)
+                    )
+                } else {
+                    fadeIn(animationSpec = tween(300, easing = EaseInOutQuart))
+                }
+            },
+            exitTransition = {
+                if (initialState.arguments?.getBoolean("fromBookmarks") == true) {
+                    slideOutOfContainer(
+                        AnimatedContentTransitionScope.SlideDirection.Right,
+                        animationSpec = tween(300, easing = EaseInOutQuart)
+                    )
+                } else {
+                    fadeOut(animationSpec = tween(300, easing = EaseInOutQuart))
+                }
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(300, easing = EaseInOutQuart))
+            },
+            popExitTransition = {
+                if (initialState.arguments?.getBoolean("fromBookmarks") == true) {
+                    slideOutOfContainer(
+                        AnimatedContentTransitionScope.SlideDirection.Right,
+                        animationSpec = tween(300, easing = EaseInOutQuart)
+                    )
+                } else {
+                    fadeOut(animationSpec = tween(300, easing = EaseInOutQuart))
+                }
+            }
         ) { backStackEntry ->
             val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
             val coroutineScope = rememberCoroutineScope()
@@ -116,6 +151,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
             
             val history = workspaceViewModel.history.collectAsLazyPagingItems()
+            val historySearchQuery by workspaceViewModel.historySearchQuery.collectAsState()
             val allHistoryForExport by workspaceViewModel.allHistoryForExport.collectAsState()
             val uiState by workspaceViewModel.uiState.collectAsState()
             val bookmarkedSentenceIds by workspaceViewModel.bookmarkedSentenceRecordIds.collectAsState()
@@ -194,8 +230,10 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                     ) {
                         HistorySidebar(
                             historyList = history,
+                            searchQuery = historySearchQuery,
                             selectedRecord = uiState.selectedRecord,
                             bookmarkedSentenceIds = bookmarkedSentenceIds,
+                            onSearchQueryChange = workspaceViewModel::setHistorySearchQuery,
                             onSelectRecord = { record -> workspaceViewModel.selectRecord(record) },
                             onClearSelection = { workspaceViewModel.clearSelectedRecord() },
                             onDeleteRecord = { record -> recordToDelete = record },
@@ -279,7 +317,11 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                                     } while (event.changes.any { it.pressed })
 
                                     if (isDecided && isRightSwipe) {
-                                        coroutineScope.launch { drawerState.open() }
+                                        if (fromBookmarks && uiState.selectedRecord != null) {
+                                            navController.popBackStack()
+                                        } else {
+                                            coroutineScope.launch { drawerState.open() }
+                                        }
                                     }
                                 }
                             }
@@ -415,12 +457,169 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             BookmarksScreen(
                 navController = navController,
                 viewModel = bookmarkViewModel,
-                onNavigateToRecord = { recordId, _ ->
-                    if (recordId > 0) {
-                        navController.previousBackStackEntry?.savedStateHandle?.set("navigate_to_record_id", recordId)
-                        navController.popBackStack()
+                onNavigateToRecord = { recordId, bookmarkId ->
+                    if (recordId > 0 || bookmarkId > 0) {
+                        navController.navigate("bookmark_workspace?recordId=$recordId&bookmarkId=$bookmarkId")
                     }
                 }
+            )
+        }
+
+        composable(
+            route = "bookmark_workspace?recordId={recordId}&bookmarkId={bookmarkId}",
+            arguments = listOf(
+                androidx.navigation.navArgument("recordId") {
+                    type = androidx.navigation.NavType.IntType
+                    defaultValue = -1
+                },
+                androidx.navigation.navArgument("bookmarkId") {
+                    type = androidx.navigation.NavType.IntType
+                    defaultValue = -1
+                }
+            ),
+            enterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            popEnterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            popExitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            }
+        ) { backStackEntry ->
+            val recordId = backStackEntry.arguments?.getInt("recordId") ?: -1
+            val bookmarkId = backStackEntry.arguments?.getInt("bookmarkId") ?: -1
+            val workspaceViewModel: WorkspaceViewModel = hiltViewModel()
+            val uiState by workspaceViewModel.uiState.collectAsState()
+            val textToolbar = LocalTextToolbar.current
+            var hasShownTarget by remember(recordId, bookmarkId) { mutableStateOf(false) }
+
+            LaunchedEffect(recordId, bookmarkId) {
+                when {
+                    recordId > 0 -> workspaceViewModel.selectRecordById(recordId)
+                    bookmarkId > 0 -> workspaceViewModel.selectRecordByBookmarkId(bookmarkId)
+                    else -> navController.popBackStack()
+                }
+            }
+
+            val targetReady = when {
+                recordId > 0 -> uiState.selectedRecord?.id == recordId
+                bookmarkId > 0 -> uiState.selectedRecord != null
+                else -> false
+            }
+
+            LaunchedEffect(targetReady) {
+                if (targetReady) {
+                    hasShownTarget = true
+                }
+            }
+
+            if (targetReady || hasShownTarget) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(recordId, bookmarkId) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                if (textToolbar.status == TextToolbarStatus.Shown) {
+                                    do {
+                                        val event = awaitPointerEvent()
+                                    } while (event.changes.any { it.pressed })
+                                    return@awaitEachGesture
+                                }
+
+                                var totalDx = 0f
+                                var totalDy = 0f
+                                var shouldReturn = false
+
+                                do {
+                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    val change = event.changes.firstOrNull()
+                                    if (change != null) {
+                                        totalDx += change.positionChange().x
+                                        totalDy += change.positionChange().y
+
+                                        if (totalDx > 60f && kotlin.math.abs(totalDx) > kotlin.math.abs(totalDy) * 1.3f) {
+                                            shouldReturn = true
+                                            change.consume()
+                                        }
+                                    }
+                                } while (event.changes.any { it.pressed })
+
+                                if (shouldReturn) {
+                                    navController.popBackStack()
+                                }
+                            }
+                        }
+                ) {
+                    WorkspaceScreen(
+                        navController = navController,
+                        viewModel = workspaceViewModel,
+                        fromBookmarks = true,
+                        onOpenDrawer = {},
+                        onNavigateToSettings = {
+                            navController.navigate("settings_standalone")
+                        }
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+
+        composable(
+            route = "settings_standalone",
+            enterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            popEnterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            popExitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            }
+        ) {
+            val settingsViewModel: SettingsViewModel = hiltViewModel()
+            SettingsScreen(
+                navController = navController,
+                viewModel = settingsViewModel
             )
         }
 

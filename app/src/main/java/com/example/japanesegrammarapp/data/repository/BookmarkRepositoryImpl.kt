@@ -47,6 +47,7 @@ class BookmarkRepositoryImpl @Inject constructor(
 
         dao.toggleBookmark(
             recordId = recordId,
+            surfaceForm = surfaceForm,
             dictForm = dictForm,
             dictReading = dictReading ?: "",
             partOfSpeech = segment.partOfSpeech,

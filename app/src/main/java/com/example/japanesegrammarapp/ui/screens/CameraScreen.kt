@@ -186,6 +186,14 @@ fun CameraScreen(
     
     var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isCapturing by remember { mutableStateOf(false) }
+
+    fun replaceCapturedBitmap(bitmap: Bitmap?) {
+        val oldBitmap = capturedBitmap
+        if (oldBitmap != null && oldBitmap !== bitmap && !oldBitmap.isRecycled) {
+            oldBitmap.recycle()
+        }
+        capturedBitmap = bitmap
+    }
     
     // CameraX helper
     val imageCapture = remember {
@@ -198,10 +206,11 @@ fun CameraScreen(
     
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
     
-    // Clean up camera executor on dispose
+    // Clean up camera and large bitmap resources on dispose
     DisposableEffect(Unit) {
         onDispose {
-            cameraExecutor.shutdown()
+            capturedBitmap?.takeIf { !it.isRecycled }?.recycle()
+            cameraExecutor.shutdownNow()
         }
     }
     
@@ -212,7 +221,7 @@ fun CameraScreen(
             val uri = Uri.parse(galleryImageUriString)
             val bitmap = BitmapHelper.loadRotatedBitmapFromUri(context, uri)
             if (bitmap != null) {
-                capturedBitmap = bitmap
+                replaceCapturedBitmap(bitmap)
                 screenMode = CameraScreenMode.CROP_REVIEW
             } else {
                 // Fail and navigate back
@@ -229,7 +238,7 @@ fun CameraScreen(
             val uri = Uri.parse(tempFileUriString)
             val bitmap = BitmapHelper.loadRotatedBitmapFromUri(context, uri)
             if (bitmap != null) {
-                capturedBitmap = bitmap
+                replaceCapturedBitmap(bitmap)
                 screenMode = CameraScreenMode.CROP_REVIEW
             }
             isCapturing = false
@@ -314,7 +323,7 @@ fun CameraScreen(
                                                 if (bitmap != null) {
                                                     val savedUri = BitmapHelper.saveCroppedBitmap(context, bitmap)
                                                     withContext(Dispatchers.Main) {
-                                                        capturedBitmap = bitmap
+                                                        replaceCapturedBitmap(bitmap)
                                                         tempFileUriString = savedUri?.toString()
                                                         screenMode = CameraScreenMode.CROP_REVIEW
                                                         isCapturing = false
@@ -404,7 +413,6 @@ fun CameraScreen(
                     capturedBitmap?.let { bitmap ->
                         ImageCropReviewLayout(
                             bitmap = bitmap,
-                            deviceOrientation = deviceOrientation,
                             onCancel = {
                                 if (!galleryImageUriString.isNullOrBlank()) {
                                     // If started from gallery selection, go back directly
@@ -412,14 +420,18 @@ fun CameraScreen(
                                 } else {
                                     // If camera capture, go back to camera preview
                                     screenMode = CameraScreenMode.CAPTURE
-                                    capturedBitmap = null
+                                    replaceCapturedBitmap(null)
                                     tempFileUriString = null
                                 }
                             },
                             onConfirm = { croppedBitmap ->
                                 isCapturing = true
+                                val sourceBitmap = capturedBitmap
                                 scope.launch(Dispatchers.IO) {
                                     val outUri = BitmapHelper.saveCroppedBitmap(context, croppedBitmap)
+                                    if (croppedBitmap !== sourceBitmap && !croppedBitmap.isRecycled) {
+                                        croppedBitmap.recycle()
+                                    }
                                     withContext(Dispatchers.Main) {
                                         if (outUri != null) {
                                             // Set result in savedStateHandle
@@ -428,6 +440,8 @@ fun CameraScreen(
                                                 outUri.toString()
                                             )
                                         }
+                                        replaceCapturedBitmap(null)
+                                        tempFileUriString = null
                                         navController.popBackStack()
                                         isCapturing = false
                                     }
@@ -766,12 +780,12 @@ fun ZenScanningOverlay() {
 @Composable
 fun ImageCropReviewLayout(
     bitmap: Bitmap,
-    deviceOrientation: DeviceOrientation,
     onCancel: () -> Unit,
     onConfirm: (Bitmap) -> Unit
 ) {
     val density = LocalDensity.current
-    val isLandscape = deviceOrientation == DeviceOrientation.LANDSCAPE_LEFT || deviceOrientation == DeviceOrientation.LANDSCAPE_RIGHT
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     
     val cropState = remember(bitmap) {
         CropState(
@@ -882,9 +896,54 @@ fun ImageCropReviewLayout(
                         hideOcrBoxes = true
                     }
                 }
+                .addOnFailureListener { e ->
+                    e.printStackTrace()
+                }
+                .addOnCompleteListener {
+                    recognizer.close()
+                }
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    fun confirmBitmapRegion(x: Int, y: Int, w: Int, h: Int) {
+        if (w > 0 && h > 0) {
+            try {
+                onConfirm(Bitmap.createBitmap(bitmap, x, y, w, h))
+            } catch (e: Throwable) {
+                e.printStackTrace()
+                onConfirm(bitmap)
+            }
+        } else {
+            onConfirm(bitmap)
+        }
+    }
+
+    fun confirmOcrBox(box: Rect) {
+        val paddingX = (box.width() * 0.05f).toInt()
+        val paddingY = (box.height() * 0.05f).toInt()
+        val x = maxOf(0, box.left - paddingX)
+        val y = maxOf(0, box.top - paddingY)
+        val w = minOf(bitmap.width - x, box.width() + paddingX * 2)
+        val h = minOf(bitmap.height - y, box.height() + paddingY * 2)
+        confirmBitmapRegion(x, y, w, h)
+    }
+
+    fun confirmCurrentCrop() {
+        val bmpW = bitmap.width
+        val bmpH = bitmap.height
+
+        val x = ((cropState.cropLeft - cropState.imgOffsetX) / cropState.scaleFactor).toInt().coerceIn(0, bmpW)
+        val y = ((cropState.cropTop - cropState.imgOffsetY) / cropState.scaleFactor).toInt().coerceIn(0, bmpH)
+
+        var w = ((cropState.cropRight - cropState.cropLeft) / cropState.scaleFactor).toInt()
+        var h = ((cropState.cropBottom - cropState.cropTop) / cropState.scaleFactor).toInt()
+
+        if (x + w > bmpW) w = bmpW - x
+        if (y + h > bmpH) h = bmpH - y
+
+        confirmBitmapRegion(x, y, w, h)
     }
     
     @Composable
@@ -925,14 +984,16 @@ fun ImageCropReviewLayout(
                                     
                                     val minTolerancePx = 32.dp.toPx() // Corner grab tolerance
                                     val dragSlopPx = 8.dp.toPx() // Drag vs tap threshold
+                                    val longPressMs = 350L
                                     
-                                    var detectedOcrCornerDrag = false
-                                    var tappedBox: Rect? = null
+                                    var targetBox: Rect? = null
+                                    var targetHandle = DragHandle.NONE
+                                    var submitTarget: (() -> Unit)? = null
+                                    cropState.activeHandle = DragHandle.NONE
                                     
-                                    // 1. If OCR boxes are currently visible, check if we touched one
+                                    // If OCR boxes are visible, a long-press drag on a box corner edits that box.
+                                    // Any other gesture submits the touched box, or the current crop if no box was touched.
                                     if (!hideOcrBoxes) {
-                                        var closestBox: Rect? = null
-                                        var closestHandle = DragHandle.NONE
                                         var minDist = Float.MAX_VALUE
                                         
                                         for (box in detectedBoxes) {
@@ -946,267 +1007,93 @@ fun ImageCropReviewLayout(
                                             val distBL = distance(startPos.x, startPos.y, displayLeft, displayBottom)
                                             val distBR = distance(startPos.x, startPos.y, displayRight, displayBottom)
                                             
-                                            if (distTL < minDist && distTL < minTolerancePx) { minDist = distTL; closestBox = box; closestHandle = DragHandle.TOP_LEFT }
-                                            if (distTR < minDist && distTR < minTolerancePx) { minDist = distTR; closestBox = box; closestHandle = DragHandle.TOP_RIGHT }
-                                            if (distBL < minDist && distBL < minTolerancePx) { minDist = distBL; closestBox = box; closestHandle = DragHandle.BOTTOM_LEFT }
-                                            if (distBR < minDist && distBR < minTolerancePx) { minDist = distBR; closestBox = box; closestHandle = DragHandle.BOTTOM_RIGHT }
-                                        }
-                                        
-                                        if (closestBox != null) {
-                                            // Touch is near a corner of an OCR box -> Start editing this box
-                                            downEvent.consume()
-                                            val displayLeft = cropState.imgOffsetX + closestBox.left * cropState.scaleFactor
-                                            val displayTop = cropState.imgOffsetY + closestBox.top * cropState.scaleFactor
-                                            val displayRight = cropState.imgOffsetX + closestBox.right * cropState.scaleFactor
-                                            val displayBottom = cropState.imgOffsetY + closestBox.bottom * cropState.scaleFactor
-                                            
-                                            cropState.cropLeft = displayLeft
-                                            cropState.cropTop = displayTop
-                                            cropState.cropRight = displayRight
-                                            cropState.cropBottom = displayBottom
-                                            cropState.activeHandle = closestHandle
-                                            
-                                            hideOcrBoxes = true
-                                            detectedOcrCornerDrag = true
-                                        } else {
-                                            // Touch is not near a corner. Check if it's inside any box.
-                                            for (box in detectedBoxes) {
-                                                val displayLeft = cropState.imgOffsetX + box.left * cropState.scaleFactor
-                                                val displayTop = cropState.imgOffsetY + box.top * cropState.scaleFactor
-                                                val displayRight = cropState.imgOffsetX + box.right * cropState.scaleFactor
-                                                val displayBottom = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
-                                                
-                                                if (startPos.x in displayLeft..displayRight && startPos.y in displayTop..displayBottom) {
-                                                    tappedBox = box
-                                                    break
-                                                }
+                                            if (distTL < minDist && distTL < minTolerancePx) { minDist = distTL; targetBox = box; targetHandle = DragHandle.TOP_LEFT }
+                                            if (distTR < minDist && distTR < minTolerancePx) { minDist = distTR; targetBox = box; targetHandle = DragHandle.TOP_RIGHT }
+                                            if (distBL < minDist && distBL < minTolerancePx) { minDist = distBL; targetBox = box; targetHandle = DragHandle.BOTTOM_LEFT }
+                                            if (distBR < minDist && distBR < minTolerancePx) { minDist = distBR; targetBox = box; targetHandle = DragHandle.BOTTOM_RIGHT }
+
+                                            if (submitTarget == null && startPos.x in displayLeft..displayRight && startPos.y in displayTop..displayBottom) {
+                                                submitTarget = { confirmOcrBox(box) }
                                             }
+                                        }
+
+                                        if (targetBox != null && submitTarget == null) {
+                                            val box = targetBox
+                                            submitTarget = { confirmOcrBox(box) }
                                         }
                                     } else {
-                                        // If manual crop mode is active, check if we touched inside the existing box or handles
-                                         val tolerance = with(density) {
-                                             val boxWidth = cropState.cropRight - cropState.cropLeft
-                                             val boxHeight = cropState.cropBottom - cropState.cropTop
-                                             val minBoxDimension = minOf(boxWidth, boxHeight)
-                                             minOf(48.dp.toPx(), minBoxDimension * 0.5f).coerceAtLeast(16.dp.toPx())
-                                         }
-                                         cropState.startDrag(startPos, tolerance)
-                                        if (cropState.activeHandle != DragHandle.NONE) {
-                                            detectedOcrCornerDrag = true
+                                        val tolerance = with(density) {
+                                            val boxWidth = cropState.cropRight - cropState.cropLeft
+                                            val boxHeight = cropState.cropBottom - cropState.cropTop
+                                            val minBoxDimension = minOf(boxWidth, boxHeight)
+                                            minOf(48.dp.toPx(), minBoxDimension * 0.5f).coerceAtLeast(16.dp.toPx())
                                         }
+                                        cropState.startDrag(startPos, tolerance)
+                                        targetHandle = cropState.activeHandle
+                                        cropState.activeHandle = DragHandle.NONE
                                     }
                                     
-                                    // If we did not trigger corner drag, handle potential drag-start/tap
-                                    if (!detectedOcrCornerDrag) {
-                                        var hasMovedBeyondSlop = false
-                                        
-                                        while (true) {
-                                            val event = awaitPointerEvent()
-                                            val changes = event.changes
-                                            
-                                            if (changes.all { !it.pressed }) {
-                                                // Finger released. If we had a tappedBox and didn't drag, confirm crop!
-                                                if (tappedBox != null && !hasMovedBeyondSlop) {
-                                                    downEvent.consume()
-                                                    val paddingX = (tappedBox.width() * 0.05f).toInt()
-                                                    val paddingY = (tappedBox.height() * 0.05f).toInt()
-                                                    val x = maxOf(0, tappedBox.left - paddingX)
-                                                    val y = maxOf(0, tappedBox.top - paddingY)
-                                                    val w = minOf(bitmap.width - x, tappedBox.width() + paddingX * 2)
-                                                    val h = minOf(bitmap.height - y, tappedBox.height() + paddingY * 2)
-                                                    if (w > 0 && h > 0) {
-                                                        try {
-                                                            val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
-                                                            onConfirm(cropped)
-                                                        } catch (e: Throwable) {
-                                                            e.printStackTrace()
-                                                            onConfirm(bitmap)
-                                                        }
-                                                    } else {
-                                                        onConfirm(bitmap)
-                                                    }
-                                                }
-                                                break
+                                    if (submitTarget == null) {
+                                        submitTarget = { confirmCurrentCrop() }
+                                    }
+
+                                    var isEditing = false
+                                    val canEdit = targetHandle != DragHandle.NONE
+
+                                    while (true) {
+                                        val event = awaitPointerEvent()
+                                        val changes = event.changes
+
+                                        if (changes.all { !it.pressed }) {
+                                            if (isEditing) {
+                                                cropState.stopDrag()
+                                            } else {
+                                                downEvent.consume()
+                                                submitTarget()
                                             }
-                                            
-                                            val activeChanges = changes.filter { it.pressed }
-                                            val currentFinger = activeChanges.find { it.id == activePointerId } ?: activeChanges.firstOrNull()
-                                            
-                                            if (currentFinger != null) {
-                                                activePointerId = currentFinger.id
+                                            break
+                                        }
+
+                                        val activeChanges = changes.filter { it.pressed }
+                                        if (activeChanges.size >= 2) {
+                                            if (isEditing) {
+                                                activeChanges.forEach { it.consume() }
+                                            }
+                                            continue
+                                        }
+
+                                        val currentFinger = activeChanges.find { it.id == activePointerId } ?: activeChanges.firstOrNull()
+                                        if (currentFinger != null) {
+                                            activePointerId = currentFinger.id
+
+                                            if (!isEditing && canEdit) {
                                                 val currentPos = currentFinger.position
                                                 val totalDelta = currentPos - startPos
                                                 val dist = kotlin.math.sqrt(totalDelta.x * totalDelta.x + totalDelta.y * totalDelta.y)
-                                                
-                                                if (dist > dragSlopPx) {
-                                                    hasMovedBeyondSlop = true
-                                                    
-                                                    // Trigger transition to manual drag mode!
-                                                    if (tappedBox != null) {
-                                                        // 1. Drag started inside an OCR box -> Snap crop box to this OCR box, handle = CENTER
-                                                        downEvent.consume()
-                                                        val displayLeft = cropState.imgOffsetX + tappedBox.left * cropState.scaleFactor
-                                                        val displayTop = cropState.imgOffsetY + tappedBox.top * cropState.scaleFactor
-                                                        val displayRight = cropState.imgOffsetX + tappedBox.right * cropState.scaleFactor
-                                                        val displayBottom = cropState.imgOffsetY + tappedBox.bottom * cropState.scaleFactor
-                                                        
+                                                val heldLongEnough = currentFinger.uptimeMillis - downEvent.uptimeMillis >= longPressMs
+
+                                                if (heldLongEnough && dist > dragSlopPx) {
+                                                    targetBox?.let { box ->
+                                                        val displayLeft = cropState.imgOffsetX + box.left * cropState.scaleFactor
+                                                        val displayTop = cropState.imgOffsetY + box.top * cropState.scaleFactor
+                                                        val displayRight = cropState.imgOffsetX + box.right * cropState.scaleFactor
+                                                        val displayBottom = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
+
                                                         cropState.cropLeft = displayLeft
                                                         cropState.cropTop = displayTop
                                                         cropState.cropRight = displayRight
                                                         cropState.cropBottom = displayBottom
-                                                        cropState.activeHandle = DragHandle.CENTER
-                                                        hideOcrBoxes = true
-                                                    } else {
-                                                        // 2. Drag started on empty space -> Create new selection box
-                                                        downEvent.consume()
-                                                        val left = minOf(startPos.x, currentPos.x).coerceIn(cropState.imgOffsetX, cropState.imgOffsetX + cropState.imgDispWidth)
-                                                        val right = maxOf(startPos.x, currentPos.x).coerceIn(cropState.imgOffsetX, cropState.imgOffsetX + cropState.imgDispWidth)
-                                                        val top = minOf(startPos.y, currentPos.y).coerceIn(cropState.imgOffsetY, cropState.imgOffsetY + cropState.imgDispHeight)
-                                                        val bottom = maxOf(startPos.y, currentPos.y).coerceIn(cropState.imgOffsetY, cropState.imgOffsetY + cropState.imgDispHeight)
-                                                        
-                                                        cropState.cropLeft = left
-                                                        cropState.cropTop = top
-                                                        cropState.cropRight = right
-                                                        cropState.cropBottom = bottom
-                                                        
-                                                        // Determine active handle based on drag direction
-                                                        cropState.activeHandle = if (currentPos.x >= startPos.x) {
-                                                            if (currentPos.y >= startPos.y) DragHandle.BOTTOM_RIGHT else DragHandle.TOP_RIGHT
-                                                        } else {
-                                                            if (currentPos.y >= startPos.y) DragHandle.BOTTOM_LEFT else DragHandle.TOP_LEFT
-                                                        }
-                                                        
                                                         hideOcrBoxes = true
                                                     }
-                                                    break
-                                                }
-                                            }
-                                        }
-                                    }
-                                    
-                                    // If we are in manual drag mode (hideOcrBoxes == true), run standard drag event loop
-                                    if (hideOcrBoxes) {
-                                        // Initialize center/handle drag state
-                                         val tolerance = with(density) {
-                                             val boxWidth = cropState.cropRight - cropState.cropLeft
-                                             val boxHeight = cropState.cropBottom - cropState.cropTop
-                                             val minBoxDimension = minOf(boxWidth, boxHeight)
-                                             minOf(48.dp.toPx(), minBoxDimension * 0.5f).coerceAtLeast(16.dp.toPx())
-                                         }
-                                         if (cropState.activeHandle == DragHandle.NONE) {
-                                             cropState.startDrag(startPos, tolerance)
-                                         }
-                                        
-                                        var isPinching = false
-                                        var initialPinchDistance = 0f
-                                        var initialLeft = cropState.cropLeft
-                                        var initialTop = cropState.cropTop
-                                        var initialRight = cropState.cropRight
-                                        var initialBottom = cropState.cropBottom
-                                        var initialCenterX = (initialLeft + initialRight) / 2f
-                                        var initialCenterY = (initialTop + initialBottom) / 2f
-                                        var initialWidth = initialRight - initialLeft
-                                        var initialHeight = initialBottom - initialTop
-                                        
-                                        while (true) {
-                                            val event = awaitPointerEvent()
-                                            val changes = event.changes
-                                            
-                                            if (changes.all { !it.pressed }) {
-                                                cropState.stopDrag()
-                                                break
-                                            }
-                                            
-                                            if (changes.any { it.isConsumed }) {
-                                                cropState.stopDrag()
-                                                break
-                                            }
-                                            
-                                            val activeChanges = changes.filter { it.pressed }
-                                            if (activeChanges.size == 1) {
-                                                if (isPinching) {
-                                                    isPinching = false
-                                                    cropState.activeHandle = DragHandle.NONE
-                                                } else {
-                                                    val currentFinger = activeChanges.find { it.id == activePointerId } ?: activeChanges[0]
-                                                    activePointerId = currentFinger.id
-                                                    val dragAmount = currentFinger.position - currentFinger.previousPosition
+                                                    cropState.activeHandle = targetHandle
+                                                    downEvent.consume()
                                                     currentFinger.consume()
-                                                    cropState.onDrag(dragAmount, minSizePx)
+                                                    cropState.onDrag(currentFinger.position - currentFinger.previousPosition, minSizePx)
+                                                    isEditing = true
                                                 }
-                                            } else if (activeChanges.size >= 2) {
-                                                val p1 = activeChanges[0]
-                                                val p2 = activeChanges[1]
-                                                
-                                                val pos1 = p1.position
-                                                val pos2 = p2.position
-                                                
-                                                val dx = pos1.x - pos2.x
-                                                val dy = pos1.y - pos2.y
-                                                val currentDistance = kotlin.math.sqrt(dx * dx + dy * dy)
-                                                
-                                                if (!isPinching) {
-                                                    isPinching = true
-                                                    initialPinchDistance = currentDistance
-                                                    initialLeft = cropState.cropLeft
-                                                    initialTop = cropState.cropTop
-                                                    initialRight = cropState.cropRight
-                                                    initialBottom = cropState.cropBottom
-                                                    initialCenterX = (initialLeft + initialRight) / 2f
-                                                    initialCenterY = (initialTop + initialBottom) / 2f
-                                                    initialWidth = initialRight - initialLeft
-                                                    initialHeight = initialBottom - initialTop
-                                                    
-                                                    cropState.activeHandle = DragHandle.NONE
-                                                } else {
-                                                    if (initialPinchDistance > 5f) {
-                                                        val scale = currentDistance / initialPinchDistance
-                                                        
-                                                        val newWidth = initialWidth * scale
-                                                        val newHeight = initialHeight * scale
-                                                        
-                                                        val clampedWidth = maxOf(newWidth, minSizePx)
-                                                        val clampedHeight = maxOf(newHeight, minSizePx)
-                                                        
-                                                        var newLeft = initialCenterX - clampedWidth / 2f
-                                                        var newRight = initialCenterX + clampedWidth / 2f
-                                                        var newTop = initialCenterY - clampedHeight / 2f
-                                                        var newBottom = initialCenterY + clampedHeight / 2f
-                                                        
-                                                        val maxLeft = cropState.imgOffsetX
-                                                        val maxRight = cropState.imgOffsetX + cropState.imgDispWidth
-                                                        val maxTop = cropState.imgOffsetY
-                                                        val maxBottom = cropState.imgOffsetY + cropState.imgDispHeight
-                                                        
-                                                        if (newLeft < maxLeft) {
-                                                            val diff = maxLeft - newLeft
-                                                            newLeft += diff
-                                                            newRight += diff
-                                                        }
-                                                        if (newRight > maxRight) {
-                                                            val diff = newRight - maxRight
-                                                            newLeft -= diff
-                                                            newRight -= diff
-                                                        }
-                                                        if (newTop < maxTop) {
-                                                            val diff = maxTop - newTop
-                                                            newTop += diff
-                                                            newBottom += diff
-                                                        }
-                                                        if (newBottom > maxBottom) {
-                                                            val diff = newBottom - maxBottom
-                                                            newTop -= diff
-                                                            newBottom -= diff
-                                                        }
-                                                        
-                                                        cropState.cropLeft = maxOf(newLeft, maxLeft)
-                                                        cropState.cropRight = minOf(newRight, maxRight)
-                                                        cropState.cropTop = maxOf(newTop, maxTop)
-                                                        cropState.cropBottom = minOf(newBottom, maxBottom)
-                                                    }
-                                                }
-                                                p1.consume()
-                                                p2.consume()
+                                            } else if (isEditing) {
+                                                currentFinger.consume()
+                                                cropState.onDrag(currentFinger.position - currentFinger.previousPosition, minSizePx)
                                             }
                                         }
                                     }

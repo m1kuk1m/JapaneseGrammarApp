@@ -8,6 +8,7 @@ import androidx.paging.PagingData
 
 interface HistoryRepository {
     val history: Flow<PagingData<AnalysisDomainRecord>>
+    fun getHistory(query: String): Flow<PagingData<AnalysisDomainRecord>>
     suspend fun getAllRecordsList(): List<AnalysisDomainRecord>
     suspend fun getRecordById(id: Int): AnalysisDomainRecord?
     suspend fun getRecordByOriginalText(originalText: String): AnalysisDomainRecord?

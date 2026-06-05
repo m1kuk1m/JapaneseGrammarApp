@@ -29,6 +29,14 @@ interface AnalysisDao {
     @Query("SELECT * FROM analysis_records ORDER BY timestamp DESC")
     fun getAllRecords(): androidx.paging.PagingSource<Int, AnalysisRecord>
 
+    @Query("""
+        SELECT * FROM analysis_records
+        WHERE originalText LIKE :pattern ESCAPE '\'
+           OR analysisResult LIKE :pattern ESCAPE '\'
+        ORDER BY timestamp DESC
+    """)
+    fun searchRecords(pattern: String): androidx.paging.PagingSource<Int, AnalysisRecord>
+
     @Query("SELECT * FROM analysis_records ORDER BY timestamp DESC")
     suspend fun getAllRecordsList(): List<AnalysisRecord>
 
@@ -41,4 +49,3 @@ interface AnalysisDao {
     @Query("SELECT date(timestamp / 1000, 'unixepoch', 'localtime') as date, modelUsed, SUM(inputTokens) as inputTokens, SUM(outputTokens) as outputTokens, SUM(consumedTokens) as totalTokens FROM analysis_records WHERE consumedTokens > 0 GROUP BY date, modelUsed ORDER BY date DESC, totalTokens DESC")
     fun getDailyTokenUsage(): Flow<List<DailyTokenUsage>>
 }
-

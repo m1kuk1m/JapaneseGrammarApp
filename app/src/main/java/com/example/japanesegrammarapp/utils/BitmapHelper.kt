@@ -52,11 +52,11 @@ object BitmapHelper {
     }
 
     fun createTempCapturedFile(context: Context): File {
-        return File(context.cacheDir, "capture_temp.jpg")
+        return File(context.cacheDir, "capture_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}.jpg")
     }
 
     fun saveCroppedBitmap(context: Context, bitmap: Bitmap): Uri? {
-        val file = File(context.cacheDir, "cropped_temp.jpg")
+        val file = File(context.cacheDir, "cropped_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}.jpg")
         val out = FileOutputStream(file)
         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
         out.flush()

@@ -75,6 +75,7 @@ fun WorkspaceScreen(
     val coroutineScope = rememberCoroutineScope()
     
     val uiState by viewModel.uiState.collectAsState()
+    val latestUiState by rememberUpdatedState(uiState)
     val snackbarHostState = remember { SnackbarHostState() }
     
     val isPlayingTts by viewModel.isPlayingTts.collectAsState(initial = false)
@@ -204,22 +205,15 @@ fun WorkspaceScreen(
             ?.collect { uriString ->
                 if (!uriString.isNullOrBlank()) {
                     val uri = Uri.parse(uriString)
-                    if (uiState.useOcr) {
-                        coroutineScope.launch {
-                            val extracted = viewModel.extractTextFromImage(uri)
-                            if (uiState.autoNavigateResult) {
-                                textInputState = extracted
-                                viewModel.setCurrentOriginalText(extracted)
-                            }
-                            if (extracted.isNotBlank()) {
-                                if (uiState.autoNavigateResult) {
-                                    viewModel.startNewAnalysisWithText(extracted)
-                                }
-                                viewModel.startAnalysis(extracted, uri)
-                            }
+                    val currentUiState = latestUiState
+                    if (currentUiState.useOcr) {
+                        if (currentUiState.autoNavigateResult) {
+                            selectedImageUriState = uri
+                            viewModel.startNewAnalysisWithText("")
                         }
+                        viewModel.startAnalysis("", uri)
                     } else {
-                        if (uiState.autoNavigateResult) {
+                        if (currentUiState.autoNavigateResult) {
                             selectedImageUriState = uri
                             viewModel.startNewAnalysisWithText("")
                         }

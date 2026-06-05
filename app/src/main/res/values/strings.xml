@@ -44,6 +44,9 @@
     <string name="history_title">History</string>
     <string name="close">Close</string>
     <string name="no_history">No history</string>
+    <string name="history_search_hint">Search sentences</string>
+    <string name="clear_history_search">Clear search</string>
+    <string name="no_search_results">No matching sentences</string>
     <string name="export_all">Export All</string>
 
     <!-- Settings -->
@@ -462,4 +465,3 @@
     <string name="dict_form_reading">Reading</string>
     <string name="flashcard_no_weak_cards">No weak cards to practice</string>
 </resources>
-

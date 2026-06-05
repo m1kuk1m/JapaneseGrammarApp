@@ -74,6 +74,23 @@ fun WorkspaceInputForm(
 
     val isAnalyzing = uiState.selectedRecord?.status == AnalysisStatus.PENDING
     val useOcr = uiState.useOcr
+    val canSubmit = (textInput.isNotBlank() || selectedImageUri != null) && !isAnalyzing
+
+    val latestTextInput by rememberUpdatedState(textInput)
+    val latestSelectedImageUri by rememberUpdatedState(selectedImageUri)
+    val latestCanSubmit by rememberUpdatedState(canSubmit)
+    val latestOnStartAnalysis by rememberUpdatedState(onStartAnalysis)
+    val latestOnSelectedImageUriChanged by rememberUpdatedState(onSelectedImageUriChanged)
+
+    val submitIfPossible = remember {
+        {
+            if (latestCanSubmit) {
+                focusManager.clearFocus()
+                latestOnStartAnalysis(latestTextInput, latestSelectedImageUri)
+                latestOnSelectedImageUriChanged(null)
+            }
+        }
+    }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -166,6 +183,8 @@ fun WorkspaceInputForm(
                         inputType = android.text.InputType.TYPE_CLASS_TEXT or
                                     android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or
                                     android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+                        imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEND or
+                                     android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI
                         isSingleLine = false
                         setHorizontallyScrolling(false)
                         background = null
@@ -207,6 +226,27 @@ fun WorkspaceInputForm(
                             }
                             override fun afterTextChanged(s: android.text.Editable?) {}
                         })
+
+                        setOnEditorActionListener { _, actionId, event ->
+                            val isImeSubmit = actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEND ||
+                                actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+                            val isPlainEnter = event?.keyCode == android.view.KeyEvent.KEYCODE_ENTER &&
+                                !event.isShiftPressed
+
+                            when {
+                                isImeSubmit -> {
+                                    submitIfPossible()
+                                    true
+                                }
+                                isPlainEnter -> {
+                                    if (event?.action == android.view.KeyEvent.ACTION_UP) {
+                                        submitIfPossible()
+                                    }
+                                    true
+                                }
+                                else -> false
+                            }
+                        }
                         
                         // Clipboard / Keyboard Content Receiver for Gboard images
                         androidx.core.view.ViewCompat.setOnReceiveContentListener(
@@ -351,15 +391,8 @@ fun WorkspaceInputForm(
             }
 
             // Primary Action Button (Circular)
-            val canSubmit = (textInput.isNotBlank() || selectedImageUri != null) && !isAnalyzing
             IconButton(
-                onClick = {
-                    if (canSubmit) {
-                        focusManager.clearFocus()
-                        onStartAnalysis(textInput, selectedImageUri)
-                        onSelectedImageUriChanged(null)
-                    }
-                },
+                onClick = submitIfPossible,
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)

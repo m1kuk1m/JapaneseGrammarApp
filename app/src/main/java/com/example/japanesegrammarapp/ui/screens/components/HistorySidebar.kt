@@ -8,12 +8,14 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
@@ -56,8 +58,10 @@ import com.example.japanesegrammarapp.ui.HistoryUiRecord
 @Composable
 fun HistorySidebar(
     historyList: LazyPagingItems<HistoryUiRecord>,
+    searchQuery: String,
     selectedRecord: AnalysisDomainRecord?,
     bookmarkedSentenceIds: Set<Int>,
+    onSearchQueryChange: (String) -> Unit,
     onSelectRecord: (AnalysisDomainRecord) -> Unit,
     onClearSelection: () -> Unit,
     onDeleteRecord: (AnalysisDomainRecord) -> Unit,
@@ -71,6 +75,32 @@ fun HistorySidebar(
     val WashiBg = MaterialTheme.colorScheme.background
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+    val firstRecordId = historyList.itemSnapshotList.items.firstOrNull()?.record?.id
+    var previousFirstRecordId by remember { mutableStateOf<Int?>(null) }
+    var shouldStickToTop by remember { mutableStateOf(true) }
+
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+        }.collect { isAtTop ->
+            shouldStickToTop = isAtTop
+        }
+    }
+
+    LaunchedEffect(firstRecordId) {
+        val oldFirstRecordId = previousFirstRecordId
+        val visibleTopRecordId = historyList.itemSnapshotList.items
+            .getOrNull(listState.firstVisibleItemIndex)
+            ?.record
+            ?.id
+        val isAnchoredToOldTop = oldFirstRecordId != null && visibleTopRecordId == oldFirstRecordId
+        if (oldFirstRecordId != null && firstRecordId != null && firstRecordId != oldFirstRecordId && (shouldStickToTop || isAnchoredToOldTop)) {
+            listState.scrollToItem(0)
+        }
+        previousFirstRecordId = firstRecordId
+    }
+
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: android.net.Uri? ->
@@ -117,6 +147,62 @@ fun HistorySidebar(
         
         Divider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
         Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 4.dp)
+                .height(44.dp),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                fontSize = 13.sp,
+                color = SumiInk
+            ),
+            placeholder = {
+                Text(
+                    text = stringResource(R.string.history_search_hint),
+                    fontSize = 13.sp,
+                    color = SumiInk.copy(alpha = 0.45f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    tint = SumiInk.copy(alpha = 0.5f),
+                    modifier = Modifier.size(18.dp)
+                )
+            },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(
+                        onClick = { onSearchQueryChange("") },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.clear_history_search),
+                            tint = SumiInk.copy(alpha = 0.55f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            },
+            shape = RoundedCornerShape(22.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = SumiInk,
+                unfocusedTextColor = SumiInk,
+                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
+                unfocusedBorderColor = SumiInk.copy(alpha = 0.12f),
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                cursorColor = MaterialTheme.colorScheme.primary
+            )
+        )
 
         // New Analysis Button (Full-width)
         Button(
@@ -201,13 +287,14 @@ fun HistorySidebar(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = stringResource(R.string.no_history),
+                    text = stringResource(if (searchQuery.isBlank()) R.string.no_history else R.string.no_search_results),
                     color = SumiInk.copy(alpha = 0.5f),
                     fontSize = 14.sp
                 )
             }
         } else {
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),

@@ -44,6 +44,9 @@
     <string name="history_title">履歴</string>
     <string name="close">閉じる</string>
     <string name="no_history">履歴がありません</string>
+    <string name="history_search_hint">文を検索</string>
+    <string name="clear_history_search">検索をクリア</string>
+    <string name="no_search_results">一致する文がありません</string>
     <string name="export_all">全てエクスポート</string>
 
     <!-- Settings -->
@@ -459,4 +462,3 @@
     <string name="dict_form_reading">読み</string>
     <string name="flashcard_no_weak_cards">苦手なカードはありません</string>
 </resources>
-

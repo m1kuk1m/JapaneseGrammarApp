@@ -28,8 +28,18 @@ interface BookmarkDao {
     @Query("SELECT EXISTS(SELECT 1 FROM bookmarked_segments WHERE recordId = :recordId AND segmentText = :dictForm)")
     fun existsByDictForm(recordId: Int, dictForm: String): Flow<Boolean>
 
-    @Query("SELECT EXISTS(SELECT 1 FROM bookmarked_segments WHERE recordId = :recordId AND segmentText = :dictForm)")
-    suspend fun existsByDictFormDirect(recordId: Int, dictForm: String): Boolean
+    @Query("""
+        SELECT EXISTS(
+            SELECT 1 FROM bookmarked_segments
+            WHERE recordId = :recordId
+              AND segmentText = :dictForm
+              AND (
+                  surfaceForm = :surfaceForm
+                  OR (surfaceForm IS NULL AND segmentText = :surfaceForm)
+              )
+        )
+    """)
+    suspend fun existsByKeyDirect(recordId: Int, surfaceForm: String, dictForm: String): Boolean
 
     @Query("DELETE FROM bookmarked_segments WHERE recordId = :recordId AND (surfaceForm = :surfaceForm OR (surfaceForm IS NULL AND segmentText = :surfaceForm)) AND segmentText = :dictForm")
     suspend fun deleteByKey(recordId: Int, surfaceForm: String, dictForm: String)
@@ -52,6 +62,7 @@ interface BookmarkDao {
     @Transaction
     suspend fun toggleBookmark(
         recordId: Int,
+        surfaceForm: String,
         dictForm: String,
         dictReading: String,
         partOfSpeech: String?,
@@ -61,16 +72,16 @@ interface BookmarkDao {
         role: String?,
         sourceText: String
     ): Boolean {
-        val exists = existsByDictFormDirect(recordId, dictForm)
+        val exists = existsByKeyDirect(recordId, surfaceForm, dictForm)
         if (exists) {
-            deleteByDictForm(recordId, dictForm)
+            deleteByKey(recordId, surfaceForm, dictForm)
             return false
         } else {
             insert(
                 BookmarkedSegment(
                     recordId = recordId,
                     segmentText = dictForm,
-                    surfaceForm = null,
+                    surfaceForm = surfaceForm,
                     reading = dictReading,
                     partOfSpeech = partOfSpeech,
                     posCategory = posCategory,

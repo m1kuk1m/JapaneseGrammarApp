@@ -95,8 +95,6 @@ class CropState(
 
         activeHandle = if (bestHandle != DragHandle.NONE) {
             bestHandle
-        } else if (x in cropLeft..cropRight && y in cropTop..cropBottom) {
-            DragHandle.CENTER
         } else {
             DragHandle.NONE
         }

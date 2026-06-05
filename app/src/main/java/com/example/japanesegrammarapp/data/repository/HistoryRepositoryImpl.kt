@@ -21,11 +21,26 @@ class HistoryRepositoryImpl @Inject constructor(
     private val analysisDao: AnalysisDao
 ) : HistoryRepository {
 
-    override val history: Flow<PagingData<AnalysisDomainRecord>> = Pager(
+    override val history: Flow<PagingData<AnalysisDomainRecord>> = getHistory("")
+
+    override fun getHistory(query: String): Flow<PagingData<AnalysisDomainRecord>> = Pager(
         config = PagingConfig(pageSize = 20, enablePlaceholders = false),
-        pagingSourceFactory = { analysisDao.getAllRecords() }
+        pagingSourceFactory = {
+            val trimmedQuery = query.trim()
+            if (trimmedQuery.isEmpty()) {
+                analysisDao.getAllRecords()
+            } else {
+                analysisDao.searchRecords("%${trimmedQuery.escapeLikePattern()}%")
+            }
+        }
     ).flow.map { pagingData ->
         pagingData.map { it.toDomain() }
+    }
+
+    private fun String.escapeLikePattern(): String {
+        return replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
     }
 
     override suspend fun getAllRecordsList(): List<AnalysisDomainRecord> {
