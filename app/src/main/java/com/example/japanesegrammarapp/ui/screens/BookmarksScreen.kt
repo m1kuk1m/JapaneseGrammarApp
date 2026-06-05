@@ -74,7 +74,7 @@ private val PosColorsDark = mapOf(
 private val GoldColor = Color(0xFFD4A017)
 private val GoldLight = Color(0xFFFFF3C4)
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun BookmarksScreen(
     navController: NavController,
@@ -622,7 +622,7 @@ private fun FilterChipItem(
 
 // ── Bookmark Card ──────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 private fun BookmarkCard(
     bookmark: BookmarkedSegmentDomain,
@@ -688,15 +688,16 @@ private fun BookmarkCard(
                 // Word info
                 Column(modifier = Modifier.weight(1f)) {
                     // Dictionary form (main text)
-                    Row(
-                        verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
                             text = bookmark.segmentText,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = SumiInk
+                            color = SumiInk,
+                            modifier = Modifier.align(Alignment.Bottom)
                         )
                         
                         val displayReading = bookmark.reading
@@ -705,7 +706,9 @@ private fun BookmarkCard(
                                 text = displayReading,
                                 fontSize = 12.sp,
                                 color = SumiInk.copy(alpha = 0.45f),
-                                modifier = Modifier.padding(bottom = 2.dp)
+                                modifier = Modifier
+                                    .padding(bottom = 2.dp)
+                                    .align(Alignment.Bottom)
                             )
                         }
                     }
