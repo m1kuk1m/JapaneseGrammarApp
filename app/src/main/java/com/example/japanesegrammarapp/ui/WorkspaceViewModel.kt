@@ -260,16 +260,24 @@ class WorkspaceViewModel @Inject constructor(
             val freshRecord = historyRepository.getRecordById(record.id) ?: record
             val detail = analyzeTextUseCase.parseDetailedResult(freshRecord.originalText, freshRecord.analysisResult)
             withContext(Dispatchers.Main) {
-                _uiState.update { it.copy(
-                    selectedRecord = freshRecord,
-                    currentOriginalText = freshRecord.originalText,
-                    analysisResult = freshRecord.analysisResult,
-                    detailedResult = detail,
-                    isParsingDetailedResult = false,
-                    selectedRecordProgress = if (freshRecord.status != AnalysisStatus.COMPLETED) {
-                        analyzeTextUseCase.progressFlow.value[freshRecord.id]
-                    } else null
-                ) }
+                _uiState.update { state ->
+                    if (state.selectedRecord?.id != freshRecord.id) {
+                        state
+                    } else if (state.selectedRecord.status == AnalysisStatus.COMPLETED && freshRecord.status == AnalysisStatus.PENDING) {
+                        state
+                    } else {
+                        state.copy(
+                            selectedRecord = freshRecord,
+                            currentOriginalText = freshRecord.originalText,
+                            analysisResult = freshRecord.analysisResult,
+                            detailedResult = detail,
+                            isParsingDetailedResult = false,
+                            selectedRecordProgress = if (freshRecord.status != AnalysisStatus.COMPLETED) {
+                                analyzeTextUseCase.progressFlow.value[freshRecord.id]
+                            } else null
+                        )
+                    }
+                }
             }
         }
     }
@@ -292,6 +300,8 @@ class WorkspaceViewModel @Inject constructor(
         }
         _uiState.update { state ->
             if (state.selectedRecord?.id != recordId) {
+                state
+            } else if (state.selectedRecord.status == AnalysisStatus.COMPLETED && updated.status == AnalysisStatus.PENDING) {
                 state
             } else {
                 state.copy(
@@ -419,7 +429,13 @@ class WorkspaceViewModel @Inject constructor(
                 retryAnalysisUseCase.execute(recordId)
                 val record = historyRepository.getRecordById(recordId)
                 if (record != null) {
-                    _uiState.update { it.copy(selectedRecord = record) }
+                    _uiState.update { state ->
+                        if (state.selectedRecord?.id != recordId) {
+                            state
+                        } else {
+                            state.copy(selectedRecord = record)
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.error_retry_failed))

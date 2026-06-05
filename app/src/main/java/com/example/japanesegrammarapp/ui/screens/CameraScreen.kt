@@ -36,6 +36,9 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.rounded.FlashAuto
+import androidx.compose.material.icons.rounded.FlashOff
+import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -392,11 +395,12 @@ fun CameraPreviewLayout(
                 )
             }
             
-            val flashIcon = when (flashMode) {
-                ImageCapture.FLASH_MODE_ON -> stringResource(R.string.camera_flash_on_label)
-                ImageCapture.FLASH_MODE_AUTO -> stringResource(R.string.camera_flash_auto_label)
-                else -> stringResource(R.string.camera_flash_off_label)
+            val (flashVectorIcon, flashTextRes, flashDescRes) = when (flashMode) {
+                ImageCapture.FLASH_MODE_ON -> Triple(Icons.Rounded.FlashOn, R.string.camera_flash_on_label, R.string.camera_flash_on_desc)
+                ImageCapture.FLASH_MODE_AUTO -> Triple(Icons.Rounded.FlashAuto, R.string.camera_flash_auto_label, R.string.camera_flash_auto_desc)
+                else -> Triple(Icons.Rounded.FlashOff, R.string.camera_flash_off_label, R.string.camera_flash_off_desc)
             }
+            val labelText = stringResource(flashTextRes).replace("⚡", "").trim()
             
             Box(
                 modifier = Modifier
@@ -404,15 +408,26 @@ fun CameraPreviewLayout(
                     .clip(RoundedCornerShape(19.dp))
                     .background(Color.Black.copy(alpha = 0.4f))
                     .clickable { onFlashToggle() }
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = flashIcon,
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = flashVectorIcon,
+                        contentDescription = stringResource(flashDescRes),
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = labelText,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
         
@@ -440,16 +455,15 @@ fun CameraPreviewLayout(
         }
     }
 }
-
 @Composable
 fun ZenScanningOverlay() {
     // Elegant frame and pulsing scan line animation
     val infiniteTransition = rememberInfiniteTransition(label = "scanning")
     val laserYOffsetProgress by infiniteTransition.animateFloat(
-        initialValue = 0.1f,
-        targetValue = 0.9f,
+        initialValue = 0.05f,
+        targetValue = 0.95f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2600, easing = LinearEasing),
+            animation = tween(durationMillis = 2800, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "laserLine"
@@ -459,79 +473,58 @@ fun ZenScanningOverlay() {
         val width = size.width
         val height = size.height
         
-        // Scanning rectangle occupies 80% width, centered vertically, 45% height
-        val rectW = width * 0.85f
-        val rectH = height * 0.40f
+        // Define global framing boundaries (e.g. 16.dp margin from edges)
+        val marginX = 16.dp.toPx()
+        val marginTop = 80.dp.toPx() // leave room for top buttons
+        val marginBottom = 140.dp.toPx() // leave room for bottom shutter button
         
-        val left = (width - rectW) / 2
-        val top = (height - rectH) / 2.3f // slightly higher than true center
-        val right = left + rectW
-        val bottom = top + rectH
+        val left = marginX
+        val top = marginTop
+        val right = width - marginX
+        val bottom = height - marginBottom
         
-        // 1. Draw dimming background around target framing box
-        // Top
-        drawRect(Color.Black.copy(alpha = 0.55f), topLeft = Offset(0f, 0f), size = Size(width, top))
-        // Bottom
-        drawRect(Color.Black.copy(alpha = 0.55f), topLeft = Offset(0f, bottom), size = Size(width, height - bottom))
-        // Left
-        drawRect(Color.Black.copy(alpha = 0.55f), topLeft = Offset(0f, top), size = Size(left, rectH))
-        // Right
-        drawRect(Color.Black.copy(alpha = 0.55f), topLeft = Offset(right, top), size = Size(width - right, rectH))
-        
-        // 2. Draw modern minimal corner guides
-        val strokeW = 4.dp.toPx()
-        val cornerL = 24.dp.toPx()
+        // 1. Draw modern minimal corner guides (high transparency white)
+        val strokeW = 2.dp.toPx()
+        val cornerL = 20.dp.toPx()
+        val cornerColor = Color.White.copy(alpha = 0.35f)
         
         // Top-Left corner
-        drawLine(Color.White, Offset(left - strokeW/2, top), Offset(left + cornerL, top), strokeWidth = strokeW)
-        drawLine(Color.White, Offset(left, top - strokeW/2), Offset(left, top + cornerL), strokeWidth = strokeW)
+        drawLine(cornerColor, Offset(left, top), Offset(left + cornerL, top), strokeWidth = strokeW)
+        drawLine(cornerColor, Offset(left, top), Offset(left, top + cornerL), strokeWidth = strokeW)
         
         // Top-Right corner
-        drawLine(Color.White, Offset(right + strokeW/2, top), Offset(right - cornerL, top), strokeWidth = strokeW)
-        drawLine(Color.White, Offset(right, top - strokeW/2), Offset(right, top + cornerL), strokeWidth = strokeW)
+        drawLine(cornerColor, Offset(right, top), Offset(right - cornerL, top), strokeWidth = strokeW)
+        drawLine(cornerColor, Offset(right, top), Offset(right, top + cornerL), strokeWidth = strokeW)
         
         // Bottom-Left corner
-        drawLine(Color.White, Offset(left - strokeW/2, bottom), Offset(left + cornerL, bottom), strokeWidth = strokeW)
-        drawLine(Color.White, Offset(left, bottom + strokeW/2), Offset(left, bottom - cornerL), strokeWidth = strokeW)
+        drawLine(cornerColor, Offset(left, bottom), Offset(left + cornerL, bottom), strokeWidth = strokeW)
+        drawLine(cornerColor, Offset(left, bottom), Offset(left, bottom - cornerL), strokeWidth = strokeW)
         
         // Bottom-Right corner
-        drawLine(Color.White, Offset(right + strokeW/2, bottom), Offset(right - cornerL, bottom), strokeWidth = strokeW)
-        drawLine(Color.White, Offset(right, bottom + strokeW/2), Offset(right, bottom - cornerL), strokeWidth = strokeW)
+        drawLine(cornerColor, Offset(right, bottom), Offset(right - cornerL, bottom), strokeWidth = strokeW)
+        drawLine(cornerColor, Offset(right, bottom), Offset(right, bottom - cornerL), strokeWidth = strokeW)
         
-        // 3. Draw pulsing modern "Japanese-gold" Kuri scan line inside box
-        val laserY = top + (rectH * laserYOffsetProgress)
+        // 2. Draw pulsing modern "Japanese-gold" Kuri scan line sweeping globally
+        val laserY = top + ((bottom - top) * laserYOffsetProgress)
         // Soft glowing line
         drawLine(
-            color = KuriAmber.copy(alpha = 0.8f),
+            color = KuriAmber.copy(alpha = 0.7f),
             start = Offset(left + 8.dp.toPx(), laserY),
             end = Offset(right - 8.dp.toPx(), laserY),
             strokeWidth = 2.dp.toPx()
         )
-        // Draw auxiliary subtle alignment lines
-        drawLine(
-            color = Color.White.copy(alpha = 0.15f),
-            start = Offset(left, top + rectH / 3),
-            end = Offset(right, top + rectH / 3),
-            strokeWidth = 1.dp.toPx()
-        )
-        drawLine(
-            color = Color.White.copy(alpha = 0.15f),
-            start = Offset(left, top + (rectH * 2) / 3),
-            end = Offset(right, top + (rectH * 2) / 3),
-            strokeWidth = 1.dp.toPx()
-        )
     }
     
-    // Scanning text instruction
+    // Scanning text instruction (positioned above the shutter button)
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp),
-        contentAlignment = Alignment.Center
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 124.dp),
+        contentAlignment = Alignment.BottomCenter
     ) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.offset(y = 120.dp)
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = stringResource(R.string.camera_guide_keep_inside),
@@ -548,7 +541,6 @@ fun ZenScanningOverlay() {
         }
     }
 }
-
 @Composable
 fun ImageCropReviewLayout(
     bitmap: Bitmap,
@@ -610,13 +602,15 @@ fun ImageCropReviewLayout(
                                         
                                         val isAligned = overlapX > 0 || overlapY > 0
                                         
-                                        if (!isSizeSimilar || !isAligned) return@any false
-
-                                        val expandedLine = Rect(
-                                            (lineI.left - maxDist).toInt(), (lineI.top - maxDist).toInt(),
-                                            (lineI.right + maxDist).toInt(), (lineI.bottom + maxDist).toInt()
-                                        )
-                                        Rect.intersects(expandedLine, lineJ)
+                                        if (!isSizeSimilar || !isAligned) {
+                                            false
+                                        } else {
+                                            val expandedLine = Rect(
+                                                (lineI.left - maxDist).toInt(), (lineI.top - maxDist).toInt(),
+                                                (lineI.right + maxDist).toInt(), (lineI.bottom + maxDist).toInt()
+                                            )
+                                            Rect.intersects(expandedLine, lineJ)
+                                        }
                                     }
                                 }
                                 if (isClose) {
@@ -656,6 +650,9 @@ fun ImageCropReviewLayout(
                         )
                     }
                     detectedBoxes = mergedBoxes
+                    if (mergedBoxes.isEmpty()) {
+                        hideOcrBoxes = true
+                    }
                 }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -732,7 +729,6 @@ fun ImageCropReviewLayout(
                     )
                 }
                 
-                val minTolerancePx = with(density) { 48.dp.toPx() }
                 val minSizePx = with(density) { 60.dp.toPx() }
                 
                 Canvas(
@@ -742,291 +738,428 @@ fun ImageCropReviewLayout(
                             awaitPointerEventScope {
                                 while (true) {
                                     val downEvent = awaitFirstDown(requireUnconsumed = false)
+                                    val startPos = downEvent.position
+                                    var activePointerId = downEvent.id
                                     
+                                    val minTolerancePx = 32.dp.toPx() // Corner grab tolerance
+                                    val dragSlopPx = 8.dp.toPx() // Drag vs tap threshold
+                                    
+                                    var detectedOcrCornerDrag = false
+                                    var tappedBox: Rect? = null
+                                    
+                                    // 1. If OCR boxes are currently visible, check if we touched one
                                     if (!hideOcrBoxes) {
-                                        var tappedBox: Rect? = null
+                                        var closestBox: Rect? = null
+                                        var closestHandle = DragHandle.NONE
+                                        var minDist = Float.MAX_VALUE
+                                        
                                         for (box in detectedBoxes) {
                                             val displayLeft = cropState.imgOffsetX + box.left * cropState.scaleFactor
                                             val displayTop = cropState.imgOffsetY + box.top * cropState.scaleFactor
                                             val displayRight = cropState.imgOffsetX + box.right * cropState.scaleFactor
                                             val displayBottom = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
                                             
-                                            if (downEvent.position.x in displayLeft..displayRight && downEvent.position.y in displayTop..displayBottom) {
-                                                tappedBox = box
-                                                break
-                                            }
+                                            val distTL = distance(startPos.x, startPos.y, displayLeft, displayTop)
+                                            val distTR = distance(startPos.x, startPos.y, displayRight, displayTop)
+                                            val distBL = distance(startPos.x, startPos.y, displayLeft, displayBottom)
+                                            val distBR = distance(startPos.x, startPos.y, displayRight, displayBottom)
+                                            
+                                            if (distTL < minDist && distTL < minTolerancePx) { minDist = distTL; closestBox = box; closestHandle = DragHandle.TOP_LEFT }
+                                            if (distTR < minDist && distTR < minTolerancePx) { minDist = distTR; closestBox = box; closestHandle = DragHandle.TOP_RIGHT }
+                                            if (distBL < minDist && distBL < minTolerancePx) { minDist = distBL; closestBox = box; closestHandle = DragHandle.BOTTOM_LEFT }
+                                            if (distBR < minDist && distBR < minTolerancePx) { minDist = distBR; closestBox = box; closestHandle = DragHandle.BOTTOM_RIGHT }
                                         }
                                         
-                                        if (tappedBox != null) {
+                                        if (closestBox != null) {
+                                            // Touch is near a corner of an OCR box -> Start editing this box
                                             downEvent.consume()
-                                            // Expand the tapped box slightly (5% padding)
-                                            val paddingX = (tappedBox.width() * 0.05f).toInt()
-                                            val paddingY = (tappedBox.height() * 0.05f).toInt()
+                                            val displayLeft = cropState.imgOffsetX + closestBox.left * cropState.scaleFactor
+                                            val displayTop = cropState.imgOffsetY + closestBox.top * cropState.scaleFactor
+                                            val displayRight = cropState.imgOffsetX + closestBox.right * cropState.scaleFactor
+                                            val displayBottom = cropState.imgOffsetY + closestBox.bottom * cropState.scaleFactor
                                             
-                                            val x = maxOf(0, tappedBox.left - paddingX)
-                                            val y = maxOf(0, tappedBox.top - paddingY)
-                                            val w = minOf(bitmap.width - x, tappedBox.width() + paddingX * 2)
-                                            val h = minOf(bitmap.height - y, tappedBox.height() + paddingY * 2)
+                                            cropState.cropLeft = displayLeft
+                                            cropState.cropTop = displayTop
+                                            cropState.cropRight = displayRight
+                                            cropState.cropBottom = displayBottom
+                                            cropState.activeHandle = closestHandle
                                             
-                                            if (w > 0 && h > 0) {
-                                                try {
-                                                    val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
-                                                    onConfirm(cropped)
-                                                } catch (e: Throwable) {
-                                                    e.printStackTrace()
-                                                    onConfirm(bitmap)
+                                            hideOcrBoxes = true
+                                            detectedOcrCornerDrag = true
+                                        } else {
+                                            // Touch is not near a corner. Check if it's inside any box.
+                                            for (box in detectedBoxes) {
+                                                val displayLeft = cropState.imgOffsetX + box.left * cropState.scaleFactor
+                                                val displayTop = cropState.imgOffsetY + box.top * cropState.scaleFactor
+                                                val displayRight = cropState.imgOffsetX + box.right * cropState.scaleFactor
+                                                val displayBottom = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
+                                                
+                                                if (startPos.x in displayLeft..displayRight && startPos.y in displayTop..displayBottom) {
+                                                    tappedBox = box
+                                                    break
                                                 }
-                                            } else {
-                                                onConfirm(bitmap)
                                             }
-                                            continue
                                         }
                                     }
                                     
-                                    hideOcrBoxes = true
-                                    
-                                    var activePointerId = downEvent.id
-                                    
-                                    cropState.startDrag(downEvent.position, minTolerancePx)
-                                    
-                                    var isPinching = false
-                                    var initialPinchDistance = 0f
-                                    var initialLeft = cropState.cropLeft
-                                    var initialTop = cropState.cropTop
-                                    var initialRight = cropState.cropRight
-                                    var initialBottom = cropState.cropBottom
-                                    var initialCenterX = (initialLeft + initialRight) / 2f
-                                    var initialCenterY = (initialTop + initialBottom) / 2f
-                                    var initialWidth = initialRight - initialLeft
-                                    var initialHeight = initialBottom - initialTop
-                                    
-                                    while (true) {
-                                        val event = awaitPointerEvent()
-                                        val changes = event.changes
+                                    // If we did not trigger corner drag, handle potential drag-start/tap
+                                    if (!detectedOcrCornerDrag) {
+                                        var hasMovedBeyondSlop = false
                                         
-                                        if (changes.all { !it.pressed }) {
-                                            cropState.stopDrag()
-                                            break
-                                        }
-                                        
-                                        if (changes.any { it.isConsumed }) {
-                                            cropState.stopDrag()
-                                            break
-                                        }
-                                        
-                                        val activeChanges = changes.filter { it.pressed }
-                                        if (activeChanges.size == 1) {
-                                            if (isPinching) {
-                                                isPinching = false
-                                                val currentFinger = activeChanges[0]
-                                                activePointerId = currentFinger.id
-                                                cropState.startDrag(currentFinger.position, minTolerancePx)
-                                            } else {
-                                                val currentFinger = activeChanges.find { it.id == activePointerId } ?: activeChanges[0]
-                                                activePointerId = currentFinger.id
-                                                val dragAmount = currentFinger.position - currentFinger.previousPosition
-                                                currentFinger.consume()
-                                                cropState.onDrag(dragAmount, minSizePx)
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val changes = event.changes
+                                            
+                                            if (changes.all { !it.pressed }) {
+                                                // Finger released. If we had a tappedBox and didn't drag, confirm crop!
+                                                if (tappedBox != null && !hasMovedBeyondSlop) {
+                                                    downEvent.consume()
+                                                    val paddingX = (tappedBox.width() * 0.05f).toInt()
+                                                    val paddingY = (tappedBox.height() * 0.05f).toInt()
+                                                    val x = maxOf(0, tappedBox.left - paddingX)
+                                                    val y = maxOf(0, tappedBox.top - paddingY)
+                                                    val w = minOf(bitmap.width - x, tappedBox.width() + paddingX * 2)
+                                                    val h = minOf(bitmap.height - y, tappedBox.height() + paddingY * 2)
+                                                    if (w > 0 && h > 0) {
+                                                        try {
+                                                            val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
+                                                            onConfirm(cropped)
+                                                        } catch (e: Throwable) {
+                                                            e.printStackTrace()
+                                                            onConfirm(bitmap)
+                                                        }
+                                                    } else {
+                                                        onConfirm(bitmap)
+                                                    }
+                                                }
+                                                break
                                             }
-                                        } else if (activeChanges.size >= 2) {
-                                            val p1 = activeChanges[0]
-                                            val p2 = activeChanges[1]
                                             
-                                            val pos1 = p1.position
-                                            val pos2 = p2.position
+                                            val activeChanges = changes.filter { it.pressed }
+                                            val currentFinger = activeChanges.find { it.id == activePointerId } ?: activeChanges.firstOrNull()
                                             
-                                            val dx = pos1.x - pos2.x
-                                            val dy = pos1.y - pos2.y
-                                            val currentDistance = kotlin.math.sqrt(dx * dx + dy * dy)
-                                            
-                                            if (!isPinching) {
-                                                isPinching = true
-                                                initialPinchDistance = currentDistance
-                                                initialLeft = cropState.cropLeft
-                                                initialTop = cropState.cropTop
-                                                initialRight = cropState.cropRight
-                                                initialBottom = cropState.cropBottom
-                                                initialCenterX = (initialLeft + initialRight) / 2f
-                                                initialCenterY = (initialTop + initialBottom) / 2f
-                                                initialWidth = initialRight - initialLeft
-                                                initialHeight = initialBottom - initialTop
+                                            if (currentFinger != null) {
+                                                activePointerId = currentFinger.id
+                                                val currentPos = currentFinger.position
+                                                val totalDelta = currentPos - startPos
+                                                val dist = kotlin.math.sqrt(totalDelta.x * totalDelta.x + totalDelta.y * totalDelta.y)
                                                 
-                                                cropState.activeHandle = DragHandle.NONE
-                                            } else {
-                                                if (initialPinchDistance > 5f) {
-                                                    val scale = currentDistance / initialPinchDistance
+                                                if (dist > dragSlopPx) {
+                                                    hasMovedBeyondSlop = true
                                                     
-                                                    val newWidth = initialWidth * scale
-                                                    val newHeight = initialHeight * scale
-                                                    
-                                                    val clampedWidth = maxOf(newWidth, minSizePx)
-                                                    val clampedHeight = maxOf(newHeight, minSizePx)
-                                                    
-                                                    var newLeft = initialCenterX - clampedWidth / 2f
-                                                    var newRight = initialCenterX + clampedWidth / 2f
-                                                    var newTop = initialCenterY - clampedHeight / 2f
-                                                    var newBottom = initialCenterY + clampedHeight / 2f
-                                                    
-                                                    val maxLeft = cropState.imgOffsetX
-                                                    val maxRight = cropState.imgOffsetX + cropState.imgDispWidth
-                                                    val maxTop = cropState.imgOffsetY
-                                                    val maxBottom = cropState.imgOffsetY + cropState.imgDispHeight
-                                                    
-                                                    if (newLeft < maxLeft) {
-                                                        val diff = maxLeft - newLeft
-                                                        newLeft += diff
-                                                        newRight += diff
+                                                    // Trigger transition to manual drag mode!
+                                                    if (tappedBox != null) {
+                                                        // 1. Drag started inside an OCR box -> Snap crop box to this OCR box, handle = CENTER
+                                                        downEvent.consume()
+                                                        val displayLeft = cropState.imgOffsetX + tappedBox.left * cropState.scaleFactor
+                                                        val displayTop = cropState.imgOffsetY + tappedBox.top * cropState.scaleFactor
+                                                        val displayRight = cropState.imgOffsetX + tappedBox.right * cropState.scaleFactor
+                                                        val displayBottom = cropState.imgOffsetY + tappedBox.bottom * cropState.scaleFactor
+                                                        
+                                                        cropState.cropLeft = displayLeft
+                                                        cropState.cropTop = displayTop
+                                                        cropState.cropRight = displayRight
+                                                        cropState.cropBottom = displayBottom
+                                                        cropState.activeHandle = DragHandle.CENTER
+                                                        hideOcrBoxes = true
+                                                    } else {
+                                                        // 2. Drag started on empty space -> Create new selection box
+                                                        downEvent.consume()
+                                                        val left = minOf(startPos.x, currentPos.x).coerceIn(cropState.imgOffsetX, cropState.imgOffsetX + cropState.imgDispWidth)
+                                                        val right = maxOf(startPos.x, currentPos.x).coerceIn(cropState.imgOffsetX, cropState.imgOffsetX + cropState.imgDispWidth)
+                                                        val top = minOf(startPos.y, currentPos.y).coerceIn(cropState.imgOffsetY, cropState.imgOffsetY + cropState.imgDispHeight)
+                                                        val bottom = maxOf(startPos.y, currentPos.y).coerceIn(cropState.imgOffsetY, cropState.imgOffsetY + cropState.imgDispHeight)
+                                                        
+                                                        cropState.cropLeft = left
+                                                        cropState.cropTop = top
+                                                        cropState.cropRight = right
+                                                        cropState.cropBottom = bottom
+                                                        
+                                                        // Determine active handle based on drag direction
+                                                        cropState.activeHandle = if (currentPos.x >= startPos.x) {
+                                                            if (currentPos.y >= startPos.y) DragHandle.BOTTOM_RIGHT else DragHandle.TOP_RIGHT
+                                                        } else {
+                                                            if (currentPos.y >= startPos.y) DragHandle.BOTTOM_LEFT else DragHandle.TOP_LEFT
+                                                        }
+                                                        
+                                                        hideOcrBoxes = true
                                                     }
-                                                    if (newRight > maxRight) {
-                                                        val diff = newRight - maxRight
-                                                        newLeft -= diff
-                                                        newRight -= diff
-                                                    }
-                                                    if (newTop < maxTop) {
-                                                        val diff = maxTop - newTop
-                                                        newTop += diff
-                                                        newBottom += diff
-                                                    }
-                                                    if (newBottom > maxBottom) {
-                                                        val diff = newBottom - maxBottom
-                                                        newTop -= diff
-                                                        newBottom -= diff
-                                                    }
-                                                    
-                                                    cropState.cropLeft = maxOf(newLeft, maxLeft)
-                                                    cropState.cropRight = minOf(newRight, maxRight)
-                                                    cropState.cropTop = maxOf(newTop, maxTop)
-                                                    cropState.cropBottom = minOf(newBottom, maxBottom)
+                                                    break
                                                 }
                                             }
-                                            p1.consume()
-                                            p2.consume()
+                                        }
+                                    }
+                                    
+                                    // If we are in manual drag mode (hideOcrBoxes == true), run standard drag event loop
+                                    if (hideOcrBoxes) {
+                                        // Initialize center/handle drag state
+                                        val tolerance = 48.dp.toPx()
+                                        if (cropState.activeHandle == DragHandle.NONE) {
+                                            cropState.startDrag(startPos, tolerance)
+                                        }
+                                        
+                                        var isPinching = false
+                                        var initialPinchDistance = 0f
+                                        var initialLeft = cropState.cropLeft
+                                        var initialTop = cropState.cropTop
+                                        var initialRight = cropState.cropRight
+                                        var initialBottom = cropState.cropBottom
+                                        var initialCenterX = (initialLeft + initialRight) / 2f
+                                        var initialCenterY = (initialTop + initialBottom) / 2f
+                                        var initialWidth = initialRight - initialLeft
+                                        var initialHeight = initialBottom - initialTop
+                                        
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val changes = event.changes
+                                            
+                                            if (changes.all { !it.pressed }) {
+                                                cropState.stopDrag()
+                                                break
+                                            }
+                                            
+                                            if (changes.any { it.isConsumed }) {
+                                                cropState.stopDrag()
+                                                break
+                                            }
+                                            
+                                            val activeChanges = changes.filter { it.pressed }
+                                            if (activeChanges.size == 1) {
+                                                if (isPinching) {
+                                                    isPinching = false
+                                                    val currentFinger = activeChanges[0]
+                                                    activePointerId = currentFinger.id
+                                                    cropState.startDrag(currentFinger.position, tolerance)
+                                                } else {
+                                                    val currentFinger = activeChanges.find { it.id == activePointerId } ?: activeChanges[0]
+                                                    activePointerId = currentFinger.id
+                                                    val dragAmount = currentFinger.position - currentFinger.previousPosition
+                                                    currentFinger.consume()
+                                                    cropState.onDrag(dragAmount, minSizePx)
+                                                }
+                                            } else if (activeChanges.size >= 2) {
+                                                val p1 = activeChanges[0]
+                                                val p2 = activeChanges[1]
+                                                
+                                                val pos1 = p1.position
+                                                val pos2 = p2.position
+                                                
+                                                val dx = pos1.x - pos2.x
+                                                val dy = pos1.y - pos2.y
+                                                val currentDistance = kotlin.math.sqrt(dx * dx + dy * dy)
+                                                
+                                                if (!isPinching) {
+                                                    isPinching = true
+                                                    initialPinchDistance = currentDistance
+                                                    initialLeft = cropState.cropLeft
+                                                    initialTop = cropState.cropTop
+                                                    initialRight = cropState.cropRight
+                                                    initialBottom = cropState.cropBottom
+                                                    initialCenterX = (initialLeft + initialRight) / 2f
+                                                    initialCenterY = (initialTop + initialBottom) / 2f
+                                                    initialWidth = initialRight - initialLeft
+                                                    initialHeight = initialBottom - initialTop
+                                                    
+                                                    cropState.activeHandle = DragHandle.NONE
+                                                } else {
+                                                    if (initialPinchDistance > 5f) {
+                                                        val scale = currentDistance / initialPinchDistance
+                                                        
+                                                        val newWidth = initialWidth * scale
+                                                        val newHeight = initialHeight * scale
+                                                        
+                                                        val clampedWidth = maxOf(newWidth, minSizePx)
+                                                        val clampedHeight = maxOf(newHeight, minSizePx)
+                                                        
+                                                        var newLeft = initialCenterX - clampedWidth / 2f
+                                                        var newRight = initialCenterX + clampedWidth / 2f
+                                                        var newTop = initialCenterY - clampedHeight / 2f
+                                                        var newBottom = initialCenterY + clampedHeight / 2f
+                                                        
+                                                        val maxLeft = cropState.imgOffsetX
+                                                        val maxRight = cropState.imgOffsetX + cropState.imgDispWidth
+                                                        val maxTop = cropState.imgOffsetY
+                                                        val maxBottom = cropState.imgOffsetY + cropState.imgDispHeight
+                                                        
+                                                        if (newLeft < maxLeft) {
+                                                            val diff = maxLeft - newLeft
+                                                            newLeft += diff
+                                                            newRight += diff
+                                                        }
+                                                        if (newRight > maxRight) {
+                                                            val diff = newRight - maxRight
+                                                            newLeft -= diff
+                                                            newRight -= diff
+                                                        }
+                                                        if (newTop < maxTop) {
+                                                            val diff = maxTop - newTop
+                                                            newTop += diff
+                                                            newBottom += diff
+                                                        }
+                                                        if (newBottom > maxBottom) {
+                                                            val diff = newBottom - maxBottom
+                                                            newTop -= diff
+                                                            newBottom -= diff
+                                                        }
+                                                        
+                                                        cropState.cropLeft = maxOf(newLeft, maxLeft)
+                                                        cropState.cropRight = minOf(newRight, maxRight)
+                                                        cropState.cropTop = maxOf(newTop, maxTop)
+                                                        cropState.cropBottom = minOf(newBottom, maxBottom)
+                                                    }
+                                                }
+                                                p1.consume()
+                                                p2.consume()
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                 ) {
-                    // Draw dimming mask outside crop box bounds
-                    // Top mask
-                    drawRect(
-                        color = Color.Black.copy(alpha = 0.6f),
-                        topLeft = Offset(cropState.imgOffsetX, cropState.imgOffsetY),
-                        size = Size(cropState.imgDispWidth, cropState.cropTop - cropState.imgOffsetY)
-                    )
-                    // Bottom mask
-                    drawRect(
-                        color = Color.Black.copy(alpha = 0.6f),
-                        topLeft = Offset(cropState.imgOffsetX, cropState.cropBottom),
-                        size = Size(cropState.imgDispWidth, cropState.imgOffsetY + cropState.imgDispHeight - cropState.cropBottom)
-                    )
-                    // Left mask
-                    drawRect(
-                        color = Color.Black.copy(alpha = 0.6f),
-                        topLeft = Offset(cropState.imgOffsetX, cropState.cropTop),
-                        size = Size(cropState.cropLeft - cropState.imgOffsetX, cropState.cropBottom - cropState.cropTop)
-                    )
-                    // Right mask
-                    drawRect(
-                        color = Color.Black.copy(alpha = 0.6f),
-                        topLeft = Offset(cropState.cropRight, cropState.cropTop),
-                        size = Size(cropState.imgOffsetX + cropState.imgDispWidth - cropState.cropRight, cropState.cropBottom - cropState.cropTop)
-                    )
-                    
-                    // Draw elegant crop frame borders
-                    val borderStrokeW = 2.dp.toPx()
-                    drawRect(
-                        color = Color.White,
-                        topLeft = Offset(cropState.cropLeft, cropState.cropTop),
-                        size = Size(cropState.cropRight - cropState.cropLeft, cropState.cropBottom - cropState.cropTop),
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = borderStrokeW)
-                    )
-                    
-                    // Auxiliary grid lines (Rule of Thirds style inside crop frame)
-                    val frameW = cropState.cropRight - cropState.cropLeft
-                    val frameH = cropState.cropBottom - cropState.cropTop
-                    
-                    if (!hideOcrBoxes) {
+                    if (hideOcrBoxes) {
+                        // Draw dimming mask outside crop box bounds
+                        // Top mask
+                        drawRect(
+                            color = Color.Black.copy(alpha = 0.6f),
+                            topLeft = Offset(cropState.imgOffsetX, cropState.imgOffsetY),
+                            size = Size(cropState.imgDispWidth, cropState.cropTop - cropState.imgOffsetY)
+                        )
+                        // Bottom mask
+                        drawRect(
+                            color = Color.Black.copy(alpha = 0.6f),
+                            topLeft = Offset(cropState.imgOffsetX, cropState.cropBottom),
+                            size = Size(cropState.imgDispWidth, cropState.imgOffsetY + cropState.imgDispHeight - cropState.cropBottom)
+                        )
+                        // Left mask
+                        drawRect(
+                            color = Color.Black.copy(alpha = 0.6f),
+                            topLeft = Offset(cropState.imgOffsetX, cropState.cropTop),
+                            size = Size(cropState.cropLeft - cropState.imgOffsetX, cropState.cropBottom - cropState.cropTop)
+                        )
+                        // Right mask
+                        drawRect(
+                            color = Color.Black.copy(alpha = 0.6f),
+                            topLeft = Offset(cropState.cropRight, cropState.cropTop),
+                            size = Size(cropState.imgOffsetX + cropState.imgDispWidth - cropState.cropRight, cropState.cropBottom - cropState.cropTop)
+                        )
+                        
+                        // Draw elegant crop frame borders
+                        val borderStrokeW = 2.dp.toPx()
+                        drawRect(
+                            color = Color.White,
+                            topLeft = Offset(cropState.cropLeft, cropState.cropTop),
+                            size = Size(cropState.cropRight - cropState.cropLeft, cropState.cropBottom - cropState.cropTop),
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = borderStrokeW)
+                        )
+                        
+                        // Auxiliary grid lines (Rule of Thirds style inside crop frame)
+                        val frameW = cropState.cropRight - cropState.cropLeft
+                        val frameH = cropState.cropBottom - cropState.cropTop
+                        
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.35f),
+                            start = Offset(cropState.cropLeft + frameW / 3f, cropState.cropTop),
+                            end = Offset(cropState.cropLeft + frameW / 3f, cropState.cropBottom),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.35f),
+                            start = Offset(cropState.cropLeft + (frameW * 2f) / 3f, cropState.cropTop),
+                            end = Offset(cropState.cropLeft + (frameW * 2f) / 3f, cropState.cropBottom),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.35f),
+                            start = Offset(cropState.cropLeft, cropState.cropTop + frameH / 3f),
+                            end = Offset(cropState.cropRight, cropState.cropTop + frameH / 3f),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.35f),
+                            start = Offset(cropState.cropLeft, cropState.cropTop + (frameH * 2f) / 3f),
+                            end = Offset(cropState.cropRight, cropState.cropTop + (frameH * 2f) / 3f),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                        
+                        // Draw 4 handles (Japanese-inspired accent circles)
+                        val handleRadius = 7.dp.toPx()
+                        val activeColor = KuriAmber
+                        val defaultColor = Color.White
+                        
+                        // TL
+                        drawCircle(
+                            color = if (cropState.activeHandle == DragHandle.TOP_LEFT) activeColor else defaultColor,
+                            radius = handleRadius,
+                            center = Offset(cropState.cropLeft, cropState.cropTop)
+                        )
+                        // TR
+                        drawCircle(
+                            color = if (cropState.activeHandle == DragHandle.TOP_RIGHT) activeColor else defaultColor,
+                            radius = handleRadius,
+                            center = Offset(cropState.cropRight, cropState.cropTop)
+                        )
+                        // BL
+                        drawCircle(
+                            color = if (cropState.activeHandle == DragHandle.BOTTOM_LEFT) activeColor else defaultColor,
+                            radius = handleRadius,
+                            center = Offset(cropState.cropLeft, cropState.cropBottom)
+                        )
+                        // BR
+                        drawCircle(
+                            color = if (cropState.activeHandle == DragHandle.BOTTOM_RIGHT) activeColor else defaultColor,
+                            radius = handleRadius,
+                            center = Offset(cropState.cropRight, cropState.cropBottom)
+                        )
+                    } else {
+                        // Draw OCR selection boxes with L-bracket lines at corners
                         detectedBoxes.forEach { box ->
-                            // Map bitmap coordinates to display coordinates
                             val displayLeft = cropState.imgOffsetX + box.left * cropState.scaleFactor
                             val displayTop = cropState.imgOffsetY + box.top * cropState.scaleFactor
                             val displayRight = cropState.imgOffsetX + box.right * cropState.scaleFactor
                             val displayBottom = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
                             
+                            // 1. Semi-transparent background fill
                             drawRect(
-                                color = KuriAmber.copy(alpha = 0.3f),
+                                color = KuriAmber.copy(alpha = 0.15f),
                                 topLeft = Offset(displayLeft, displayTop),
                                 size = Size(displayRight - displayLeft, displayBottom - displayTop)
                             )
+                            
+                            // 2. Thin golden border
                             drawRect(
-                                color = KuriAmber.copy(alpha = 0.8f),
+                                color = KuriAmber.copy(alpha = 0.4f),
                                 topLeft = Offset(displayLeft, displayTop),
                                 size = Size(displayRight - displayLeft, displayBottom - displayTop),
-                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
                             )
+                            
+                            // 3. L-bracket corners
+                            val lLength = 8.dp.toPx()
+                            val lStroke = 2.dp.toPx()
+                            
+                            // TL
+                            drawLine(KuriAmber, Offset(displayLeft, displayTop), Offset(displayLeft + lLength, displayTop), strokeWidth = lStroke)
+                            drawLine(KuriAmber, Offset(displayLeft, displayTop), Offset(displayLeft, displayTop + lLength), strokeWidth = lStroke)
+                            
+                            // TR
+                            drawLine(KuriAmber, Offset(displayRight, displayTop), Offset(displayRight - lLength, displayTop), strokeWidth = lStroke)
+                            drawLine(KuriAmber, Offset(displayRight, displayTop), Offset(displayRight, displayTop + lLength), strokeWidth = lStroke)
+                            
+                            // BL
+                            drawLine(KuriAmber, Offset(displayLeft, displayBottom), Offset(displayLeft + lLength, displayBottom), strokeWidth = lStroke)
+                            drawLine(KuriAmber, Offset(displayLeft, displayBottom), Offset(displayLeft, displayBottom - lLength), strokeWidth = lStroke)
+                            
+                            // BR
+                            drawLine(KuriAmber, Offset(displayRight, displayBottom), Offset(displayRight - lLength, displayBottom), strokeWidth = lStroke)
+                            drawLine(KuriAmber, Offset(displayRight, displayBottom), Offset(displayRight, displayBottom - lLength), strokeWidth = lStroke)
                         }
                     }
-                    
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.35f),
-                        start = Offset(cropState.cropLeft + frameW / 3f, cropState.cropTop),
-                        end = Offset(cropState.cropLeft + frameW / 3f, cropState.cropBottom),
-                        strokeWidth = 1.dp.toPx()
-                    )
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.35f),
-                        start = Offset(cropState.cropLeft + (frameW * 2f) / 3f, cropState.cropTop),
-                        end = Offset(cropState.cropLeft + (frameW * 2f) / 3f, cropState.cropBottom),
-                        strokeWidth = 1.dp.toPx()
-                    )
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.35f),
-                        start = Offset(cropState.cropLeft, cropState.cropTop + frameH / 3f),
-                        end = Offset(cropState.cropRight, cropState.cropTop + frameH / 3f),
-                        strokeWidth = 1.dp.toPx()
-                    )
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.35f),
-                        start = Offset(cropState.cropLeft, cropState.cropTop + (frameH * 2f) / 3f),
-                        end = Offset(cropState.cropRight, cropState.cropTop + (frameH * 2f) / 3f),
-                        strokeWidth = 1.dp.toPx()
-                    )
-                    
-                    // Draw 4 handles (Japanese-inspired accent circles)
-                    val handleRadius = 7.dp.toPx()
-                    val activeColor = KuriAmber
-                    val defaultColor = Color.White
-                    
-                    // TL
-                    drawCircle(
-                        color = if (cropState.activeHandle == DragHandle.TOP_LEFT) activeColor else defaultColor,
-                        radius = handleRadius,
-                        center = Offset(cropState.cropLeft, cropState.cropTop)
-                    )
-                    // TR
-                    drawCircle(
-                        color = if (cropState.activeHandle == DragHandle.TOP_RIGHT) activeColor else defaultColor,
-                        radius = handleRadius,
-                        center = Offset(cropState.cropRight, cropState.cropTop)
-                    )
-                    // BL
-                    drawCircle(
-                        color = if (cropState.activeHandle == DragHandle.BOTTOM_LEFT) activeColor else defaultColor,
-                        radius = handleRadius,
-                        center = Offset(cropState.cropLeft, cropState.cropBottom)
-                    )
-                    // BR
-                    drawCircle(
-                        color = if (cropState.activeHandle == DragHandle.BOTTOM_RIGHT) activeColor else defaultColor,
-                        radius = handleRadius,
-                        center = Offset(cropState.cropRight, cropState.cropBottom)
-                    )
-                }
             }
         }
-        
-        // Bottom controls row
+    }
+    
+    // Bottom controls row
         Surface(
             color = SumiInk,
             modifier = Modifier
@@ -1122,5 +1255,11 @@ private fun cropBitmapToAspectRatio(bitmap: Bitmap, screenWidth: Float, screenHe
         Log.e("CameraScreen", "Failed to crop captured bitmap to screen aspect ratio", e)
         bitmap
     }
+}
+
+private fun distance(x1: Float, y1: Float, x2: Float, y2: Float): Float {
+    val dx = x1 - x2
+    val dy = y1 - y2
+    return kotlin.math.sqrt(dx * dx + dy * dy)
 }
 

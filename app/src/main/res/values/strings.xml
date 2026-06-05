@@ -193,8 +193,8 @@
     <string name="camera_flash_on_label">⚡ ON</string>
     <string name="camera_flash_auto_label">⚡ AUTO</string>
     <string name="camera_flash_off_label">⚡ OFF</string>
-    <string name="camera_guide_keep_inside">Position Japanese text inside the frame</string>
-    <string name="camera_guide_crop_hint">You can adjust the precise crop area after capture</string>
+    <string name="camera_guide_keep_inside">Point at Japanese text and shoot</string>
+    <string name="camera_guide_crop_hint">You can select or edit the text after capture</string>
     <string name="camera_local_ocr">Local OCR</string>
     <string name="camera_crop_title">Select Text Area</string>
     <string name="camera_crop_hint">Drag corners to adjust</string>
