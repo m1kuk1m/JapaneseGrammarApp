@@ -29,7 +29,7 @@ object DictionaryHelper {
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             context.startActivity(intent)
         } catch (e: ActivityNotFoundException) {
-            showNotInstalledMessage(context, "欧路词典 (Eudic)")
+            showNotInstalledMessage(context, context.getString(R.string.dict_eudic))
         }
     }
 
@@ -42,7 +42,7 @@ object DictionaryHelper {
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             context.startActivity(intent)
         } catch (e: ActivityNotFoundException) {
-            showNotInstalledMessage(context, "Dictango")
+            showNotInstalledMessage(context, context.getString(R.string.dict_dictango))
         }
     }
 
@@ -64,7 +64,7 @@ object DictionaryHelper {
                 fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 context.startActivity(fallbackIntent)
             } catch (e2: ActivityNotFoundException) {
-                showNotInstalledMessage(context, "MOJi辞书")
+                showNotInstalledMessage(context, context.getString(R.string.dict_moji))
             }
         }
     }

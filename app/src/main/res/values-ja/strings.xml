@@ -391,5 +391,25 @@
     <string name="flashcard_summary_total">合計 %1$d 語を練習しました</string>
     <string name="flashcard_unmastered_section">未習得の単語 (%1$d)</string>
     <string name="flashcard_mastered_section">習得済みの単語 (%1$d)</string>
+
+    <!-- Settings API Debug Details -->
+    <string name="api_log_time">リクエスト日時：%1$s</string>
+    <string name="api_log_type">API種別：%1$s</string>
+    <string name="api_log_provider">プロバイダ：%1$s</string>
+    <string name="api_log_model">モデル名：%1$s</string>
+    <string name="api_log_status">ステータス：%1$s</string>
+    <string name="api_log_tokens">トークン消費量：%1$d (入力: %2$d, 出力: %3$d)</string>
+    <string name="api_log_has_image">画像添付：%1$b</string>
+
+    <!-- Additional UI & Descriptions -->
+    <string name="history_record_tokens">トークン消費：%1$s</string>
+    <string name="cd_remove_image">選択した画像を削除</string>
+    <string name="cd_text_input">テキスト入力</string>
+    <string name="cd_background_wallpaper">背景壁紙</string>
+
+    <!-- Exception warning messages -->
+    <string name="err_missing_api_key">先に設定画面でAPIキーを登録してください。</string>
+    <string name="err_empty_input">日本語のテキストを入力するか、画像を撮影してください。</string>
+    <string name="err_ocr_failed">文字認識に失敗しました：%1$s</string>
 </resources>
 

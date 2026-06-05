@@ -7,6 +7,7 @@ import com.example.japanesegrammarapp.domain.repository.LlmRepository
 import com.example.japanesegrammarapp.domain.repository.HistoryRepository
 import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
 import com.example.japanesegrammarapp.domain.model.LlmConfig
+import com.example.japanesegrammarapp.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -198,6 +199,12 @@ class SettingsViewModel @Inject constructor(
                 settingsRepository.saveApiUrl(provider, baseUrl)
                 settingsRepository.saveApiKey(provider, apiKey)
                 saveModelsForProvider(provider, fetchedModels)
+            } catch (e: IllegalArgumentException) {
+                if (e.message == "Please configure API Key in Settings first.") {
+                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.err_missing_api_key))
+                } else {
+                    _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: "Unknown Error"))
+                }
             } catch (e: Exception) {
                 _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: "Unknown Error"))
             } finally {

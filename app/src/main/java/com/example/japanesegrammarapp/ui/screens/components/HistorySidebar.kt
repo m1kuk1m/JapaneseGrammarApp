@@ -302,7 +302,7 @@ fun HistorySidebarItem(
                     AnalysisStatus.FAILED -> stringResource(R.string.history_status_error)
                     else -> uiRecord.modelText
                 }
-                val tokenText = if (uiRecord.formattedTokens != null) "  Tokens: ${uiRecord.formattedTokens}" else ""
+                val tokenText = if (uiRecord.formattedTokens != null) "  " + stringResource(R.string.history_record_tokens, uiRecord.formattedTokens) else ""
                 
                 Text(
                     text = "$statusText$tokenText",

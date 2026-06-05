@@ -400,6 +400,13 @@ class WorkspaceViewModel @Inject constructor(
                 } else {
                     _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.analysis_started_toast))
                 }
+            } catch (e: IllegalArgumentException) {
+                val resId = when (e.message) {
+                    "Missing API Key." -> R.string.err_missing_api_key
+                    "Please enter text or capture an image." -> R.string.err_empty_input
+                    else -> R.string.error_analysis_failed_to_start
+                }
+                _uiEvent.emit(UiEvent.ShowLocalizedError(resId))
             } catch (e: Exception) {
                 _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.error_analysis_failed_to_start))
             }

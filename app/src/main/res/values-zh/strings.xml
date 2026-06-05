@@ -391,5 +391,25 @@
     <string name="flashcard_summary_total">共练习了 %1$d 个单词</string>
     <string name="flashcard_unmastered_section">未掌握的单词 (%1$d)</string>
     <string name="flashcard_mastered_section">已掌握的单词 (%1$d)</string>
+
+    <!-- Settings API Debug Details -->
+    <string name="api_log_time">请求时间：%1$s</string>
+    <string name="api_log_type">接口职责：%1$s</string>
+    <string name="api_log_provider">接口服务商：%1$s</string>
+    <string name="api_log_model">模型名称：%1$s</string>
+    <string name="api_log_status">接口状态：%1$s</string>
+    <string name="api_log_tokens">Token消耗：%1$d (输入: %2$d, 输出: %3$d)</string>
+    <string name="api_log_has_image">附带图片：%1$b</string>
+
+    <!-- Additional UI & Descriptions -->
+    <string name="history_record_tokens">消耗量：%1$s</string>
+    <string name="cd_remove_image">移除已选图片</string>
+    <string name="cd_text_input">文本输入</string>
+    <string name="cd_background_wallpaper">背景壁纸</string>
+
+    <!-- Exception warning messages -->
+    <string name="err_missing_api_key">请先在设置中配置 API 密钥。</string>
+    <string name="err_empty_input">请输入日语文本或拍摄图片。</string>
+    <string name="err_ocr_failed">文字提取失败：%1$s</string>
 </resources>
 

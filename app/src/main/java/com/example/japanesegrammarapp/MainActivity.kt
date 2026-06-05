@@ -16,6 +16,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.res.stringResource
 import com.example.japanesegrammarapp.ui.AppNavigation
 import com.example.japanesegrammarapp.ui.SettingsViewModel
 import com.example.japanesegrammarapp.ui.theme.AppTheme
@@ -73,7 +74,7 @@ class MainActivity : AppCompatActivity() {
                     if (uiState.wallpaperUri.isNotBlank()) {
                         AsyncImage(
                             model = uiState.wallpaperUri,
-                            contentDescription = "Background Wallpaper",
+                            contentDescription = stringResource(R.string.cd_background_wallpaper),
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )

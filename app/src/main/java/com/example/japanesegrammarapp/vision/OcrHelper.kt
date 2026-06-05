@@ -2,6 +2,7 @@ package com.example.japanesegrammarapp.vision
 
 import android.content.Context
 import android.net.Uri
+import com.example.japanesegrammarapp.R
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
@@ -117,7 +118,7 @@ class OcrHelper @Inject constructor() {
             formatOcrText(rawExtracted)
         } catch (e: Exception) {
             e.printStackTrace()
-            "Error extracting text: ${e.localizedMessage}"
+            context.getString(R.string.err_ocr_failed, e.localizedMessage ?: "")
         } finally {
             recognizer.close()
         }

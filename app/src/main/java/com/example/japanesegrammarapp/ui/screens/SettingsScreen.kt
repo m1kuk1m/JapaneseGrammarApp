@@ -654,13 +654,13 @@ fun SettingsScreen(
                         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(stringResource(R.string.api_details_metadata), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = SumiInk)
                             Divider(color = SumiInk.copy(alpha = 0.05f))
-                            Text("Time: ${log.time}", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
-                            Text("Type: ${log.apiTypeLabel}", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
-                            Text("Provider: ${log.provider}", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
-                            Text("Model: ${log.model}", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
-                            Text("Status: ${log.status}", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (log.status == "SUCCESS") Color(0xFF2E7D32) else Color(0xFFC62828))
-                            Text("Tokens: ${log.consumedTokens} (Input: ${log.inputTokens}, Output: ${log.outputTokens})", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
-                            Text("Has Image: ${log.hasImage}", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                            Text(stringResource(R.string.api_log_time, log.time), fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                            Text(stringResource(R.string.api_log_type, log.apiTypeLabel), fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                            Text(stringResource(R.string.api_log_provider, log.provider), fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                            Text(stringResource(R.string.api_log_model, log.model), fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                            Text(stringResource(R.string.api_log_status, log.status), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (log.status == "SUCCESS") Color(0xFF2E7D32) else Color(0xFFC62828))
+                            Text(stringResource(R.string.api_log_tokens, log.consumedTokens, log.inputTokens, log.outputTokens), fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                            Text(stringResource(R.string.api_log_has_image, log.hasImage), fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
                         }
                     }
 

@@ -268,7 +268,7 @@ fun WorkspaceInputForm(
                 ) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Remove",
+                        contentDescription = stringResource(R.string.cd_remove_image),
                         tint = Color.White,
                         modifier = Modifier.size(12.dp)
                     )

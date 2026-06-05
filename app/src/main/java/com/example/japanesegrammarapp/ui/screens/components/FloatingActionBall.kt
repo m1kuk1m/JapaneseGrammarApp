@@ -22,6 +22,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.example.japanesegrammarapp.R
 import kotlin.math.roundToInt
 
 enum class ActionMode {
@@ -133,7 +135,9 @@ fun FloatingActionBall(
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 Icon(
                     imageVector = if (currentMode == ActionMode.Text) Icons.Default.Edit else Icons.Default.CameraAlt,
-                    contentDescription = if (currentMode == ActionMode.Text) "Text Input" else "Camera",
+                    contentDescription = stringResource(
+                        if (currentMode == ActionMode.Text) R.string.cd_text_input else R.string.camera
+                    ),
                     tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(28.dp)
                 )
