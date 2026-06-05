@@ -421,5 +421,39 @@
     <string name="err_missing_api_key">请先在设置中配置 API 密钥。</string>
     <string name="err_empty_input">请输入日语文本或拍摄图片。</string>
     <string name="err_ocr_failed">文字提取失败：%1$s</string>
+
+    <!-- Prompt Customization Settings -->
+    <string name="custom_prompts_title">自定义 AI 提示词</string>
+    <string name="custom_prompts_desc">修改和恢复各个分析状态的系统提示词（System Prompt）</string>
+    <string name="prompt_editor_title">系统提示词编辑器</string>
+    <string name="prompt_save_success">提示词已保存</string>
+    <string name="prompt_reset_success">提示词已恢复默认</string>
+    <string name="prompt_reset_all_success">所有提示词已恢复默认</string>
+    <string name="prompt_reset_confirm">确定要将该提示词恢复为默认设置吗？</string>
+    <string name="prompt_reset_all_confirm">确定要恢复所有提示词为默认设置吗？这将清除您所有的自定义修改且无法撤销。</string>
+    <string name="save_prompt">保存提示词</string>
+    <string name="reset_prompt">恢复默认</string>
+    <string name="reset_all_prompts">恢复全部默认</string>
+    <string name="prompt_select_type">选择分析职责</string>
+    <string name="prompt_type_translation">全文翻译</string>
+    <string name="prompt_type_segments">形态素与词性解析</string>
+    <string name="prompt_type_clauses">文节与句子结构</string>
+    <string name="prompt_type_grammar">核心语法要点</string>
+    <string name="prompt_type_tokenizer">普通文本分词</string>
+    <string name="prompt_type_tokenizer_ocr">OCR文字纠错分词</string>
+    <string name="prompt_type_tokenizer_image">图片分词识别</string>
+    <string name="prompt_type_tokenizer_image_repair">模糊图片智能修复分词</string>
+
+    <string name="add">添加</string>
+    <string name="step_segments">分词解析</string>
+    <string name="step_clauses">句子结构分析</string>
+    <string name="step_grammar">核心语法解析</string>
+    <string name="no_source_sentence">（无原句）</string>
+    <string name="collapse">收起</string>
+    <string name="expand">展开</string>
+    <string name="view_details">查看详情</string>
+    <string name="unfavorite">取消收藏</string>
+    <string name="dict_form_reading">读音</string>
+    <string name="flashcard_no_weak_cards">没有不熟的卡片可练</string>
 </resources>
 

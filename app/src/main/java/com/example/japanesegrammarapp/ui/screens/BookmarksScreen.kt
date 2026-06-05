@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -90,7 +91,7 @@ fun BookmarksScreen(
     val bookmarks by viewModel.filteredBookmarks.collectAsState()
     val allBookmarks by viewModel.allBookmarks.collectAsState()
     val bookmarkedSentences by viewModel.bookmarkedSentences.collectAsState()
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
     val filterMode by viewModel.filterMode.collectAsState()
     val posCategories by viewModel.posCategories.collectAsState()
     val selectedPosCategory by viewModel.selectedPosCategory.collectAsState()
@@ -146,10 +147,13 @@ fun BookmarksScreen(
                     var totalDy = 0f
                     var isDecided = false
                     var isRightSwipe = false
+                    var event: PointerEvent
                     do {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        // 使用 Main 阶段：让子组件（LazyRow 词性滚动条等）优先处理事件
+                        event = awaitPointerEvent(PointerEventPass.Main)
                         val change = event.changes.firstOrNull()
-                        if (change != null) {
+                        // 若事件已被子组件消费（如横向滚动词性条），则跳过右滑判定
+                        if (change != null && !change.isConsumed) {
                             if (!isDecided) {
                                 totalDx += change.positionChange().x
                                 totalDy += change.positionChange().y
@@ -159,9 +163,6 @@ fun BookmarksScreen(
                                         isRightSwipe = true
                                     }
                                 }
-                            }
-                            if (isDecided && isRightSwipe) {
-                                change.consume()
                             }
                         }
                     } while (event.changes.any { it.pressed })
@@ -548,7 +549,7 @@ private fun SourceSentenceDialog(
                 Text(stringResource(R.string.target_sentence_header), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = SumiInk.copy(alpha = 0.5f))
                 Spacer(Modifier.height(6.dp))
                 Surface(color = SumiInk.copy(alpha = 0.04f), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-                    Text(bookmark.sourceText.ifBlank { "（无原句）" }, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = SumiInk, lineHeight = 22.sp, modifier = Modifier.padding(14.dp))
+                    Text(bookmark.sourceText.ifBlank { stringResource(R.string.no_source_sentence) }, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = SumiInk, lineHeight = 22.sp, modifier = Modifier.padding(14.dp))
                 }
 
                 if (!bookmark.partOfSpeech.isNullOrBlank()) {
@@ -855,7 +856,7 @@ private fun BookmarkCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.VolumeUp,
-                            contentDescription = "朗读单词",
+                            contentDescription = stringResource(R.string.flashcard_speak),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -867,7 +868,7 @@ private fun BookmarkCard(
                     ) {
                         Icon(
                             Icons.Default.ExpandMore,
-                            contentDescription = if (isExpanded) "收起" else "展开",
+                            contentDescription = if (isExpanded) stringResource(R.string.collapse) else stringResource(R.string.expand),
                             tint = SumiInk.copy(alpha = 0.4f),
                             modifier = Modifier
                                 .size(18.dp)
@@ -927,7 +928,7 @@ private fun BookmarkCard(
                         if (!bookmark.dictionaryFormReading.isNullOrBlank() &&
                             bookmark.dictionaryFormReading != bookmark.reading) {
                             DetailRow(
-                                label = stringResource(R.string.dictionary_form) + " 読み",
+                                label = stringResource(R.string.dict_form_reading),
                                 value = bookmark.dictionaryFormReading
                             )
                         }
@@ -1378,7 +1379,7 @@ private fun SentenceBookmarkCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.VolumeUp,
-                            contentDescription = "朗读句子",
+                            contentDescription = stringResource(R.string.flashcard_speak),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -1389,7 +1390,7 @@ private fun SentenceBookmarkCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowForward,
-                            contentDescription = "查看详情",
+                            contentDescription = stringResource(R.string.view_details),
                             tint = SumiInk.copy(alpha = 0.4f),
                             modifier = Modifier.size(18.dp)
                         )
@@ -1400,7 +1401,7 @@ private fun SentenceBookmarkCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "取消收藏",
+                            contentDescription = stringResource(R.string.unfavorite),
                             tint = SumiInk.copy(alpha = 0.4f),
                             modifier = Modifier.size(18.dp)
                         )

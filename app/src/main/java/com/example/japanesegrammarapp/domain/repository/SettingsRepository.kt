@@ -1,4 +1,4 @@
-﻿package com.example.japanesegrammarapp.domain.repository
+package com.example.japanesegrammarapp.domain.repository
 
 interface SettingsRepository {
     fun getAllProviders(): List<String>
@@ -33,6 +33,12 @@ interface SettingsRepository {
 
     val themeMode: kotlinx.coroutines.flow.StateFlow<String>
     val wallpaperUri: kotlinx.coroutines.flow.StateFlow<String>
+
+    // Prompt Customization Settings
+    fun getCustomPrompt(promptKey: String): String
+    fun saveCustomPrompt(promptKey: String, prompt: String)
+    fun resetCustomPrompt(promptKey: String)
+    fun resetAllCustomPrompts()
 
     // TTS Settings
     fun getTtsProvider(): String

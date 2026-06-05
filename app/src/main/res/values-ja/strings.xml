@@ -291,22 +291,22 @@
     <string name="import_failed">インポート失敗: %1$s</string>
 
     <!-- Bookmarks & Flashcard -->
-    <string name="bookmarks_title">ブックマーク単語</string>
-    <string name="bookmarks_empty_title">まだブックマークがありません</string>
-    <string name="bookmarks_empty_hint">分析ページで単語チップを長押ししてブックマーク</string>
+    <string name="bookmarks_title">お気に入り</string>
+    <string name="bookmarks_empty_title">まだお気に入りの単語がありません</string>
+    <string name="bookmarks_empty_hint">分析ページで単語チップを長押ししてお気に入りに追加</string>
     <string name="bookmarks_count">%1$d</string>
     <string name="bookmarks_count_all">%1$d件</string>
     <string name="bookmarks_count_filtered">%1$d / %2$d</string>
-    <string name="bookmark_added">ブックマークに追加</string>
-    <string name="bookmark_deleted">ブックマークを削除しました</string>
-    <string name="bookmark_already_exists">既にブックマーク済み</string>
-    <string name="import_bookmarks">インポート</string>
-    <string name="export_bookmarks">エクスポート</string>
-    <string name="import_success_msg">%1$d 件のブックマークをインポートしました</string>
+    <string name="bookmark_added">お気に入りに追加</string>
+    <string name="bookmark_deleted">お気に入りを削除しました</string>
+    <string name="bookmark_already_exists">既にお気に入りに追加されています</string>
+    <string name="import_bookmarks">お気に入りをインポート</string>
+    <string name="export_bookmarks">お気に入りをエクスポート</string>
+    <string name="import_success_msg">%1$d 件のお気に入りをインポートしました</string>
     <string name="import_failed_msg">インポートに失敗しました。ファイル形式を確認してください</string>
     <string name="import_error_msg">インポート失敗: %1$s</string>
     <string name="delete_bookmark">削除</string>
-    <string name="delete_bookmark_confirm">このブックマークを削除しますか？</string>
+    <string name="delete_bookmark_confirm">このお気に入りを削除しますか？</string>
     <string name="cancel_delete">キャンセル</string>
     <string name="view_source">原文を見る</string>
     <string name="source_sentence_prefix">出典：%1$s</string>
@@ -322,14 +322,14 @@
     <!-- Flashcard -->
     <string name="flashcard_title">フラッシュカード</string>
     <string name="flashcard_session_complete">練習完了</string>
-    <string name="flashcard_no_cards">練習できるブックマークがありません</string>
+    <string name="flashcard_no_cards">練習できるお気に入りがありません</string>
     <string name="flashcard_front_hint">タップして意味を見る</string>
     <string name="flashcard_back_hint">タップして戻す</string>
     <string name="flashcard_forgot">わからない</string>
     <string name="flashcard_remembered">覚えた</string>
     <string name="flashcard_retry_weak">苦手なものだけ再練習</string>
     <string name="flashcard_restart">もう一度</string>
-    <string name="flashcard_back_to_bookmarks">ブックマークに戻る</string>
+    <string name="flashcard_back_to_bookmarks">お気に入りに戻る</string>
     <string name="flashcard_total_cards">総カード数</string>
     <string name="flashcard_mastered_count">マスター</string>
     <string name="flashcard_accuracy">正解率</string>
@@ -340,7 +340,7 @@
     <string name="flashcard_round_label">第 %1$d ラウンド</string>
 
     <!-- Dictionary lookup bookmark shortcut -->
-    <string name="long_press_to_bookmark">長押しでブックマーク</string>
+    <string name="long_press_to_bookmark">長押しでお気に入りに追加</string>
 
     <!-- POS Category Names (for filter localization) -->
     <string name="pos_NOUN">名詞</string>
@@ -361,7 +361,7 @@
     <string name="bookmark_archived_toast">アーカイブしました</string>
     <string name="bookmark_restored_toast">アーカイブから復元しました</string>
     <string name="flashcard_archived_auto_hint">マスターした %1$d 語を自動アーカイブしました</string>
-    <string name="view_bookmarks_desc">ブックマーク一覧</string>
+    <string name="view_bookmarks_desc">お気に入り一覧</string>
     <string name="flashcard_mastered_label">マスター</string>
     <string name="archive_filter_unarchived">未アーカイブ</string>
     <string name="archive_filter_archived">アーカイブ済み</string>
@@ -413,5 +413,47 @@
     <string name="err_missing_api_key">先に設定画面でAPIキーを登録してください。</string>
     <string name="err_empty_input">日本語のテキストを入力するか、画像を撮影してください。</string>
     <string name="err_ocr_failed">文字認識に失敗しました：%1$s</string>
+
+    <!-- Prompt Customization Settings -->
+    <string name="custom_prompts_title">AIプロンプトのカスタマイズ</string>
+    <string name="custom_prompts_desc">翻訳、形態素解析、文節解析など、各分析タスクのシステムプロンプトを変更・初期化します</string>
+    <string name="prompt_editor_title">システムプロンプトエディタ</string>
+    <string name="prompt_save_success">プロンプトを保存しました</string>
+    <string name="prompt_reset_success">プロンプトをデフォルトに戻しました</string>
+    <string name="prompt_reset_all_success">すべてのプロンプトをデフォルトに戻しました</string>
+    <string name="prompt_reset_confirm">このプロンプトをデフォルト設定に戻してもよろしいですか？</string>
+    <string name="prompt_reset_all_confirm">すべてのプロンプトをデフォルト設定に戻してもよろしいですか？カスタマイズした変更はすべて消去されます。</string>
+    <string name="save_prompt">プロンプトを保存</string>
+    <string name="reset_prompt">デフォルトに戻す</string>
+    <string name="reset_all_prompts">すべてデフォルトに戻す</string>
+    <string name="prompt_select_type">タスクを選択</string>
+    <string name="prompt_type_translation">翻訳</string>
+    <string name="prompt_type_segments">形態素解析・単語情報</string>
+    <string name="prompt_type_clauses">文節・文構造解析</string>
+    <string name="prompt_type_grammar">核心文法ポイント解説</string>
+    <string name="prompt_type_tokenizer">テキスト分かち書き</string>
+    <string name="prompt_type_tokenizer_ocr">OCRテキスト分かち書き・校正</string>
+    <string name="prompt_type_tokenizer_image">画像文字認識分かち書き</string>
+    <string name="prompt_type_tokenizer_image_repair">不鮮明画像スマート補正分かち書き</string>
+
+    <string name="add">追加</string>
+    <string name="tab_words">単語</string>
+    <string name="tab_sentences">文</string>
+    <string name="bookmarks_empty_sentences_title">お気に入りの文はまだありません</string>
+    <string name="bookmarks_empty_sentences_hint">履歴項目を長押しするか、分析画面で星印をクリックしてお気に入りに追加します</string>
+    <string name="delete_analysis_confirm_title">分析履歴の削除</string>
+    <string name="delete_analysis_confirm_message">この分析履歴を削除してもよろしいですか？（この文のお気に入りは削除されません）</string>
+    <string name="bookmark_sentence_added">文をお気に入りに追加しました</string>
+    <string name="bookmark_sentence_removed">文のお気に入りを解除しました</string>
+    <string name="step_segments">単語分割</string>
+    <string name="step_clauses">文節解析</string>
+    <string name="step_grammar">文法解説</string>
+    <string name="no_source_sentence">（原文なし）</string>
+    <string name="collapse">折りたたむ</string>
+    <string name="expand">展開する</string>
+    <string name="view_details">詳細を表示</string>
+    <string name="unfavorite">お気に入り解除</string>
+    <string name="dict_form_reading">読み</string>
+    <string name="flashcard_no_weak_cards">苦手なカードはありません</string>
 </resources>
 

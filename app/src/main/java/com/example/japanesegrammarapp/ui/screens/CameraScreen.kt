@@ -521,9 +521,19 @@ fun CameraPreviewLayout(
         val halfW = textBoxWidth / 2
         val halfH = textBoxHeight / 2
 
-        val targetTextCenterX = maxWidth / 2
+        val targetTextCenterX = when (deviceOrientation) {
+            DeviceOrientation.PORTRAIT -> maxWidth / 2
+            DeviceOrientation.LANDSCAPE_LEFT -> 32.dp + halfH
+            DeviceOrientation.LANDSCAPE_RIGHT -> maxWidth - 32.dp - halfH
+            DeviceOrientation.INVERTED_PORTRAIT -> maxWidth / 2
+        }
 
-        val targetTextCenterY = (maxHeight - shutterSize - 32.dp) - 16.dp - halfH
+        val targetTextCenterY = when (deviceOrientation) {
+            DeviceOrientation.PORTRAIT -> (maxHeight - shutterSize - 32.dp) - 16.dp - halfH
+            DeviceOrientation.LANDSCAPE_LEFT -> maxHeight / 2
+            DeviceOrientation.LANDSCAPE_RIGHT -> maxHeight / 2
+            DeviceOrientation.INVERTED_PORTRAIT -> 32.dp + halfH
+        }
 
         val animatedTextX by animateDpAsState(
             targetValue = targetTextCenterX - halfW,

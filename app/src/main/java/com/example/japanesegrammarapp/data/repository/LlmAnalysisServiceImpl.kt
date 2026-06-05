@@ -7,6 +7,7 @@ import com.example.japanesegrammarapp.domain.repository.LlmResultMetadata
 import com.example.japanesegrammarapp.domain.model.DetailedAnalysisResult
 import com.example.japanesegrammarapp.domain.model.TokenizationResult
 import com.example.japanesegrammarapp.domain.model.WordSegment
+import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.example.japanesegrammarapp.network.PromptManager
 import com.example.japanesegrammarapp.utils.AppLogger
 import com.google.gson.Gson
@@ -16,6 +17,7 @@ import javax.inject.Singleton
 @Singleton
 class LlmAnalysisServiceImpl @Inject constructor(
     private val llmRepository: LlmRepository,
+    private val settingsRepository: SettingsRepository,
     private val gson: Gson
 ) : LlmAnalysisService {
 
@@ -31,10 +33,10 @@ class LlmAnalysisServiceImpl @Inject constructor(
         onBackup: (backupProvider: String) -> Unit
     ): Pair<TokenizationResult?, LlmResultMetadata> {
         val systemPrompt = when {
-            imageBase64 != null && imageTokenizerMode == "repair" -> PromptManager.SYSTEM_PROMPT_TOKENIZER_IMAGE_REPAIR
-            imageBase64 != null -> PromptManager.SYSTEM_PROMPT_TOKENIZER_IMAGE
-            isOcrMode -> PromptManager.SYSTEM_PROMPT_TOKENIZER_OCR
-            else -> PromptManager.SYSTEM_PROMPT_TOKENIZER
+            imageBase64 != null && imageTokenizerMode == "repair" -> settingsRepository.getCustomPrompt("prompt_tokenizer_image_repair")
+            imageBase64 != null -> settingsRepository.getCustomPrompt("prompt_tokenizer_image")
+            isOcrMode -> settingsRepository.getCustomPrompt("prompt_tokenizer_ocr")
+            else -> settingsRepository.getCustomPrompt("prompt_tokenizer")
         }
 
         val userPrompt = when {
@@ -74,7 +76,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
         }
 
         return executeAnalysisStep(
-            systemPrompt = PromptManager.SYSTEM_PROMPT_TRANSLATION,
+            systemPrompt = settingsRepository.getCustomPrompt("prompt_translation"),
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
             mimeType = mimeType,
@@ -103,7 +105,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
         }
 
         return executeAnalysisStep(
-            systemPrompt = PromptManager.SYSTEM_PROMPT_CLAUSES,
+            systemPrompt = settingsRepository.getCustomPrompt("prompt_clauses"),
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
             mimeType = mimeType,
@@ -132,7 +134,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
         }
 
         return executeAnalysisStep(
-            systemPrompt = PromptManager.SYSTEM_PROMPT_GRAMMAR,
+            systemPrompt = settingsRepository.getCustomPrompt("prompt_grammar"),
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
             mimeType = mimeType,
@@ -172,7 +174,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
         }
 
         val (parsed, metadata) = executeAnalysisStep(
-            systemPrompt = PromptManager.SYSTEM_PROMPT_SEGMENTS,
+            systemPrompt = settingsRepository.getCustomPrompt("prompt_segments"),
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
             mimeType = mimeType,

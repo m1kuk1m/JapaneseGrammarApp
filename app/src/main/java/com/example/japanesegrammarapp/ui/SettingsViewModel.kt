@@ -49,6 +49,18 @@ class SettingsViewModel @Inject constructor(
             val models = providerModels[activeProvider] ?: emptyList()
             val finalActiveModel = if (activeModel.isBlank() && models.isNotEmpty()) models.first() else activeModel
 
+            // Load TTS settings
+            val ttsProvider = settingsRepository.getTtsProvider()
+            val ttsProvidersList = listOf("OpenAI", "Google", "Microsoft")
+            val tUrls = ttsProvidersList.associateWith { settingsRepository.getTtsApiUrl(it) }
+            val tKeys = ttsProvidersList.associateWith { settingsRepository.getTtsApiKey(it) }
+            val tModels = ttsProvidersList.associateWith { settingsRepository.getTtsModel(it) }
+            val tVoices = ttsProvidersList.associateWith { settingsRepository.getTtsVoice(it) }
+            val tRegions = ttsProvidersList.associateWith { settingsRepository.getTtsRegion(it) }
+
+            val pUrls = allProviders.associateWith { settingsRepository.getApiUrl(it) }
+            val pKeys = allProviders.associateWith { settingsRepository.getApiKey(it) }
+
             _uiState.update {
                 it.copy(
                     activeProvider = activeProvider,
@@ -60,7 +72,16 @@ class SettingsViewModel @Inject constructor(
                     availableModels = models,
                     backupProvider = backupProvider,
                     backupModel = backupModel,
-                    allProviders = allProviders
+                    allProviders = allProviders,
+                    selectedTtsProvider = ttsProvider,
+                    ttsUrls = tUrls,
+                    ttsKeys = tKeys,
+                    ttsModels = tModels,
+                    ttsVoices = tVoices,
+                    ttsRegions = tRegions,
+                    providerUrls = pUrls,
+                    providerKeys = pKeys,
+                    isSettingsLoaded = true
                 )
             }
         }
@@ -236,4 +257,10 @@ class SettingsViewModel @Inject constructor(
     fun setTtsVoice(provider: String, voice: String) = settingsRepository.setTtsVoice(provider, voice)
     fun getTtsRegion(provider: String): String = settingsRepository.getTtsRegion(provider)
     fun setTtsRegion(provider: String, region: String) = settingsRepository.setTtsRegion(provider, region)
+
+    // Prompt Settings Accessors
+    fun getCustomPrompt(promptKey: String): String = settingsRepository.getCustomPrompt(promptKey)
+    fun saveCustomPrompt(promptKey: String, prompt: String) = settingsRepository.saveCustomPrompt(promptKey, prompt)
+    fun resetCustomPrompt(promptKey: String) = settingsRepository.resetCustomPrompt(promptKey)
+    fun resetAllCustomPrompts() = settingsRepository.resetAllCustomPrompts()
 }

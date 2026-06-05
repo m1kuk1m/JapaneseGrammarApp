@@ -14,5 +14,14 @@ data class SettingsUiState(
     val backupModel: String = "",
     val themeMode: String = "System",
     val wallpaperUri: String = "",
-    val allProviders: List<String> = emptyList()
+    val allProviders: List<String> = emptyList(),
+    val isSettingsLoaded: Boolean = false,
+    val selectedTtsProvider: String = "OpenAI",
+    val ttsUrls: Map<String, String> = emptyMap(),
+    val ttsKeys: Map<String, String> = emptyMap(),
+    val ttsModels: Map<String, String> = emptyMap(),
+    val ttsVoices: Map<String, String> = emptyMap(),
+    val ttsRegions: Map<String, String> = emptyMap(),
+    val providerUrls: Map<String, String> = emptyMap(),
+    val providerKeys: Map<String, String> = emptyMap()
 )

@@ -77,10 +77,22 @@ fun SettingsScreen(
 
     var showTokenDialog by remember { mutableStateOf(false) }
 
+    var showPromptEditor by remember { mutableStateOf(false) }
+    var selectedPromptKey by remember { mutableStateOf("prompt_translation") }
+    var promptText by remember { mutableStateOf("") }
+    var showResetConfirm by remember { mutableStateOf(false) }
+    var showResetAllConfirm by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showPromptEditor, selectedPromptKey) {
+        if (showPromptEditor) {
+            promptText = viewModel.getCustomPrompt(selectedPromptKey)
+        }
+    }
+
     val providers = uiState.allProviders
     val defaultUrls = LlmConfig.defaultUrls
 
-    var isSettingsLoaded by remember { mutableStateOf(false) }
+    var isLocalSettingsInitialized by remember { mutableStateOf(false) }
 
     var selectedTtsProvider by remember { mutableStateOf("OpenAI") }
     val ttsUrls = remember { mutableStateMapOf<String, String>() }
@@ -93,7 +105,7 @@ fun SettingsScreen(
     val providerKeys = remember { mutableStateMapOf<String, String>() }
 
     fun saveSettings() {
-        if (!isSettingsLoaded) return
+        if (!isLocalSettingsInitialized) return
         viewModel.setTtsProvider(selectedTtsProvider)
         ttsUrls.forEach { (provider, url) ->
             viewModel.setTtsApiUrl(provider, url)
@@ -121,9 +133,13 @@ fun SettingsScreen(
 
     val currentSaveSettings by rememberUpdatedState(newValue = ::saveSettings)
 
-    BackHandler(enabled = isVisible) {
+    BackHandler(enabled = isVisible && !showPromptEditor) {
         currentSaveSettings()
         onBack()
+    }
+
+    BackHandler(enabled = isVisible && showPromptEditor) {
+        showPromptEditor = false
     }
 
     LaunchedEffect(isVisible) {
@@ -138,45 +154,27 @@ fun SettingsScreen(
         }
     }
 
-    LaunchedEffect(providers) {
-        if (providers.isEmpty() || isSettingsLoaded) return@LaunchedEffect
-        val urls = mutableMapOf<String, String>()
-        val keys = mutableMapOf<String, String>()
-        providers.forEach { provider ->
-            urls[provider] = withContext(Dispatchers.IO) { viewModel.getApiUrl(provider) }
-            keys[provider] = withContext(Dispatchers.IO) { viewModel.getApiKey(provider) }
-        }
-        providerUrls.clear()
-        providerUrls.putAll(urls)
-        providerKeys.clear()
-        providerKeys.putAll(keys)
+    LaunchedEffect(uiState.isSettingsLoaded) {
+        if (uiState.isSettingsLoaded && !isLocalSettingsInitialized) {
+            providerUrls.clear()
+            providerUrls.putAll(uiState.providerUrls)
+            providerKeys.clear()
+            providerKeys.putAll(uiState.providerKeys)
 
-        val ttsProvidersList = listOf("OpenAI", "Google", "Microsoft")
-        val tUrls = mutableMapOf<String, String>()
-        val tKeys = mutableMapOf<String, String>()
-        val tModels = mutableMapOf<String, String>()
-        val tVoices = mutableMapOf<String, String>()
-        val tRegions = mutableMapOf<String, String>()
-        ttsProvidersList.forEach { provider ->
-            tUrls[provider] = withContext(Dispatchers.IO) { viewModel.getTtsApiUrl(provider) }
-            tKeys[provider] = withContext(Dispatchers.IO) { viewModel.getTtsApiKey(provider) }
-            tModels[provider] = withContext(Dispatchers.IO) { viewModel.getTtsModel(provider) }
-            tVoices[provider] = withContext(Dispatchers.IO) { viewModel.getTtsVoice(provider) }
-            tRegions[provider] = withContext(Dispatchers.IO) { viewModel.getTtsRegion(provider) }
-        }
-        ttsUrls.clear()
-        ttsUrls.putAll(tUrls)
-        ttsKeys.clear()
-        ttsKeys.putAll(tKeys)
-        ttsModels.clear()
-        ttsModels.putAll(tModels)
-        ttsVoices.clear()
-        ttsVoices.putAll(tVoices)
-        ttsRegions.clear()
-        ttsRegions.putAll(tRegions)
+            ttsUrls.clear()
+            ttsUrls.putAll(uiState.ttsUrls)
+            ttsKeys.clear()
+            ttsKeys.putAll(uiState.ttsKeys)
+            ttsModels.clear()
+            ttsModels.putAll(uiState.ttsModels)
+            ttsVoices.clear()
+            ttsVoices.putAll(uiState.ttsVoices)
+            ttsRegions.clear()
+            ttsRegions.putAll(uiState.ttsRegions)
 
-        selectedTtsProvider = withContext(Dispatchers.IO) { viewModel.getTtsProvider() }
-        isSettingsLoaded = true
+            selectedTtsProvider = uiState.selectedTtsProvider
+            isLocalSettingsInitialized = true
+        }
     }
 
 
@@ -673,8 +671,8 @@ fun SettingsScreen(
                             Text(stringResource(R.string.api_details_prompts), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = SumiInk)
                             TextButton(
                                 onClick = {
-                                    val promptText = "System Prompt:\n${log.systemPromptPreview}\n\nUser Prompt:\n${log.userPrompt}"
-                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(promptText))
+                                    val logPromptText = "System Prompt:\n${log.systemPromptPreview}\n\nUser Prompt:\n${log.userPrompt}"
+                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(logPromptText))
                                     android.widget.Toast.makeText(context, context.getString(R.string.copy_success_toast), android.widget.Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.height(24.dp),
@@ -777,9 +775,10 @@ fun SettingsScreen(
         )
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = WashiBg,
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            containerColor = WashiBg,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Bold, color = SumiInk) },
@@ -1040,6 +1039,16 @@ fun SettingsScreen(
                         title = stringResource(R.string.view_api_debug_logs),
                         subtitle = stringResource(R.string.api_debug_logs_title),
                         onClick = { showApiLogsDialog = true },
+                        trailingContent = {
+                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = SumiInk.copy(alpha = 0.4f))
+                        }
+                    )
+                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsItem(
+                        icon = Icons.Default.Tune,
+                        title = stringResource(R.string.custom_prompts_title),
+                        subtitle = stringResource(R.string.custom_prompts_desc),
+                        onClick = { showPromptEditor = true },
                         trailingContent = {
                             Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = SumiInk.copy(alpha = 0.4f))
                         }
@@ -1413,6 +1422,223 @@ fun SettingsScreen(
         }
     }
 
+    AnimatedVisibility(
+        visible = showPromptEditor,
+        enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(300)) + fadeIn(animationSpec = tween(300)),
+        exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(300)) + fadeOut(animationSpec = tween(300))
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = WashiBg
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                // Header row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(onClick = { showPromptEditor = false }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = SumiInk)
+                    }
+                    Text(
+                        text = stringResource(R.string.prompt_editor_title),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = SumiInk
+                    )
+                    IconButton(onClick = {
+                        showResetAllConfirm = true
+                    }) {
+                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.reset_all_prompts), tint = Color.Red)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Selector for Prompt Type
+                var dropdownExpanded by remember { mutableStateOf(false) }
+                val promptKeys = listOf(
+                    "prompt_translation" to R.string.prompt_type_translation,
+                    "prompt_segments" to R.string.prompt_type_segments,
+                    "prompt_clauses" to R.string.prompt_type_clauses,
+                    "prompt_grammar" to R.string.prompt_type_grammar,
+                    "prompt_tokenizer" to R.string.prompt_type_tokenizer,
+                    "prompt_tokenizer_ocr" to R.string.prompt_type_tokenizer_ocr,
+                    "prompt_tokenizer_image" to R.string.prompt_type_tokenizer_image,
+                    "prompt_tokenizer_image_repair" to R.string.prompt_type_tokenizer_image_repair
+                )
+
+                val selectedLabelRes = promptKeys.find { it.first == selectedPromptKey }?.second ?: R.string.prompt_type_translation
+                val selectedLabel = stringResource(selectedLabelRes)
+
+                Text(
+                    text = stringResource(R.string.prompt_select_type),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = SumiInk.copy(alpha = 0.5f)
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(SurfaceColor, RoundedCornerShape(8.dp))
+                        .border(BorderStroke(1.dp, SumiInk.copy(alpha = 0.1f)), RoundedCornerShape(8.dp))
+                        .clickable { dropdownExpanded = true }
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = selectedLabel, color = SumiInk, fontWeight = FontWeight.Medium)
+                        Icon(Icons.Default.KeyboardArrowDown, null, tint = SumiInk.copy(alpha = 0.5f))
+                    }
+
+                    DropdownMenu(
+                        expanded = dropdownExpanded,
+                        onDismissRequest = { dropdownExpanded = false },
+                        modifier = Modifier.fillMaxWidth(0.9f)
+                    ) {
+                        promptKeys.forEach { (key, labelRes) ->
+                            DropdownMenuItem(
+                                text = { Text(stringResource(labelRes)) },
+                                onClick = {
+                                    selectedPromptKey = key
+                                    dropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Scrollable text editor
+                OutlinedTextField(
+                    value = promptText,
+                    onValueChange = { promptText = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        lineHeight = 14.sp
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryColor,
+                        unfocusedBorderColor = SumiInk.copy(alpha = 0.15f),
+                        focusedContainerColor = SurfaceColor,
+                        unfocusedContainerColor = SurfaceColor
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Bottom control actions
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Reset Current Button
+                    OutlinedButton(
+                        onClick = { showResetConfirm = true },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.reset_prompt))
+                    }
+
+                    // Save Button
+                    Button(
+                        onClick = {
+                            viewModel.saveCustomPrompt(selectedPromptKey, promptText)
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(ctx.getString(R.string.prompt_save_success))
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp), tint = OnPrimaryColor)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.save_prompt), color = OnPrimaryColor)
+                    }
+                }
+            }
+        }
+    }
+
+    if (showResetConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirm = false },
+            title = { Text(stringResource(R.string.reset_prompt), fontWeight = FontWeight.Bold, color = SumiInk) },
+            text = { Text(stringResource(R.string.prompt_reset_confirm), color = SumiInk) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.resetCustomPrompt(selectedPromptKey)
+                        promptText = viewModel.getCustomPrompt(selectedPromptKey)
+                        showResetConfirm = false
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(ctx.getString(R.string.prompt_reset_success))
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+                ) {
+                    Text(stringResource(R.string.reset_prompt), fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetConfirm = false }) {
+                    Text(stringResource(R.string.cancel), color = SumiInk)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
+    if (showResetAllConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetAllConfirm = false },
+            title = { Text(stringResource(R.string.reset_all_prompts), fontWeight = FontWeight.Bold, color = SumiInk) },
+            text = { Text(stringResource(R.string.prompt_reset_all_confirm), color = SumiInk) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.resetAllCustomPrompts()
+                        promptText = viewModel.getCustomPrompt(selectedPromptKey)
+                        showResetAllConfirm = false
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(ctx.getString(R.string.prompt_reset_all_success))
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+                ) {
+                    Text(stringResource(R.string.reset_all_prompts), fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetAllConfirm = false }) {
+                    Text(stringResource(R.string.cancel), color = SumiInk)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
     if (showTokenDialog) {
         AlertDialog(
             onDismissRequest = { showTokenDialog = false },
@@ -1437,6 +1663,7 @@ fun SettingsScreen(
         )
     }
 
+    }
 }
 
 @Composable

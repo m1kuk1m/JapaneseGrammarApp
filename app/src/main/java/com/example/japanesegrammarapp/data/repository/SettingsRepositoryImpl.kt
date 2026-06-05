@@ -5,6 +5,7 @@ import com.example.japanesegrammarapp.di.SecurePrefs
 import com.example.japanesegrammarapp.di.StandardPrefs
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
+import com.example.japanesegrammarapp.network.PromptManager
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -410,5 +411,52 @@ class SettingsRepositoryImpl @Inject constructor(
     override fun setTtsRegion(provider: String, region: String) {
         cachedTtsRegions[provider] = region
         settingPrefs.edit().putString("tts_${provider}_region", region).apply()
+    }
+
+    // Prompt Customization Cache and Implementation
+    private val cachedPrompts = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    override fun getCustomPrompt(promptKey: String): String {
+        var cached = cachedPrompts[promptKey]
+        if (cached == null) {
+            val defaultVal = when (promptKey) {
+                "prompt_translation" -> PromptManager.SYSTEM_PROMPT_TRANSLATION
+                "prompt_segments" -> PromptManager.SYSTEM_PROMPT_SEGMENTS
+                "prompt_clauses" -> PromptManager.SYSTEM_PROMPT_CLAUSES
+                "prompt_grammar" -> PromptManager.SYSTEM_PROMPT_GRAMMAR
+                "prompt_tokenizer" -> PromptManager.SYSTEM_PROMPT_TOKENIZER
+                "prompt_tokenizer_ocr" -> PromptManager.SYSTEM_PROMPT_TOKENIZER_OCR
+                "prompt_tokenizer_image" -> PromptManager.SYSTEM_PROMPT_TOKENIZER_IMAGE
+                "prompt_tokenizer_image_repair" -> PromptManager.SYSTEM_PROMPT_TOKENIZER_IMAGE_REPAIR
+                else -> ""
+            }
+            cached = settingPrefs.getString(promptKey, defaultVal) ?: defaultVal
+            cachedPrompts[promptKey] = cached
+        }
+        return cached
+    }
+
+    override fun saveCustomPrompt(promptKey: String, prompt: String) {
+        cachedPrompts[promptKey] = prompt
+        settingPrefs.edit().putString(promptKey, prompt).apply()
+    }
+
+    override fun resetCustomPrompt(promptKey: String) {
+        cachedPrompts.remove(promptKey)
+        settingPrefs.edit().remove(promptKey).apply()
+    }
+
+    override fun resetAllCustomPrompts() {
+        cachedPrompts.clear()
+        settingPrefs.edit().apply {
+            remove("prompt_translation")
+            remove("prompt_segments")
+            remove("prompt_clauses")
+            remove("prompt_grammar")
+            remove("prompt_tokenizer")
+            remove("prompt_tokenizer_ocr")
+            remove("prompt_tokenizer_image")
+            remove("prompt_tokenizer_image_repair")
+        }.apply()
     }
 }
