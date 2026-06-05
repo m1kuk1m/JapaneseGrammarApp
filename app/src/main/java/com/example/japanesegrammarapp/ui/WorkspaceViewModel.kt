@@ -172,9 +172,9 @@ class WorkspaceViewModel @Inject constructor(
                         _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.llm_backup_toast, listOf(event.step.labelResId, event.backupProvider)))
                     }
                     is AnalysisEvent.DuplicateFound -> {
-                        cancelAnalysis(event.currentRecordId)
+                        // Record already deleted atomically inside AnalyzeTextUseCase —
+                        // no need to call cancelAnalysis() here (which would be a race).
                         selectRecordById(event.existingRecordId)
-                        _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.analysis_started_toast)) // Or a custom message, but existing toast is fine or none
                     }
                     is AnalysisEvent.TaskFailed -> {
                         val e = event.exception
@@ -197,6 +197,13 @@ class WorkspaceViewModel @Inject constructor(
                 val currentSelected = _uiState.value.selectedRecord
                 if (currentSelected != null) {
                     val progress = progressMap[currentSelected.id]
+                    // If the record is already COMPLETED and has no active progress entry, skip —
+                    // this is the normal steady-state and no refresh is needed. Refreshing here
+                    // would risk setting a non-null progress on an already-finished record due to
+                    // timing races between the flow observer and selectRecord().
+                    if (progress == null && currentSelected.status == AnalysisStatus.COMPLETED) {
+                        return@collect
+                    }
                     val needsRefresh = progress == null || progress.tokenizerCompleted || progress.grammarCompleted || progress.translationCompleted || progress.clausesCompleted || progress.segmentsCompleted
                     if (needsRefresh) {
                         refreshSelectedRecordFromRepository(currentSelected.id, clearProgress = progress == null)
@@ -255,6 +262,12 @@ class WorkspaceViewModel @Inject constructor(
                 analyzeTextUseCase.progressFlow.value[record.id]
             } else null
         ) }
+
+        // If the record is PENDING but there is no active job running (zombie PENDING record), automatically resume/retry the analysis
+        val isRunning = analyzeTextUseCase.progressFlow.value.containsKey(record.id)
+        if (record.status == AnalysisStatus.PENDING && !isRunning) {
+            retryAnalysis(record.id)
+        }
 
         viewModelScope.launch(Dispatchers.IO) {
             val freshRecord = historyRepository.getRecordById(record.id) ?: record

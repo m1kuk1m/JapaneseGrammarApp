@@ -506,7 +506,7 @@ fun WorkspaceResultContent(
                     Spacer(modifier = Modifier.height(14.dp))
                     
                     // 3. Sentence Clauses
-                    if (!data.clauses.isNullOrEmpty() || (isPending && progress?.clausesCompleted != true)) {
+                    if (!data.clauses.isNullOrEmpty() || (isPending && progress != null && progress.clausesCompleted != true)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(bottom = 8.dp, top = 4.dp)
@@ -613,7 +613,7 @@ fun WorkspaceResultContent(
                     }
                     
                     // 4. Core Grammar Points
-                    if (!data.grammarPoints.isNullOrEmpty() || (isPending && progress?.grammarCompleted != true)) {
+                    if (!data.grammarPoints.isNullOrEmpty() || (isPending && progress != null && progress.grammarCompleted != true)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(bottom = 8.dp, top = 4.dp)

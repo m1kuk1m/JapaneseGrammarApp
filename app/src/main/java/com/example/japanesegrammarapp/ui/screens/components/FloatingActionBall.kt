@@ -66,6 +66,20 @@ fun FloatingActionBall(
         mutableStateOf(ActionMode.valueOf(savedMode)) 
     }
 
+    val edgeMargin = with(density) { 8.dp.toPx() }
+    LaunchedEffect(screenWidthPx, screenHeightPx) {
+        val wasOnLeft = offsetX < (screenWidthPx / 2f)
+        offsetX = if (wasOnLeft) edgeMargin else screenWidthPx - ballSizePx - edgeMargin
+        
+        val minY = with(density) { 32.dp.toPx() }
+        val maxY = screenHeightPx - ballSizePx - with(density) { 32.dp.toPx() }
+        if (maxY > minY) {
+            offsetY = offsetY.coerceIn(minY, maxY)
+        }
+        
+        prefs.edit().putFloat("fab_x", offsetX).putFloat("fab_y", offsetY).apply()
+    }
+
     val animatedOffsetX by animateFloatAsState(
         targetValue = offsetX,
         animationSpec = spring(stiffness = 500f, dampingRatio = 0.8f),
@@ -83,15 +97,13 @@ fun FloatingActionBall(
             modifier = Modifier
                 .offset { IntOffset(animatedOffsetX.roundToInt(), animatedOffsetY.roundToInt()) }
                 .size(56.dp)
-                .pointerInput(Unit) {
+                .pointerInput(screenWidthPx, screenHeightPx, density) {
                     detectDragGestures(
                         onDragStart = { 
                             isDragging = true 
                         },
                         onDragEnd = {
                             isDragging = false
-                            // Snap to edge
-                            val edgeMargin = with(density) { 8.dp.toPx() }
                             offsetX = if (offsetX < screenWidthPx / 2) edgeMargin else screenWidthPx - ballSizePx - edgeMargin
                             
                             // Constrain Y

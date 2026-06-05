@@ -238,8 +238,11 @@ fun WorkspaceInputForm(
                 },
                 update = { editText ->
                     if (editText.text.toString() != textInput) {
+                        // Remember cursor position before overwriting text so the user's
+                        // in-place edits don't cause the cursor to jump to the end.
+                        val prevCursor = editText.selectionEnd.coerceAtMost(textInput.length)
                         editText.setText(textInput)
-                        editText.setSelection(textInput.length)
+                        editText.setSelection(prevCursor)
                     }
                 },
                 modifier = Modifier

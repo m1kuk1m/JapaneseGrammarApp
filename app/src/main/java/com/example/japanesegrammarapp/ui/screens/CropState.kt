@@ -73,13 +73,32 @@ class CropState(
         val distBL = distance(x, y, cropLeft, cropBottom)
         val distBR = distance(x, y, cropRight, cropBottom)
 
-        activeHandle = when {
-            distTL < minTolerancePx -> DragHandle.TOP_LEFT
-            distTR < minTolerancePx -> DragHandle.TOP_RIGHT
-            distBL < minTolerancePx -> DragHandle.BOTTOM_LEFT
-            distBR < minTolerancePx -> DragHandle.BOTTOM_RIGHT
-            x in cropLeft..cropRight && y in cropTop..cropBottom -> DragHandle.CENTER
-            else -> DragHandle.NONE
+        var bestHandle = DragHandle.NONE
+        var minDist = minTolerancePx
+
+        if (distTL < minDist) {
+            minDist = distTL
+            bestHandle = DragHandle.TOP_LEFT
+        }
+        if (distTR < minDist) {
+            minDist = distTR
+            bestHandle = DragHandle.TOP_RIGHT
+        }
+        if (distBL < minDist) {
+            minDist = distBL
+            bestHandle = DragHandle.BOTTOM_LEFT
+        }
+        if (distBR < minDist) {
+            minDist = distBR
+            bestHandle = DragHandle.BOTTOM_RIGHT
+        }
+
+        activeHandle = if (bestHandle != DragHandle.NONE) {
+            bestHandle
+        } else if (x in cropLeft..cropRight && y in cropTop..cropBottom) {
+            DragHandle.CENTER
+        } else {
+            DragHandle.NONE
         }
     }
 

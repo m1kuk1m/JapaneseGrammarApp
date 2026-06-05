@@ -295,6 +295,8 @@
     <string name="bookmarks_empty_title">还没有收藏</string>
     <string name="bookmarks_empty_hint">在分析页面长按分词卡片即可收藏</string>
     <string name="bookmarks_count">%1$d</string>
+    <string name="bookmarks_count_all">共 %1$d 个</string>
+    <string name="bookmarks_count_filtered">%1$d / %2$d</string>
     <string name="bookmark_added">已加入收藏</string>
     <string name="bookmark_deleted">已删除收藏</string>
     <string name="bookmark_already_exists">已收藏过</string>

@@ -55,7 +55,14 @@ class AnalyzeTextUseCase @Inject constructor(
         if (text.isNotBlank()) {
             val duplicate = saveAnalysisRecordUseCase.getByOriginalText(text)
             if (duplicate != null) {
-                return duplicate.id
+                val isRunning = activeJobs.containsKey(duplicate.id)
+                if (duplicate.status == AnalysisStatus.COMPLETED || isRunning) {
+                    return duplicate.id
+                } else {
+                    // Zombie PENDING or FAILED record: restart background analysis
+                    executeRetry(duplicate.id, text, duplicate.imageUri)
+                    return duplicate.id
+                }
             }
         }
 
@@ -203,6 +210,13 @@ class AnalyzeTextUseCase @Inject constructor(
 
                     val duplicateRecord = saveAnalysisRecordUseCase.getByOriginalText(effectiveText)
                     if (duplicateRecord != null && duplicateRecord.id != recordId) {
+                        // Atomically clean up the newly created record before notifying the UI,
+                        // so the event handler does NOT need to call cancelAnalysis() — which
+                        // would be a no-op or race against invokeOnCompletion anyway.
+                        val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
+                        if (currentRecord != null) {
+                            saveAnalysisRecordUseCase.delete(currentRecord)
+                        }
                         eventBus.post(AnalysisEvent.DuplicateFound(recordId, duplicateRecord.id))
                         return@launch
                     }
@@ -362,6 +376,11 @@ class AnalyzeTextUseCase @Inject constructor(
 
                         val duplicateRecord = saveAnalysisRecordUseCase.getByOriginalText(effectiveText)
                         if (duplicateRecord != null && duplicateRecord.id != recordId) {
+                            // Atomically clean up the newly created record before notifying the UI.
+                            val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
+                            if (currentRecord != null) {
+                                saveAnalysisRecordUseCase.delete(currentRecord)
+                            }
                             eventBus.post(AnalysisEvent.DuplicateFound(recordId, duplicateRecord.id))
                             return@launch
                         }

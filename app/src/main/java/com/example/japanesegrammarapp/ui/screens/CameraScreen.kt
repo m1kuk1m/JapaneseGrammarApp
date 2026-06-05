@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.Rect
 import android.net.Uri
 import android.util.Log
+import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.AspectRatio
@@ -83,6 +84,17 @@ import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
+import android.app.Activity
+import android.content.pm.ActivityInfo
+import android.os.Build
+import android.view.Surface
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+
 enum class CameraScreenMode {
     CAPTURE,
     CROP_REVIEW
@@ -98,12 +110,49 @@ fun CameraScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
-    val settingsUiState by settingsViewModel.uiState.collectAsState()
-    val useOcr = settingsUiState.useOcr
+    val activity = context as? Activity
+    DisposableEffect(activity) {
+        activity?.window?.let { window ->
+            val controller = WindowCompat.getInsetsController(window, window.decorView)
+            controller.hide(WindowInsetsCompat.Type.statusBars())
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+            // Use seamless rotation so the camera preview never shows a rotate transition animation.
+            // ROTATION_ANIMATION_SEAMLESS requires API 26 and an opaque window surface.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val params = window.attributes
+                params.rotationAnimation = WindowManager.LayoutParams.ROTATION_ANIMATION_SEAMLESS
+                window.attributes = params
+            }
+        }
+        
+        val originalOrientation = activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        val restoreOrientation = if (originalOrientation == ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED) {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        } else {
+            originalOrientation
+        }
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+        
+        onDispose {
+            activity?.window?.let { window ->
+                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                controller.show(WindowInsetsCompat.Type.statusBars())
+                // Restore the default rotation animation for other screens
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val params = window.attributes
+                    params.rotationAnimation = WindowManager.LayoutParams.ROTATION_ANIMATION_ROTATE
+                    window.attributes = params
+                }
+            }
+            activity?.requestedOrientation = restoreOrientation
+        }
+    }
     
     // Core states
-    var screenMode by remember { mutableStateOf(CameraScreenMode.CAPTURE) }
-    var flashMode by remember { mutableStateOf(ImageCapture.FLASH_MODE_OFF) }
+    var screenMode by rememberSaveable { mutableStateOf(CameraScreenMode.CAPTURE) }
+    var flashMode by rememberSaveable { mutableStateOf(ImageCapture.FLASH_MODE_OFF) }
+    var tempFileUriString by rememberSaveable { mutableStateOf<String?>(null) }
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -143,6 +192,20 @@ fun CameraScreen(
             } else {
                 // Fail and navigate back
                 navController.popBackStack()
+            }
+            isCapturing = false
+        }
+    }
+
+    // Restore captured image if saved state contains a path
+    LaunchedEffect(tempFileUriString) {
+        if (!tempFileUriString.isNullOrBlank()) {
+            isCapturing = true
+            val uri = Uri.parse(tempFileUriString)
+            val bitmap = BitmapHelper.loadRotatedBitmapFromUri(context, uri)
+            if (bitmap != null) {
+                capturedBitmap = bitmap
+                screenMode = CameraScreenMode.CROP_REVIEW
             }
             isCapturing = false
         }
@@ -198,28 +261,31 @@ fun CameraScreen(
                                 val file = BitmapHelper.createTempCapturedFile(context)
                                 val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
                                 
-                                val displayMetrics = context.resources.displayMetrics
-                                val screenWidth = displayMetrics.widthPixels.toFloat()
-                                val screenHeight = displayMetrics.heightPixels.toFloat()
-                                
                                 imageCapture.takePicture(
                                     outputOptions,
                                     ContextCompat.getMainExecutor(context),
                                     object : ImageCapture.OnImageSavedCallback {
                                         override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                                             scope.launch(Dispatchers.IO) {
+                                                // Load the bitmap with EXIF rotation applied,
+                                                // but do NOT pre-crop to screen aspect ratio.
+                                                // The ImageCropReviewLayout handles any image shape
+                                                // correctly, and pre-cropping here causes display
+                                                // errors when the user rotates back to portrait after
+                                                // a landscape capture.
                                                 val bitmap = BitmapHelper.loadRotatedBitmap(file)
-                                                val processedBitmap = if (bitmap != null) {
-                                                    cropBitmapToAspectRatio(bitmap, screenWidth, screenHeight)
-                                                } else {
-                                                    null
-                                                }
-                                                withContext(Dispatchers.Main) {
-                                                    if (processedBitmap != null) {
-                                                        capturedBitmap = processedBitmap
+                                                if (bitmap != null) {
+                                                    val savedUri = BitmapHelper.saveCroppedBitmap(context, bitmap)
+                                                    withContext(Dispatchers.Main) {
+                                                        capturedBitmap = bitmap
+                                                        tempFileUriString = savedUri?.toString()
                                                         screenMode = CameraScreenMode.CROP_REVIEW
+                                                        isCapturing = false
                                                     }
-                                                    isCapturing = false
+                                                } else {
+                                                    withContext(Dispatchers.Main) {
+                                                        isCapturing = false
+                                                    }
                                                 }
                                             }
                                         }
@@ -271,8 +337,6 @@ fun CameraScreen(
                     capturedBitmap?.let { bitmap ->
                         ImageCropReviewLayout(
                             bitmap = bitmap,
-                            useOcr = useOcr,
-                            onOcrToggle = { settingsViewModel.setUseOcr(it) },
                             onCancel = {
                                 if (!galleryImageUriString.isNullOrBlank()) {
                                     // If started from gallery selection, go back directly
@@ -336,7 +400,31 @@ fun CameraPreviewLayout(
             .build()
     }
     val cameraSelector = remember { CameraSelector.DEFAULT_BACK_CAMERA }
-    
+
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    val context = LocalContext.current
+    val display = remember(context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            context.display
+        } else {
+            @Suppress("DEPRECATION")
+            (context as? Activity)?.windowManager?.defaultDisplay
+        }
+    }
+
+    // Update CameraX target rotation whenever orientation changes
+    LaunchedEffect(isLandscape) {
+        val rotation = display?.rotation ?: Surface.ROTATION_0
+        try {
+            imageCapture.targetRotation = rotation
+            preview.targetRotation = rotation
+        } catch (e: Exception) {
+            Log.e("CameraScreen", "Failed to update target rotation dynamically", e)
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         // CameraX Live Preview View
         AndroidView(
@@ -344,7 +432,6 @@ fun CameraPreviewLayout(
                 val previewView = PreviewView(ctx).apply {
                     scaleType = PreviewView.ScaleType.FILL_CENTER
                 }
-                
                 val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                 cameraProviderFuture.addListener({
                     val cameraProvider = cameraProviderFuture.get()
@@ -361,102 +448,191 @@ fun CameraPreviewLayout(
                         Log.e("CameraScreen", "Use case binding failed", e)
                     }
                 }, ContextCompat.getMainExecutor(ctx))
-                
                 previewView
             },
             modifier = Modifier.fillMaxSize()
         )
-        
+
         // Zen Scanning Mask Overlay
-        ZenScanningOverlay()
-        
-        // Header Controls
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Rounded translucent back button
+        ZenScanningOverlay(isLandscape = isLandscape)
+
+        // Controls layout changes based on screen orientation
+        if (isLandscape) {
+            // ── Landscape layout: ergonomic shutter on the right ────────────────
+
+            // Back button – top-left
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.4f))
-                    .clickable { onBack() },
-                contentAlignment = Alignment.Center
+                    .statusBarsPadding()
+                    .padding(start = 16.dp, top = 12.dp)
+                    .align(Alignment.TopStart)
             ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = stringResource(R.string.camera_back_desc),
-                    tint = Color.White
-                )
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.4f))
+                        .clickable { onBack() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = stringResource(R.string.camera_back_desc),
+                        tint = Color.White
+                    )
+                }
             }
-            
+
+            // Flash button – top-right
             val (flashVectorIcon, flashTextRes, flashDescRes) = when (flashMode) {
                 ImageCapture.FLASH_MODE_ON -> Triple(Icons.Rounded.FlashOn, R.string.camera_flash_on_label, R.string.camera_flash_on_desc)
                 ImageCapture.FLASH_MODE_AUTO -> Triple(Icons.Rounded.FlashAuto, R.string.camera_flash_auto_label, R.string.camera_flash_auto_desc)
                 else -> Triple(Icons.Rounded.FlashOff, R.string.camera_flash_off_label, R.string.camera_flash_off_desc)
             }
             val labelText = stringResource(flashTextRes).replace("⚡", "").trim()
-            
+
             Box(
                 modifier = Modifier
-                    .height(38.dp)
-                    .clip(RoundedCornerShape(19.dp))
-                    .background(Color.Black.copy(alpha = 0.4f))
-                    .clickable { onFlashToggle() }
-                    .padding(horizontal = 12.dp),
-                contentAlignment = Alignment.Center
+                    .statusBarsPadding()
+                    .padding(end = 16.dp, top = 12.dp)
+                    .align(Alignment.TopEnd)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                Box(
+                    modifier = Modifier
+                        .height(38.dp)
+                        .clip(RoundedCornerShape(19.dp))
+                        .background(Color.Black.copy(alpha = 0.4f))
+                        .clickable { onFlashToggle() }
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = flashVectorIcon,
-                        contentDescription = stringResource(flashDescRes),
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = labelText,
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = flashVectorIcon,
+                            contentDescription = stringResource(flashDescRes),
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = labelText,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
-        }
-        
-        // Bottom Controls
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = 32.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            // Circular tactile Shutter Button
+
+            // Shutter button – right side center (ergonomic right-hand reach in landscape)
             Box(
                 modifier = Modifier
-                    .size(76.dp)
-                    .border(BorderStroke(4.dp, Color.White), CircleShape)
-                    .padding(6.dp)
-                    .clip(CircleShape)
-                    .background(Color.White)
-                    .clickable(enabled = !isCapturing) {
-                        onCapture()
+                    .fillMaxHeight()
+                    .align(Alignment.CenterEnd)
+                    .navigationBarsPadding()
+                    .padding(end = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(76.dp)
+                        .border(BorderStroke(4.dp, Color.White), CircleShape)
+                        .padding(6.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                        .clickable(enabled = !isCapturing) { onCapture() }
+                )
+            }
+        } else {
+            // ── Portrait layout ─────────────────────────────────────────────────
+
+            // Header: Back + Flash
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.4f))
+                        .clickable { onBack() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = stringResource(R.string.camera_back_desc),
+                        tint = Color.White
+                    )
+                }
+
+                val (flashVectorIcon, flashTextRes, flashDescRes) = when (flashMode) {
+                    ImageCapture.FLASH_MODE_ON -> Triple(Icons.Rounded.FlashOn, R.string.camera_flash_on_label, R.string.camera_flash_on_desc)
+                    ImageCapture.FLASH_MODE_AUTO -> Triple(Icons.Rounded.FlashAuto, R.string.camera_flash_auto_label, R.string.camera_flash_auto_desc)
+                    else -> Triple(Icons.Rounded.FlashOff, R.string.camera_flash_off_label, R.string.camera_flash_off_desc)
+                }
+                val labelText = stringResource(flashTextRes).replace("⚡", "").trim()
+
+                Box(
+                    modifier = Modifier
+                        .height(38.dp)
+                        .clip(RoundedCornerShape(19.dp))
+                        .background(Color.Black.copy(alpha = 0.4f))
+                        .clickable { onFlashToggle() }
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = flashVectorIcon,
+                            contentDescription = stringResource(flashDescRes),
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = labelText,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-            )
+                }
+            }
+
+            // Shutter button – bottom center
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(76.dp)
+                        .border(BorderStroke(4.dp, Color.White), CircleShape)
+                        .padding(6.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                        .clickable(enabled = !isCapturing) { onCapture() }
+                )
+            }
         }
     }
 }
+
 @Composable
-fun ZenScanningOverlay() {
+fun ZenScanningOverlay(isLandscape: Boolean) {
     // Elegant frame and pulsing scan line animation
     val infiniteTransition = rememberInfiniteTransition(label = "scanning")
     val laserYOffsetProgress by infiniteTransition.animateFloat(
@@ -473,40 +649,28 @@ fun ZenScanningOverlay() {
         val width = size.width
         val height = size.height
         
-        // Define global framing boundaries (e.g. 16.dp margin from edges)
-        val marginX = 16.dp.toPx()
-        val marginTop = 80.dp.toPx() // leave room for top buttons
-        val marginBottom = 140.dp.toPx() // leave room for bottom shutter button
+        // Framing boundaries adapt to orientation (leave room for side shutter in landscape)
+        val left = if (isLandscape) 80.dp.toPx() else 16.dp.toPx()
+        val right = if (isLandscape) width - 120.dp.toPx() else width - 16.dp.toPx()
+        val top = if (isLandscape) 64.dp.toPx() else 80.dp.toPx()
+        val bottom = if (isLandscape) height - 24.dp.toPx() else height - 140.dp.toPx()
         
-        val left = marginX
-        val top = marginTop
-        val right = width - marginX
-        val bottom = height - marginBottom
-        
-        // 1. Draw modern minimal corner guides (high transparency white)
+        // 1. Draw modern minimal corner guides
         val strokeW = 2.dp.toPx()
         val cornerL = 20.dp.toPx()
         val cornerColor = Color.White.copy(alpha = 0.35f)
         
-        // Top-Left corner
         drawLine(cornerColor, Offset(left, top), Offset(left + cornerL, top), strokeWidth = strokeW)
         drawLine(cornerColor, Offset(left, top), Offset(left, top + cornerL), strokeWidth = strokeW)
-        
-        // Top-Right corner
         drawLine(cornerColor, Offset(right, top), Offset(right - cornerL, top), strokeWidth = strokeW)
         drawLine(cornerColor, Offset(right, top), Offset(right, top + cornerL), strokeWidth = strokeW)
-        
-        // Bottom-Left corner
         drawLine(cornerColor, Offset(left, bottom), Offset(left + cornerL, bottom), strokeWidth = strokeW)
         drawLine(cornerColor, Offset(left, bottom), Offset(left, bottom - cornerL), strokeWidth = strokeW)
-        
-        // Bottom-Right corner
         drawLine(cornerColor, Offset(right, bottom), Offset(right - cornerL, bottom), strokeWidth = strokeW)
         drawLine(cornerColor, Offset(right, bottom), Offset(right, bottom - cornerL), strokeWidth = strokeW)
         
-        // 2. Draw pulsing modern "Japanese-gold" Kuri scan line sweeping globally
+        // 2. Pulsing "Japanese-gold" Kuri scan line
         val laserY = top + ((bottom - top) * laserYOffsetProgress)
-        // Soft glowing line
         drawLine(
             color = KuriAmber.copy(alpha = 0.7f),
             start = Offset(left + 8.dp.toPx(), laserY),
@@ -515,12 +679,12 @@ fun ZenScanningOverlay() {
         )
     }
     
-    // Scanning text instruction (positioned above the shutter button)
+    // Scanning text instruction
     Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 24.dp)
-            .padding(bottom = 124.dp),
+            .padding(bottom = if (isLandscape) 24.dp else 124.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
         Column(
@@ -541,21 +705,28 @@ fun ZenScanningOverlay() {
         }
     }
 }
+
 @Composable
 fun ImageCropReviewLayout(
     bitmap: Bitmap,
-    useOcr: Boolean,
-    onOcrToggle: (Boolean) -> Unit,
     onCancel: () -> Unit,
     onConfirm: (Bitmap) -> Unit
 ) {
     val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     
     val cropState = remember(bitmap) {
         CropState(
             bitmapWidth = bitmap.width.toFloat(),
             bitmapHeight = bitmap.height.toFloat()
         )
+    }
+
+    // When the screen orientation changes, the container size changes too.
+    // Reset isInitialized so the crop box is recalculated for the new layout.
+    LaunchedEffect(isLandscape) {
+        cropState.isInitialized = false
     }
 
     var detectedBoxes by remember(bitmap) { mutableStateOf<List<Rect>>(emptyList()) }
@@ -659,56 +830,10 @@ fun ImageCropReviewLayout(
         }
     }
     
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SumiInk)
-    ) {
-        // Top instruction bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.camera_crop_title),
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-            
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.camera_local_ocr),
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Switch(
-                    checked = useOcr,
-                    onCheckedChange = onOcrToggle,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = SumiInk,
-                        checkedTrackColor = KuriAmber,
-                        uncheckedThumbColor = Color.LightGray,
-                        uncheckedTrackColor = Color.DarkGray
-                    ),
-                    modifier = Modifier.scale(0.8f)
-                )
-            }
-        }
-        
-        // Image & Cropper Workspace
+    @Composable
+    fun WorkspaceArea(modifier: Modifier) {
         Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
+            modifier = modifier
                 .onGloballyPositioned { layoutCoordinates ->
                     cropState.initializeCropBox(
                         layoutCoordinates.size.width.toFloat(),
@@ -729,7 +854,7 @@ fun ImageCropReviewLayout(
                     )
                 }
                 
-                val minSizePx = with(density) { 60.dp.toPx() }
+                val minSizePx = with(density) { 16.dp.toPx() }
                 
                 Canvas(
                     modifier = Modifier
@@ -799,6 +924,18 @@ fun ImageCropReviewLayout(
                                                     break
                                                 }
                                             }
+                                        }
+                                    } else {
+                                        // If manual crop mode is active, check if we touched inside the existing box or handles
+                                         val tolerance = with(density) {
+                                             val boxWidth = cropState.cropRight - cropState.cropLeft
+                                             val boxHeight = cropState.cropBottom - cropState.cropTop
+                                             val minBoxDimension = minOf(boxWidth, boxHeight)
+                                             minOf(48.dp.toPx(), minBoxDimension * 0.5f).coerceAtLeast(16.dp.toPx())
+                                         }
+                                         cropState.startDrag(startPos, tolerance)
+                                        if (cropState.activeHandle != DragHandle.NONE) {
+                                            detectedOcrCornerDrag = true
                                         }
                                     }
                                     
@@ -893,10 +1030,15 @@ fun ImageCropReviewLayout(
                                     // If we are in manual drag mode (hideOcrBoxes == true), run standard drag event loop
                                     if (hideOcrBoxes) {
                                         // Initialize center/handle drag state
-                                        val tolerance = 48.dp.toPx()
-                                        if (cropState.activeHandle == DragHandle.NONE) {
-                                            cropState.startDrag(startPos, tolerance)
-                                        }
+                                         val tolerance = with(density) {
+                                             val boxWidth = cropState.cropRight - cropState.cropLeft
+                                             val boxHeight = cropState.cropBottom - cropState.cropTop
+                                             val minBoxDimension = minOf(boxWidth, boxHeight)
+                                             minOf(48.dp.toPx(), minBoxDimension * 0.5f).coerceAtLeast(16.dp.toPx())
+                                         }
+                                         if (cropState.activeHandle == DragHandle.NONE) {
+                                             cropState.startDrag(startPos, tolerance)
+                                         }
                                         
                                         var isPinching = false
                                         var initialPinchDistance = 0f
@@ -927,9 +1069,7 @@ fun ImageCropReviewLayout(
                                             if (activeChanges.size == 1) {
                                                 if (isPinching) {
                                                     isPinching = false
-                                                    val currentFinger = activeChanges[0]
-                                                    activePointerId = currentFinger.id
-                                                    cropState.startDrag(currentFinger.position, tolerance)
+                                                    cropState.activeHandle = DragHandle.NONE
                                                 } else {
                                                     val currentFinger = activeChanges.find { it.id == activePointerId } ?: activeChanges[0]
                                                     activePointerId = currentFinger.id
@@ -1155,107 +1295,206 @@ fun ImageCropReviewLayout(
                             drawLine(KuriAmber, Offset(displayRight, displayBottom), Offset(displayRight, displayBottom - lLength), strokeWidth = lStroke)
                         }
                     }
+                }
             }
         }
     }
-    
-    // Bottom controls row
-        Surface(
-            color = SumiInk,
+
+    if (isLandscape) {
+        Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
+                .fillMaxSize()
+                .background(SumiInk)
+        ) {
+            WorkspaceArea(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            )
+            
+            Surface(
+                color = SumiInk,
+                modifier = Modifier
+                    .width(280.dp)
+                    .fillMaxHeight()
+                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .navigationBarsPadding()
+                        .statusBarsPadding()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalAlignment = Alignment.Start,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = stringResource(R.string.camera_crop_title),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                    
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedButton(
+                            onClick = { onCancel() },
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            modifier = Modifier.fillMaxWidth().height(50.dp)
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.camera_cancel_desc), modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.camera_recapture_btn), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                        
+                        Button(
+                            onClick = {
+                                val bmpW = bitmap.width
+                                val bmpH = bitmap.height
+                                
+                                val x = ((cropState.cropLeft - cropState.imgOffsetX) / cropState.scaleFactor).toInt().coerceIn(0, bmpW)
+                                val y = ((cropState.cropTop - cropState.imgOffsetY) / cropState.scaleFactor).toInt().coerceIn(0, bmpH)
+                                
+                                var w = ((cropState.cropRight - cropState.cropLeft) / cropState.scaleFactor).toInt()
+                                var h = ((cropState.cropBottom - cropState.cropTop) / cropState.scaleFactor).toInt()
+                                
+                                if (x + w > bmpW) w = bmpW - x
+                                if (y + h > bmpH) h = bmpH - y
+                                
+                                if (w > 0 && h > 0) {
+                                    try {
+                                        val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
+                                        onConfirm(cropped)
+                                    } catch (e: Throwable) {
+                                        e.printStackTrace()
+                                        onConfirm(bitmap)
+                                    }
+                                } else {
+                                    onConfirm(bitmap)
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = KuriAmber,
+                                contentColor = SumiInk
+                            ),
+                            modifier = Modifier.fillMaxWidth().height(50.dp)
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.camera_confirm_desc), modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.camera_confirm_btn), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(SumiInk)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Cancel/Retake Action
-                OutlinedButton(
-                    onClick = { onCancel() },
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                    modifier = Modifier.weight(1f).height(54.dp)
+                Text(
+                    text = stringResource(R.string.camera_crop_title),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+            
+            WorkspaceArea(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            )
+            
+            Surface(
+                color = SumiInk,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.camera_cancel_desc), modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.camera_recapture_btn), fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                }
-                
-                // Confirm/Crop Action
-                Button(
-                    onClick = {
-                        val bmpW = bitmap.width
-                        val bmpH = bitmap.height
-                        
-                        // Map screen-space crop coordinates to actual bitmap coordinates
-                        val x = ((cropState.cropLeft - cropState.imgOffsetX) / cropState.scaleFactor).toInt().coerceIn(0, bmpW)
-                        val y = ((cropState.cropTop - cropState.imgOffsetY) / cropState.scaleFactor).toInt().coerceIn(0, bmpH)
-                        
-                        var w = ((cropState.cropRight - cropState.cropLeft) / cropState.scaleFactor).toInt()
-                        var h = ((cropState.cropBottom - cropState.cropTop) / cropState.scaleFactor).toInt()
-                        
-                        // Coerce width and height to fit bounds safely
-                        if (x + w > bmpW) w = bmpW - x
-                        if (y + h > bmpH) h = bmpH - y
-                        
-                        if (w > 0 && h > 0) {
-                            try {
-                                val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
-                                onConfirm(cropped)
-                            } catch (e: Throwable) {
-                                e.printStackTrace()
-                                onConfirm(bitmap) // Fallback to raw captured bitmap if crop fails
+                    OutlinedButton(
+                        onClick = { onCancel() },
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        modifier = Modifier.weight(1f).height(54.dp)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.camera_cancel_desc), modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.camera_recapture_btn), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    }
+                    
+                    Button(
+                        onClick = {
+                            val bmpW = bitmap.width
+                            val bmpH = bitmap.height
+                            
+                            val x = ((cropState.cropLeft - cropState.imgOffsetX) / cropState.scaleFactor).toInt().coerceIn(0, bmpW)
+                            val y = ((cropState.cropTop - cropState.imgOffsetY) / cropState.scaleFactor).toInt().coerceIn(0, bmpH)
+                            
+                            var w = ((cropState.cropRight - cropState.cropLeft) / cropState.scaleFactor).toInt()
+                            var h = ((cropState.cropBottom - cropState.cropTop) / cropState.scaleFactor).toInt()
+                            
+                            if (x + w > bmpW) w = bmpW - x
+                            if (y + h > bmpH) h = bmpH - y
+                            
+                            if (w > 0 && h > 0) {
+                                try {
+                                    val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
+                                    onConfirm(cropped)
+                                } catch (e: Throwable) {
+                                    e.printStackTrace()
+                                    onConfirm(bitmap)
+                                }
+                            } else {
+                                onConfirm(bitmap)
                             }
-                        } else {
-                            onConfirm(bitmap) // Fallback
-                        }
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = KuriAmber,
-                        contentColor = SumiInk
-                    ),
-                    modifier = Modifier.weight(1f).height(54.dp)
-                ) {
-                    Icon(Icons.Default.Check, contentDescription = stringResource(R.string.camera_confirm_desc), modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.camera_confirm_btn), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = KuriAmber,
+                            contentColor = SumiInk
+                        ),
+                        modifier = Modifier.weight(1f).height(54.dp)
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = stringResource(R.string.camera_confirm_desc), modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.camera_confirm_btn), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    }
                 }
             }
         }
     }
 }
 
-private fun cropBitmapToAspectRatio(bitmap: Bitmap, screenWidth: Float, screenHeight: Float): Bitmap {
-    val bmpW = bitmap.width
-    val bmpH = bitmap.height
-    if (bmpW <= 0 || bmpH <= 0 || screenWidth <= 0f || screenHeight <= 0f) return bitmap
-    
-    val screenRatio = screenWidth / screenHeight
-    val bmpRatio = bmpW.toFloat() / bmpH.toFloat()
-    
-    return try {
-        if (screenRatio < bmpRatio) {
-            // Screen is taller/narrower than bitmap. Crop horizontal sides.
-            val targetWidth = (bmpH * screenRatio).toInt().coerceIn(1, bmpW)
-            val xOffset = ((bmpW - targetWidth) / 2).coerceIn(0, bmpW - targetWidth)
-            Bitmap.createBitmap(bitmap, xOffset, 0, targetWidth, bmpH)
-        } else {
-            // Screen is wider/shorter than bitmap. Crop vertical sides.
-            val targetHeight = (bmpW / screenRatio).toInt().coerceIn(1, bmpH)
-            val yOffset = ((bmpH - targetHeight) / 2).coerceIn(0, bmpH - targetHeight)
-            Bitmap.createBitmap(bitmap, 0, yOffset, bmpW, targetHeight)
-        }
-    } catch (e: Exception) {
-        Log.e("CameraScreen", "Failed to crop captured bitmap to screen aspect ratio", e)
-        bitmap
-    }
-}
+
 
 private fun distance(x1: Float, y1: Float, x2: Float, y2: Float): Float {
     val dx = x1 - x2

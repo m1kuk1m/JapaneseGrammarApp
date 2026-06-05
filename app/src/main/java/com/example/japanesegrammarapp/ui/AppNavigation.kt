@@ -47,6 +47,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
@@ -339,7 +340,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                             Text(stringResource(R.string.cancel), color = SumiInk)
                         }
                     },
-                    containerColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             }
 

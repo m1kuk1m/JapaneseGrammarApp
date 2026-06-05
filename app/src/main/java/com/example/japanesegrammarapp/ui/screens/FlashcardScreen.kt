@@ -57,6 +57,9 @@ fun FlashcardScreen(
 
     // Capture bookmarks at the start of the session so database changes don't disrupt active practice
     val sessionCards = remember(bookmarks, isDbLoaded) { mutableStateOf<List<BookmarkedSegmentDomain>?>(null) }
+    val initialCards = sessionCards.value ?: emptyList()
+    // Track the actual card count for the current session/round (changes when retrying weak cards)
+    var sessionTotal by remember { mutableIntStateOf(0) }
     if (sessionCards.value == null && isDbLoaded) {
         val filteredByScope = when (archiveScope) {
             "archived" -> bookmarks.filter { it.isArchived }
@@ -67,8 +70,8 @@ fun FlashcardScreen(
             posFilter == "ALL" || it.effectivePosCategory == posFilter
         }.shuffled()
         sessionCards.value = if (cardLimit > 0) filtered.take(cardLimit) else filtered
+        sessionTotal = sessionCards.value!!.size
     }
-    val initialCards = sessionCards.value ?: emptyList()
 
     // Smart queue state
     data class CardState(val card: BookmarkedSegmentDomain, val round: Int = 1)
@@ -242,12 +245,13 @@ fun FlashcardScreen(
         if (sessionFinished) {
             ResultSummary(
                 modifier = Modifier.padding(padding),
-                total = initialCards.size,
+                total = sessionTotal,
                 forgotIds = forgotIds,
                 initialCards = initialCards,
                 viewModel = viewModel,
                 onRetryWeak = {
                     val weakCards = initialCards.filter { it.id in forgotIds }
+                    sessionTotal = weakCards.size
                     pendingQueue = weakCards.shuffled().map { CardState(it) }.toMutableList()
                     retryQueue = mutableListOf()
                     masteredIds = emptySet()
@@ -259,6 +263,7 @@ fun FlashcardScreen(
                     sessionFinished = false
                 },
                 onRestart = {
+                    sessionTotal = initialCards.size
                     pendingQueue = initialCards.shuffled().map { CardState(it) }.toMutableList()
                     retryQueue = mutableListOf()
                     masteredIds = emptySet()

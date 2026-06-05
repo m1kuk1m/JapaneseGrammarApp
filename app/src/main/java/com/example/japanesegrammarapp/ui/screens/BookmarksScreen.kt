@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -195,7 +196,10 @@ fun BookmarksScreen(
                             Text(
                                 text = stringResource(R.string.bookmarks_title),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
+                                fontSize = 18.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                             if (allBookmarks.isNotEmpty()) {
                                 Spacer(Modifier.width(8.dp))
@@ -203,12 +207,26 @@ fun BookmarksScreen(
                                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
+                                    val countText = if (bookmarks.size < allBookmarks.size) {
+                                        stringResource(
+                                            R.string.bookmarks_count_filtered,
+                                            bookmarks.size,
+                                            allBookmarks.size
+                                        )
+                                    } else {
+                                        stringResource(
+                                            R.string.bookmarks_count_all,
+                                            allBookmarks.size
+                                        )
+                                    }
                                     Text(
-                                        text = stringResource(R.string.bookmarks_count, allBookmarks.size),
+                                        text = countText,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                 }
                             }
@@ -217,7 +235,7 @@ fun BookmarksScreen(
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
-                                imageVector = Icons.Default.ArrowForward,
+                                imageVector = Icons.Default.ArrowBack,
                                 contentDescription = stringResource(R.string.back),
                                 modifier = Modifier.size(22.dp)
                             )

@@ -295,6 +295,8 @@
     <string name="bookmarks_empty_title">まだブックマークがありません</string>
     <string name="bookmarks_empty_hint">分析ページで単語チップを長押ししてブックマーク</string>
     <string name="bookmarks_count">%1$d</string>
+    <string name="bookmarks_count_all">%1$d件</string>
+    <string name="bookmarks_count_filtered">%1$d / %2$d</string>
     <string name="bookmark_added">ブックマークに追加</string>
     <string name="bookmark_deleted">ブックマークを削除しました</string>
     <string name="bookmark_already_exists">既にブックマーク済み</string>

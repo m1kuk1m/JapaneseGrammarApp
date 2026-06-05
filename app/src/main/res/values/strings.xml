@@ -301,6 +301,8 @@
     <string name="bookmarks_empty_title">No bookmarks yet</string>
     <string name="bookmarks_empty_hint">Long-press a word chip in analysis to bookmark</string>
     <string name="bookmarks_count">%1$d</string>
+    <string name="bookmarks_count_all">%1$d words</string>
+    <string name="bookmarks_count_filtered">%1$d / %2$d</string>
     <string name="bookmark_added">Added to bookmarks</string>
     <string name="bookmark_deleted">Bookmark deleted</string>
     <string name="bookmark_already_exists">Already bookmarked</string>
