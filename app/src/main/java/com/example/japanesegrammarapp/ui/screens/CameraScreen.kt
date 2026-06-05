@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.net.Uri
 import android.util.Log
 import android.view.WindowManager
+import android.view.OrientationEventListener
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.AspectRatio
@@ -50,6 +51,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -95,6 +97,42 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
+enum class DeviceOrientation(val rotationDegrees: Float, val targetRotation: Int) {
+    PORTRAIT(0f, Surface.ROTATION_0),
+    LANDSCAPE_LEFT(270f, Surface.ROTATION_90),    // charging port is on the right
+    LANDSCAPE_RIGHT(90f, Surface.ROTATION_270),  // charging port is on the left
+    INVERTED_PORTRAIT(180f, Surface.ROTATION_180)
+}
+
+@Composable
+fun rememberDeviceOrientation(): DeviceOrientation {
+    val context = LocalContext.current
+    var orientation by remember { mutableStateOf(DeviceOrientation.PORTRAIT) }
+    DisposableEffect(context) {
+        val listener = object : OrientationEventListener(context) {
+            override fun onOrientationChanged(degrees: Int) {
+                if (degrees == ORIENTATION_UNKNOWN) return
+                val newOrientation = when (degrees) {
+                    in 45 until 135 -> DeviceOrientation.LANDSCAPE_RIGHT
+                    in 135 until 225 -> DeviceOrientation.INVERTED_PORTRAIT
+                    in 225 until 315 -> DeviceOrientation.LANDSCAPE_LEFT
+                    else -> DeviceOrientation.PORTRAIT
+                }
+                if (newOrientation != orientation) {
+                    orientation = newOrientation
+                }
+            }
+        }
+        if (listener.canDetectOrientation()) {
+            listener.enable()
+        }
+        onDispose {
+            listener.disable()
+        }
+    }
+    return orientation
+}
+
 enum class CameraScreenMode {
     CAPTURE,
     CROP_REVIEW
@@ -114,16 +152,8 @@ fun CameraScreen(
     DisposableEffect(activity) {
         activity?.window?.let { window ->
             val controller = WindowCompat.getInsetsController(window, window.decorView)
-            controller.hide(WindowInsetsCompat.Type.statusBars())
+            controller.hide(WindowInsetsCompat.Type.systemBars())
             controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-
-            // Use seamless rotation so the camera preview never shows a rotate transition animation.
-            // ROTATION_ANIMATION_SEAMLESS requires API 26 and an opaque window surface.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val params = window.attributes
-                params.rotationAnimation = WindowManager.LayoutParams.ROTATION_ANIMATION_SEAMLESS
-                window.attributes = params
-            }
         }
         
         val originalOrientation = activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -132,24 +162,19 @@ fun CameraScreen(
         } else {
             originalOrientation
         }
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         
         onDispose {
             activity?.window?.let { window ->
                 val controller = WindowCompat.getInsetsController(window, window.decorView)
-                controller.show(WindowInsetsCompat.Type.statusBars())
-                // Restore the default rotation animation for other screens
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val params = window.attributes
-                    params.rotationAnimation = WindowManager.LayoutParams.ROTATION_ANIMATION_ROTATE
-                    window.attributes = params
-                }
+                controller.show(WindowInsetsCompat.Type.systemBars())
             }
             activity?.requestedOrientation = restoreOrientation
         }
     }
     
     // Core states
+    val deviceOrientation = rememberDeviceOrientation()
     var screenMode by rememberSaveable { mutableStateOf(CameraScreenMode.CAPTURE) }
     var flashMode by rememberSaveable { mutableStateOf(ImageCapture.FLASH_MODE_OFF) }
     var tempFileUriString by rememberSaveable { mutableStateOf<String?>(null) }
@@ -199,7 +224,7 @@ fun CameraScreen(
 
     // Restore captured image if saved state contains a path
     LaunchedEffect(tempFileUriString) {
-        if (!tempFileUriString.isNullOrBlank()) {
+        if (!tempFileUriString.isNullOrBlank() && capturedBitmap == null) {
             isCapturing = true
             val uri = Uri.parse(tempFileUriString)
             val bitmap = BitmapHelper.loadRotatedBitmapFromUri(context, uri)
@@ -299,7 +324,8 @@ fun CameraScreen(
                             },
                             onBack = {
                                 navController.popBackStack()
-                            }
+                            },
+                            deviceOrientation = deviceOrientation
                         )
                     } else {
                         // No permission screen
@@ -337,6 +363,7 @@ fun CameraScreen(
                     capturedBitmap?.let { bitmap ->
                         ImageCropReviewLayout(
                             bitmap = bitmap,
+                            deviceOrientation = deviceOrientation,
                             onCancel = {
                                 if (!galleryImageUriString.isNullOrBlank()) {
                                     // If started from gallery selection, go back directly
@@ -345,6 +372,7 @@ fun CameraScreen(
                                     // If camera capture, go back to camera preview
                                     screenMode = CameraScreenMode.CAPTURE
                                     capturedBitmap = null
+                                    tempFileUriString = null
                                 }
                             },
                             onConfirm = { croppedBitmap ->
@@ -391,7 +419,8 @@ fun CameraPreviewLayout(
     onFlashToggle: () -> Unit,
     isCapturing: Boolean,
     onCapture: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    deviceOrientation: DeviceOrientation
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val preview = remember {
@@ -400,32 +429,33 @@ fun CameraPreviewLayout(
             .build()
     }
     val cameraSelector = remember { CameraSelector.DEFAULT_BACK_CAMERA }
-
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-
     val context = LocalContext.current
-    val display = remember(context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            context.display
-        } else {
-            @Suppress("DEPRECATION")
-            (context as? Activity)?.windowManager?.defaultDisplay
+
+    DisposableEffect(lifecycleOwner) {
+        onDispose {
+            try {
+                val cameraProvider = ProcessCameraProvider.getInstance(context).get()
+                cameraProvider.unbindAll()
+            } catch (e: Exception) {
+                Log.e("CameraScreen", "Failed to unbind camera on dispose", e)
+            }
         }
     }
 
-    // Update CameraX target rotation whenever orientation changes
-    LaunchedEffect(isLandscape) {
-        val rotation = display?.rotation ?: Surface.ROTATION_0
+    // Update CameraX target rotation whenever device physical orientation changes
+    LaunchedEffect(deviceOrientation) {
         try {
-            imageCapture.targetRotation = rotation
-            preview.targetRotation = rotation
+            imageCapture.targetRotation = deviceOrientation.targetRotation
+            preview.targetRotation = deviceOrientation.targetRotation
         } catch (e: Exception) {
             Log.e("CameraScreen", "Failed to update target rotation dynamically", e)
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val maxWidth = maxWidth
+        val maxHeight = maxHeight
+
         // CameraX Live Preview View
         AndroidView(
             factory = { ctx ->
@@ -454,177 +484,170 @@ fun CameraPreviewLayout(
         )
 
         // Zen Scanning Mask Overlay
-        ZenScanningOverlay(isLandscape = isLandscape)
+        ZenScanningOverlay()
 
-        // Controls layout changes based on screen orientation
-        if (isLandscape) {
-            // ── Landscape layout: ergonomic shutter on the right ────────────────
+        // Rotation angle for UI icons (Back, Flash)
+        val targetRotationDegrees = when (deviceOrientation) {
+            DeviceOrientation.PORTRAIT -> 0f
+            DeviceOrientation.LANDSCAPE_LEFT -> 90f
+            DeviceOrientation.LANDSCAPE_RIGHT -> -90f
+            DeviceOrientation.INVERTED_PORTRAIT -> 180f
+        }
+        val animatedRotationDegrees by animateFloatAsState(
+            targetValue = targetRotationDegrees,
+            animationSpec = spring(stiffness = Spring.StiffnessLow),
+            label = "uiRotation"
+        )
 
-            // Back button – top-left
+        // Dynamic Position Animations for Shutter Button
+        val shutterSize = 76.dp
+        val targetShutterX = (maxWidth - shutterSize) / 2
+        val targetShutterY = maxHeight - shutterSize - 32.dp
+
+        val animatedShutterX by animateDpAsState(
+            targetValue = targetShutterX,
+            animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioMediumBouncy),
+            label = "shutterX"
+        )
+        val animatedShutterY by animateDpAsState(
+            targetValue = targetShutterY,
+            animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioMediumBouncy),
+            label = "shutterY"
+        )
+
+        // Guide text box size and coordinate animations
+        val textBoxWidth = 280.dp
+        val textBoxHeight = 80.dp
+        val halfW = textBoxWidth / 2
+        val halfH = textBoxHeight / 2
+
+        val targetTextCenterX = maxWidth / 2
+
+        val targetTextCenterY = (maxHeight - shutterSize - 32.dp) - 16.dp - halfH
+
+        val animatedTextX by animateDpAsState(
+            targetValue = targetTextCenterX - halfW,
+            animationSpec = spring(stiffness = Spring.StiffnessLow),
+            label = "textX"
+        )
+        val animatedTextY by animateDpAsState(
+            targetValue = targetTextCenterY - halfH,
+            animationSpec = spring(stiffness = Spring.StiffnessLow),
+            label = "textY"
+        )
+
+        // Back button – top-left
+        Box(
+            modifier = Modifier
+                .statusBarsPadding()
+                .padding(start = 16.dp, top = 12.dp)
+                .align(Alignment.TopStart)
+        ) {
             Box(
                 modifier = Modifier
-                    .statusBarsPadding()
-                    .padding(start = 16.dp, top = 12.dp)
-                    .align(Alignment.TopStart)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.4f))
-                        .clickable { onBack() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = stringResource(R.string.camera_back_desc),
-                        tint = Color.White
-                    )
-                }
-            }
-
-            // Flash button – top-right
-            val (flashVectorIcon, flashTextRes, flashDescRes) = when (flashMode) {
-                ImageCapture.FLASH_MODE_ON -> Triple(Icons.Rounded.FlashOn, R.string.camera_flash_on_label, R.string.camera_flash_on_desc)
-                ImageCapture.FLASH_MODE_AUTO -> Triple(Icons.Rounded.FlashAuto, R.string.camera_flash_auto_label, R.string.camera_flash_auto_desc)
-                else -> Triple(Icons.Rounded.FlashOff, R.string.camera_flash_off_label, R.string.camera_flash_off_desc)
-            }
-            val labelText = stringResource(flashTextRes).replace("⚡", "").trim()
-
-            Box(
-                modifier = Modifier
-                    .statusBarsPadding()
-                    .padding(end = 16.dp, top = 12.dp)
-                    .align(Alignment.TopEnd)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .height(38.dp)
-                        .clip(RoundedCornerShape(19.dp))
-                        .background(Color.Black.copy(alpha = 0.4f))
-                        .clickable { onFlashToggle() }
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = flashVectorIcon,
-                            contentDescription = stringResource(flashDescRes),
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = labelText,
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            // Shutter button – right side center (ergonomic right-hand reach in landscape)
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .align(Alignment.CenterEnd)
-                    .navigationBarsPadding()
-                    .padding(end = 24.dp),
+                    .graphicsLayer { rotationZ = animatedRotationDegrees }
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable { onBack() },
                 contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(76.dp)
-                        .border(BorderStroke(4.dp, Color.White), CircleShape)
-                        .padding(6.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .clickable(enabled = !isCapturing) { onCapture() }
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = stringResource(R.string.camera_back_desc),
+                    tint = Color.White
                 )
             }
-        } else {
-            // ── Portrait layout ─────────────────────────────────────────────────
+        }
 
-            // Header: Back + Flash
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.4f))
-                        .clickable { onBack() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = stringResource(R.string.camera_back_desc),
-                        tint = Color.White
-                    )
-                }
+        // Flash button – top-right
+        val (flashVectorIcon, flashTextRes, flashDescRes) = when (flashMode) {
+            ImageCapture.FLASH_MODE_ON -> Triple(Icons.Rounded.FlashOn, R.string.camera_flash_on_label, R.string.camera_flash_on_desc)
+            ImageCapture.FLASH_MODE_AUTO -> Triple(Icons.Rounded.FlashAuto, R.string.camera_flash_auto_label, R.string.camera_flash_auto_desc)
+            else -> Triple(Icons.Rounded.FlashOff, R.string.camera_flash_off_label, R.string.camera_flash_off_desc)
+        }
+        val labelText = stringResource(flashTextRes).replace("⚡", "").trim()
 
-                val (flashVectorIcon, flashTextRes, flashDescRes) = when (flashMode) {
-                    ImageCapture.FLASH_MODE_ON -> Triple(Icons.Rounded.FlashOn, R.string.camera_flash_on_label, R.string.camera_flash_on_desc)
-                    ImageCapture.FLASH_MODE_AUTO -> Triple(Icons.Rounded.FlashAuto, R.string.camera_flash_auto_label, R.string.camera_flash_auto_desc)
-                    else -> Triple(Icons.Rounded.FlashOff, R.string.camera_flash_off_label, R.string.camera_flash_off_desc)
-                }
-                val labelText = stringResource(flashTextRes).replace("⚡", "").trim()
-
-                Box(
-                    modifier = Modifier
-                        .height(38.dp)
-                        .clip(RoundedCornerShape(19.dp))
-                        .background(Color.Black.copy(alpha = 0.4f))
-                        .clickable { onFlashToggle() }
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = flashVectorIcon,
-                            contentDescription = stringResource(flashDescRes),
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = labelText,
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            // Shutter button – bottom center
+        Box(
+            modifier = Modifier
+                .statusBarsPadding()
+                .padding(end = 16.dp, top = 12.dp)
+                .align(Alignment.TopEnd)
+        ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 32.dp),
+                    .graphicsLayer { rotationZ = animatedRotationDegrees }
+                    .height(38.dp)
+                    .clip(RoundedCornerShape(19.dp))
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable { onFlashToggle() }
+                    .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(76.dp)
-                        .border(BorderStroke(4.dp, Color.White), CircleShape)
-                        .padding(6.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .clickable(enabled = !isCapturing) { onCapture() }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = flashVectorIcon,
+                        contentDescription = stringResource(flashDescRes),
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = labelText,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Animated tactile Shutter Button
+        Box(
+            modifier = Modifier
+                .absoluteOffset { IntOffset(animatedShutterX.roundToPx(), animatedShutterY.roundToPx()) }
+                .size(shutterSize)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .border(BorderStroke(4.dp, Color.White), CircleShape)
+                    .padding(6.dp)
+                    .clip(CircleShape)
+                    .background(Color.White)
+                    .clickable(enabled = !isCapturing) { onCapture() }
+            )
+        }
+
+        // Scanning Guide Text Instruction
+        Box(
+            modifier = Modifier
+                .absoluteOffset { IntOffset(animatedTextX.roundToPx(), animatedTextY.roundToPx()) }
+                .size(width = textBoxWidth, height = textBoxHeight),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { rotationZ = animatedRotationDegrees }
+            ) {
+                Text(
+                    text = stringResource(R.string.camera_guide_keep_inside),
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.camera_guide_crop_hint),
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center
                 )
             }
         }
@@ -632,7 +655,7 @@ fun CameraPreviewLayout(
 }
 
 @Composable
-fun ZenScanningOverlay(isLandscape: Boolean) {
+fun ZenScanningOverlay() {
     // Elegant frame and pulsing scan line animation
     val infiniteTransition = rememberInfiniteTransition(label = "scanning")
     val laserYOffsetProgress by infiniteTransition.animateFloat(
@@ -644,16 +667,25 @@ fun ZenScanningOverlay(isLandscape: Boolean) {
         ),
         label = "laserLine"
     )
+
+    val targetLeft = 16.dp
+    val targetRightPadding = 16.dp
+    val targetTop = 80.dp
+    val targetBottomPadding = 140.dp
+
+    val animatedLeft by animateDpAsState(targetLeft, label = "overlayLeft")
+    val animatedRightPadding by animateDpAsState(targetRightPadding, label = "overlayRight")
+    val animatedTop by animateDpAsState(targetTop, label = "overlayTop")
+    val animatedBottomPadding by animateDpAsState(targetBottomPadding, label = "overlayBottom")
     
     Canvas(modifier = Modifier.fillMaxSize()) {
         val width = size.width
         val height = size.height
         
-        // Framing boundaries adapt to orientation (leave room for side shutter in landscape)
-        val left = if (isLandscape) 80.dp.toPx() else 16.dp.toPx()
-        val right = if (isLandscape) width - 120.dp.toPx() else width - 16.dp.toPx()
-        val top = if (isLandscape) 64.dp.toPx() else 80.dp.toPx()
-        val bottom = if (isLandscape) height - 24.dp.toPx() else height - 140.dp.toPx()
+        val left = animatedLeft.toPx()
+        val right = width - animatedRightPadding.toPx()
+        val top = animatedTop.toPx()
+        val bottom = height - animatedBottomPadding.toPx()
         
         // 1. Draw modern minimal corner guides
         val strokeW = 2.dp.toPx()
@@ -678,43 +710,17 @@ fun ZenScanningOverlay(isLandscape: Boolean) {
             strokeWidth = 2.dp.toPx()
         )
     }
-    
-    // Scanning text instruction
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp)
-            .padding(bottom = if (isLandscape) 24.dp else 124.dp),
-        contentAlignment = Alignment.BottomCenter
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = stringResource(R.string.camera_guide_keep_inside),
-                color = Color.White.copy(alpha = 0.9f),
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.camera_guide_crop_hint),
-                color = Color.White.copy(alpha = 0.6f),
-                fontSize = 11.sp
-            )
-        }
-    }
 }
 
 @Composable
 fun ImageCropReviewLayout(
     bitmap: Bitmap,
+    deviceOrientation: DeviceOrientation,
     onCancel: () -> Unit,
     onConfirm: (Bitmap) -> Unit
 ) {
     val density = LocalDensity.current
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isLandscape = deviceOrientation == DeviceOrientation.LANDSCAPE_LEFT || deviceOrientation == DeviceOrientation.LANDSCAPE_RIGHT
     
     val cropState = remember(bitmap) {
         CropState(

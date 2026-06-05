@@ -2,7 +2,13 @@ package com.example.japanesegrammarapp.data.repository
 
 import com.example.japanesegrammarapp.data.BookmarkDao
 import com.example.japanesegrammarapp.data.BookmarkedSegment
+import com.example.japanesegrammarapp.data.BookmarkedSentence
+import com.example.japanesegrammarapp.data.BookmarkedSentenceDao
+import com.example.japanesegrammarapp.data.mapper.toDomain
+import com.example.japanesegrammarapp.data.mapper.toEntity
+import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain
+import com.example.japanesegrammarapp.domain.model.BookmarkedSentenceDomain
 import com.example.japanesegrammarapp.domain.model.WordSegment
 import com.example.japanesegrammarapp.domain.repository.BookmarkRepository
 import kotlinx.coroutines.flow.Flow
@@ -18,7 +24,8 @@ import javax.inject.Singleton
 
 @Singleton
 class BookmarkRepositoryImpl @Inject constructor(
-    private val dao: BookmarkDao
+    private val dao: BookmarkDao,
+    private val sentenceDao: BookmarkedSentenceDao
 ) : BookmarkRepository {
 
     override val allBookmarks: Flow<List<BookmarkedSegmentDomain>> =
@@ -156,6 +163,53 @@ class BookmarkRepositoryImpl @Inject constructor(
         sourceText = sourceText,
         isArchived = isArchived
     )
+
+    override val allBookmarkedSentences: Flow<List<BookmarkedSentenceDomain>> =
+        sentenceDao.getAll().map { list -> list.map { it.toDomain() } }
+
+    override fun isSentenceBookmarked(recordId: Int): Flow<Boolean> =
+        sentenceDao.existsByRecordId(recordId)
+
+    override suspend fun toggleSentenceBookmark(record: AnalysisDomainRecord): Boolean {
+        val exists = sentenceDao.existsByRecordId(record.id).first()
+        if (exists) {
+            sentenceDao.deleteByRecordId(record.id)
+            return false
+        } else {
+            var translation: String? = null
+            try {
+                if (!record.analysisResult.isNullOrBlank()) {
+                    val obj = JSONObject(record.analysisResult)
+                    translation = obj.optString("translation", null) ?: obj.optString("meaning", null)
+                }
+            } catch (e: Exception) {
+                // Ignore parsing errors
+            }
+            sentenceDao.insert(
+                BookmarkedSentence(
+                    recordId = record.id,
+                    originalText = record.originalText,
+                    translation = translation,
+                    analysisResult = record.analysisResult,
+                    modelUsed = record.modelUsed,
+                    bookmarkedAt = System.currentTimeMillis()
+                )
+            )
+            return true
+        }
+    }
+
+    override suspend fun deleteSentenceBookmark(id: Int) {
+        sentenceDao.deleteById(id)
+    }
+
+    override suspend fun deleteSentenceBookmarkByRecordId(recordId: Int) {
+        sentenceDao.deleteByRecordId(recordId)
+    }
+
+    override suspend fun detachSentenceBookmarkFromRecord(recordId: Int) {
+        sentenceDao.detachFromRecord(recordId)
+    }
 
     private fun JSONObject.optStringOrNull(key: String): String? {
         return if (has(key) && !isNull(key)) optString(key).takeIf { it.isNotBlank() } else null

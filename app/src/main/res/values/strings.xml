@@ -297,11 +297,19 @@
     <string name="import_failed">Import failed: %1$s</string>
 
     <!-- Bookmarks & Flashcard -->
-    <string name="bookmarks_title">Bookmarked Words</string>
-    <string name="bookmarks_empty_title">No bookmarks yet</string>
+    <string name="bookmarks_title">Favorites</string>
+    <string name="bookmarks_empty_title">No bookmarked words yet</string>
     <string name="bookmarks_empty_hint">Long-press a word chip in analysis to bookmark</string>
+    <string name="tab_words">Words</string>
+    <string name="tab_sentences">Sentences</string>
+    <string name="bookmarks_empty_sentences_title">No bookmarked sentences yet</string>
+    <string name="bookmarks_empty_sentences_hint">Long-press a history item or click the star button in analysis to bookmark</string>
+    <string name="delete_analysis_confirm_title">Delete Analysis Record</string>
+    <string name="delete_analysis_confirm_message">Are you sure you want to delete this analysis record? Any bookmarks for this sentence will not be deleted.</string>
+    <string name="bookmark_sentence_added">Sentence added to favorites</string>
+    <string name="bookmark_sentence_removed">Sentence removed from favorites</string>
     <string name="bookmarks_count">%1$d</string>
-    <string name="bookmarks_count_all">%1$d words</string>
+    <string name="bookmarks_count_all">%1$d items</string>
     <string name="bookmarks_count_filtered">%1$d / %2$d</string>
     <string name="bookmark_added">Added to bookmarks</string>
     <string name="bookmark_deleted">Bookmark deleted</string>

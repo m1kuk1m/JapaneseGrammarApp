@@ -80,7 +80,7 @@ private val GoldLight = Color(0xFFFFF3C4)
 fun BookmarksScreen(
     navController: NavController,
     viewModel: BookmarkViewModel,
-    onNavigateToRecord: (recordId: Int) -> Unit = {}
+    onNavigateToRecord: (recordId: Int, bookmarkId: Int) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -89,6 +89,8 @@ fun BookmarksScreen(
 
     val bookmarks by viewModel.filteredBookmarks.collectAsState()
     val allBookmarks by viewModel.allBookmarks.collectAsState()
+    val bookmarkedSentences by viewModel.bookmarkedSentences.collectAsState()
+    var selectedTab by remember { mutableStateOf(0) }
     val filterMode by viewModel.filterMode.collectAsState()
     val posCategories by viewModel.posCategories.collectAsState()
     val selectedPosCategory by viewModel.selectedPosCategory.collectAsState()
@@ -183,81 +185,118 @@ fun BookmarksScreen(
                 }
             },
             topBar = {
-                TopAppBar(
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.Star,
-                                contentDescription = null,
-                                tint = GoldColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(R.string.bookmarks_title),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            if (allBookmarks.isNotEmpty()) {
+                Column {
+                    TopAppBar(
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = GoldColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
                                 Spacer(Modifier.width(8.dp))
-                                Surface(
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                    shape = RoundedCornerShape(10.dp)
-                                ) {
-                                    val countText = if (bookmarks.size < allBookmarks.size) {
-                                        stringResource(
-                                            R.string.bookmarks_count_filtered,
-                                            bookmarks.size,
-                                            allBookmarks.size
-                                        )
-                                    } else {
-                                        stringResource(
-                                            R.string.bookmarks_count_all,
-                                            allBookmarks.size
+                                Text(
+                                    text = stringResource(R.string.bookmarks_title),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                if (selectedTab == 0 && allBookmarks.isNotEmpty()) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        val countText = if (bookmarks.size < allBookmarks.size) {
+                                            stringResource(
+                                                R.string.bookmarks_count_filtered,
+                                                bookmarks.size,
+                                                allBookmarks.size
+                                            )
+                                        } else {
+                                            stringResource(
+                                                R.string.bookmarks_count_all,
+                                                allBookmarks.size
+                                            )
+                                        }
+                                        Text(
+                                            text = countText,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                            maxLines = 1,
+                                            softWrap = false
                                         )
                                     }
-                                    Text(
-                                        text = countText,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                        maxLines = 1,
-                                        softWrap = false
-                                    )
+                                } else if (selectedTab == 1 && bookmarkedSentences.isNotEmpty()) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.bookmarks_count_all, bookmarkedSentences.size),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
                                 }
                             }
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = stringResource(R.string.back),
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = {
-                            importLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
-                        }) {
-                            Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.import_bookmarks))
-                        }
-                        IconButton(onClick = { viewModel.exportAndShare(context) }) {
-                            Icon(Icons.Default.FileUpload, contentDescription = stringResource(R.string.export_bookmarks))
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowBack,
+                                    contentDescription = stringResource(R.string.back),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        },
+                        actions = {
+                            if (selectedTab == 0) {
+                                IconButton(onClick = {
+                                    importLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
+                                }) {
+                                    Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.import_bookmarks))
+                                }
+                                IconButton(onClick = { viewModel.exportAndShare(context) }) {
+                                    Icon(Icons.Default.FileUpload, contentDescription = stringResource(R.string.export_bookmarks))
+                                }
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.background
+                        )
                     )
-                )
+                    TabRow(
+                        selectedTabIndex = selectedTab,
+                        containerColor = MaterialTheme.colorScheme.background,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        divider = { Divider(color = SumiInk.copy(alpha = 0.08f)) }
+                    ) {
+                        Tab(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            text = { Text(stringResource(R.string.tab_words), fontWeight = FontWeight.Bold) }
+                        )
+                        Tab(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            text = { Text(stringResource(R.string.tab_sentences), fontWeight = FontWeight.Bold) }
+                        )
+                    }
+                }
             },
             floatingActionButton = {
-                if (allBookmarks.isNotEmpty()) {
+                if (selectedTab == 0 && allBookmarks.isNotEmpty()) {
                     ExtendedFloatingActionButton(
                         onClick = { showFlashcardSettings = true },
                         icon = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
@@ -268,106 +307,165 @@ fun BookmarksScreen(
                 }
             }
         ) { paddingValues ->
-            if (allBookmarks.isEmpty()) {
-                // Empty state
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+            if (selectedTab == 0) {
+                if (allBookmarks.isEmpty()) {
+                    // Empty state
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Default.Star,
-                            contentDescription = null,
-                            tint = SumiInk.copy(alpha = 0.2f),
-                            modifier = Modifier.size(64.dp)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = null,
+                                tint = SumiInk.copy(alpha = 0.2f),
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.bookmarks_empty_title),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = SumiInk.copy(alpha = 0.4f)
+                            )
+                            Text(
+                                text = stringResource(R.string.bookmarks_empty_hint),
+                                fontSize = 13.sp,
+                                color = SumiInk.copy(alpha = 0.3f)
+                            )
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                    ) {
+                        // ── Filter chips bar ────────────────────────────────────────
+                        FilterChipsBar(
+                            filterMode = filterMode,
+                            archiveFilter = archiveFilter,
+                            posCategories = posCategories,
+                            selectedPosCategory = selectedPosCategory,
+                            selectedDateFilter = selectedDateFilter,
+                            onFilterModeChange = { viewModel.setFilterMode(it) },
+                            onArchiveFilterChange = { viewModel.setArchiveFilter(it) },
+                            onPosCategoryChange = { viewModel.setPosCategory(it) },
+                            onDateFilterChange = { viewModel.setDateFilter(it) },
+                            isDark = isDark
                         )
-                        Text(
-                            text = stringResource(R.string.bookmarks_empty_title),
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = SumiInk.copy(alpha = 0.4f)
-                        )
-                        Text(
-                            text = stringResource(R.string.bookmarks_empty_hint),
-                            fontSize = 13.sp,
-                            color = SumiInk.copy(alpha = 0.3f)
-                        )
+
+                        // ── Bookmark list ────────────────────────────────────────────
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp)
+                        ) {
+                            items(bookmarks, key = { it.id }) { bookmark ->
+                                val isExpanded = expandedId == bookmark.id
+                                BookmarkCard(
+                                    bookmark = bookmark,
+                                    isExpanded = isExpanded,
+                                    isPendingDelete = pendingDeleteId == bookmark.id,
+                                    isDark = isDark,
+                                    onClick = {
+                                        if (pendingDeleteId == bookmark.id) {
+                                            pendingDeleteId = null
+                                        } else {
+                                            expandedId = if (isExpanded) null else bookmark.id
+                                        }
+                                    },
+                                    onLongPress = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        pendingDeleteId = bookmark.id
+                                    },
+                                    onConfirmDelete = {
+                                        viewModel.removeBookmark(bookmark.id)
+                                        pendingDeleteId = null
+                                        expandedId = null
+                                    },
+                                    onCancelDelete = {
+                                        pendingDeleteId = null
+                                    },
+                                    onNavigateToSource = {
+                                        pendingDeleteId = null
+                                        expandedId = null
+                                        onNavigateToRecord(bookmark.recordId, -1)
+                                    },
+                                    onToggleArchive = {
+                                        val nextArchived = !bookmark.isArchived
+                                        viewModel.toggleArchiveBookmark(bookmark.id, nextArchived)
+                                        coroutineScope.launch {
+                                            val msgId = if (nextArchived) R.string.bookmark_archived_toast else R.string.bookmark_restored_toast
+                                            snackbarHostState.showSnackbar(context.getString(msgId))
+                                        }
+                                    },
+                                    onPlayTts = {
+                                        viewModel.playTts(bookmark.segmentText)
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                ) {
-                    // ── Filter chips bar ────────────────────────────────────────
-                    FilterChipsBar(
-                        filterMode = filterMode,
-                        archiveFilter = archiveFilter,
-                        posCategories = posCategories,
-                        selectedPosCategory = selectedPosCategory,
-                        selectedDateFilter = selectedDateFilter,
-                        onFilterModeChange = { viewModel.setFilterMode(it) },
-                        onArchiveFilterChange = { viewModel.setArchiveFilter(it) },
-                        onPosCategoryChange = { viewModel.setPosCategory(it) },
-                        onDateFilterChange = { viewModel.setDateFilter(it) },
-                        isDark = isDark
-                    )
-
-                    // ── Bookmark list ────────────────────────────────────────────
+                if (bookmarkedSentences.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = null,
+                                tint = SumiInk.copy(alpha = 0.2f),
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.bookmarks_empty_sentences_title),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = SumiInk.copy(alpha = 0.4f)
+                            )
+                            Text(
+                                text = stringResource(R.string.bookmarks_empty_sentences_hint),
+                                fontSize = 13.sp,
+                                color = SumiInk.copy(alpha = 0.3f)
+                            )
+                        }
+                    }
+                } else {
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 16.dp),
+                            .padding(horizontal = 16.dp)
+                            .padding(paddingValues),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp)
+                        contentPadding = PaddingValues(top = 12.dp, bottom = 96.dp)
                     ) {
-                        items(bookmarks, key = { it.id }) { bookmark ->
-                            val isExpanded = expandedId == bookmark.id
-                            BookmarkCard(
-                                bookmark = bookmark,
-                                isExpanded = isExpanded,
-                                isPendingDelete = pendingDeleteId == bookmark.id,
+                        items(bookmarkedSentences, key = { it.id }) { sentence ->
+                            SentenceBookmarkCard(
+                                sentence = sentence,
                                 isDark = isDark,
-                                onClick = {
-                                    if (pendingDeleteId == bookmark.id) {
-                                        pendingDeleteId = null
-                                    } else {
-                                        expandedId = if (isExpanded) null else bookmark.id
-                                    }
-                                },
-                                onLongPress = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    pendingDeleteId = bookmark.id
-                                },
-                                onConfirmDelete = {
-                                    viewModel.removeBookmark(bookmark.id)
-                                    pendingDeleteId = null
-                                    expandedId = null
-                                },
-                                onCancelDelete = {
-                                    pendingDeleteId = null
-                                },
-                                onNavigateToSource = {
-                                    pendingDeleteId = null
-                                    expandedId = null
-                                    onNavigateToRecord(bookmark.recordId)
-                                },
-                                onToggleArchive = {
-                                    val nextArchived = !bookmark.isArchived
-                                    viewModel.toggleArchiveBookmark(bookmark.id, nextArchived)
-                                    coroutineScope.launch {
-                                        val msgId = if (nextArchived) R.string.bookmark_archived_toast else R.string.bookmark_restored_toast
-                                        snackbarHostState.showSnackbar(context.getString(msgId))
-                                    }
+                                onNavigateToDetails = {
+                                    onNavigateToRecord(sentence.recordId, sentence.id)
                                 },
                                 onPlayTts = {
-                                    viewModel.playTts(bookmark.segmentText)
+                                    viewModel.playSentenceTts(sentence.analysisResult, sentence.originalText)
+                                },
+                                onDelete = {
+                                    viewModel.removeSentenceBookmark(sentence.id)
                                 }
                             )
                         }
@@ -1212,4 +1310,158 @@ private fun PracticeSettingsDialog(
         containerColor = SurfaceColor,
         tonalElevation = 6.dp
     )
+}
+
+@Composable
+private fun SentenceBookmarkCard(
+    sentence: BookmarkedSentenceDomain,
+    isDark: Boolean,
+    onNavigateToDetails: () -> Unit,
+    onPlayTts: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val SumiInk = MaterialTheme.colorScheme.onBackground
+    val SurfaceColor = MaterialTheme.colorScheme.surface
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    val borderColor = if (showDeleteConfirm) {
+        Color(0xFFD32F2F).copy(alpha = 0.7f)
+    } else {
+        SumiInk.copy(alpha = 0.08f)
+    }
+
+    Surface(
+        color = SurfaceColor,
+        shape = RoundedCornerShape(16.dp),
+        shadowElevation = 1.dp,
+        border = BorderStroke(1.dp, borderColor),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Main content
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    // Original text
+                    Text(
+                        text = sentence.originalText,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = SumiInk,
+                        lineHeight = 26.sp
+                    )
+                    
+                    // Translation
+                    if (!sentence.translation.isNullOrBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = sentence.translation,
+                            fontSize = 14.sp,
+                            color = SumiInk.copy(alpha = 0.65f),
+                            lineHeight = 20.sp
+                        )
+                    }
+                }
+                
+                Spacer(Modifier.width(8.dp))
+
+                // Actions row on the right or top-right
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onPlayTts,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VolumeUp,
+                            contentDescription = "朗读句子",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onNavigateToDetails,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowForward,
+                            contentDescription = "查看详情",
+                            tint = SumiInk.copy(alpha = 0.4f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { showDeleteConfirm = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "取消收藏",
+                            tint = SumiInk.copy(alpha = 0.4f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            // Timestamp and footer
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val dateStr = java.text.SimpleDateFormat("yyyy/MM/dd HH:mm", java.util.Locale.getDefault())
+                    .format(java.util.Date(sentence.bookmarkedAt))
+                Text(
+                    text = dateStr,
+                    fontSize = 11.sp,
+                    color = SumiInk.copy(alpha = 0.3f)
+                )
+            }
+
+            // Inline delete confirmation
+            AnimatedVisibility(
+                visible = showDeleteConfirm,
+                enter = fadeIn(tween(200)),
+                exit = fadeOut(tween(200))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { showDeleteConfirm = false },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = SumiInk),
+                        contentPadding = PaddingValues(vertical = 6.dp)
+                    ) {
+                        Text(stringResource(R.string.cancel_delete), fontSize = 13.sp)
+                    }
+                    Button(
+                        onClick = {
+                            onDelete()
+                            showDeleteConfirm = false
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFD32F2F),
+                            contentColor = Color.White
+                        ),
+                        contentPadding = PaddingValues(vertical = 6.dp)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.delete_bookmark), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
 }

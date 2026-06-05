@@ -87,9 +87,13 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
         }
     ) {
         composable(
-            route = "home_pager?selectRecordId={selectRecordId}&fromBookmarks={fromBookmarks}",
+            route = "home_pager?selectRecordId={selectRecordId}&selectBookmarkId={selectBookmarkId}&fromBookmarks={fromBookmarks}",
             arguments = listOf(
                 androidx.navigation.navArgument("selectRecordId") {
+                    type = androidx.navigation.NavType.IntType
+                    defaultValue = -1
+                },
+                androidx.navigation.navArgument("selectBookmarkId") {
                     type = androidx.navigation.NavType.IntType
                     defaultValue = -1
                 },
@@ -103,6 +107,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             val coroutineScope = rememberCoroutineScope()
 
             val selectRecordId = backStackEntry.arguments?.getInt("selectRecordId") ?: -1
+            val selectBookmarkId = backStackEntry.arguments?.getInt("selectBookmarkId") ?: -1
             val fromBookmarks = backStackEntry.arguments?.getBoolean("fromBookmarks") ?: false
 
             val workspaceViewModel: WorkspaceViewModel = hiltViewModel()
@@ -113,6 +118,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             val history = workspaceViewModel.history.collectAsLazyPagingItems()
             val allHistoryForExport by workspaceViewModel.allHistoryForExport.collectAsState()
             val uiState by workspaceViewModel.uiState.collectAsState()
+            val bookmarkedSentenceIds by workspaceViewModel.bookmarkedSentenceRecordIds.collectAsState()
             
             var recordToDelete by remember { mutableStateOf<AnalysisDomainRecord?>(null) }
             var showExportDialog by remember { mutableStateOf(false) }
@@ -129,12 +135,15 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 }
             }
 
-            // Handle navigation from bookmarks screen: select a record by ID
+            // Handle navigation from bookmarks screen: select a record by ID or bookmark ID
             // We navigate (not pop) so the bookmark screen stays in the back stack
-            LaunchedEffect(selectRecordId) {
+            LaunchedEffect(selectRecordId, selectBookmarkId) {
                 if (selectRecordId > 0) {
                     pagerState.animateScrollToPage(0)
                     workspaceViewModel.selectRecordById(selectRecordId)
+                } else if (selectBookmarkId > 0) {
+                    pagerState.animateScrollToPage(0)
+                    workspaceViewModel.selectRecordByBookmarkId(selectBookmarkId)
                 }
             }
 
@@ -186,6 +195,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                         HistorySidebar(
                             historyList = history,
                             selectedRecord = uiState.selectedRecord,
+                            bookmarkedSentenceIds = bookmarkedSentenceIds,
                             onSelectRecord = { record -> workspaceViewModel.selectRecord(record) },
                             onClearSelection = { workspaceViewModel.clearSelectedRecord() },
                             onDeleteRecord = { record -> recordToDelete = record },
@@ -196,7 +206,8 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                             },
                             onExportRecord = { record -> workspaceViewModel.exportRecord(record) },
                             onCloseDrawer = { coroutineScope.launch { drawerState.close() } },
-                            onImportHistory = { content -> workspaceViewModel.importHistoryFromText(content) }
+                            onImportHistory = { content -> workspaceViewModel.importHistoryFromText(content) },
+                            onToggleBookmarkSentence = { record -> workspaceViewModel.toggleSentenceBookmark(record) }
                         )
                     }
                 }
@@ -404,10 +415,12 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             BookmarksScreen(
                 navController = navController,
                 viewModel = bookmarkViewModel,
-                onNavigateToRecord = { recordId ->
-                    // Navigate to home_pager with record ID — bookmarks stays in back stack
-                    // so pressing back from workspace returns to bookmarks
-                    navController.navigate("home_pager?selectRecordId=$recordId&fromBookmarks=true")
+                onNavigateToRecord = { recordId, bookmarkId ->
+                    if (recordId > 0) {
+                        navController.navigate("home_pager?selectRecordId=$recordId&fromBookmarks=true")
+                    } else if (bookmarkId > 0) {
+                        navController.navigate("home_pager?selectBookmarkId=$bookmarkId&fromBookmarks=true")
+                    }
                 }
             )
         }

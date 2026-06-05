@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.japanesegrammarapp.domain.model.*
 import com.example.japanesegrammarapp.domain.repository.BookmarkRepository
+import com.example.japanesegrammarapp.domain.repository.HistoryRepository
 import com.example.japanesegrammarapp.domain.repository.TtsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -38,8 +39,42 @@ enum class ArchiveFilter {
 @HiltViewModel
 class BookmarkViewModel @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
-    private val ttsRepository: TtsRepository
+    private val ttsRepository: TtsRepository,
+    private val historyRepository: HistoryRepository,
+    private val detailedResultSerializer: com.example.japanesegrammarapp.domain.repository.DetailedResultSerializer
 ) : ViewModel() {
+
+    fun playSentenceTts(analysisResultJson: String?, originalText: String) {
+        val detail = detailedResultSerializer.fromJson(analysisResultJson)
+        if (detail != null) {
+            val segments = detail.segments
+            if (!segments.isNullOrEmpty()) {
+                val readingText = segments.joinToString("") { segment ->
+                    val text = segment.text ?: ""
+                    val isPunctuation = text.matches(Regex("^[、。！？!?，．…\\s]+$")) || (segment.partOfSpeech?.contains("補助記号") == true)
+                    
+                    if (isPunctuation) {
+                        text
+                    } else {
+                        val reading = segment.reading
+                        if (!reading.isNullOrBlank()) reading else text
+                    }
+                }
+                if (readingText.isNotBlank()) {
+                    val cleanedReading = readingText
+                        .replace("マル", "。")
+                        .replace("テン", "、")
+                        .replace("まる", "。")
+                        .replace("てん", "、")
+                    ttsRepository.playText(cleanedReading)
+                    return
+                }
+            }
+        }
+        if (originalText.isNotBlank()) {
+            ttsRepository.playText(originalText)
+        }
+    }
 
     private val _isLoaded = MutableStateFlow(false)
     val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
@@ -53,6 +88,16 @@ class BookmarkViewModel @Inject constructor(
     val activeBookmarks: StateFlow<List<BookmarkedSegmentDomain>> = allBookmarks
         .map { list -> list.filter { !it.isArchived } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val bookmarkedSentences: StateFlow<List<BookmarkedSentenceDomain>> =
+        bookmarkRepository.allBookmarkedSentences
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun removeSentenceBookmark(id: Int) {
+        viewModelScope.launch {
+            bookmarkRepository.deleteSentenceBookmark(id)
+        }
+    }
 
     private val _filterMode = MutableStateFlow(BookmarkFilter.ALL)
     val filterMode: StateFlow<BookmarkFilter> = _filterMode.asStateFlow()

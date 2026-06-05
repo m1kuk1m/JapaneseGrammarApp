@@ -291,9 +291,17 @@
     <string name="import_failed">导入失败：%1$s</string>
 
     <!-- Bookmarks & Flashcard -->
-    <string name="bookmarks_title">收藏の単語</string>
-    <string name="bookmarks_empty_title">还没有收藏</string>
+    <string name="bookmarks_title">收藏夹</string>
+    <string name="bookmarks_empty_title">暂无收藏的单词</string>
     <string name="bookmarks_empty_hint">在分析页面长按分词卡片即可收藏</string>
+    <string name="tab_words">单词</string>
+    <string name="tab_sentences">句子</string>
+    <string name="bookmarks_empty_sentences_title">暂无收藏的句子</string>
+    <string name="bookmarks_empty_sentences_hint">在侧边栏长按历史记录或在分析页面点击星标即可收藏句子</string>
+    <string name="delete_analysis_confirm_title">删除分析记录</string>
+    <string name="delete_analysis_confirm_message">确定要删除这条分析记录吗？已收藏的句子将不会被删除。</string>
+    <string name="bookmark_sentence_added">已加入句子收藏</string>
+    <string name="bookmark_sentence_removed">已取消句子收藏</string>
     <string name="bookmarks_count">%1$d</string>
     <string name="bookmarks_count_all">共 %1$d 个</string>
     <string name="bookmarks_count_filtered">%1$d / %2$d</string>

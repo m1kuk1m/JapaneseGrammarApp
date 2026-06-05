@@ -105,6 +105,10 @@ class WorkspaceViewModel @Inject constructor(
 
     val isPlayingTts: StateFlow<Boolean> = ttsRepository.isPlaying
 
+    val bookmarkedSentenceRecordIds: StateFlow<Set<Int>> = bookmarkRepository.allBookmarkedSentences
+        .map { list -> list.map { it.recordId }.filter { it > 0 }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
     private val _allHistoryForExport = MutableStateFlow<List<AnalysisDomainRecord>>(emptyList())
     val allHistoryForExport: StateFlow<List<AnalysisDomainRecord>> = _allHistoryForExport.asStateFlow()
 
@@ -145,6 +149,23 @@ class WorkspaceViewModel @Inject constructor(
                 }
                 .collect { texts ->
                     _uiState.update { it.copy(bookmarkedSegmentTexts = texts) }
+                }
+        }
+
+        // Observe whether the sentence itself is bookmarked reactively
+        viewModelScope.launch {
+            _uiState
+                .map { it.selectedRecord?.id }
+                .distinctUntilChanged()
+                .flatMapLatest { recordId ->
+                    if (recordId != null) {
+                        bookmarkRepository.isSentenceBookmarked(recordId)
+                    } else {
+                        flowOf(false)
+                    }
+                }
+                .collect { bookmarked ->
+                    _uiState.update { it.copy(isSentenceBookmarked = bookmarked) }
                 }
         }
 
@@ -301,6 +322,25 @@ class WorkspaceViewModel @Inject constructor(
             if (record != null) {
                 withContext(Dispatchers.Main) {
                     selectRecord(record, clearExternalQuery = clearExternalQuery)
+                }
+            }
+        }
+    }
+
+    fun selectRecordByBookmarkId(bookmarkId: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val bookmark = bookmarkRepository.allBookmarkedSentences.first().find { it.id == bookmarkId }
+            if (bookmark != null) {
+                val mockRecord = AnalysisDomainRecord(
+                    id = if (bookmark.recordId > 0) bookmark.recordId else -bookmark.id,
+                    originalText = bookmark.originalText,
+                    analysisResult = bookmark.analysisResult,
+                    modelUsed = bookmark.modelUsed ?: "Unknown",
+                    status = AnalysisStatus.COMPLETED,
+                    timestamp = bookmark.bookmarkedAt
+                )
+                withContext(Dispatchers.Main) {
+                    selectRecord(mockRecord, clearExternalQuery = false)
                 }
             }
         }
@@ -465,6 +505,7 @@ class WorkspaceViewModel @Inject constructor(
 
     fun deleteRecord(record: AnalysisDomainRecord) {
         viewModelScope.launch {
+            bookmarkRepository.detachSentenceBookmarkFromRecord(record.id)
             historyRepository.deleteRecord(record)
         }
     }
@@ -576,6 +617,19 @@ class WorkspaceViewModel @Inject constructor(
                 recordId = record.id,
                 sourceText = record.originalText
             )
+        }
+    }
+
+    fun toggleSentenceBookmark() {
+        val record = _uiState.value.selectedRecord ?: return
+        viewModelScope.launch {
+            bookmarkRepository.toggleSentenceBookmark(record)
+        }
+    }
+
+    fun toggleSentenceBookmark(record: AnalysisDomainRecord) {
+        viewModelScope.launch {
+            bookmarkRepository.toggleSentenceBookmark(record)
         }
     }
 

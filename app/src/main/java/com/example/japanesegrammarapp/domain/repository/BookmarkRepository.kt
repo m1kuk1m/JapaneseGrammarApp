@@ -1,6 +1,8 @@
 package com.example.japanesegrammarapp.domain.repository
 
+import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain
+import com.example.japanesegrammarapp.domain.model.BookmarkedSentenceDomain
 import com.example.japanesegrammarapp.domain.model.WordSegment
 import kotlinx.coroutines.flow.Flow
 
@@ -38,4 +40,12 @@ interface BookmarkRepository {
     suspend fun updateArchivedStatus(id: Int, isArchived: Boolean)
 
     suspend fun archiveMultiple(ids: List<Int>)
+
+    // ── Sentence Bookmarks ──────────────────────────────────────────────────
+    val allBookmarkedSentences: Flow<List<BookmarkedSentenceDomain>>
+    fun isSentenceBookmarked(recordId: Int): Flow<Boolean>
+    suspend fun toggleSentenceBookmark(record: AnalysisDomainRecord): Boolean
+    suspend fun deleteSentenceBookmark(id: Int)
+    suspend fun deleteSentenceBookmarkByRecordId(recordId: Int)
+    suspend fun detachSentenceBookmarkFromRecord(recordId: Int)
 }

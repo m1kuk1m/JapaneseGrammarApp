@@ -15,6 +15,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -82,6 +84,7 @@ fun WorkspaceScreen(
         mutableStateOf(uiState.currentOriginalText)
     }
     var selectedImageUriState by remember { mutableStateOf<Uri?>(null) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
 
     // Clear image uri when returning to homepage (no active record)
@@ -448,16 +451,80 @@ fun WorkspaceScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             val isPending = uiState.selectedRecord?.status == AnalysisStatus.PENDING
+
+                                            if (!isPending && uiState.selectedRecord != null) {
+                                                val isSentenceBookmarked = uiState.isSentenceBookmarked
+                                                val goldColor = Color(0xFFD4A017)
+                                                val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+
+                                                // Star pulse animation when bookmark state changes
+                                                var wasSentenceBookmarked by remember { mutableStateOf(isSentenceBookmarked) }
+                                                var starScale by remember { mutableFloatStateOf(1f) }
+                                                LaunchedEffect(isSentenceBookmarked) {
+                                                    if (isSentenceBookmarked && !wasSentenceBookmarked) {
+                                                        val pulse = androidx.compose.animation.core.Animatable(1f)
+                                                        pulse.animateTo(1.3f, animationSpec = androidx.compose.animation.core.tween(120, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                                                        pulse.animateTo(1.0f, animationSpec = androidx.compose.animation.core.tween(150, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                                                        starScale = 1f
+                                                    }
+                                                    wasSentenceBookmarked = isSentenceBookmarked
+                                                }
+
+                                                // Brief glow animation on bookmark
+                                                var showGlowAnimation by remember { mutableStateOf(false) }
+                                                val glow = remember { androidx.compose.animation.core.Animatable(0f) }
+                                                LaunchedEffect(isSentenceBookmarked) {
+                                                    if (isSentenceBookmarked && showGlowAnimation) {
+                                                        glow.snapTo(0.4f)
+                                                        glow.animateTo(0f, animationSpec = androidx.compose.animation.core.tween(600, easing = androidx.compose.animation.core.EaseInOutCubic))
+                                                        showGlowAnimation = false
+                                                    }
+                                                }
+
+                                                Box(
+                                                    contentAlignment = Alignment.Center,
+                                                    modifier = Modifier.size(36.dp)
+                                                ) {
+                                                    IconButton(
+                                                        onClick = {
+                                                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                                            if (!isSentenceBookmarked) {
+                                                                showGlowAnimation = true
+                                                            }
+                                                            viewModel.toggleSentenceBookmark()
+                                                        },
+                                                        modifier = Modifier.size(32.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = if (isSentenceBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
+                                                            contentDescription = stringResource(if (isSentenceBookmarked) R.string.bookmark_sentence_removed else R.string.bookmark_sentence_added),
+                                                            tint = if (isSentenceBookmarked) goldColor else SumiInk.copy(alpha = 0.45f),
+                                                            modifier = Modifier.size(20.dp).graphicsLayer {
+                                                                scaleX = starScale
+                                                                scaleY = starScale
+                                                            }
+                                                        )
+                                                    }
+                                                    if (isSentenceBookmarked && glow.value > 0.01f) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(32.dp)
+                                                                .clip(RoundedCornerShape(16.dp))
+                                                                .background(goldColor.copy(alpha = glow.value))
+                                                        )
+                                                    }
+                                                }
+                                            }
+
                                             TextButton(
                                                 onClick = {
-                                                    uiState.selectedRecord?.let { record ->
-                                                        if (isPending) {
+                                                    if (isPending) {
+                                                        uiState.selectedRecord?.let { record ->
                                                             viewModel.cancelAnalysis(record.id)
                                                             viewModel.deleteRecord(record)
-                                                        } else {
-                                                            viewModel.deleteRecord(record)
-                                                            viewModel.clearSelectedRecord()
                                                         }
+                                                    } else {
+                                                        showDeleteConfirmDialog = true
                                                     }
                                                 },
                                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
@@ -626,6 +693,35 @@ fun WorkspaceScreen(
                 }
             }
         }
+
+    if (showDeleteConfirmDialog) {
+        val record = uiState.selectedRecord
+        if (record != null) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmDialog = false },
+                title = { Text(stringResource(R.string.delete_analysis_confirm_title), fontWeight = FontWeight.Bold, color = SumiInk) },
+                text = { Text(stringResource(R.string.delete_analysis_confirm_message), color = SumiInk) },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.deleteRecord(record)
+                            viewModel.clearSelectedRecord()
+                            showDeleteConfirmDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text(stringResource(R.string.delete), fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                        Text(stringResource(R.string.cancel), color = SumiInk)
+                    }
+                },
+                containerColor = Color.White
+            )
+        }
+    }
 
     // Input Dialog for Floating Action Ball
     val showInputDialogFromVm by viewModel.showInputDialog.collectAsState()
