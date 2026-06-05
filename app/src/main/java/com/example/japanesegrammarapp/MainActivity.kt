@@ -106,6 +106,9 @@ class MainActivity : AppCompatActivity() {
         }
         text?.takeIf { it.isNotBlank() }?.let {
             externalTextChannel.trySend(it)
+            intent.action = null
+            intent.removeExtra(Intent.EXTRA_PROCESS_TEXT)
+            intent.removeExtra(Intent.EXTRA_TEXT)
         }
     }
 }

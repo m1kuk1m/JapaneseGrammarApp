@@ -11,9 +11,11 @@ import com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain
 import com.example.japanesegrammarapp.domain.model.BookmarkedSentenceDomain
 import com.example.japanesegrammarapp.domain.model.WordSegment
 import com.example.japanesegrammarapp.domain.repository.BookmarkRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -38,44 +40,29 @@ class BookmarkRepositoryImpl @Inject constructor(
         segment: WordSegment,
         recordId: Int,
         sourceText: String
-    ): Boolean? {
-        val surfaceForm = segment.text ?: return null
+    ): Boolean? = withContext(Dispatchers.IO) {
+        val surfaceForm = segment.text ?: return@withContext null
         val dictForm = segment.dictionaryForm?.takeIf { it.isNotBlank() } ?: surfaceForm
         val dictReading = segment.dictionaryFormReading?.takeIf { it.isNotBlank() } ?: segment.reading
 
-        // Check if already bookmarked in this sentence by dictionary form → cancel
-        val exists = dao.existsByDictForm(recordId, dictForm).first()
-        if (exists) {
-            dao.deleteByDictForm(recordId, dictForm)
-            return false // removed
-        }
-
-        // Not yet bookmarked → add (only dictionary form info)
-        val result = dao.insert(
-            BookmarkedSegment(
-                recordId = recordId,
-                segmentText = dictForm,
-                surfaceForm = null, // Set null to ignore surface form in card displays
-                reading = dictReading,
-                partOfSpeech = segment.partOfSpeech,
-                posCategory = segment.posCategory,
-                dictionaryForm = dictForm,
-                dictionaryFormReading = dictReading,
-                meaning = segment.meaning,
-                inflection = segment.inflection,
-                role = segment.role,
-                bookmarkedAt = System.currentTimeMillis(),
-                sourceText = sourceText
-            )
+        dao.toggleBookmark(
+            recordId = recordId,
+            dictForm = dictForm,
+            dictReading = dictReading ?: "",
+            partOfSpeech = segment.partOfSpeech,
+            posCategory = segment.posCategory,
+            meaning = segment.meaning,
+            inflection = segment.inflection,
+            role = segment.role,
+            sourceText = sourceText
         )
-        return result != -1L // true if inserted
     }
 
-    override suspend fun removeBookmarkById(id: Int) {
+    override suspend fun removeBookmarkById(id: Int) = withContext(Dispatchers.IO) {
         dao.deleteById(id)
     }
 
-    override suspend fun exportToJson(): String {
+    override suspend fun exportToJson(): String = withContext(Dispatchers.IO) {
         val bookmarks = dao.getAll().first()
         val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault())
         val root = JSONObject().apply {
@@ -103,10 +90,10 @@ class BookmarkRepositoryImpl @Inject constructor(
                 }
             })
         }
-        return root.toString(2)
+        root.toString(2)
     }
 
-    override suspend fun importFromJson(json: String): Int {
+    override suspend fun importFromJson(json: String): Int = withContext(Dispatchers.IO) {
         val root = JSONObject(json)
         val arr = root.getJSONArray("bookmarks")
         var inserted = 0
@@ -133,14 +120,14 @@ class BookmarkRepositoryImpl @Inject constructor(
                 if (result != -1L) inserted++
             }
         }
-        return inserted
+        inserted
     }
 
-    override suspend fun updateArchivedStatus(id: Int, isArchived: Boolean) {
+    override suspend fun updateArchivedStatus(id: Int, isArchived: Boolean) = withContext(Dispatchers.IO) {
         dao.updateArchivedStatus(id, isArchived)
     }
 
-    override suspend fun archiveMultiple(ids: List<Int>) {
+    override suspend fun archiveMultiple(ids: List<Int>) = withContext(Dispatchers.IO) {
         dao.archiveMultiple(ids)
     }
 
@@ -170,44 +157,34 @@ class BookmarkRepositoryImpl @Inject constructor(
     override fun isSentenceBookmarked(recordId: Int): Flow<Boolean> =
         sentenceDao.existsByRecordId(recordId)
 
-    override suspend fun toggleSentenceBookmark(record: AnalysisDomainRecord): Boolean {
-        val exists = sentenceDao.existsByRecordId(record.id).first()
-        if (exists) {
-            sentenceDao.deleteByRecordId(record.id)
-            return false
-        } else {
-            var translation: String? = null
-            try {
-                if (!record.analysisResult.isNullOrBlank()) {
-                    val obj = JSONObject(record.analysisResult)
-                    translation = obj.optString("translation", null) ?: obj.optString("meaning", null)
-                }
-            } catch (e: Exception) {
-                // Ignore parsing errors
+    override suspend fun toggleSentenceBookmark(record: AnalysisDomainRecord): Boolean = withContext(Dispatchers.IO) {
+        var translation: String? = null
+        try {
+            if (!record.analysisResult.isNullOrBlank()) {
+                val obj = JSONObject(record.analysisResult)
+                translation = obj.optString("translation", null) ?: obj.optString("meaning", null)
             }
-            sentenceDao.insert(
-                BookmarkedSentence(
-                    recordId = record.id,
-                    originalText = record.originalText,
-                    translation = translation,
-                    analysisResult = record.analysisResult,
-                    modelUsed = record.modelUsed,
-                    bookmarkedAt = System.currentTimeMillis()
-                )
-            )
-            return true
+        } catch (e: Exception) {
+            // Ignore parsing errors
         }
+        sentenceDao.toggleSentenceBookmark(
+            recordId = record.id,
+            originalText = record.originalText,
+            translation = translation,
+            analysisResult = record.analysisResult,
+            modelUsed = record.modelUsed
+        )
     }
 
-    override suspend fun deleteSentenceBookmark(id: Int) {
+    override suspend fun deleteSentenceBookmark(id: Int) = withContext(Dispatchers.IO) {
         sentenceDao.deleteById(id)
     }
 
-    override suspend fun deleteSentenceBookmarkByRecordId(recordId: Int) {
+    override suspend fun deleteSentenceBookmarkByRecordId(recordId: Int) = withContext(Dispatchers.IO) {
         sentenceDao.deleteByRecordId(recordId)
     }
 
-    override suspend fun detachSentenceBookmarkFromRecord(recordId: Int) {
+    override suspend fun detachSentenceBookmarkFromRecord(recordId: Int) = withContext(Dispatchers.IO) {
         sentenceDao.detachFromRecord(recordId)
     }
 

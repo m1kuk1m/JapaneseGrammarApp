@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [AnalysisRecord::class, BookmarkedSegment::class, BookmarkedSentence::class], version = 8, exportSchema = false)
+@Database(entities = [AnalysisRecord::class, BookmarkedSegment::class, BookmarkedSentence::class], version = 9, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun analysisDao(): AnalysisDao
     abstract fun bookmarkDao(): BookmarkDao
@@ -119,6 +119,49 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_8_9 = object : androidx.room.migration.Migration(8, 9) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // Create temp table with Foreign Key
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS bookmarked_segments_temp (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        recordId INTEGER NOT NULL,
+                        segmentText TEXT NOT NULL,
+                        surfaceForm TEXT,
+                        reading TEXT,
+                        partOfSpeech TEXT,
+                        posCategory TEXT,
+                        dictionaryForm TEXT,
+                        dictionaryFormReading TEXT,
+                        meaning TEXT,
+                        inflection TEXT,
+                        role TEXT,
+                        bookmarkedAt INTEGER NOT NULL,
+                        sourceText TEXT NOT NULL DEFAULT '',
+                        isArchived INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY(recordId) REFERENCES analysis_records(id) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                
+                // Copy only valid bookmarks (non-orphans)
+                database.execSQL("""
+                    INSERT INTO bookmarked_segments_temp (id, recordId, segmentText, surfaceForm, reading, partOfSpeech, posCategory, dictionaryForm, dictionaryFormReading, meaning, inflection, role, bookmarkedAt, sourceText, isArchived)
+                    SELECT id, recordId, segmentText, surfaceForm, reading, partOfSpeech, posCategory, dictionaryForm, dictionaryFormReading, meaning, inflection, role, bookmarkedAt, sourceText, isArchived
+                    FROM bookmarked_segments
+                    WHERE recordId IN (SELECT id FROM analysis_records)
+                """.trimIndent())
+                
+                // Drop old table
+                database.execSQL("DROP TABLE bookmarked_segments")
+                
+                // Rename temp table
+                database.execSQL("ALTER TABLE bookmarked_segments_temp RENAME TO bookmarked_segments")
+                
+                // Recreate index
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_bookmarked_segments_recordId_surfaceForm_dictionaryForm ON bookmarked_segments (recordId, surfaceForm, dictionaryForm)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return Instance ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -129,7 +172,7 @@ abstract class AppDatabase : RoomDatabase() {
                 .addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
                     MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                    MIGRATION_7_8
+                    MIGRATION_7_8, MIGRATION_8_9
                 )
                 .fallbackToDestructiveMigration()
                 .build()

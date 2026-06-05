@@ -415,11 +415,10 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             BookmarksScreen(
                 navController = navController,
                 viewModel = bookmarkViewModel,
-                onNavigateToRecord = { recordId, bookmarkId ->
+                onNavigateToRecord = { recordId, _ ->
                     if (recordId > 0) {
-                        navController.navigate("home_pager?selectRecordId=$recordId&fromBookmarks=true")
-                    } else if (bookmarkId > 0) {
-                        navController.navigate("home_pager?selectBookmarkId=$bookmarkId&fromBookmarks=true")
+                        navController.previousBackStackEntry?.savedStateHandle?.set("navigate_to_record_id", recordId)
+                        navController.popBackStack()
                     }
                 }
             )

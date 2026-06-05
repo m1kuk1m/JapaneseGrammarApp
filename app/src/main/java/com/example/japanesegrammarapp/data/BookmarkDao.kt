@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -27,6 +28,9 @@ interface BookmarkDao {
     @Query("SELECT EXISTS(SELECT 1 FROM bookmarked_segments WHERE recordId = :recordId AND segmentText = :dictForm)")
     fun existsByDictForm(recordId: Int, dictForm: String): Flow<Boolean>
 
+    @Query("SELECT EXISTS(SELECT 1 FROM bookmarked_segments WHERE recordId = :recordId AND segmentText = :dictForm)")
+    suspend fun existsByDictFormDirect(recordId: Int, dictForm: String): Boolean
+
     @Query("DELETE FROM bookmarked_segments WHERE recordId = :recordId AND (surfaceForm = :surfaceForm OR (surfaceForm IS NULL AND segmentText = :surfaceForm)) AND segmentText = :dictForm")
     suspend fun deleteByKey(recordId: Int, surfaceForm: String, dictForm: String)
 
@@ -44,4 +48,42 @@ interface BookmarkDao {
 
     @Query("UPDATE bookmarked_segments SET isArchived = 1 WHERE id IN (:ids)")
     suspend fun archiveMultiple(ids: List<Int>)
+
+    @Transaction
+    suspend fun toggleBookmark(
+        recordId: Int,
+        dictForm: String,
+        dictReading: String,
+        partOfSpeech: String?,
+        posCategory: String?,
+        meaning: String?,
+        inflection: String?,
+        role: String?,
+        sourceText: String
+    ): Boolean {
+        val exists = existsByDictFormDirect(recordId, dictForm)
+        if (exists) {
+            deleteByDictForm(recordId, dictForm)
+            return false
+        } else {
+            insert(
+                BookmarkedSegment(
+                    recordId = recordId,
+                    segmentText = dictForm,
+                    surfaceForm = null,
+                    reading = dictReading,
+                    partOfSpeech = partOfSpeech,
+                    posCategory = posCategory,
+                    dictionaryForm = dictForm,
+                    dictionaryFormReading = dictReading,
+                    meaning = meaning,
+                    inflection = inflection,
+                    role = role,
+                    bookmarkedAt = System.currentTimeMillis(),
+                    sourceText = sourceText
+                )
+            )
+            return true
+        }
+    }
 }

@@ -504,6 +504,9 @@ class WorkspaceViewModel @Inject constructor(
     }
 
     fun deleteRecord(record: AnalysisDomainRecord) {
+        if (record.status == AnalysisStatus.PENDING) {
+            cancelAnalysis(record.id)
+        }
         viewModelScope.launch {
             bookmarkRepository.detachSentenceBookmarkFromRecord(record.id)
             historyRepository.deleteRecord(record)

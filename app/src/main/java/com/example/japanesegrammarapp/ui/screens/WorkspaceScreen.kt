@@ -287,7 +287,13 @@ fun WorkspaceScreen(
                                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_analysis), tint = MaterialTheme.colorScheme.onSurface)
                                 }
                             }
-                            IconButton(onClick = { navController.navigate("bookmarks") }) {
+                            IconButton(onClick = {
+                                if (fromBookmarks) {
+                                    navController.popBackStack("bookmarks", false)
+                                } else {
+                                    navController.navigate("bookmarks")
+                                }
+                            }) {
                                 Icon(Icons.Default.Star, contentDescription = stringResource(R.string.view_bookmarks_desc), tint = MaterialTheme.colorScheme.onSurface)
                             }
                             IconButton(onClick = navigateToSettings) {
@@ -340,7 +346,13 @@ fun WorkspaceScreen(
                                 }
                                 Row {
                                     IconButton(
-                                        onClick = { navController.navigate("bookmarks") },
+                                        onClick = {
+                                            if (fromBookmarks) {
+                                                navController.popBackStack("bookmarks", false)
+                                            } else {
+                                                navController.navigate("bookmarks")
+                                            }
+                                        },
                                         modifier = Modifier.size(40.dp)
                                     ) {
                                         Icon(Icons.Default.Star, contentDescription = stringResource(R.string.view_bookmarks_desc), tint = SumiInk)

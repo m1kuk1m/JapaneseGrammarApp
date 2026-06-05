@@ -1,11 +1,20 @@
 package com.example.japanesegrammarapp.data
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "bookmarked_segments",
+    foreignKeys = [
+        ForeignKey(
+            entity = AnalysisRecord::class,
+            parentColumns = ["id"],
+            childColumns = ["recordId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
     indices = [Index(value = ["recordId", "surfaceForm", "dictionaryForm"], unique = true)]
 )
 data class BookmarkedSegment(
