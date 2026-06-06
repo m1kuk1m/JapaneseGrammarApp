@@ -6,7 +6,9 @@ data class LlmResult(
     val inputTokens: Int = 0,
     val outputTokens: Int = 0,
     val provider: String? = null,
-    val modelName: String? = null
+    val modelName: String? = null,
+    val endpointId: String? = null,
+    val endpointName: String? = null
 )
 
 data class LlmApiConfig(
@@ -14,7 +16,9 @@ data class LlmApiConfig(
     val baseProvider: String,
     val modelName: String,
     val url: String,
-    val key: String
+    val key: String,
+    val endpointId: String = "",
+    val endpointName: String = ""
 )
 
 interface LlmRepository {
@@ -37,8 +41,8 @@ interface LlmRepository {
         imageBase64: String?,
         mimeType: String?,
         apiTypeLabel: String,
-        primaryConfig: LlmApiConfig,
-        backupConfig: LlmApiConfig?,
+        primaryConfigs: List<LlmApiConfig>,
+        backupConfigs: List<LlmApiConfig>,
         recordId: Int? = null,
         stepName: String? = null,
         onRetry: (attempt: Int) -> Unit = {},

@@ -241,6 +241,19 @@
     <string name="api_endpoints_manage">API Endpoints Manage</string>
     <string name="endpoint_name">Endpoint Name</string>
     <string name="delete_endpoint_confirm">Are you sure to delete this endpoint?</string>
+    <string name="endpoint_add">Add Endpoint</string>
+    <string name="endpoint_edit">Edit Endpoint</string>
+    <string name="endpoint_enabled">Enabled</string>
+    <string name="endpoint_disabled">Disabled</string>
+    <string name="endpoint_failures">Failures: %1$d</string>
+    <string name="endpoint_cooldown">Cooldown: %1$s</string>
+    <string name="endpoint_last_error">Last error: %1$s</string>
+    <string name="endpoint_priority">Priority</string>
+    <string name="endpoint_weight">Weight</string>
+    <string name="endpoint_priority_weight">Priority %1$d · Weight %2$d</string>
+    <string name="endpoint_save">Save</string>
+    <string name="endpoint_save_success">Endpoint saved</string>
+    <string name="endpoint_delete_success">Endpoint deleted</string>
     <string name="add" translatable="false">Add</string>
 
     <string name="input_dialog_title">Text Input</string>

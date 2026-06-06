@@ -27,8 +27,8 @@ class ImageAttachmentLoaderImpl @Inject constructor(
     override suspend fun loadAsBase64(uriString: String): ImagePayload? = withContext(Dispatchers.IO) {
         try {
             val uri = Uri.parse(uriString)
-            // Use BitmapHelper to safely downsample and rotate the image according to EXIF
-            val bitmap = BitmapHelper.loadRotatedBitmapFromUri(context, uri) ?: return@withContext null
+            // Decode near the upload target first, then rotate according to EXIF.
+            val bitmap = BitmapHelper.loadRotatedBitmapFromUri(context, uri, MAX_UPLOAD_DIMENSION) ?: return@withContext null
             val uploadBitmap = resizeForUpload(bitmap)
             
             // Compress to a bounded JPEG payload so mobile networks and Gemini gateways are less likely to close the stream.

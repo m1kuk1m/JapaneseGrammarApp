@@ -47,7 +47,9 @@ class AnalyzeTextUseCase @Inject constructor(
         if (text.isBlank() && imageUri.isNullOrBlank()) {
             throw IllegalArgumentException("Please enter text or capture an image.")
         }
-        if (apiKey.isBlank()) {
+        val configuredPrimaryEndpoints = settingsRepository.buildLlmApiConfigs(provider, modelName)
+        val hasCompatibleLegacyKey = apiKey.isNotBlank()
+        if (configuredPrimaryEndpoints.isEmpty() && !hasCompatibleLegacyKey) {
             throw IllegalArgumentException("Missing API Key.")
         }
 
@@ -136,23 +138,21 @@ class AnalyzeTextUseCase @Inject constructor(
             }
 
             try {
-                // Fetch LLM API Configurations from Settings
+                // Fetch LLM API configurations from the provider endpoint pools.
                 val primaryProvider = settingsRepository.getActiveProvider()
-                val primaryBase = settingsRepository.getBaseProviderType(primaryProvider)
                 val primaryModel = settingsRepository.getActiveModel(primaryProvider)
-                val primaryKey = settingsRepository.getApiKey(primaryProvider)
-                val primaryUrl = settingsRepository.getApiUrl(primaryProvider)
+                val primaryConfigs = settingsRepository.buildLlmApiConfigs(primaryProvider, primaryModel)
+                if (primaryConfigs.isEmpty()) {
+                    throw IllegalArgumentException("Missing API Key.")
+                }
 
                 val backupProvider = settingsRepository.getBackupProvider()
-                val backupBase = if (backupProvider.isNotBlank()) settingsRepository.getBaseProviderType(backupProvider) else ""
                 val backupModel = settingsRepository.getBackupModel()
-                val backupKey = if (backupProvider.isNotBlank()) settingsRepository.getApiKey(backupProvider) else ""
-                val backupUrl = if (backupProvider.isNotBlank()) settingsRepository.getApiUrl(backupProvider) else ""
-
-                val primaryConfig = LlmApiConfig(primaryProvider, primaryBase, primaryModel, primaryUrl, primaryKey)
-                val backupConfig = if (backupProvider.isNotBlank() && backupModel.isNotBlank() && backupKey.isNotBlank()) {
-                    LlmApiConfig(backupProvider, backupBase, backupModel, backupUrl, backupKey)
-                } else null
+                val backupConfigs = if (backupProvider.isNotBlank() && backupModel.isNotBlank()) {
+                    settingsRepository.buildLlmApiConfigs(backupProvider, backupModel)
+                } else {
+                    emptyList()
+                }
 
                 // Perform OCR if needed
                 val isOcrEnabled = settingsRepository.getUseOcr()
@@ -192,8 +192,8 @@ class AnalyzeTextUseCase @Inject constructor(
                         mimeType = null,
                         isOcrMode = true,
                         imageTokenizerMode = imageTokenizerMode,
-                        primaryConfig = primaryConfig,
-                        backupConfig = backupConfig,
+                        primaryConfigs = primaryConfigs,
+                        backupConfigs = backupConfigs,
                         onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
                         onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
                         recordId = recordId,
@@ -213,7 +213,7 @@ class AnalyzeTextUseCase @Inject constructor(
                     val duplicateRecord = saveAnalysisRecordUseCase.getByOriginalText(effectiveText)
                     if (duplicateRecord != null && duplicateRecord.id != recordId) {
                         // Atomically clean up the newly created record before notifying the UI,
-                        // so the event handler does NOT need to call cancelAnalysis() â€” which
+                        // so the event handler does NOT need to call cancelAnalysis() â€?which
                         // would be a no-op or race against invokeOnCompletion anyway.
                         val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
                         if (currentRecord != null) {
@@ -255,8 +255,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                     text = effectiveText,
                                     imageBase64 = null,
                                     mimeType = null,
-                                    primaryConfig = primaryConfig,
-                                    backupConfig = backupConfig,
+                                    primaryConfigs = primaryConfigs,
+                                    backupConfigs = backupConfigs,
                                     onRetry = getRetryListener(AnalysisStep.TRANSLATION),
                                     onBackup = getBackupListener(AnalysisStep.TRANSLATION),
                                     recordId = recordId,
@@ -289,8 +289,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                     text = effectiveText,
                                     imageBase64 = null,
                                     mimeType = null,
-                                    primaryConfig = primaryConfig,
-                                    backupConfig = backupConfig,
+                                    primaryConfigs = primaryConfigs,
+                                    backupConfigs = backupConfigs,
                                     onRetry = getRetryListener(AnalysisStep.CLAUSE_ANALYSIS),
                                     onBackup = getBackupListener(AnalysisStep.CLAUSE_ANALYSIS),
                                     recordId = recordId,
@@ -323,8 +323,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                     text = effectiveText,
                                     imageBase64 = null,
                                     mimeType = null,
-                                    primaryConfig = primaryConfig,
-                                    backupConfig = backupConfig,
+                                    primaryConfigs = primaryConfigs,
+                                    backupConfigs = backupConfigs,
                                     onRetry = getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION),
                                     onBackup = getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION),
                                     recordId = recordId,
@@ -358,8 +358,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                     tokens = tokens,
                                     imageBase64 = null,
                                     mimeType = null,
-                                    primaryConfig = primaryConfig,
-                                    backupConfig = backupConfig,
+                                    primaryConfigs = primaryConfigs,
+                                    backupConfigs = backupConfigs,
                                     onRetry = getRetryListener(AnalysisStep.DETAILED_GRAMMAR),
                                     onBackup = getBackupListener(AnalysisStep.DETAILED_GRAMMAR),
                                     recordId = recordId,
@@ -400,8 +400,8 @@ class AnalyzeTextUseCase @Inject constructor(
                             mimeType = mimeType,
                             isOcrMode = false,
                             imageTokenizerMode = imageTokenizerMode,
-                            primaryConfig = primaryConfig,
-                            backupConfig = backupConfig,
+                            primaryConfigs = primaryConfigs,
+                            backupConfigs = backupConfigs,
                             onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
                             onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
                             recordId = recordId,
@@ -462,8 +462,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                         text = effectiveText,
                                         imageBase64 = null,
                                         mimeType = null,
-                                        primaryConfig = primaryConfig,
-                                        backupConfig = backupConfig,
+                                        primaryConfigs = primaryConfigs,
+                                        backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.TRANSLATION),
                                         onBackup = getBackupListener(AnalysisStep.TRANSLATION),
                                         recordId = recordId,
@@ -496,8 +496,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                         text = effectiveText,
                                         imageBase64 = null,
                                         mimeType = null,
-                                        primaryConfig = primaryConfig,
-                                        backupConfig = backupConfig,
+                                        primaryConfigs = primaryConfigs,
+                                        backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.CLAUSE_ANALYSIS),
                                         onBackup = getBackupListener(AnalysisStep.CLAUSE_ANALYSIS),
                                         recordId = recordId,
@@ -530,8 +530,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                         text = effectiveText,
                                         imageBase64 = null,
                                         mimeType = null,
-                                        primaryConfig = primaryConfig,
-                                        backupConfig = backupConfig,
+                                        primaryConfigs = primaryConfigs,
+                                        backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION),
                                         onBackup = getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION),
                                         recordId = recordId,
@@ -565,8 +565,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                         tokens = tokens,
                                         imageBase64 = null,
                                         mimeType = null,
-                                        primaryConfig = primaryConfig,
-                                        backupConfig = backupConfig,
+                                        primaryConfigs = primaryConfigs,
+                                        backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.DETAILED_GRAMMAR),
                                         onBackup = getBackupListener(AnalysisStep.DETAILED_GRAMMAR),
                                         recordId = recordId,
@@ -605,8 +605,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                         text = text,
                                         imageBase64 = imageBase64,
                                         mimeType = mimeType,
-                                        primaryConfig = primaryConfig,
-                                        backupConfig = backupConfig,
+                                        primaryConfigs = primaryConfigs,
+                                        backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.TRANSLATION),
                                         onBackup = getBackupListener(AnalysisStep.TRANSLATION),
                                         recordId = recordId,
@@ -639,8 +639,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                         text = text,
                                         imageBase64 = imageBase64,
                                         mimeType = mimeType,
-                                        primaryConfig = primaryConfig,
-                                        backupConfig = backupConfig,
+                                        primaryConfigs = primaryConfigs,
+                                        backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.CLAUSE_ANALYSIS),
                                         onBackup = getBackupListener(AnalysisStep.CLAUSE_ANALYSIS),
                                         recordId = recordId,
@@ -673,8 +673,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                         text = text,
                                         imageBase64 = imageBase64,
                                         mimeType = mimeType,
-                                        primaryConfig = primaryConfig,
-                                        backupConfig = backupConfig,
+                                        primaryConfigs = primaryConfigs,
+                                        backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION),
                                         onBackup = getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION),
                                         recordId = recordId,
@@ -710,8 +710,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                         mimeType = mimeType,
                                         isOcrMode = false,
                                         imageTokenizerMode = imageTokenizerMode,
-                                        primaryConfig = primaryConfig,
-                                        backupConfig = backupConfig,
+                                        primaryConfigs = primaryConfigs,
+                                        backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
                                         onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
                                         recordId = recordId,
@@ -745,8 +745,8 @@ class AnalyzeTextUseCase @Inject constructor(
                                         tokens = tokens,
                                         imageBase64 = imageBase64,
                                         mimeType = mimeType,
-                                        primaryConfig = primaryConfig,
-                                        backupConfig = backupConfig,
+                                        primaryConfigs = primaryConfigs,
+                                        backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.DETAILED_GRAMMAR),
                                         onBackup = getBackupListener(AnalysisStep.DETAILED_GRAMMAR),
                                         recordId = recordId,

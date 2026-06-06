@@ -4,6 +4,8 @@ import android.content.SharedPreferences
 import com.example.japanesegrammarapp.di.SecurePrefs
 import com.example.japanesegrammarapp.di.StandardPrefs
 import com.example.japanesegrammarapp.domain.model.LlmConfig
+import com.example.japanesegrammarapp.domain.model.LlmEndpoint
+import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.example.japanesegrammarapp.network.PromptManager
 import com.example.japanesegrammarapp.utils.AppLogger
@@ -32,6 +34,8 @@ class SettingsRepositoryImpl @Inject constructor(
     private val cachedModelsList = java.util.concurrent.ConcurrentHashMap<String, List<String>>()
     private val cachedApiKeys = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val cachedApiUrls = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val cachedEndpoints = java.util.concurrent.ConcurrentHashMap<String, List<LlmEndpoint>>()
+    private val cachedEndpointApiKeys = java.util.concurrent.ConcurrentHashMap<String, String>()
     
     @Volatile private var cachedThemeMode: String? = null
     @Volatile private var cachedWallpaperUri: String? = null
@@ -171,6 +175,15 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     override fun getApiKey(provider: String): String {
+        val endpointKey = getEndpoints(provider)
+            .asSequence()
+            .filter { it.enabled }
+            .map { getApiKeyForEndpoint(it.id) }
+            .firstOrNull { it.isNotBlank() }
+        if (!endpointKey.isNullOrBlank()) {
+            return endpointKey
+        }
+
         var cached = cachedApiKeys[provider]
         if (cached == null) {
             synchronized(cachedApiKeys) {
@@ -185,12 +198,30 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     override fun saveApiKey(provider: String, key: String): Boolean {
-        return saveSecureString("${provider}_key", key, "API key", provider) {
+        val defaultEndpoint = getDefaultEndpoint(provider)
+        val endpointSaved = saveSecureString(endpointKey(defaultEndpoint.id), key, "API key", provider) {
+            cachedEndpointApiKeys[defaultEndpoint.id] = key
+        }
+        val existingEndpoints = getEndpoints(provider)
+        if (endpointSaved && existingEndpoints.none { it.id == defaultEndpoint.id }) {
+            saveEndpoints(provider, existingEndpoints + defaultEndpoint)
+        }
+        val legacySaved = saveSecureString("${provider}_key", key, "API key", provider) {
             cachedApiKeys[provider] = key
         }
+        return endpointSaved && legacySaved
     }
 
     override fun getApiUrl(provider: String): String {
+        val endpointUrl = getEndpoints(provider)
+            .asSequence()
+            .filter { it.enabled }
+            .map { it.baseUrl }
+            .firstOrNull { it.isNotBlank() }
+        if (!endpointUrl.isNullOrBlank()) {
+            return endpointUrl
+        }
+
         var cached = cachedApiUrls[provider]
         if (cached == null) {
             synchronized(cachedApiUrls) {
@@ -208,6 +239,165 @@ class SettingsRepositoryImpl @Inject constructor(
     override fun saveApiUrl(provider: String, url: String) {
         cachedApiUrls[provider] = url
         settingPrefs.edit().putString("${provider}_url", url).apply()
+        val endpoints = getEndpoints(provider)
+        val defaultEndpoint = endpoints.firstOrNull { it.id == defaultEndpointId(provider) } ?: getDefaultEndpoint(provider)
+        val updatedDefault = defaultEndpoint.copy(baseUrl = url.ifBlank { LlmConfig.defaultUrls[provider] ?: "" })
+        val next = if (endpoints.any { it.id == updatedDefault.id }) {
+            endpoints.map { if (it.id == updatedDefault.id) updatedDefault else it }
+        } else {
+            endpoints + updatedDefault
+        }
+        saveEndpoints(provider, next)
+    }
+
+    override fun getEndpoints(provider: String): List<LlmEndpoint> {
+        cachedEndpoints[provider]?.let { return it }
+        synchronized(cachedEndpoints) {
+            cachedEndpoints[provider]?.let { return it }
+            val json = settingPrefs.getString(endpointPoolKey(provider), null)
+            val loaded = if (!json.isNullOrBlank()) {
+                try {
+                    gson.fromJson(json, Array<LlmEndpoint>::class.java)
+                        ?.toList()
+                        ?.filter { it.provider == provider && it.id.isNotBlank() }
+                        ?: emptyList()
+                } catch (e: Exception) {
+                    AppLogger.e("SETTINGS", "Failed to parse endpoint pool for $provider", e)
+                    emptyList()
+                }
+            } else {
+                emptyList()
+            }
+            val endpoints = if (loaded.isNotEmpty()) loaded else migrateLegacyEndpoint(provider)
+            val normalized = endpoints
+                .ifEmpty { listOf(getDefaultEndpoint(provider)) }
+                .distinctBy { it.id }
+                .sortedWith(compareBy<LlmEndpoint> { it.priority }.thenBy { it.lastUsedAtMs }.thenBy { it.name })
+            cachedEndpoints[provider] = normalized
+            if (loaded.isEmpty()) {
+                saveEndpoints(provider, normalized)
+            }
+            return normalized
+        }
+    }
+
+    override fun getApiKeyForEndpoint(endpointId: String): String {
+        var cached = cachedEndpointApiKeys[endpointId]
+        if (cached == null) {
+            synchronized(cachedEndpointApiKeys) {
+                cached = cachedEndpointApiKeys[endpointId]
+                if (cached == null) {
+                    cached = securePrefs.getString(endpointKey(endpointId), "") ?: ""
+                    cachedEndpointApiKeys[endpointId] = cached!!
+                }
+            }
+        }
+        return cached!!
+    }
+
+    override fun saveEndpoint(endpoint: LlmEndpoint, apiKey: String?): Boolean {
+        val cleanEndpoint = endpoint.copy(
+            name = endpoint.name.ifBlank { "Default" },
+            baseUrl = endpoint.baseUrl.ifBlank { LlmConfig.defaultUrls[endpoint.provider] ?: "" },
+            priority = endpoint.priority.coerceAtLeast(0),
+            weight = endpoint.weight.coerceAtLeast(1)
+        )
+        val keySaved = if (apiKey != null) {
+            saveSecureString(endpointKey(cleanEndpoint.id), apiKey, "API key", cleanEndpoint.provider) {
+                cachedEndpointApiKeys[cleanEndpoint.id] = apiKey
+            }
+        } else {
+            true
+        }
+        if (!keySaved) return false
+
+        val endpoints = getEndpoints(cleanEndpoint.provider)
+        val next = if (endpoints.any { it.id == cleanEndpoint.id }) {
+            endpoints.map { if (it.id == cleanEndpoint.id) cleanEndpoint else it }
+        } else {
+            endpoints + cleanEndpoint
+        }
+        saveEndpoints(cleanEndpoint.provider, next)
+
+        if (cleanEndpoint.id == defaultEndpointId(cleanEndpoint.provider)) {
+            cachedApiUrls[cleanEndpoint.provider] = cleanEndpoint.baseUrl
+            settingPrefs.edit().putString("${cleanEndpoint.provider}_url", cleanEndpoint.baseUrl).apply()
+            apiKey?.let { saveSecureString("${cleanEndpoint.provider}_key", it, "API key", cleanEndpoint.provider) {
+                cachedApiKeys[cleanEndpoint.provider] = it
+            } }
+        }
+        return true
+    }
+
+    override fun deleteEndpoint(provider: String, endpointId: String): Boolean {
+        val endpoints = getEndpoints(provider)
+        val remaining = endpoints.filterNot { it.id == endpointId }
+        val next = remaining.ifEmpty { listOf(getDefaultEndpoint(provider)) }
+        val removed = endpoints.size != next.size || endpoints.any { it.id == endpointId }
+        if (removed) {
+            securePrefs.edit().remove(endpointKey(endpointId)).apply()
+            cachedEndpointApiKeys.remove(endpointId)
+            saveEndpoints(provider, next)
+        }
+        return removed
+    }
+
+    override fun markEndpointSuccess(provider: String, endpointId: String) {
+        updateEndpoint(provider, endpointId) {
+            it.copy(
+                cooldownUntilMs = 0L,
+                consecutiveFailures = 0,
+                lastError = null,
+                lastUsedAtMs = System.currentTimeMillis()
+            )
+        }
+    }
+
+    override fun markEndpointFailure(provider: String, endpointId: String, error: String, cooldownMs: Long) {
+        val now = System.currentTimeMillis()
+        updateEndpoint(provider, endpointId) {
+            it.copy(
+                cooldownUntilMs = now + cooldownMs.coerceAtLeast(0L),
+                consecutiveFailures = it.consecutiveFailures + 1,
+                lastError = error,
+                lastUsedAtMs = now
+            )
+        }
+    }
+
+    override fun touchEndpoint(provider: String, endpointId: String) {
+        updateEndpoint(provider, endpointId) {
+            it.copy(lastUsedAtMs = System.currentTimeMillis())
+        }
+    }
+
+    override fun buildLlmApiConfigs(provider: String, modelName: String): List<LlmApiConfig> {
+        val now = System.currentTimeMillis()
+        val baseProvider = getBaseProviderType(provider)
+        val endpoints = getEndpoints(provider)
+            .filter { endpoint ->
+                endpoint.enabled &&
+                    getApiKeyForEndpoint(endpoint.id).isNotBlank() &&
+                    (endpoint.cooldownUntilMs <= now || endpoint.cooldownUntilMs == 0L)
+            }
+            .sortedWith(
+                compareBy<LlmEndpoint> { it.priority }
+                    .thenByDescending { endpointRotationScore(it, now) }
+                    .thenBy { it.consecutiveFailures }
+                    .thenBy { it.name }
+            )
+
+        return endpoints.map { endpoint ->
+            LlmApiConfig(
+                provider = provider,
+                baseProvider = baseProvider,
+                modelName = modelName,
+                url = endpoint.baseUrl.ifBlank { LlmConfig.defaultUrls[provider] ?: "" },
+                key = getApiKeyForEndpoint(endpoint.id),
+                endpointId = endpoint.id,
+                endpointName = endpoint.name
+            )
+        }
     }
 
     override fun getBackupProvider(): String {
@@ -461,6 +651,76 @@ class SettingsRepositoryImpl @Inject constructor(
             remove("prompt_tokenizer_image")
             remove("prompt_tokenizer_image_repair")
         }.apply()
+    }
+
+    private fun endpointPoolKey(provider: String): String = "llm_${provider}_endpoints_json"
+
+    private fun endpointKey(endpointId: String): String = "llm_endpoint_${endpointId}_key"
+
+    private fun defaultEndpointId(provider: String): String =
+        "default_${provider.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')}"
+
+    private fun getDefaultEndpoint(provider: String): LlmEndpoint {
+        return LlmEndpoint(
+            id = defaultEndpointId(provider),
+            provider = provider,
+            name = "Default",
+            baseUrl = LlmConfig.defaultUrls[provider] ?: "",
+            enabled = true,
+            priority = 0,
+            weight = 1
+        )
+    }
+
+    private fun migrateLegacyEndpoint(provider: String): List<LlmEndpoint> {
+        val legacyKey = securePrefs.getString("${provider}_key", "") ?: ""
+        val defaultUrl = LlmConfig.defaultUrls[provider] ?: ""
+        val legacyUrl = settingPrefs.getString("${provider}_url", defaultUrl) ?: defaultUrl
+        val endpoint = getDefaultEndpoint(provider).copy(baseUrl = legacyUrl)
+
+        if (legacyKey.isNotBlank()) {
+            saveSecureString(endpointKey(endpoint.id), legacyKey, "API key", provider) {
+                cachedEndpointApiKeys[endpoint.id] = legacyKey
+            }
+        }
+
+        return listOf(endpoint)
+    }
+
+    private fun saveEndpoints(provider: String, endpoints: List<LlmEndpoint>) {
+        val normalized = endpoints
+            .filter { it.provider == provider && it.id.isNotBlank() }
+            .ifEmpty { listOf(getDefaultEndpoint(provider)) }
+            .distinctBy { it.id }
+            .map { endpoint ->
+                endpoint.copy(
+                    name = endpoint.name.ifBlank { "Default" },
+                    baseUrl = endpoint.baseUrl.ifBlank { LlmConfig.defaultUrls[provider] ?: "" },
+                    priority = endpoint.priority.coerceAtLeast(0),
+                    weight = endpoint.weight.coerceAtLeast(1)
+                )
+            }
+            .sortedWith(compareBy<LlmEndpoint> { it.priority }.thenBy { it.lastUsedAtMs }.thenBy { it.name })
+
+        cachedEndpoints[provider] = normalized
+        settingPrefs.edit().putString(endpointPoolKey(provider), gson.toJson(normalized)).apply()
+    }
+
+    private fun updateEndpoint(provider: String, endpointId: String, transform: (LlmEndpoint) -> LlmEndpoint) {
+        val endpoints = getEndpoints(provider)
+        val next = endpoints.map { endpoint ->
+            if (endpoint.id == endpointId) transform(endpoint) else endpoint
+        }
+        saveEndpoints(provider, next)
+    }
+
+    private fun endpointRotationScore(endpoint: LlmEndpoint, now: Long): Long {
+        val weight = endpoint.weight.coerceAtLeast(1)
+        if (endpoint.lastUsedAtMs <= 0L) {
+            return Long.MAX_VALUE
+        }
+        val idleSeconds = ((now - endpoint.lastUsedAtMs).coerceAtLeast(0L) / 1000L)
+        return idleSeconds.coerceAtMost(Long.MAX_VALUE / weight) * weight
     }
 
     private fun saveSecureString(

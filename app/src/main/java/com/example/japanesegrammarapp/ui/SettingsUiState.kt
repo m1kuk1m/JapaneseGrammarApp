@@ -1,5 +1,7 @@
 package com.example.japanesegrammarapp.ui
 
+import com.example.japanesegrammarapp.domain.model.LlmEndpoint
+
 data class SettingsUiState(
     val activeProvider: String = "Gemini",
     val activeModel: String = "",
@@ -23,5 +25,7 @@ data class SettingsUiState(
     val ttsVoices: Map<String, String> = emptyMap(),
     val ttsRegions: Map<String, String> = emptyMap(),
     val providerUrls: Map<String, String> = emptyMap(),
-    val providerKeys: Map<String, String> = emptyMap()
+    val providerKeys: Map<String, String> = emptyMap(),
+    val providerEndpoints: Map<String, List<LlmEndpoint>> = emptyMap(),
+    val fetchingEndpointId: String? = null
 )

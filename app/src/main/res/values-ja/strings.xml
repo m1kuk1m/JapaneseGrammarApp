@@ -250,6 +250,19 @@
     <string name="api_endpoints_manage">APIエンドポイント管理</string>
     <string name="endpoint_name">エンドポイント名</string>
     <string name="delete_endpoint_confirm">このエンドポイントを削除してもよろしいですか？</string>
+    <string name="endpoint_add">エンドポイントを追加</string>
+    <string name="endpoint_edit">エンドポイントを編集</string>
+    <string name="endpoint_enabled">有効</string>
+    <string name="endpoint_disabled">無効</string>
+    <string name="endpoint_failures">失敗回数：%1$d</string>
+    <string name="endpoint_cooldown">クールダウン：%1$s</string>
+    <string name="endpoint_last_error">前回のエラー：%1$s</string>
+    <string name="endpoint_priority">優先度</string>
+    <string name="endpoint_weight">重み</string>
+    <string name="endpoint_priority_weight">優先度 %1$d · 重み %2$d</string>
+    <string name="endpoint_save">保存</string>
+    <string name="endpoint_save_success">エンドポイントを保存しました</string>
+    <string name="endpoint_delete_success">エンドポイントを削除しました</string>
 
     <!-- New UI Strings -->
     <string name="copy_full_error_log">完全なエラーログをコピー</string>

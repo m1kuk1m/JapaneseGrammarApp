@@ -6,13 +6,15 @@ import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.repository.LlmRepository
 import com.example.japanesegrammarapp.domain.repository.LlmResult
 import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
+import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.example.japanesegrammarapp.utils.AppLogger
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class LlmRepositoryImpl @Inject constructor(
-    private val llmService: LlmApiService
+    private val llmService: LlmApiService,
+    private val settingsRepository: SettingsRepository
 ) : LlmRepository {
 
     override suspend fun fetchModels(provider: String, baseUrl: String, apiKey: String): List<String> {
@@ -226,7 +228,7 @@ class LlmRepositoryImpl @Inject constructor(
         return if (length > maxLength) take(maxLength) + "\n...<truncated>" else this
     }
 
-    override suspend fun executeWithFailover(
+    private suspend fun executeSingleWithFailover(
         systemPrompt: String,
         userPrompt: String,
         imageBase64: String?,
@@ -409,6 +411,218 @@ class LlmRepositoryImpl @Inject constructor(
                 e.localizedMessage,
                 e
             )
+        }
+    }
+
+    override suspend fun executeWithFailover(
+        systemPrompt: String,
+        userPrompt: String,
+        imageBase64: String?,
+        mimeType: String?,
+        apiTypeLabel: String,
+        primaryConfigs: List<LlmApiConfig>,
+        backupConfigs: List<LlmApiConfig>,
+        recordId: Int?,
+        stepName: String?,
+        onRetry: (attempt: Int) -> Unit,
+        onBackup: (backupProvider: String) -> Unit
+    ): LlmResult {
+        val primaryProvider = primaryConfigs.firstOrNull()?.provider ?: "Main API"
+        val primaryAttempt = tryConfigPool(
+            configs = primaryConfigs,
+            role = "Primary",
+            systemPrompt = systemPrompt,
+            userPrompt = userPrompt,
+            imageBase64 = imageBase64,
+            mimeType = mimeType,
+            apiTypeLabel = apiTypeLabel,
+            recordId = recordId,
+            stepName = stepName,
+            onRetry = onRetry
+        )
+        primaryAttempt.result?.let { return it }
+
+        val backupProvider = backupConfigs.firstOrNull()?.provider
+        if (backupConfigs.isEmpty() || backupProvider.isNullOrBlank()) {
+            throw com.example.japanesegrammarapp.domain.model.LlmApiFailedException(
+                primaryProvider,
+                primaryAttempt.lastException?.localizedMessage ?: "No enabled API endpoint is configured.",
+                false,
+                null,
+                null,
+                primaryAttempt.lastException
+            )
+        }
+
+        AppLogger.apiEvent(
+            apiTypeLabel = apiTypeLabel,
+            provider = backupProvider,
+            model = backupConfigs.first().modelName,
+            status = "BACKUP",
+            hasImage = imageBase64 != null,
+            userPrompt = userPrompt,
+            systemPrompt = systemPrompt,
+            message = "Switching to backup endpoint pool after primary pool failed: ${primaryAttempt.lastException?.localizedMessage ?: "Unknown error"}",
+            recordId = recordId,
+            stepName = stepName
+        )
+        onBackup(backupProvider)
+
+        val backupAttempt = tryConfigPool(
+            configs = backupConfigs,
+            role = "Backup",
+            systemPrompt = systemPrompt,
+            userPrompt = userPrompt,
+            imageBase64 = imageBase64,
+            mimeType = mimeType,
+            apiTypeLabel = apiTypeLabel,
+            recordId = recordId,
+            stepName = stepName,
+            onRetry = {}
+        )
+        backupAttempt.result?.let { return it }
+
+        throw com.example.japanesegrammarapp.domain.model.LlmApiFailedException(
+            primaryProvider,
+            primaryAttempt.lastException?.localizedMessage ?: "No enabled API endpoint is configured.",
+            true,
+            backupProvider,
+            backupAttempt.lastException?.localizedMessage ?: "No enabled backup endpoint is configured.",
+            backupAttempt.lastException ?: primaryAttempt.lastException
+        )
+    }
+
+    private data class PoolAttempt(
+        val result: LlmResult?,
+        val lastException: Exception?
+    )
+
+    private suspend fun tryConfigPool(
+        configs: List<LlmApiConfig>,
+        role: String,
+        systemPrompt: String,
+        userPrompt: String,
+        imageBase64: String?,
+        mimeType: String?,
+        apiTypeLabel: String,
+        recordId: Int?,
+        stepName: String?,
+        onRetry: (attempt: Int) -> Unit
+    ): PoolAttempt {
+        if (configs.isEmpty()) {
+            return PoolAttempt(null, IllegalArgumentException("No enabled API endpoint is configured."))
+        }
+
+        var lastException: Exception? = null
+        configs.forEachIndexed { index, config ->
+            val attemptNumber = index + 1
+            val attemptStartMs = System.currentTimeMillis()
+            val endpointLabel = config.endpointName.ifBlank {
+                config.endpointId.ifBlank { "default" }
+            }
+            try {
+                if (config.endpointId.isNotBlank()) {
+                    settingsRepository.touchEndpoint(config.provider, config.endpointId)
+                }
+                AppLogger.apiEvent(
+                    apiTypeLabel = apiTypeLabel,
+                    provider = config.provider,
+                    model = config.modelName,
+                    status = "START",
+                    hasImage = imageBase64 != null,
+                    userPrompt = userPrompt,
+                    systemPrompt = systemPrompt,
+                    message = "$role request attempt $attemptNumber started via endpoint $endpointLabel",
+                    recordId = recordId,
+                    stepName = stepName,
+                    attempt = attemptNumber
+                )
+
+                val result = callLlmApi(
+                    systemPrompt = systemPrompt,
+                    userPrompt = userPrompt,
+                    imageBase64 = imageBase64,
+                    mimeType = mimeType,
+                    provider = config.provider,
+                    baseProvider = config.baseProvider,
+                    modelName = config.modelName,
+                    effectiveUrl = config.url,
+                    apiKey = config.key
+                )
+                if (config.endpointId.isNotBlank()) {
+                    settingsRepository.markEndpointSuccess(config.provider, config.endpointId)
+                }
+                return PoolAttempt(
+                    result.copy(
+                        endpointId = config.endpointId,
+                        endpointName = config.endpointName
+                    ),
+                    null
+                )
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                val elapsedMs = System.currentTimeMillis() - attemptStartMs
+                lastException = e
+                if (config.endpointId.isNotBlank()) {
+                    settingsRepository.markEndpointFailure(
+                        provider = config.provider,
+                        endpointId = config.endpointId,
+                        error = e.localizedMessage ?: "Unknown error",
+                        cooldownMs = endpointCooldownMs(e)
+                    )
+                }
+                AppLogger.e(
+                    "LLM_API",
+                    "$role LLM call failed for [$apiTypeLabel] via ${config.provider} ($endpointLabel, ${config.modelName}). Error: ${e.localizedMessage}",
+                    e
+                )
+
+                if (index < configs.lastIndex) {
+                    AppLogger.apiEvent(
+                        apiTypeLabel = apiTypeLabel,
+                        provider = config.provider,
+                        model = config.modelName,
+                        status = "RETRY",
+                        hasImage = imageBase64 != null,
+                        userPrompt = userPrompt,
+                        systemPrompt = systemPrompt,
+                        message = "$role endpoint $endpointLabel failed after ${elapsedMs}ms: ${e.localizedMessage ?: "Unknown error"}. Trying next endpoint.",
+                        recordId = recordId,
+                        stepName = stepName,
+                        attempt = attemptNumber,
+                        elapsedMs = elapsedMs
+                    )
+                    onRetry(attemptNumber)
+                    delay(600L)
+                } else {
+                    AppLogger.apiError(
+                        apiTypeLabel = apiTypeLabel,
+                        provider = config.provider,
+                        model = config.modelName,
+                        hasImage = imageBase64 != null,
+                        userPrompt = userPrompt,
+                        systemPrompt = systemPrompt,
+                        message = "$role endpoint $endpointLabel failed after ${elapsedMs}ms: ${e.localizedMessage ?: "Unknown error"}",
+                        throwable = e,
+                        recordId = recordId,
+                        stepName = stepName,
+                        attempt = attemptNumber,
+                        elapsedMs = elapsedMs
+                    )
+                }
+            }
+        }
+
+        return PoolAttempt(null, lastException)
+    }
+
+    private fun endpointCooldownMs(error: Exception): Long {
+        val http = error.cause as? retrofit2.HttpException ?: error as? retrofit2.HttpException
+        return when (http?.code()) {
+            401, 403 -> 24 * 60 * 60 * 1000L
+            429 -> 2 * 60 * 1000L
+            in 500..599 -> 60 * 1000L
+            else -> 30 * 1000L
         }
     }
 }

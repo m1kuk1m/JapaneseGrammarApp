@@ -250,6 +250,19 @@
     <string name="api_endpoints_manage">API 节点池管理</string>
     <string name="endpoint_name">节点名称</string>
     <string name="delete_endpoint_confirm">确定要删除此节点吗？</string>
+    <string name="endpoint_add">添加节点</string>
+    <string name="endpoint_edit">编辑节点</string>
+    <string name="endpoint_enabled">已启用</string>
+    <string name="endpoint_disabled">已禁用</string>
+    <string name="endpoint_failures">失败次数：%1$d</string>
+    <string name="endpoint_cooldown">冷却中：%1$s</string>
+    <string name="endpoint_last_error">上次错误：%1$s</string>
+    <string name="endpoint_priority">优先级</string>
+    <string name="endpoint_weight">权重</string>
+    <string name="endpoint_priority_weight">优先级 %1$d · 权重 %2$d</string>
+    <string name="endpoint_save">保存</string>
+    <string name="endpoint_save_success">节点已保存</string>
+    <string name="endpoint_delete_success">节点已删除</string>
 
     <!-- New UI Strings -->
     <string name="copy_full_error_log">复制完整报错日志</string>

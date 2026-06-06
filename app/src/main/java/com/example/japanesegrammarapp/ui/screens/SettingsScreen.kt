@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -32,6 +33,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,7 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.japanesegrammarapp.R
-import com.example.japanesegrammarapp.domain.model.LlmConfig
+import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.ui.SettingsViewModel
 import com.example.japanesegrammarapp.ui.UiEvent
 import com.example.japanesegrammarapp.ui.theme.ZenColors
@@ -71,7 +73,6 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val activeProvider = uiState.activeProvider
     val providerModels = uiState.providerModels
-    val fetchingProvider = uiState.fetchingProvider
     val totalTokensConsumed by viewModel.totalTokensConsumed.collectAsState()
     val tokenUsageByModel by viewModel.tokenUsageByModel.collectAsState()
 
@@ -82,7 +83,6 @@ fun SettingsScreen(
     var promptText by remember { mutableStateOf("") }
     var showResetConfirm by remember { mutableStateOf(false) }
     var showResetAllConfirm by remember { mutableStateOf(false) }
-    var pendingApiKeyClearProvider by remember { mutableStateOf<String?>(null) }
     var pendingTtsKeyClearProvider by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(showPromptEditor, selectedPromptKey) {
@@ -92,8 +92,6 @@ fun SettingsScreen(
     }
 
     val providers = uiState.allProviders
-    val defaultUrls = LlmConfig.defaultUrls
-
     var isLocalSettingsInitialized by remember { mutableStateOf(false) }
 
     var selectedTtsProvider by remember { mutableStateOf("OpenAI") }
@@ -102,9 +100,6 @@ fun SettingsScreen(
     val ttsModels = remember { mutableStateMapOf<String, String>() }
     val ttsVoices = remember { mutableStateMapOf<String, String>() }
     val ttsRegions = remember { mutableStateMapOf<String, String>() }
-
-    val providerUrls = remember { mutableStateMapOf<String, String>() }
-    val providerKeys = remember { mutableStateMapOf<String, String>() }
 
     fun saveSettings() {
         if (!isLocalSettingsInitialized) return
@@ -120,10 +115,6 @@ fun SettingsScreen(
         }
         ttsRegions.forEach { (provider, region) ->
             viewModel.setTtsRegion(provider, region)
-        }
-
-        providerUrls.forEach { (provider, url) ->
-            viewModel.setApiUrl(provider, url)
         }
     }
 
@@ -152,11 +143,6 @@ fun SettingsScreen(
 
     LaunchedEffect(uiState.isSettingsLoaded) {
         if (uiState.isSettingsLoaded && !isLocalSettingsInitialized) {
-            providerUrls.clear()
-            providerUrls.putAll(uiState.providerUrls)
-            providerKeys.clear()
-            providerKeys.putAll(uiState.providerKeys)
-
             ttsUrls.clear()
             ttsUrls.putAll(uiState.ttsUrls)
             ttsKeys.clear()
@@ -240,6 +226,9 @@ fun SettingsScreen(
     val apiLogs by com.example.japanesegrammarapp.utils.AppLogger.apiLogs.collectAsState()
     var showApiLogsDialog by remember { mutableStateOf(false) }
     var selectedApiLogDetail by remember { mutableStateOf<com.example.japanesegrammarapp.utils.ApiDebugLog?>(null) }
+    var endpointBeingEdited by remember { mutableStateOf<LlmEndpoint?>(null) }
+    var endpointAddProvider by remember { mutableStateOf<String?>(null) }
+    var endpointDeleteTarget by remember { mutableStateOf<LlmEndpoint?>(null) }
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
     if (showLogsDialog) {
@@ -795,31 +784,6 @@ fun SettingsScreen(
         )
     }
 
-    pendingApiKeyClearProvider?.let { provider ->
-        AlertDialog(
-            onDismissRequest = { pendingApiKeyClearProvider = null },
-            title = { Text(stringResource(R.string.clear_api_key_title), fontWeight = FontWeight.Bold, color = SumiInk) },
-            text = { Text(stringResource(R.string.clear_api_key_confirm), color = SumiInk) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.saveApiKey(provider, "")
-                        providerKeys[provider] = ""
-                        pendingApiKeyClearProvider = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                ) {
-                    Text(stringResource(R.string.clear_api_key), color = Color.White)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingApiKeyClearProvider = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
-        )
-    }
-
     pendingTtsKeyClearProvider?.let { provider ->
         AlertDialog(
             onDismissRequest = { pendingTtsKeyClearProvider = null },
@@ -839,6 +803,64 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { pendingTtsKeyClearProvider = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    endpointAddProvider?.let { provider ->
+        EndpointEditorDialog(
+            provider = provider,
+            endpoint = null,
+            initialKey = "",
+            onDismiss = { endpointAddProvider = null },
+            onSave = { name, baseUrl, apiKey, priority, weight ->
+                viewModel.createEndpoint(provider, name, baseUrl, apiKey, priority, weight)
+                endpointAddProvider = null
+            }
+        )
+    }
+
+    endpointBeingEdited?.let { endpoint ->
+        EndpointEditorDialog(
+            provider = endpoint.provider,
+            endpoint = endpoint,
+            initialKey = viewModel.getApiKeyForEndpoint(endpoint.id),
+            onDismiss = { endpointBeingEdited = null },
+            onSave = { name, baseUrl, apiKey, priority, weight ->
+                viewModel.saveEndpoint(
+                    endpoint.copy(
+                        name = name,
+                        baseUrl = baseUrl,
+                        priority = priority,
+                        weight = weight
+                    ),
+                    apiKey
+                )
+                endpointBeingEdited = null
+            }
+        )
+    }
+
+    endpointDeleteTarget?.let { endpoint ->
+        AlertDialog(
+            onDismissRequest = { endpointDeleteTarget = null },
+            title = { Text(stringResource(R.string.delete), fontWeight = FontWeight.Bold, color = SumiInk) },
+            text = { Text(stringResource(R.string.delete_endpoint_confirm), color = SumiInk) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteEndpoint(endpoint.provider, endpoint.id)
+                        endpointDeleteTarget = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text(stringResource(R.string.delete), color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { endpointDeleteTarget = null }) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -1260,79 +1282,21 @@ fun SettingsScreen(
                             exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(160))
                         ) {
                             Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
-                                var localUrl by remember(providerUrls[provider]) { mutableStateOf(providerUrls[provider] ?: defaultUrls[provider] ?: "") }
-                                var localKey by remember(providerKeys[provider]) { mutableStateOf(providerKeys[provider] ?: "") }
-                                var keyVisible by remember { mutableStateOf(false) }
-
-                                OutlinedTextField(
-                                    value = localUrl,
-                                    onValueChange = { 
-                                        localUrl = it
-                                        providerUrls[provider] = it
+                                EndpointPoolSection(
+                                    endpoints = uiState.providerEndpoints[provider].orEmpty(),
+                                    fetchingEndpointId = uiState.fetchingEndpointId,
+                                    onAddEndpoint = { endpointAddProvider = provider },
+                                    onEditEndpoint = { endpointBeingEdited = it },
+                                    onDeleteEndpoint = { endpointDeleteTarget = it },
+                                    onToggleEndpoint = { endpoint, enabled ->
+                                        viewModel.toggleEndpoint(provider, endpoint.id, enabled)
                                     },
-                                    label = { Text(stringResource(R.string.base_url)) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true,
-                                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                OutlinedTextField(
-                                    value = localKey,
-                                    onValueChange = { 
-                                        localKey = it
-                                        providerKeys[provider] = it
-                                    },
-                                    label = { Text(stringResource(R.string.api_key)) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true,
-                                    visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                    trailingIcon = {
-                                        IconButton(onClick = { keyVisible = !keyVisible }) {
-                                            Icon(if (keyVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null)
-                                        }
-                                    },
-                                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                OutlinedButton(
-                                    onClick = {
-                                        if (localKey.isBlank() && uiState.providerKeys[provider]?.isNotBlank() == true) {
-                                            pendingApiKeyClearProvider = provider
-                                        } else {
-                                            viewModel.saveApiKey(provider, localKey)
-                                        }
-                                    },
-                                    enabled = localKey.isNotBlank() || (uiState.providerKeys[provider]?.isNotBlank() == true),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(8.dp)
-                                ) {
-                                    Icon(Icons.Default.Save, null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(stringResource(R.string.save_api_key))
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                val isFetchingThis = fetchingProvider == provider
-                                Button(
-                                    onClick = { viewModel.fetchModels(provider, localUrl, localKey) },
-                                    enabled = !isFetchingThis && localKey.isNotBlank(),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
-                                    shape = RoundedCornerShape(8.dp)
-                                ) {
-                                    if (isFetchingThis) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = OnPrimaryColor, strokeWidth = 2.dp)
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(stringResource(R.string.fetching))
-                                    } else {
-                                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(stringResource(R.string.fetch_models))
+                                    onFetchModels = { endpoint ->
+                                        viewModel.fetchModelsForEndpoint(provider, endpoint.id)
                                     }
-                                }
+                                )
 
-                                Spacer(modifier = Modifier.height(16.dp))
-                                // Custom Model Input
+                                Spacer(modifier = Modifier.height(12.dp))
                                 val customModelInput = customModelInputs[provider] ?: ""
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -1807,6 +1771,307 @@ private fun apiStatusColor(status: String): Color {
         "RETRY", "BACKUP" -> Color(0xFFE65100)
         "START" -> fallback.copy(alpha = 0.65f)
         else -> fallback.copy(alpha = 0.55f)
+    }
+}
+
+@Composable
+private fun EndpointPoolSection(
+    endpoints: List<LlmEndpoint>,
+    fetchingEndpointId: String?,
+    onAddEndpoint: () -> Unit,
+    onEditEndpoint: (LlmEndpoint) -> Unit,
+    onDeleteEndpoint: (LlmEndpoint) -> Unit,
+    onToggleEndpoint: (LlmEndpoint, Boolean) -> Unit,
+    onFetchModels: (LlmEndpoint) -> Unit
+) {
+    val SumiInk = MaterialTheme.colorScheme.onBackground
+    val PrimaryColor = MaterialTheme.colorScheme.primary
+    val OnPrimaryColor = MaterialTheme.colorScheme.onPrimary
+    val now = System.currentTimeMillis()
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.api_endpoints_manage),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = SumiInk
+            )
+            OutlinedButton(
+                onClick = onAddEndpoint,
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(stringResource(R.string.add), fontSize = 12.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        endpoints.forEach { endpoint ->
+            val isCoolingDown = endpoint.cooldownUntilMs > now
+            val isFetching = fetchingEndpointId == endpoint.id
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+                    .border(1.dp, SumiInk.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                    .background(SumiInk.copy(alpha = 0.025f), RoundedCornerShape(8.dp))
+                    .padding(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = endpoint.name.ifBlank { stringResource(R.string.endpoint_name) },
+                            color = SumiInk,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = endpoint.baseUrl,
+                            color = SumiInk.copy(alpha = 0.55f),
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Switch(
+                        checked = endpoint.enabled,
+                        onCheckedChange = { onToggleEndpoint(endpoint, it) }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (endpoint.enabled) {
+                                stringResource(R.string.endpoint_enabled)
+                            } else {
+                                stringResource(R.string.endpoint_disabled)
+                            },
+                            color = if (endpoint.enabled) PrimaryColor else SumiInk.copy(alpha = 0.45f),
+                            fontSize = 12.sp
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.endpoint_priority_weight,
+                                endpoint.priority,
+                                endpoint.weight
+                            ),
+                            color = SumiInk.copy(alpha = 0.5f),
+                            fontSize = 11.sp
+                        )
+                        if (endpoint.consecutiveFailures > 0) {
+                            Text(
+                                text = stringResource(R.string.endpoint_failures, endpoint.consecutiveFailures),
+                                color = Color(0xFFC62828),
+                                fontSize = 11.sp
+                            )
+                        }
+                        if (isCoolingDown) {
+                            Text(
+                                text = stringResource(
+                                    R.string.endpoint_cooldown,
+                                    formatDuration(endpoint.cooldownUntilMs - now)
+                                ),
+                                color = Color(0xFFE65100),
+                                fontSize = 11.sp
+                            )
+                        }
+                        endpoint.lastError?.takeIf { it.isNotBlank() }?.let { error ->
+                            Text(
+                                text = stringResource(R.string.endpoint_last_error, error),
+                                color = SumiInk.copy(alpha = 0.55f),
+                                fontSize = 11.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { onFetchModels(endpoint) },
+                            enabled = !isFetching && endpoint.enabled
+                        ) {
+                            if (isFetching) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    color = PrimaryColor,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.fetch_models))
+                            }
+                        }
+                        IconButton(onClick = { onEditEndpoint(endpoint) }) {
+                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.endpoint_edit))
+                        }
+                        IconButton(onClick = { onDeleteEndpoint(endpoint) }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.delete),
+                                tint = Color(0xFFD32F2F)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (endpoints.isEmpty()) {
+            Button(
+                onClick = onAddEndpoint,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = OnPrimaryColor)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.endpoint_add), color = OnPrimaryColor)
+            }
+        }
+    }
+}
+
+@Composable
+private fun EndpointEditorDialog(
+    provider: String,
+    endpoint: LlmEndpoint?,
+    initialKey: String,
+    onDismiss: () -> Unit,
+    onSave: (name: String, baseUrl: String, apiKey: String, priority: Int, weight: Int) -> Unit
+) {
+    var name by remember(endpoint?.id) { mutableStateOf(endpoint?.name ?: "") }
+    var baseUrl by remember(endpoint?.id) { mutableStateOf(endpoint?.baseUrl ?: "") }
+    var apiKey by remember(endpoint?.id, initialKey) { mutableStateOf(initialKey) }
+    var priorityText by remember(endpoint?.id) { mutableStateOf((endpoint?.priority ?: 0).toString()) }
+    var weightText by remember(endpoint?.id) { mutableStateOf((endpoint?.weight ?: 1).toString()) }
+    var keyVisible by remember { mutableStateOf(false) }
+    val parsedPriority = priorityText.toIntOrNull()?.coerceAtLeast(0)
+    val parsedWeight = weightText.toIntOrNull()?.coerceAtLeast(1)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (endpoint == null) {
+                    stringResource(R.string.endpoint_add)
+                } else {
+                    stringResource(R.string.endpoint_edit)
+                },
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                Text(provider, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.endpoint_name)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = baseUrl,
+                    onValueChange = { baseUrl = it },
+                    label = { Text(stringResource(R.string.base_url)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = { apiKey = it },
+                    label = { Text(stringResource(R.string.api_key)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { keyVisible = !keyVisible }) {
+                            Icon(
+                                if (keyVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = null
+                            )
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = priorityText,
+                        onValueChange = { priorityText = it.filter(Char::isDigit).take(3) },
+                        label = { Text(stringResource(R.string.endpoint_priority)) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                    OutlinedTextField(
+                        value = weightText,
+                        onValueChange = { weightText = it.filter(Char::isDigit).take(3) },
+                        label = { Text(stringResource(R.string.endpoint_weight)) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSave(
+                        name.trim(),
+                        baseUrl.trim(),
+                        apiKey.trim(),
+                        parsedPriority ?: 0,
+                        parsedWeight ?: 1
+                    )
+                },
+                enabled = name.isNotBlank() &&
+                    (baseUrl.isNotBlank() || endpoint != null) &&
+                    parsedPriority != null &&
+                    parsedWeight != null
+            ) {
+                Text(stringResource(R.string.endpoint_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
+private fun formatDuration(durationMs: Long): String {
+    val totalSeconds = (durationMs.coerceAtLeast(0L) + 999L) / 1000L
+    val minutes = totalSeconds / 60L
+    val seconds = totalSeconds % 60L
+    return if (minutes > 0L) {
+        "${minutes}m ${seconds}s"
+    } else {
+        "${seconds}s"
     }
 }
 

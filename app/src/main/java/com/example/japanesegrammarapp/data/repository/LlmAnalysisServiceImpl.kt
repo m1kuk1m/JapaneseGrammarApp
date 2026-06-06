@@ -33,8 +33,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
         mimeType: String?,
         isOcrMode: Boolean,
         imageTokenizerMode: String,
-        primaryConfig: LlmApiConfig,
-        backupConfig: LlmApiConfig?,
+        primaryConfigs: List<LlmApiConfig>,
+        backupConfigs: List<LlmApiConfig>,
         onRetry: (attempt: Int) -> Unit,
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
@@ -48,7 +48,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
         }
 
         val userPrompt = when {
-            imageBase64 != null && imageTokenizerMode == "repair" -> "画像内の日本語テキストを読み取り、画像が不鮮明な場合は文脈・日本語としての自然さ・濁点/半濁点の有無を総合して、明らかに不合理な読み取りを補正してください。最終的な本文は recognizedText に、分かち書き結果は tokens に出力してください。"
+            imageBase64 != null && imageTokenizerMode == "repair" -> "画像内の日本語テキストを視覚情報優先で読み取り、不鮮明な場合も文脈は類似字形候補を選ぶ補助に限定してください。意味・自然さ・頻度・安全性を理由に一般語へ置き換えず、濁点/半濁点/長音符/小書き文字は画像上の痕跡を優先してください。最終的な本文は recognizedText に、分かち書き結果は tokens に出力してください。"
             imageBase64 != null -> "画像内の日本語テキストを原文のまま忠実に認識し、一切修正せず、文字を変更しないでトークン化してください。画像から読み取った原文は recognizedText に、分かち書き結果は tokens に出力してください。"
             isOcrMode -> "分析対象のOCRテキスト: \"$text\"\nこのテキストのOCR誤認識（て・で誤認、濁点脱落など）を自动修正した上で、トークン化し、文字列の配列として出力してください。"
             else -> "分析対象の文: \"$text\"\nこの文をトークン化し、文字列の配列として出力してください。"
@@ -60,8 +60,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
             imageBase64 = imageBase64,
             mimeType = mimeType,
             apiTypeLabel = "単語分割",
-            primaryConfig = primaryConfig,
-            backupConfig = backupConfig,
+            primaryConfigs = primaryConfigs,
+            backupConfigs = backupConfigs,
             onRetry = onRetry,
             onBackup = onBackup,
             clazz = TokenizationResult::class.java,
@@ -75,8 +75,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
         text: String,
         imageBase64: String?,
         mimeType: String?,
-        primaryConfig: LlmApiConfig,
-        backupConfig: LlmApiConfig?,
+        primaryConfigs: List<LlmApiConfig>,
+        backupConfigs: List<LlmApiConfig>,
         onRetry: (attempt: Int) -> Unit,
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
@@ -94,8 +94,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
             imageBase64 = imageBase64,
             mimeType = mimeType,
             apiTypeLabel = "翻訳",
-            primaryConfig = primaryConfig,
-            backupConfig = backupConfig,
+            primaryConfigs = primaryConfigs,
+            backupConfigs = backupConfigs,
             onRetry = onRetry,
             onBackup = onBackup,
             clazz = DetailedAnalysisResult::class.java,
@@ -109,8 +109,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
         text: String,
         imageBase64: String?,
         mimeType: String?,
-        primaryConfig: LlmApiConfig,
-        backupConfig: LlmApiConfig?,
+        primaryConfigs: List<LlmApiConfig>,
+        backupConfigs: List<LlmApiConfig>,
         onRetry: (attempt: Int) -> Unit,
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
@@ -128,8 +128,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
             imageBase64 = imageBase64,
             mimeType = mimeType,
             apiTypeLabel = "文節解析",
-            primaryConfig = primaryConfig,
-            backupConfig = backupConfig,
+            primaryConfigs = primaryConfigs,
+            backupConfigs = backupConfigs,
             onRetry = onRetry,
             onBackup = onBackup,
             clazz = DetailedAnalysisResult::class.java,
@@ -143,8 +143,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
         text: String,
         imageBase64: String?,
         mimeType: String?,
-        primaryConfig: LlmApiConfig,
-        backupConfig: LlmApiConfig?,
+        primaryConfigs: List<LlmApiConfig>,
+        backupConfigs: List<LlmApiConfig>,
         onRetry: (attempt: Int) -> Unit,
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
@@ -162,8 +162,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
             imageBase64 = imageBase64,
             mimeType = mimeType,
             apiTypeLabel = "文法解説",
-            primaryConfig = primaryConfig,
-            backupConfig = backupConfig,
+            primaryConfigs = primaryConfigs,
+            backupConfigs = backupConfigs,
             onRetry = onRetry,
             onBackup = onBackup,
             clazz = DetailedAnalysisResult::class.java,
@@ -178,8 +178,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
         tokens: List<String>,
         imageBase64: String?,
         mimeType: String?,
-        primaryConfig: LlmApiConfig,
-        backupConfig: LlmApiConfig?,
+        primaryConfigs: List<LlmApiConfig>,
+        backupConfigs: List<LlmApiConfig>,
         onRetry: (attempt: Int) -> Unit,
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
@@ -207,8 +207,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
             imageBase64 = imageBase64,
             mimeType = mimeType,
             apiTypeLabel = "詳細文法解析",
-            primaryConfig = primaryConfig,
-            backupConfig = backupConfig,
+            primaryConfigs = primaryConfigs,
+            backupConfigs = backupConfigs,
             onRetry = onRetry,
             onBackup = onBackup,
             clazz = DetailedAnalysisResult::class.java,
@@ -246,8 +246,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
         imageBase64: String?,
         mimeType: String?,
         apiTypeLabel: String,
-        primaryConfig: LlmApiConfig,
-        backupConfig: LlmApiConfig?,
+        primaryConfigs: List<LlmApiConfig>,
+        backupConfigs: List<LlmApiConfig>,
         onRetry: (attempt: Int) -> Unit,
         onBackup: (backupProvider: String) -> Unit,
         clazz: Class<T>,
@@ -256,12 +256,12 @@ class LlmAnalysisServiceImpl @Inject constructor(
         timeoutMs: Long
     ): Pair<T?, LlmResultMetadata> {
         val providerLabel = buildString {
-            append(primaryConfig.provider)
-            if (backupConfig != null) append(" -> ").append(backupConfig.provider)
+            append(primaryConfigs.firstOrNull()?.provider ?: "Main API")
+            backupConfigs.firstOrNull()?.provider?.let { append(" -> ").append(it) }
         }
         val modelLabel = buildString {
-            append(primaryConfig.modelName)
-            if (backupConfig != null) append(" -> ").append(backupConfig.modelName)
+            append(primaryConfigs.firstOrNull()?.modelName ?: "Unknown")
+            backupConfigs.firstOrNull()?.modelName?.let { append(" -> ").append(it) }
         }
         try {
             val stepStartMs = System.currentTimeMillis()
@@ -273,8 +273,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
                         imageBase64 = imageBase64,
                         mimeType = mimeType,
                         apiTypeLabel = apiTypeLabel,
-                        primaryConfig = primaryConfig,
-                        backupConfig = backupConfig,
+                        primaryConfigs = primaryConfigs,
+                        backupConfigs = backupConfigs,
                         recordId = recordId,
                         stepName = stepName,
                         onRetry = onRetry,

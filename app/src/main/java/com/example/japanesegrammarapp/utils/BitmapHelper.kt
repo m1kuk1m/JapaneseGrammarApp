@@ -5,14 +5,14 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
-import android.util.Base64
-import android.graphics.Rect
 import androidx.exifinterface.media.ExifInterface
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 
 object BitmapHelper {
+    private const val CROPPED_JPEG_QUALITY = 92
+    private const val MIN_SAMPLED_TARGET_RATIO = 0.85f
+
     fun getBitmapFromUri(context: Context, uri: Uri): Bitmap? {
         return try {
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
@@ -25,17 +25,35 @@ object BitmapHelper {
 
     fun loadRotatedBitmapFromUri(context: Context, uri: Uri): Bitmap? {
         val bitmap = getBitmapFromUri(context, uri) ?: return null
-        val stream = context.contentResolver.openInputStream(uri) ?: return bitmap
-        val exif = ExifInterface(stream)
-        val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
-        val angle = when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
-            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-            else -> 0f
+        return rotateIfNeeded(bitmap, readExifRotation(context, uri))
+    }
+
+    fun loadRotatedBitmapFromUri(context: Context, uri: Uri, maxDimension: Int): Bitmap? {
+        if (maxDimension <= 0) return loadRotatedBitmapFromUri(context, uri)
+
+        return try {
+            val bounds = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                BitmapFactory.decodeStream(inputStream, null, bounds)
+            }
+
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                return loadRotatedBitmapFromUri(context, uri)
+            }
+
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, maxDimension)
+            }
+            val bitmap = context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                BitmapFactory.decodeStream(inputStream, null, options)
+            } ?: return null
+
+            rotateIfNeeded(bitmap, readExifRotation(context, uri))
+        } catch (e: Exception) {
+            null
         }
-        stream.close()
-        return if (angle != 0f) rotateBitmap(bitmap, angle) else bitmap
     }
 
     fun loadRotatedBitmap(file: File): Bitmap? {
@@ -48,7 +66,7 @@ object BitmapHelper {
             ExifInterface.ORIENTATION_ROTATE_270 -> 270f
             else -> 0f
         }
-        return if (angle != 0f) rotateBitmap(bitmap, angle) else bitmap
+        return rotateIfNeeded(bitmap, angle)
     }
 
     fun createTempCapturedFile(context: Context): File {
@@ -58,7 +76,7 @@ object BitmapHelper {
     fun saveCroppedBitmap(context: Context, bitmap: Bitmap): Uri? {
         val file = File(context.cacheDir, "cropped_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}.jpg")
         val out = FileOutputStream(file)
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
+        bitmap.compress(Bitmap.CompressFormat.JPEG, CROPPED_JPEG_QUALITY, out)
         out.flush()
         out.close()
         return Uri.fromFile(file)
@@ -90,16 +108,47 @@ object BitmapHelper {
         return Bitmap.createScaledBitmap(realImage, width, height, true)
     }
 
-    fun bitmapToBase64(bitmap: Bitmap): String {
-        val outputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
-        val byteArray = outputStream.toByteArray()
-        return Base64.encodeToString(byteArray, Base64.DEFAULT)
+    private fun readExifRotation(context: Context, uri: Uri): Float {
+        return try {
+            context.contentResolver.openInputStream(uri)?.use { stream ->
+                val exif = ExifInterface(stream)
+                when (exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                    ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                    ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                    ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                    else -> 0f
+                }
+            } ?: 0f
+        } catch (e: Exception) {
+            0f
+        }
     }
 
-    fun rotateBitmap(source: Bitmap, angle: Float): Bitmap {
+    private fun calculateInSampleSize(width: Int, height: Int, maxDimension: Int): Int {
+        var inSampleSize = 1
+        var sampledWidth = width
+        var sampledHeight = height
+        val minSampledDimension = maxDimension * MIN_SAMPLED_TARGET_RATIO
+
+        while (maxOf(sampledWidth / 2, sampledHeight / 2) >= minSampledDimension) {
+            inSampleSize *= 2
+            sampledWidth /= 2
+            sampledHeight /= 2
+        }
+
+        return inSampleSize
+    }
+
+    private fun rotateIfNeeded(source: Bitmap, angle: Float): Bitmap {
+        if (angle == 0f) return source
+        return rotateBitmap(source, angle)
+    }
+
+    private fun rotateBitmap(source: Bitmap, angle: Float): Bitmap {
         val matrix = Matrix()
         matrix.postRotate(angle)
-        return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+        val rotated = Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+        source.recycle()
+        return rotated
     }
 }

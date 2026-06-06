@@ -1,5 +1,7 @@
 package com.example.japanesegrammarapp.domain.repository
 
+import com.example.japanesegrammarapp.domain.model.LlmEndpoint
+
 interface SettingsRepository {
     fun getAllProviders(): List<String>
     fun getBaseProviderType(providerId: String): String
@@ -8,6 +10,14 @@ interface SettingsRepository {
     fun saveApiKey(provider: String, key: String): Boolean
     fun getApiUrl(provider: String): String
     fun saveApiUrl(provider: String, url: String)
+    fun getEndpoints(provider: String): List<LlmEndpoint>
+    fun getApiKeyForEndpoint(endpointId: String): String
+    fun saveEndpoint(endpoint: LlmEndpoint, apiKey: String? = null): Boolean
+    fun deleteEndpoint(provider: String, endpointId: String): Boolean
+    fun markEndpointSuccess(provider: String, endpointId: String)
+    fun markEndpointFailure(provider: String, endpointId: String, error: String, cooldownMs: Long)
+    fun touchEndpoint(provider: String, endpointId: String)
+    fun buildLlmApiConfigs(provider: String, modelName: String): List<LlmApiConfig>
 
     fun getActiveProvider(): String
     fun setActiveProvider(provider: String)

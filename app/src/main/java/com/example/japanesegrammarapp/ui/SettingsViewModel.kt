@@ -7,11 +7,13 @@ import com.example.japanesegrammarapp.domain.repository.LlmRepository
 import com.example.japanesegrammarapp.domain.repository.HistoryRepository
 import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
 import com.example.japanesegrammarapp.domain.model.LlmConfig
+import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
@@ -60,6 +62,7 @@ class SettingsViewModel @Inject constructor(
 
             val pUrls = allProviders.associateWith { settingsRepository.getApiUrl(it) }
             val pKeys = allProviders.associateWith { settingsRepository.getApiKey(it) }
+            val pEndpoints = allProviders.associateWith { settingsRepository.getEndpoints(it) }
 
             _uiState.update {
                 it.copy(
@@ -81,6 +84,7 @@ class SettingsViewModel @Inject constructor(
                     ttsRegions = tRegions,
                     providerUrls = pUrls,
                     providerKeys = pKeys,
+                    providerEndpoints = pEndpoints,
                     isSettingsLoaded = true
                 )
             }
@@ -104,8 +108,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             val ok = settingsRepository.saveApiKey(provider, key)
             if (ok) {
+                val endpoints = settingsRepository.getEndpoints(provider)
                 _uiState.update { state ->
-                    state.copy(providerKeys = state.providerKeys.toMutableMap().apply { put(provider, key) })
+                    state.copy(
+                        providerKeys = state.providerKeys.toMutableMap().apply { put(provider, key) },
+                        providerEndpoints = state.providerEndpoints.toMutableMap().apply { put(provider, endpoints) }
+                    )
                 }
                 _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.api_key_save_success))
             } else {
@@ -114,17 +122,96 @@ class SettingsViewModel @Inject constructor(
         }
     }
     fun getApiUrl(provider: String): String = settingsRepository.getApiUrl(provider)
-    fun setApiUrl(provider: String, url: String) = settingsRepository.saveApiUrl(provider, url)
+    fun setApiUrl(provider: String, url: String) {
+        settingsRepository.saveApiUrl(provider, url)
+        val endpoints = settingsRepository.getEndpoints(provider)
+        _uiState.update { state ->
+            state.copy(
+                providerUrls = state.providerUrls.toMutableMap().apply { put(provider, url) },
+                providerEndpoints = state.providerEndpoints.toMutableMap().apply { put(provider, endpoints) }
+            )
+        }
+    }
+
+    fun getApiKeyForEndpoint(endpointId: String): String = settingsRepository.getApiKeyForEndpoint(endpointId)
+
+    fun createEndpoint(
+        provider: String,
+        name: String,
+        baseUrl: String,
+        apiKey: String,
+        priority: Int,
+        weight: Int
+    ) {
+        val endpoint = LlmEndpoint(
+            id = "endpoint_${UUID.randomUUID()}",
+            provider = provider,
+            name = name.ifBlank { "Endpoint ${(uiState.value.providerEndpoints[provider]?.size ?: 0) + 1}" },
+            baseUrl = baseUrl.ifBlank { LlmConfig.defaultUrls[provider] ?: "" },
+            enabled = true,
+            priority = priority.coerceAtLeast(0),
+            weight = weight.coerceAtLeast(1)
+        )
+        saveEndpoint(endpoint, apiKey)
+    }
+
+    fun saveEndpoint(endpoint: LlmEndpoint, apiKey: String? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val ok = settingsRepository.saveEndpoint(endpoint, apiKey)
+            if (ok) {
+                refreshEndpointPool(endpoint.provider)
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.endpoint_save_success))
+            } else {
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.api_key_save_failed))
+            }
+        }
+    }
+
+    fun toggleEndpoint(provider: String, endpointId: String, enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val endpoint = settingsRepository.getEndpoints(provider).firstOrNull { it.id == endpointId } ?: return@launch
+            val ok = settingsRepository.saveEndpoint(endpoint.copy(enabled = enabled), null)
+            if (ok) {
+                refreshEndpointPool(provider)
+            } else {
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.api_key_save_failed))
+            }
+        }
+    }
+
+    fun deleteEndpoint(provider: String, endpointId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (settingsRepository.deleteEndpoint(provider, endpointId)) {
+                refreshEndpointPool(provider)
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.endpoint_delete_success))
+            }
+        }
+    }
+
+    private fun refreshEndpointPool(provider: String) {
+        val endpoints = settingsRepository.getEndpoints(provider)
+        val url = settingsRepository.getApiUrl(provider)
+        val key = settingsRepository.getApiKey(provider)
+        _uiState.update { state ->
+            state.copy(
+                providerEndpoints = state.providerEndpoints.toMutableMap().apply { put(provider, endpoints) },
+                providerUrls = state.providerUrls.toMutableMap().apply { put(provider, url) },
+                providerKeys = state.providerKeys.toMutableMap().apply { put(provider, key) }
+            )
+        }
+    }
 
     private fun refreshProviders() {
         viewModelScope.launch(Dispatchers.IO) {
             val allProviders = settingsRepository.getAllProviders()
             val providerModels = allProviders.associateWith { settingsRepository.getModelsForProvider(it) }
+            val providerEndpoints = allProviders.associateWith { settingsRepository.getEndpoints(it) }
 
             _uiState.update {
                 it.copy(
                     allProviders = allProviders,
-                    providerModels = providerModels
+                    providerModels = providerModels,
+                    providerEndpoints = providerEndpoints
                 )
             }
         }
@@ -241,6 +328,41 @@ class SettingsViewModel @Inject constructor(
                 _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: "Unknown Error"))
             } finally {
                 _uiState.update { it.copy(isFetchingModels = false, fetchingProvider = null) }
+            }
+        }
+    }
+
+    fun fetchModelsForEndpoint(provider: String, endpointId: String) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isFetchingModels = true,
+                    fetchingProvider = provider,
+                    fetchingEndpointId = endpointId
+                )
+            }
+            try {
+                val endpoint = settingsRepository.getEndpoints(provider).firstOrNull { it.id == endpointId }
+                    ?: throw IllegalArgumentException("Endpoint not found")
+                val apiKey = settingsRepository.getApiKeyForEndpoint(endpointId)
+                val fetchedModels = llmRepository.fetchModels(provider, endpoint.baseUrl, apiKey)
+                saveModelsForProvider(provider, fetchedModels)
+            } catch (e: IllegalArgumentException) {
+                if (e.message == "Please configure API Key in Settings first.") {
+                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.err_missing_api_key))
+                } else {
+                    _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: "Unknown Error"))
+                }
+            } catch (e: Exception) {
+                _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: "Unknown Error"))
+            } finally {
+                _uiState.update {
+                    it.copy(
+                        isFetchingModels = false,
+                        fetchingProvider = null,
+                        fetchingEndpointId = null
+                    )
+                }
             }
         }
     }
