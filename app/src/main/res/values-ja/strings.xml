@@ -95,6 +95,12 @@
     <string name="language_auto">システムに従う</string>
     <string name="base_url">ベースURL</string>
     <string name="api_key">APIキー</string>
+    <string name="save_api_key">APIキーを保存</string>
+    <string name="clear_api_key">APIキーを削除</string>
+    <string name="clear_api_key_title">APIキーを削除しますか？</string>
+    <string name="clear_api_key_confirm">このプロバイダに保存済みのAPIキーを削除します。</string>
+    <string name="api_key_save_success">APIキーを保存しました</string>
+    <string name="api_key_save_failed">APIキーの保存に失敗しました</string>
     <string name="fetching">取得中...</string>
     <string name="fetch_models">モデルを取得</string>
     <string name="add_custom_model">カスタムモデルを追加</string>

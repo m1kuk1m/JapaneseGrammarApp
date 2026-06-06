@@ -100,7 +100,19 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun getApiKey(provider: String): String = settingsRepository.getApiKey(provider)
-    fun setApiKey(provider: String, key: String) = settingsRepository.saveApiKey(provider, key)
+    fun saveApiKey(provider: String, key: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val ok = settingsRepository.saveApiKey(provider, key)
+            if (ok) {
+                _uiState.update { state ->
+                    state.copy(providerKeys = state.providerKeys.toMutableMap().apply { put(provider, key) })
+                }
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.api_key_save_success))
+            } else {
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.api_key_save_failed))
+            }
+        }
+    }
     fun getApiUrl(provider: String): String = settingsRepository.getApiUrl(provider)
     fun setApiUrl(provider: String, url: String) = settingsRepository.saveApiUrl(provider, url)
 
@@ -218,7 +230,6 @@ class SettingsViewModel @Inject constructor(
             try {
                 val fetchedModels = llmRepository.fetchModels(provider, baseUrl, apiKey)
                 settingsRepository.saveApiUrl(provider, baseUrl)
-                settingsRepository.saveApiKey(provider, apiKey)
                 saveModelsForProvider(provider, fetchedModels)
             } catch (e: IllegalArgumentException) {
                 if (e.message == "Please configure API Key in Settings first.") {
@@ -250,7 +261,19 @@ class SettingsViewModel @Inject constructor(
     fun getTtsApiUrl(provider: String): String = settingsRepository.getTtsApiUrl(provider)
     fun setTtsApiUrl(provider: String, url: String) = settingsRepository.setTtsApiUrl(provider, url)
     fun getTtsApiKey(provider: String): String = settingsRepository.getTtsApiKey(provider)
-    fun setTtsApiKey(provider: String, key: String) = settingsRepository.setTtsApiKey(provider, key)
+    fun saveTtsApiKey(provider: String, key: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val ok = settingsRepository.setTtsApiKey(provider, key)
+            if (ok) {
+                _uiState.update { state ->
+                    state.copy(ttsKeys = state.ttsKeys.toMutableMap().apply { put(provider, key) })
+                }
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.api_key_save_success))
+            } else {
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.api_key_save_failed))
+            }
+        }
+    }
     fun getTtsModel(provider: String): String = settingsRepository.getTtsModel(provider)
     fun setTtsModel(provider: String, model: String) = settingsRepository.setTtsModel(provider, model)
     fun getTtsVoice(provider: String): String = settingsRepository.getTtsVoice(provider)

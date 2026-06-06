@@ -5,7 +5,7 @@ interface SettingsRepository {
     fun getBaseProviderType(providerId: String): String
 
     fun getApiKey(provider: String): String
-    fun saveApiKey(provider: String, key: String)
+    fun saveApiKey(provider: String, key: String): Boolean
     fun getApiUrl(provider: String): String
     fun saveApiUrl(provider: String, url: String)
 
@@ -46,7 +46,7 @@ interface SettingsRepository {
     fun getTtsApiUrl(provider: String): String
     fun setTtsApiUrl(provider: String, url: String)
     fun getTtsApiKey(provider: String): String
-    fun setTtsApiKey(provider: String, key: String)
+    fun setTtsApiKey(provider: String, key: String): Boolean
     fun getTtsModel(provider: String): String
     fun setTtsModel(provider: String, model: String)
     fun getTtsVoice(provider: String): String

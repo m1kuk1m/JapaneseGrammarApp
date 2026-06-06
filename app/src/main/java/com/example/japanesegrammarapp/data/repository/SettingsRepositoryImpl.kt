@@ -6,6 +6,7 @@ import com.example.japanesegrammarapp.di.StandardPrefs
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.example.japanesegrammarapp.network.PromptManager
+import com.example.japanesegrammarapp.utils.AppLogger
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -183,9 +184,10 @@ class SettingsRepositoryImpl @Inject constructor(
         return cached!!
     }
 
-    override fun saveApiKey(provider: String, key: String) {
-        cachedApiKeys[provider] = key
-        securePrefs.edit().putString("${provider}_key", key).apply()
+    override fun saveApiKey(provider: String, key: String): Boolean {
+        return saveSecureString("${provider}_key", key, "API key", provider) {
+            cachedApiKeys[provider] = key
+        }
     }
 
     override fun getApiUrl(provider: String): String {
@@ -341,9 +343,10 @@ class SettingsRepositoryImpl @Inject constructor(
         return cached!!
     }
 
-    override fun setTtsApiKey(provider: String, key: String) {
-        cachedTtsApiKeys[provider] = key
-        securePrefs.edit().putString("tts_${provider}_key", key).apply()
+    override fun setTtsApiKey(provider: String, key: String): Boolean {
+        return saveSecureString("tts_${provider}_key", key, "TTS API key", provider) {
+            cachedTtsApiKeys[provider] = key
+        }
     }
 
     override fun getTtsModel(provider: String): String {
@@ -458,5 +461,26 @@ class SettingsRepositoryImpl @Inject constructor(
             remove("prompt_tokenizer_image")
             remove("prompt_tokenizer_image_repair")
         }.apply()
+    }
+
+    private fun saveSecureString(
+        prefKey: String,
+        value: String,
+        label: String,
+        provider: String,
+        onSuccess: () -> Unit
+    ): Boolean {
+        return try {
+            val saved = securePrefs.edit().putString(prefKey, value).commit()
+            if (saved) {
+                onSuccess()
+            } else {
+                AppLogger.e("SETTINGS", "Failed to save $label for $provider: SharedPreferences commit returned false")
+            }
+            saved
+        } catch (e: Exception) {
+            AppLogger.e("SETTINGS", "Failed to save $label for $provider", e)
+            false
+        }
     }
 }

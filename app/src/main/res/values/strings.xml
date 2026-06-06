@@ -96,6 +96,12 @@
     <string name="language_auto">Auto (System)</string>
     <string name="base_url">Base URL</string>
     <string name="api_key">API Key</string>
+    <string name="save_api_key">Save API Key</string>
+    <string name="clear_api_key">Clear API Key</string>
+    <string name="clear_api_key_title">Clear API Key?</string>
+    <string name="clear_api_key_confirm">This will remove the saved API Key for this provider.</string>
+    <string name="api_key_save_success">API Key saved</string>
+    <string name="api_key_save_failed">Failed to save API Key</string>
     <string name="fetching">Fetching...</string>
     <string name="fetch_models">Fetch Models</string>
     <string name="add_custom_model">Add Custom Model</string>

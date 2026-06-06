@@ -82,6 +82,8 @@ fun SettingsScreen(
     var promptText by remember { mutableStateOf("") }
     var showResetConfirm by remember { mutableStateOf(false) }
     var showResetAllConfirm by remember { mutableStateOf(false) }
+    var pendingApiKeyClearProvider by remember { mutableStateOf<String?>(null) }
+    var pendingTtsKeyClearProvider by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(showPromptEditor, selectedPromptKey) {
         if (showPromptEditor) {
@@ -110,9 +112,6 @@ fun SettingsScreen(
         ttsUrls.forEach { (provider, url) ->
             viewModel.setTtsApiUrl(provider, url)
         }
-        ttsKeys.forEach { (provider, key) ->
-            viewModel.setTtsApiKey(provider, key)
-        }
         ttsModels.forEach { (provider, model) ->
             viewModel.setTtsModel(provider, model)
         }
@@ -125,9 +124,6 @@ fun SettingsScreen(
 
         providerUrls.forEach { (provider, url) ->
             viewModel.setApiUrl(provider, url)
-        }
-        providerKeys.forEach { (provider, key) ->
-            viewModel.setApiKey(provider, key)
         }
     }
 
@@ -220,11 +216,20 @@ fun SettingsScreen(
 
     LaunchedEffect(Unit) {
         viewModel.uiEvent.collect { event ->
-            if (event is UiEvent.ShowError) {
-                snackbarHostState.showSnackbar(
-                    message = event.message,
-                    duration = SnackbarDuration.Short
-                )
+            when (event) {
+                is UiEvent.ShowError -> {
+                    snackbarHostState.showSnackbar(
+                        message = event.message,
+                        duration = SnackbarDuration.Short
+                    )
+                }
+                is UiEvent.ShowLocalizedError -> {
+                    snackbarHostState.showSnackbar(
+                        message = ctx.getString(event.resId, *event.args.toTypedArray()),
+                        duration = SnackbarDuration.Short
+                    )
+                }
+                else -> Unit
             }
         }
     }
@@ -790,6 +795,56 @@ fun SettingsScreen(
         )
     }
 
+    pendingApiKeyClearProvider?.let { provider ->
+        AlertDialog(
+            onDismissRequest = { pendingApiKeyClearProvider = null },
+            title = { Text(stringResource(R.string.clear_api_key_title), fontWeight = FontWeight.Bold, color = SumiInk) },
+            text = { Text(stringResource(R.string.clear_api_key_confirm), color = SumiInk) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.saveApiKey(provider, "")
+                        providerKeys[provider] = ""
+                        pendingApiKeyClearProvider = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text(stringResource(R.string.clear_api_key), color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingApiKeyClearProvider = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    pendingTtsKeyClearProvider?.let { provider ->
+        AlertDialog(
+            onDismissRequest = { pendingTtsKeyClearProvider = null },
+            title = { Text(stringResource(R.string.clear_api_key_title), fontWeight = FontWeight.Bold, color = SumiInk) },
+            text = { Text(stringResource(R.string.clear_api_key_confirm), color = SumiInk) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.saveTtsApiKey(provider, "")
+                        ttsKeys[provider] = ""
+                        pendingTtsKeyClearProvider = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text(stringResource(R.string.clear_api_key), color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingTtsKeyClearProvider = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -1239,6 +1294,23 @@ fun SettingsScreen(
                                     textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp)
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedButton(
+                                    onClick = {
+                                        if (localKey.isBlank() && uiState.providerKeys[provider]?.isNotBlank() == true) {
+                                            pendingApiKeyClearProvider = provider
+                                        } else {
+                                            viewModel.saveApiKey(provider, localKey)
+                                        }
+                                    },
+                                    enabled = localKey.isNotBlank() || (uiState.providerKeys[provider]?.isNotBlank() == true),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Icon(Icons.Default.Save, null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(stringResource(R.string.save_api_key))
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
 
                                 val isFetchingThis = fetchingProvider == provider
                                 Button(
@@ -1397,6 +1469,24 @@ fun SettingsScreen(
                             },
                             shape = RoundedCornerShape(8.dp)
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = {
+                                val key = ttsKeys[selectedTtsProvider] ?: ""
+                                if (key.isBlank() && uiState.ttsKeys[selectedTtsProvider]?.isNotBlank() == true) {
+                                    pendingTtsKeyClearProvider = selectedTtsProvider
+                                } else {
+                                    viewModel.saveTtsApiKey(selectedTtsProvider, key)
+                                }
+                            },
+                            enabled = (ttsKeys[selectedTtsProvider]?.isNotBlank() == true) || (uiState.ttsKeys[selectedTtsProvider]?.isNotBlank() == true),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(Icons.Default.Save, null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.save_api_key))
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
 
                         if (selectedTtsProvider == "OpenAI") {

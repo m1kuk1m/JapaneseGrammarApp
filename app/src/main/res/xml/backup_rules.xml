@@ -1,1 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?><full-backup-content><include domain="sharedpref" path="."/><exclude domain="sharedpref" path="device.xml"/></full-backup-content>
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include domain="sharedpref" path="."/>
+    <exclude domain="sharedpref" path="device.xml"/>
+    <exclude domain="sharedpref" path="api_keys_secure.xml"/>
+</full-backup-content>
