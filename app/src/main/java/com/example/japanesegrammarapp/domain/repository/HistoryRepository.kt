@@ -11,6 +11,7 @@ interface HistoryRepository {
     fun getHistory(query: String): Flow<PagingData<AnalysisDomainRecord>>
     suspend fun getAllRecordsList(): List<AnalysisDomainRecord>
     suspend fun getRecordById(id: Int): AnalysisDomainRecord?
+    fun observeRecordById(id: Int): Flow<AnalysisDomainRecord?>
     suspend fun getRecordByOriginalText(originalText: String): AnalysisDomainRecord?
     suspend fun insertRecord(record: AnalysisDomainRecord): Long
     suspend fun updateRecord(record: AnalysisDomainRecord)

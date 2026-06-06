@@ -56,6 +56,10 @@ class HistoryRepositoryImpl @Inject constructor(
         return entity?.toDomain()
     }
 
+    override fun observeRecordById(id: Int): Flow<AnalysisDomainRecord?> {
+        return analysisDao.observeRecordById(id).map { it?.toDomain() }
+    }
+
     override suspend fun getRecordByOriginalText(originalText: String): AnalysisDomainRecord? {
         val entity = analysisDao.getRecordByOriginalText(originalText)
         return entity?.toDomain()

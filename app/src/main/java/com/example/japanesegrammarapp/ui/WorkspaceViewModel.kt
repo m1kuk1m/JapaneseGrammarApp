@@ -152,6 +152,24 @@ class WorkspaceViewModel @Inject constructor(
                 .map { it.selectedRecord?.id }
                 .distinctUntilChanged()
                 .flatMapLatest { recordId ->
+                    if (recordId != null && recordId > 0) {
+                        historyRepository.observeRecordById(recordId)
+                    } else {
+                        flowOf(null)
+                    }
+                }
+                .collect { record ->
+                    if (record != null) {
+                        updateSelectedRecordSnapshot(record)
+                    }
+                }
+        }
+
+        viewModelScope.launch {
+            _uiState
+                .map { it.selectedRecord?.id }
+                .distinctUntilChanged()
+                .flatMapLatest { recordId ->
                     if (recordId != null) {
                         bookmarkRepository.bookmarkedTextsForRecord(recordId)
                     } else {
@@ -275,6 +293,13 @@ class WorkspaceViewModel @Inject constructor(
         }
     }
 
+    fun refreshCurrentRecord() {
+        val recordId = _uiState.value.selectedRecord?.id ?: return
+        viewModelScope.launch {
+            refreshSelectedRecordFromRepository(recordId, clearProgress = false)
+        }
+    }
+
     fun selectRecord(record: AnalysisDomainRecord, clearExternalQuery: Boolean = true) {
         val current = _uiState.value.selectedRecord
         if (current?.id == record.id && (current.status == AnalysisStatus.COMPLETED || (current.status == record.status && current.analysisResult == record.analysisResult))) {
@@ -378,6 +403,38 @@ class WorkspaceViewModel @Inject constructor(
                         null
                     } else {
                         analyzeTextUseCase.progressFlow.value[recordId]
+                    }
+                )
+            }
+        }
+    }
+
+    private suspend fun updateSelectedRecordSnapshot(updated: AnalysisDomainRecord) {
+        val detail = withContext(Dispatchers.IO) {
+            analyzeTextUseCase.parseDetailedResult(updated.originalText, updated.analysisResult)
+        }
+        _uiState.update { state ->
+            if (state.selectedRecord?.id != updated.id) {
+                state
+            } else if (state.selectedRecord.status == AnalysisStatus.COMPLETED && updated.status == AnalysisStatus.PENDING) {
+                state
+            } else if (
+                state.selectedRecord == updated &&
+                state.analysisResult == updated.analysisResult &&
+                state.detailedResult == detail
+            ) {
+                state
+            } else {
+                state.copy(
+                    selectedRecord = updated,
+                    currentOriginalText = updated.originalText,
+                    analysisResult = updated.analysisResult,
+                    detailedResult = detail,
+                    isParsingDetailedResult = false,
+                    selectedRecordProgress = if (updated.status == AnalysisStatus.COMPLETED) {
+                        null
+                    } else {
+                        analyzeTextUseCase.progressFlow.value[updated.id]
                     }
                 )
             }

@@ -425,11 +425,7 @@ fun SettingsScreen(
                         log.userPrompt.contains(searchQuery, ignoreCase = true) ||
                         (log.rawResponse?.contains(searchQuery, ignoreCase = true) ?: false)
 
-                val matchesStatus = when (filterStatus) {
-                    "SUCCESS" -> log.status == "SUCCESS"
-                    "ERROR" -> log.status == "ERROR"
-                    else -> true
-                }
+                val matchesStatus = filterStatus == "ALL" || log.status == filterStatus
                 matchesQuery && matchesStatus
             }.reversed()
         }
@@ -483,14 +479,18 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        val statuses = listOf("ALL", "SUCCESS", "ERROR")
+                        val statuses = listOf("ALL", "START", "SUCCESS", "RETRY", "BACKUP", "TIMEOUT", "ERROR")
                         val statusLabels = mapOf(
                             "ALL" to stringResource(R.string.api_debug_filter_all),
                             "SUCCESS" to stringResource(R.string.api_debug_filter_success),
-                            "ERROR" to stringResource(R.string.api_debug_filter_error)
+                            "ERROR" to stringResource(R.string.api_debug_filter_error),
+                            "START" to "START",
+                            "RETRY" to "RETRY",
+                            "BACKUP" to "BACKUP",
+                            "TIMEOUT" to "TIMEOUT"
                         )
                         statuses.forEach { stat ->
                             val isSelected = filterStatus == stat
@@ -517,7 +517,7 @@ fun SettingsScreen(
                         }
                         TextButton(onClick = {
                             val copyText = filteredApiLogs.joinToString("\n\n") { log ->
-                                "[${log.apiTypeLabel}] ${log.provider} - ${log.model}\nStatus: ${log.status}\nPrompt: ${log.userPrompt}\nResponse: ${log.rawResponse ?: ""}\nError: ${log.errorMessage ?: ""}"
+                                "[${log.apiTypeLabel}] ${log.provider} - ${log.model}\nStatus: ${log.status}\nRecord: ${log.recordId ?: "-"}\nStep: ${log.stepName ?: "-"}\nAttempt: ${log.attempt ?: "-"}\nElapsed: ${log.elapsedMs ?: "-"}ms\nPrompt: ${log.userPrompt}\nResponse: ${log.rawResponse ?: ""}\nError: ${log.errorMessage ?: ""}"
                             }
                             clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(copyText))
                             android.widget.Toast.makeText(context, context.getString(R.string.copy_success_toast), android.widget.Toast.LENGTH_SHORT).show()
@@ -570,7 +570,7 @@ fun SettingsScreen(
                                                 text = log.status,
                                                 fontSize = 9.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = if (log.status == "SUCCESS") Color(0xFF2E7D32) else Color(0xFFC62828)
+                                                color = apiStatusColor(log.status)
                                             )
                                         }
                                         Row(
@@ -594,6 +594,13 @@ fun SettingsScreen(
                                             fontSize = 9.sp,
                                             color = SumiInk.copy(alpha = 0.5f)
                                         )
+                                        if (log.recordId != null || !log.stepName.isNullOrBlank() || log.attempt != null || log.elapsedMs != null) {
+                                            Text(
+                                                text = "record=${log.recordId ?: "-"}, step=${log.stepName ?: "-"}, attempt=${log.attempt ?: "-"}, elapsed=${log.elapsedMs ?: "-"}ms",
+                                                fontSize = 9.sp,
+                                                color = SumiInk.copy(alpha = 0.5f)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -655,9 +662,18 @@ fun SettingsScreen(
                             Text(stringResource(R.string.api_log_type, log.apiTypeLabel), fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
                             Text(stringResource(R.string.api_log_provider, log.provider), fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
                             Text(stringResource(R.string.api_log_model, log.model), fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
-                            Text(stringResource(R.string.api_log_status, log.status), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (log.status == "SUCCESS") Color(0xFF2E7D32) else Color(0xFFC62828))
+                            Text(stringResource(R.string.api_log_status, log.status), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = apiStatusColor(log.status))
                             Text(stringResource(R.string.api_log_tokens, log.consumedTokens, log.inputTokens, log.outputTokens), fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
                             Text(stringResource(R.string.api_log_has_image, log.hasImage), fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                            if (log.recordId != null || !log.stepName.isNullOrBlank() || log.attempt != null || log.elapsedMs != null) {
+                                Text("Record: ${log.recordId ?: "-"}", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                                Text("Step: ${log.stepName ?: "-"}", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                                Text("Attempt: ${log.attempt ?: "-"}", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                                Text("Elapsed: ${log.elapsedMs ?: "-"}ms", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                            }
+                            if (!log.errorMessage.isNullOrBlank() && log.status != "ERROR") {
+                                Text("Message: ${log.errorMessage}", fontSize = 10.sp, color = SumiInk.copy(alpha = 0.8f))
+                            }
                         }
                     }
 
@@ -726,7 +742,7 @@ fun SettingsScreen(
                         }
                     }
 
-                    if (log.status == "ERROR") {
+                    if (log.status == "ERROR" || log.status == "TIMEOUT") {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -1689,6 +1705,18 @@ fun SettingsGroup(title: String, content: @Composable ColumnScope.() -> Unit) {
                 content()
             }
         }
+    }
+}
+
+@Composable
+private fun apiStatusColor(status: String): Color {
+    val fallback = MaterialTheme.colorScheme.onBackground
+    return when (status) {
+        "SUCCESS" -> Color(0xFF2E7D32)
+        "ERROR", "TIMEOUT" -> Color(0xFFC62828)
+        "RETRY", "BACKUP" -> Color(0xFFE65100)
+        "START" -> fallback.copy(alpha = 0.65f)
+        else -> fallback.copy(alpha = 0.55f)
     }
 }
 

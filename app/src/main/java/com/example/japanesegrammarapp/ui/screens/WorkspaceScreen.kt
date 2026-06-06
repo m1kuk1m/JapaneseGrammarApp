@@ -108,6 +108,7 @@ fun WorkspaceScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshSettings()
+                viewModel.refreshCurrentRecord()
             } else if (event == Lifecycle.Event.ON_PAUSE) {
                 viewModel.stopTts()
             }

@@ -1,13 +1,12 @@
 package com.example.japanesegrammarapp.data.repository
 
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import com.example.japanesegrammarapp.network.*
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.repository.LlmRepository
 import com.example.japanesegrammarapp.domain.repository.LlmResult
 import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
+import com.example.japanesegrammarapp.utils.AppLogger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -114,13 +113,21 @@ class LlmRepositoryImpl @Inject constructor(
                     parts.add(GeminiPart(inlineData = GeminiInlineData(mimeType = mimeType, data = imageBase64)))
                 }
 
+                val safetySettings = listOf(
+                    GeminiSafetySetting("HARM_CATEGORY_HARASSMENT", "BLOCK_NONE"),
+                    GeminiSafetySetting("HARM_CATEGORY_HATE_SPEECH", "BLOCK_NONE"),
+                    GeminiSafetySetting("HARM_CATEGORY_SEXUALLY_EXPLICIT", "BLOCK_NONE"),
+                    GeminiSafetySetting("HARM_CATEGORY_DANGEROUS_CONTENT", "BLOCK_NONE")
+                )
+
                 val request = GeminiRequest(
                     contents = listOf(GeminiContent(role = "user", parts = parts)),
                     systemInstruction = GeminiSystemInstruction(parts = listOf(GeminiPart(text = systemPrompt))),
                     generationConfig = GeminiGenerationConfig(
                         temperature = 0.1,
                         responseMimeType = "application/json"
-                    )
+                    ),
+                    safetySettings = safetySettings
                 )
                 val response = llmService.generateGemini(url, request)
                 val text = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: throw Exception("No response from model")
@@ -145,6 +152,8 @@ class LlmRepositoryImpl @Inject constructor(
         apiTypeLabel: String,
         primaryConfig: LlmApiConfig,
         backupConfig: LlmApiConfig?,
+        recordId: Int?,
+        stepName: String?,
         onRetry: (attempt: Int) -> Unit,
         onBackup: (backupProvider: String) -> Unit
     ): LlmResult {
@@ -165,7 +174,22 @@ class LlmRepositoryImpl @Inject constructor(
         var lastException: Exception? = null
 
         while (attempt <= maxRetries) {
+            val attemptNumber = attempt + 1
+            val attemptStartMs = System.currentTimeMillis()
             try {
+                AppLogger.apiEvent(
+                    apiTypeLabel = apiTypeLabel,
+                    provider = primaryProvider,
+                    model = primaryModel,
+                    status = "START",
+                    hasImage = imageBase64 != null,
+                    userPrompt = userPrompt,
+                    systemPrompt = systemPrompt,
+                    message = "Primary request attempt $attemptNumber started",
+                    recordId = recordId,
+                    stepName = stepName,
+                    attempt = attemptNumber
+                )
                 return callLlmApi(
                     systemPrompt = systemPrompt,
                     userPrompt = userPrompt,
@@ -179,29 +203,85 @@ class LlmRepositoryImpl @Inject constructor(
                 )
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
+                val elapsedMs = System.currentTimeMillis() - attemptStartMs
                 lastException = e
-                com.example.japanesegrammarapp.utils.AppLogger.e(
+                AppLogger.e(
                     "LLM_API",
-                    "Primary LLM Call failed for [$apiTypeLabel] (attempt ${attempt + 1}) via $primaryProvider ($primaryModel). Error: ${e.localizedMessage}",
+                    "Primary LLM Call failed for [$apiTypeLabel] (attempt $attemptNumber) via $primaryProvider ($primaryModel). Error: ${e.localizedMessage}",
                     e
                 )
                 attempt++
                 if (attempt <= maxRetries) {
+                    AppLogger.apiEvent(
+                        apiTypeLabel = apiTypeLabel,
+                        provider = primaryProvider,
+                        model = primaryModel,
+                        status = "RETRY",
+                        hasImage = imageBase64 != null,
+                        userPrompt = userPrompt,
+                        systemPrompt = systemPrompt,
+                        message = "Primary attempt $attemptNumber failed after ${elapsedMs}ms: ${e.localizedMessage ?: "Unknown error"}. Retrying attempt ${attempt + 1}.",
+                        recordId = recordId,
+                        stepName = stepName,
+                        attempt = attemptNumber,
+                        elapsedMs = elapsedMs
+                    )
                     onRetry(attempt)
                     delay(1000L)
+                } else {
+                    AppLogger.apiError(
+                        apiTypeLabel = apiTypeLabel,
+                        provider = primaryProvider,
+                        model = primaryModel,
+                        hasImage = imageBase64 != null,
+                        userPrompt = userPrompt,
+                        systemPrompt = systemPrompt,
+                        message = "Primary attempt $attemptNumber failed after ${elapsedMs}ms: ${e.localizedMessage ?: "Unknown error"}",
+                        throwable = e,
+                        recordId = recordId,
+                        stepName = stepName,
+                        attempt = attemptNumber,
+                        elapsedMs = elapsedMs
+                    )
                 }
             }
         }
 
         if (backupProvider.isBlank() || backupModel.isBlank() || backupKey.isBlank()) {
             val errorMsg = "メインAPI（${apiTypeLabel}）の再試行に失敗し、予備APIが設定されていないか有効ではありません。メインAPIエラー: ${lastException?.localizedMessage}"
-            com.example.japanesegrammarapp.utils.AppLogger.e("LLM_API", errorMsg, lastException)
+            AppLogger.e("LLM_API", errorMsg, lastException)
             throw com.example.japanesegrammarapp.domain.model.LlmApiFailedException(primaryProvider, lastException?.localizedMessage, false, null, null)
         }
 
+        AppLogger.apiEvent(
+            apiTypeLabel = apiTypeLabel,
+            provider = backupProvider,
+            model = backupModel,
+            status = "BACKUP",
+            hasImage = imageBase64 != null,
+            userPrompt = userPrompt,
+            systemPrompt = systemPrompt,
+            message = "Switching to backup provider after primary retries failed: ${lastException?.localizedMessage ?: "Unknown error"}",
+            recordId = recordId,
+            stepName = stepName
+        )
         onBackup(backupProvider)
 
+        val backupStartMs = System.currentTimeMillis()
         try {
+            AppLogger.apiEvent(
+                apiTypeLabel = apiTypeLabel,
+                provider = backupProvider,
+                model = backupModel,
+                status = "START",
+                hasImage = imageBase64 != null,
+                userPrompt = userPrompt,
+                systemPrompt = systemPrompt,
+                message = "Backup request started",
+                recordId = recordId,
+                stepName = stepName,
+                attempt = 1
+            )
             return callLlmApi(
                 systemPrompt = systemPrompt,
                 userPrompt = userPrompt,
@@ -215,8 +295,23 @@ class LlmRepositoryImpl @Inject constructor(
             )
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            val elapsedMs = System.currentTimeMillis() - backupStartMs
             val errorMsg = "メインAPIおよび予備APIの呼び出しに失敗しました。メインAPIエラー: ${lastException?.localizedMessage}。予備APIエラー: ${e.localizedMessage}"
-            com.example.japanesegrammarapp.utils.AppLogger.e("LLM_API", errorMsg, e)
+            AppLogger.apiError(
+                apiTypeLabel = apiTypeLabel,
+                provider = backupProvider,
+                model = backupModel,
+                hasImage = imageBase64 != null,
+                userPrompt = userPrompt,
+                systemPrompt = systemPrompt,
+                message = "Backup request failed after ${elapsedMs}ms: ${e.localizedMessage ?: "Unknown error"}",
+                throwable = e,
+                recordId = recordId,
+                stepName = stepName,
+                attempt = 1,
+                elapsedMs = elapsedMs
+            )
+            AppLogger.e("LLM_API", errorMsg, e)
             throw com.example.japanesegrammarapp.domain.model.LlmApiFailedException(primaryProvider, lastException?.localizedMessage, true, backupProvider, e.localizedMessage)
         }
     }

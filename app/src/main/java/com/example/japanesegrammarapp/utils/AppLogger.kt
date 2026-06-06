@@ -28,7 +28,11 @@ data class ApiDebugLog(
     val stackTrace: String? = null,
     val consumedTokens: Int = 0,
     val inputTokens: Int = 0,
-    val outputTokens: Int = 0
+    val outputTokens: Int = 0,
+    val recordId: Int? = null,
+    val stepName: String? = null,
+    val attempt: Int? = null,
+    val elapsedMs: Long? = null
 )
 
 object AppLogger {
@@ -99,7 +103,11 @@ object AppLogger {
         parsedPreview: String?,
         consumedTokens: Int,
         inputTokens: Int,
-        outputTokens: Int
+        outputTokens: Int,
+        recordId: Int? = null,
+        stepName: String? = null,
+        attempt: Int? = null,
+        elapsedMs: Long? = null
     ) {
         val entry = ApiDebugLog(
             time = nowWithMillis(),
@@ -114,10 +122,48 @@ object AppLogger {
             parsedPreview = parsedPreview?.safeForLog(4000),
             consumedTokens = consumedTokens,
             inputTokens = inputTokens,
-            outputTokens = outputTokens
+            outputTokens = outputTokens,
+            recordId = recordId,
+            stepName = stepName,
+            attempt = attempt,
+            elapsedMs = elapsedMs
         )
         _apiLogs.update { (it + entry).takeLast(80) }
-        d("API_DEBUG", "[$apiTypeLabel] success via $provider/$model, tokens=$consumedTokens, image=$hasImage")
+        d("API_DEBUG", "[$apiTypeLabel] success via $provider/$model, tokens=$consumedTokens, image=$hasImage, record=$recordId, step=$stepName, elapsed=${elapsedMs ?: 0}ms")
+        writeApiLogsToFile(_apiLogs.value)
+    }
+
+    fun apiEvent(
+        apiTypeLabel: String,
+        provider: String,
+        model: String,
+        status: String,
+        hasImage: Boolean,
+        userPrompt: String,
+        systemPrompt: String,
+        message: String,
+        recordId: Int? = null,
+        stepName: String? = null,
+        attempt: Int? = null,
+        elapsedMs: Long? = null
+    ) {
+        val entry = ApiDebugLog(
+            time = nowWithMillis(),
+            apiTypeLabel = apiTypeLabel,
+            provider = provider,
+            model = model,
+            status = status,
+            hasImage = hasImage,
+            userPrompt = userPrompt.safeForLog(),
+            systemPromptPreview = systemPrompt.safeForLog(1200),
+            errorMessage = message.safeForLog(4000),
+            recordId = recordId,
+            stepName = stepName,
+            attempt = attempt,
+            elapsedMs = elapsedMs
+        )
+        _apiLogs.update { (it + entry).takeLast(80) }
+        d("API_DEBUG", "[$apiTypeLabel] $status via $provider/$model, record=$recordId, step=$stepName, attempt=${attempt ?: 0}, elapsed=${elapsedMs ?: 0}ms: $message")
         writeApiLogsToFile(_apiLogs.value)
     }
 
@@ -130,7 +176,11 @@ object AppLogger {
         systemPrompt: String,
         message: String,
         throwable: Throwable? = null,
-        rawResponse: String? = null
+        rawResponse: String? = null,
+        recordId: Int? = null,
+        stepName: String? = null,
+        attempt: Int? = null,
+        elapsedMs: Long? = null
     ) {
         val entry = ApiDebugLog(
             time = nowWithMillis(),
@@ -143,10 +193,14 @@ object AppLogger {
             systemPromptPreview = systemPrompt.safeForLog(1200),
             rawResponse = rawResponse?.safeForLog(12000),
             errorMessage = message.safeForLog(4000),
-            stackTrace = throwable?.stackTraceToString()?.safeForLog(12000)
+            stackTrace = throwable?.stackTraceToString()?.safeForLog(12000),
+            recordId = recordId,
+            stepName = stepName,
+            attempt = attempt,
+            elapsedMs = elapsedMs
         )
         _apiLogs.update { (it + entry).takeLast(80) }
-        e("API_DEBUG", "[$apiTypeLabel] failed via $provider/$model, image=$hasImage: $message", throwable)
+        e("API_DEBUG", "[$apiTypeLabel] failed via $provider/$model, image=$hasImage, record=$recordId, step=$stepName, elapsed=${elapsedMs ?: 0}ms: $message", throwable)
         writeApiLogsToFile(_apiLogs.value)
     }
 

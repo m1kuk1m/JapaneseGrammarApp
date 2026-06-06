@@ -18,7 +18,7 @@ data class LlmApiConfig(
 )
 
 interface LlmRepository {
-    suspend fun fetchModels(baseProvider: String, baseUrl: String, apiKey: String): List<String>
+    suspend fun fetchModels(provider: String, baseUrl: String, apiKey: String): List<String>
     suspend fun callLlmApi(
         systemPrompt: String,
         userPrompt: String,
@@ -39,6 +39,8 @@ interface LlmRepository {
         apiTypeLabel: String,
         primaryConfig: LlmApiConfig,
         backupConfig: LlmApiConfig?,
+        recordId: Int? = null,
+        stepName: String? = null,
         onRetry: (attempt: Int) -> Unit = {},
         onBackup: (backupProvider: String) -> Unit = {}
     ): LlmResult

@@ -39,10 +39,16 @@ data class GeminiGenerationConfig(
 
 data class GeminiSystemInstruction(val parts: List<GeminiPart>)
 
+data class GeminiSafetySetting(
+    val category: String,
+    val threshold: String
+)
+
 data class GeminiRequest(
     val contents: List<GeminiContent>,
     val systemInstruction: GeminiSystemInstruction? = null,
-    val generationConfig: GeminiGenerationConfig? = null
+    val generationConfig: GeminiGenerationConfig? = null,
+    val safetySettings: List<GeminiSafetySetting>? = null
 )
 data class GeminiContent(val role: String = "user", val parts: List<GeminiPart>)
 data class GeminiPart(val text: String? = null, val inlineData: GeminiInlineData? = null)

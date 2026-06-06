@@ -13,7 +13,9 @@ interface LlmAnalysisService {
         primaryConfig: LlmApiConfig,
         backupConfig: LlmApiConfig?,
         onRetry: (attempt: Int) -> Unit = {},
-        onBackup: (backupProvider: String) -> Unit = {}
+        onBackup: (backupProvider: String) -> Unit = {},
+        recordId: Int? = null,
+        stepName: String? = null
     ): Pair<TokenizationResult?, LlmResultMetadata>
 
     suspend fun executeTranslation(
@@ -23,7 +25,9 @@ interface LlmAnalysisService {
         primaryConfig: LlmApiConfig,
         backupConfig: LlmApiConfig?,
         onRetry: (attempt: Int) -> Unit = {},
-        onBackup: (backupProvider: String) -> Unit = {}
+        onBackup: (backupProvider: String) -> Unit = {},
+        recordId: Int? = null,
+        stepName: String? = null
     ): Pair<DetailedAnalysisResult?, LlmResultMetadata>
 
     suspend fun executeClauses(
@@ -33,7 +37,9 @@ interface LlmAnalysisService {
         primaryConfig: LlmApiConfig,
         backupConfig: LlmApiConfig?,
         onRetry: (attempt: Int) -> Unit = {},
-        onBackup: (backupProvider: String) -> Unit = {}
+        onBackup: (backupProvider: String) -> Unit = {},
+        recordId: Int? = null,
+        stepName: String? = null
     ): Pair<DetailedAnalysisResult?, LlmResultMetadata>
 
     suspend fun executeGrammar(
@@ -43,7 +49,9 @@ interface LlmAnalysisService {
         primaryConfig: LlmApiConfig,
         backupConfig: LlmApiConfig?,
         onRetry: (attempt: Int) -> Unit = {},
-        onBackup: (backupProvider: String) -> Unit = {}
+        onBackup: (backupProvider: String) -> Unit = {},
+        recordId: Int? = null,
+        stepName: String? = null
     ): Pair<DetailedAnalysisResult?, LlmResultMetadata>
 
     suspend fun executeSegments(
@@ -54,7 +62,9 @@ interface LlmAnalysisService {
         primaryConfig: LlmApiConfig,
         backupConfig: LlmApiConfig?,
         onRetry: (attempt: Int) -> Unit = {},
-        onBackup: (backupProvider: String) -> Unit = {}
+        onBackup: (backupProvider: String) -> Unit = {},
+        recordId: Int? = null,
+        stepName: String? = null
     ): Pair<DetailedAnalysisResult?, LlmResultMetadata>
 
 }

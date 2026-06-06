@@ -8,9 +8,10 @@ import com.example.japanesegrammarapp.domain.model.DetailedAnalysisResult
 import com.example.japanesegrammarapp.domain.model.TokenizationResult
 import com.example.japanesegrammarapp.domain.model.WordSegment
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
-import com.example.japanesegrammarapp.network.PromptManager
 import com.example.japanesegrammarapp.utils.AppLogger
 import com.google.gson.Gson
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,6 +22,11 @@ class LlmAnalysisServiceImpl @Inject constructor(
     private val gson: Gson
 ) : LlmAnalysisService {
 
+    private companion object {
+        const val DEFAULT_STEP_TIMEOUT_MS = 150_000L
+        const val GRAMMAR_STEP_TIMEOUT_MS = 120_000L
+    }
+
     override suspend fun executeTokenizer(
         text: String,
         imageBase64: String?,
@@ -30,7 +36,9 @@ class LlmAnalysisServiceImpl @Inject constructor(
         primaryConfig: LlmApiConfig,
         backupConfig: LlmApiConfig?,
         onRetry: (attempt: Int) -> Unit,
-        onBackup: (backupProvider: String) -> Unit
+        onBackup: (backupProvider: String) -> Unit,
+        recordId: Int?,
+        stepName: String?
     ): Pair<TokenizationResult?, LlmResultMetadata> {
         val systemPrompt = when {
             imageBase64 != null && imageTokenizerMode == "repair" -> settingsRepository.getCustomPrompt("prompt_tokenizer_image_repair")
@@ -56,7 +64,10 @@ class LlmAnalysisServiceImpl @Inject constructor(
             backupConfig = backupConfig,
             onRetry = onRetry,
             onBackup = onBackup,
-            clazz = TokenizationResult::class.java
+            clazz = TokenizationResult::class.java,
+            recordId = recordId,
+            stepName = stepName,
+            timeoutMs = DEFAULT_STEP_TIMEOUT_MS
         )
     }
 
@@ -67,7 +78,9 @@ class LlmAnalysisServiceImpl @Inject constructor(
         primaryConfig: LlmApiConfig,
         backupConfig: LlmApiConfig?,
         onRetry: (attempt: Int) -> Unit,
-        onBackup: (backupProvider: String) -> Unit
+        onBackup: (backupProvider: String) -> Unit,
+        recordId: Int?,
+        stepName: String?
     ): Pair<DetailedAnalysisResult?, LlmResultMetadata> {
         val userPrompt = if (text.isNotBlank()) {
             "分析対象の文: \"$text\"\nこの文の自然な中国語訳を出力してください。"
@@ -85,7 +98,10 @@ class LlmAnalysisServiceImpl @Inject constructor(
             backupConfig = backupConfig,
             onRetry = onRetry,
             onBackup = onBackup,
-            clazz = DetailedAnalysisResult::class.java
+            clazz = DetailedAnalysisResult::class.java,
+            recordId = recordId,
+            stepName = stepName,
+            timeoutMs = DEFAULT_STEP_TIMEOUT_MS
         )
     }
 
@@ -96,7 +112,9 @@ class LlmAnalysisServiceImpl @Inject constructor(
         primaryConfig: LlmApiConfig,
         backupConfig: LlmApiConfig?,
         onRetry: (attempt: Int) -> Unit,
-        onBackup: (backupProvider: String) -> Unit
+        onBackup: (backupProvider: String) -> Unit,
+        recordId: Int?,
+        stepName: String?
     ): Pair<DetailedAnalysisResult?, LlmResultMetadata> {
         val userPrompt = if (text.isNotBlank()) {
             "分析対象の文: \"$text\"\nこの文の文節（フレーズ）ごとの文法的役割の詳細な解説を行ってください。"
@@ -114,7 +132,10 @@ class LlmAnalysisServiceImpl @Inject constructor(
             backupConfig = backupConfig,
             onRetry = onRetry,
             onBackup = onBackup,
-            clazz = DetailedAnalysisResult::class.java
+            clazz = DetailedAnalysisResult::class.java,
+            recordId = recordId,
+            stepName = stepName,
+            timeoutMs = DEFAULT_STEP_TIMEOUT_MS
         )
     }
 
@@ -125,7 +146,9 @@ class LlmAnalysisServiceImpl @Inject constructor(
         primaryConfig: LlmApiConfig,
         backupConfig: LlmApiConfig?,
         onRetry: (attempt: Int) -> Unit,
-        onBackup: (backupProvider: String) -> Unit
+        onBackup: (backupProvider: String) -> Unit,
+        recordId: Int?,
+        stepName: String?
     ): Pair<DetailedAnalysisResult?, LlmResultMetadata> {
         val userPrompt = if (text.isNotBlank()) {
             "分析対象の文: \"$text\"\nこの文に含まれる最も重要かつ難度の高い文法項目・慣用表現を厳選して解説してください。"
@@ -143,7 +166,10 @@ class LlmAnalysisServiceImpl @Inject constructor(
             backupConfig = backupConfig,
             onRetry = onRetry,
             onBackup = onBackup,
-            clazz = DetailedAnalysisResult::class.java
+            clazz = DetailedAnalysisResult::class.java,
+            recordId = recordId,
+            stepName = stepName,
+            timeoutMs = GRAMMAR_STEP_TIMEOUT_MS
         )
     }
 
@@ -155,7 +181,9 @@ class LlmAnalysisServiceImpl @Inject constructor(
         primaryConfig: LlmApiConfig,
         backupConfig: LlmApiConfig?,
         onRetry: (attempt: Int) -> Unit,
-        onBackup: (backupProvider: String) -> Unit
+        onBackup: (backupProvider: String) -> Unit,
+        recordId: Int?,
+        stepName: String?
     ): Pair<DetailedAnalysisResult?, LlmResultMetadata> {
         val nonPunctuationTokens = tokens.filter { !isPunctuation(it) }
 
@@ -183,7 +211,10 @@ class LlmAnalysisServiceImpl @Inject constructor(
             backupConfig = backupConfig,
             onRetry = onRetry,
             onBackup = onBackup,
-            clazz = DetailedAnalysisResult::class.java
+            clazz = DetailedAnalysisResult::class.java,
+            recordId = recordId,
+            stepName = stepName,
+            timeoutMs = DEFAULT_STEP_TIMEOUT_MS
         )
 
         val returnedSegments = parsed?.segments ?: emptyList()
@@ -219,7 +250,10 @@ class LlmAnalysisServiceImpl @Inject constructor(
         backupConfig: LlmApiConfig?,
         onRetry: (attempt: Int) -> Unit,
         onBackup: (backupProvider: String) -> Unit,
-        clazz: Class<T>
+        clazz: Class<T>,
+        recordId: Int?,
+        stepName: String?,
+        timeoutMs: Long
     ): Pair<T?, LlmResultMetadata> {
         val providerLabel = buildString {
             append(primaryConfig.provider)
@@ -230,17 +264,41 @@ class LlmAnalysisServiceImpl @Inject constructor(
             if (backupConfig != null) append(" -> ").append(backupConfig.modelName)
         }
         try {
-            val result = llmRepository.executeWithFailover(
-                systemPrompt = systemPrompt,
-                userPrompt = userPrompt,
-                imageBase64 = imageBase64,
-                mimeType = mimeType,
-                apiTypeLabel = apiTypeLabel,
-                primaryConfig = primaryConfig,
-                backupConfig = backupConfig,
-                onRetry = onRetry,
-                onBackup = onBackup
-            )
+            val stepStartMs = System.currentTimeMillis()
+            val result = try {
+                withTimeout(timeoutMs) {
+                    llmRepository.executeWithFailover(
+                        systemPrompt = systemPrompt,
+                        userPrompt = userPrompt,
+                        imageBase64 = imageBase64,
+                        mimeType = mimeType,
+                        apiTypeLabel = apiTypeLabel,
+                        primaryConfig = primaryConfig,
+                        backupConfig = backupConfig,
+                        recordId = recordId,
+                        stepName = stepName,
+                        onRetry = onRetry,
+                        onBackup = onBackup
+                    )
+                }
+            } catch (e: TimeoutCancellationException) {
+                val elapsedMs = System.currentTimeMillis() - stepStartMs
+                val message = "Step timed out after ${timeoutMs / 1000}s"
+                AppLogger.apiEvent(
+                    apiTypeLabel = apiTypeLabel,
+                    provider = providerLabel,
+                    model = modelLabel,
+                    status = "TIMEOUT",
+                    hasImage = imageBase64 != null,
+                    userPrompt = userPrompt,
+                    systemPrompt = systemPrompt,
+                    message = message,
+                    recordId = recordId,
+                    stepName = stepName,
+                    elapsedMs = elapsedMs
+                )
+                throw Exception(message, e)
+            }
             val clean = cleanMarkdownJson(result.text)
             val parsed = try {
                 gson.fromJson(clean, clazz)
@@ -254,7 +312,10 @@ class LlmAnalysisServiceImpl @Inject constructor(
                     systemPrompt = systemPrompt,
                     message = "JSON parse failed: ${e.localizedMessage}",
                     throwable = e,
-                    rawResponse = result.text
+                    rawResponse = result.text,
+                    recordId = recordId,
+                    stepName = stepName,
+                    elapsedMs = System.currentTimeMillis() - stepStartMs
                 )
                 throw e
             }
@@ -269,7 +330,10 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 parsedPreview = clean,
                 consumedTokens = result.consumedTokens,
                 inputTokens = result.inputTokens,
-                outputTokens = result.outputTokens
+                outputTokens = result.outputTokens,
+                recordId = recordId,
+                stepName = stepName,
+                elapsedMs = System.currentTimeMillis() - stepStartMs
             )
             return Pair(parsed, LlmResultMetadata(result.consumedTokens, result.inputTokens, result.outputTokens))
         } catch (e: retrofit2.HttpException) {
@@ -285,7 +349,9 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 systemPrompt = systemPrompt,
                 message = message,
                 throwable = e,
-                rawResponse = body
+                rawResponse = body,
+                recordId = recordId,
+                stepName = stepName
             )
             throw Exception(message, e)
         } catch (e: Exception) {
@@ -298,7 +364,9 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 userPrompt = userPrompt,
                 systemPrompt = systemPrompt,
                 message = e.localizedMessage ?: "Unknown LLM step error",
-                throwable = e
+                throwable = e,
+                recordId = recordId,
+                stepName = stepName
             )
             throw e
         }

@@ -195,7 +195,9 @@ class AnalyzeTextUseCase @Inject constructor(
                         primaryConfig = primaryConfig,
                         backupConfig = backupConfig,
                         onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
-                        onBackup = getBackupListener(AnalysisStep.TOKENIZATION)
+                        onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
+                        recordId = recordId,
+                        stepName = AnalysisStep.TOKENIZATION.name
                     )
                     val tokenObj = tokenRes.first
                     val metadata = tokenRes.second
@@ -249,7 +251,17 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Translation
                         launch {
                             try {
-                                val res = llmAnalysisService.executeTranslation(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.TRANSLATION), getBackupListener(AnalysisStep.TRANSLATION))
+                                val res = llmAnalysisService.executeTranslation(
+                                    text = effectiveText,
+                                    imageBase64 = null,
+                                    mimeType = null,
+                                    primaryConfig = primaryConfig,
+                                    backupConfig = backupConfig,
+                                    onRetry = getRetryListener(AnalysisStep.TRANSLATION),
+                                    onBackup = getBackupListener(AnalysisStep.TRANSLATION),
+                                    recordId = recordId,
+                                    stepName = AnalysisStep.TRANSLATION.name
+                                )
                                 val obj = res.first
                                 val meta = res.second
                                 updatePartialResult { current ->
@@ -273,7 +285,17 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Clauses
                         launch {
                             try {
-                                val res = llmAnalysisService.executeClauses(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.CLAUSE_ANALYSIS), getBackupListener(AnalysisStep.CLAUSE_ANALYSIS))
+                                val res = llmAnalysisService.executeClauses(
+                                    text = effectiveText,
+                                    imageBase64 = null,
+                                    mimeType = null,
+                                    primaryConfig = primaryConfig,
+                                    backupConfig = backupConfig,
+                                    onRetry = getRetryListener(AnalysisStep.CLAUSE_ANALYSIS),
+                                    onBackup = getBackupListener(AnalysisStep.CLAUSE_ANALYSIS),
+                                    recordId = recordId,
+                                    stepName = AnalysisStep.CLAUSE_ANALYSIS.name
+                                )
                                 val obj = res.first
                                 val meta = res.second
                                 updatePartialResult { current ->
@@ -297,7 +319,17 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Grammar
                         launch {
                             try {
-                                val res = llmAnalysisService.executeGrammar(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION), getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION))
+                                val res = llmAnalysisService.executeGrammar(
+                                    text = effectiveText,
+                                    imageBase64 = null,
+                                    mimeType = null,
+                                    primaryConfig = primaryConfig,
+                                    backupConfig = backupConfig,
+                                    onRetry = getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION),
+                                    onBackup = getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION),
+                                    recordId = recordId,
+                                    stepName = AnalysisStep.GRAMMAR_EXPLANATION.name
+                                )
                                 val obj = res.first
                                 val meta = res.second
                                 updatePartialResult { current ->
@@ -321,7 +353,18 @@ class AnalyzeTextUseCase @Inject constructor(
                         // Segments (detailed segmentation analysis)
                         launch {
                             try {
-                                val res = llmAnalysisService.executeSegments(effectiveText, tokens, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.DETAILED_GRAMMAR), getBackupListener(AnalysisStep.DETAILED_GRAMMAR))
+                                val res = llmAnalysisService.executeSegments(
+                                    text = effectiveText,
+                                    tokens = tokens,
+                                    imageBase64 = null,
+                                    mimeType = null,
+                                    primaryConfig = primaryConfig,
+                                    backupConfig = backupConfig,
+                                    onRetry = getRetryListener(AnalysisStep.DETAILED_GRAMMAR),
+                                    onBackup = getBackupListener(AnalysisStep.DETAILED_GRAMMAR),
+                                    recordId = recordId,
+                                    stepName = AnalysisStep.DETAILED_GRAMMAR.name
+                                )
                                 val obj = res.first
                                 val meta = res.second
                                 updatePartialResult { current ->
@@ -360,7 +403,9 @@ class AnalyzeTextUseCase @Inject constructor(
                             primaryConfig = primaryConfig,
                             backupConfig = backupConfig,
                             onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
-                            onBackup = getBackupListener(AnalysisStep.TOKENIZATION)
+                            onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
+                            recordId = recordId,
+                            stepName = AnalysisStep.TOKENIZATION.name
                         )
                         val tokenObj = tokenRes.first
                         val metadata = tokenRes.second
@@ -413,7 +458,17 @@ class AnalyzeTextUseCase @Inject constructor(
                             // 1. Translation
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeTranslation(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.TRANSLATION), getBackupListener(AnalysisStep.TRANSLATION))
+                                    val res = llmAnalysisService.executeTranslation(
+                                        text = effectiveText,
+                                        imageBase64 = null,
+                                        mimeType = null,
+                                        primaryConfig = primaryConfig,
+                                        backupConfig = backupConfig,
+                                        onRetry = getRetryListener(AnalysisStep.TRANSLATION),
+                                        onBackup = getBackupListener(AnalysisStep.TRANSLATION),
+                                        recordId = recordId,
+                                        stepName = AnalysisStep.TRANSLATION.name
+                                    )
                                     val obj = res.first
                                     val meta = res.second
                                     updatePartialResult { current ->
@@ -437,7 +492,17 @@ class AnalyzeTextUseCase @Inject constructor(
                             // 2. Clauses
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeClauses(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.CLAUSE_ANALYSIS), getBackupListener(AnalysisStep.CLAUSE_ANALYSIS))
+                                    val res = llmAnalysisService.executeClauses(
+                                        text = effectiveText,
+                                        imageBase64 = null,
+                                        mimeType = null,
+                                        primaryConfig = primaryConfig,
+                                        backupConfig = backupConfig,
+                                        onRetry = getRetryListener(AnalysisStep.CLAUSE_ANALYSIS),
+                                        onBackup = getBackupListener(AnalysisStep.CLAUSE_ANALYSIS),
+                                        recordId = recordId,
+                                        stepName = AnalysisStep.CLAUSE_ANALYSIS.name
+                                    )
                                     val obj = res.first
                                     val meta = res.second
                                     updatePartialResult { current ->
@@ -461,7 +526,17 @@ class AnalyzeTextUseCase @Inject constructor(
                             // 3. Grammar
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeGrammar(effectiveText, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION), getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION))
+                                    val res = llmAnalysisService.executeGrammar(
+                                        text = effectiveText,
+                                        imageBase64 = null,
+                                        mimeType = null,
+                                        primaryConfig = primaryConfig,
+                                        backupConfig = backupConfig,
+                                        onRetry = getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION),
+                                        onBackup = getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION),
+                                        recordId = recordId,
+                                        stepName = AnalysisStep.GRAMMAR_EXPLANATION.name
+                                    )
                                     val obj = res.first
                                     val meta = res.second
                                     updatePartialResult { current ->
@@ -485,7 +560,18 @@ class AnalyzeTextUseCase @Inject constructor(
                             // 4. Segments
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeSegments(effectiveText, tokens, null, null, primaryConfig, backupConfig, getRetryListener(AnalysisStep.DETAILED_GRAMMAR), getBackupListener(AnalysisStep.DETAILED_GRAMMAR))
+                                    val res = llmAnalysisService.executeSegments(
+                                        text = effectiveText,
+                                        tokens = tokens,
+                                        imageBase64 = null,
+                                        mimeType = null,
+                                        primaryConfig = primaryConfig,
+                                        backupConfig = backupConfig,
+                                        onRetry = getRetryListener(AnalysisStep.DETAILED_GRAMMAR),
+                                        onBackup = getBackupListener(AnalysisStep.DETAILED_GRAMMAR),
+                                        recordId = recordId,
+                                        stepName = AnalysisStep.DETAILED_GRAMMAR.name
+                                    )
                                     val obj = res.first
                                     val meta = res.second
                                     updatePartialResult { current ->
@@ -515,7 +601,17 @@ class AnalyzeTextUseCase @Inject constructor(
                             // 1. Translation
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeTranslation(text, imageBase64, mimeType, primaryConfig, backupConfig, getRetryListener(AnalysisStep.TRANSLATION), getBackupListener(AnalysisStep.TRANSLATION))
+                                    val res = llmAnalysisService.executeTranslation(
+                                        text = text,
+                                        imageBase64 = imageBase64,
+                                        mimeType = mimeType,
+                                        primaryConfig = primaryConfig,
+                                        backupConfig = backupConfig,
+                                        onRetry = getRetryListener(AnalysisStep.TRANSLATION),
+                                        onBackup = getBackupListener(AnalysisStep.TRANSLATION),
+                                        recordId = recordId,
+                                        stepName = AnalysisStep.TRANSLATION.name
+                                    )
                                     val obj = res.first
                                     val meta = res.second
                                     updatePartialResult { current ->
@@ -539,7 +635,17 @@ class AnalyzeTextUseCase @Inject constructor(
                             // 2. Clauses
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeClauses(text, imageBase64, mimeType, primaryConfig, backupConfig, getRetryListener(AnalysisStep.CLAUSE_ANALYSIS), getBackupListener(AnalysisStep.CLAUSE_ANALYSIS))
+                                    val res = llmAnalysisService.executeClauses(
+                                        text = text,
+                                        imageBase64 = imageBase64,
+                                        mimeType = mimeType,
+                                        primaryConfig = primaryConfig,
+                                        backupConfig = backupConfig,
+                                        onRetry = getRetryListener(AnalysisStep.CLAUSE_ANALYSIS),
+                                        onBackup = getBackupListener(AnalysisStep.CLAUSE_ANALYSIS),
+                                        recordId = recordId,
+                                        stepName = AnalysisStep.CLAUSE_ANALYSIS.name
+                                    )
                                     val obj = res.first
                                     val meta = res.second
                                     updatePartialResult { current ->
@@ -563,7 +669,17 @@ class AnalyzeTextUseCase @Inject constructor(
                             // 3. Grammar
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeGrammar(text, imageBase64, mimeType, primaryConfig, backupConfig, getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION), getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION))
+                                    val res = llmAnalysisService.executeGrammar(
+                                        text = text,
+                                        imageBase64 = imageBase64,
+                                        mimeType = mimeType,
+                                        primaryConfig = primaryConfig,
+                                        backupConfig = backupConfig,
+                                        onRetry = getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION),
+                                        onBackup = getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION),
+                                        recordId = recordId,
+                                        stepName = AnalysisStep.GRAMMAR_EXPLANATION.name
+                                    )
                                     val obj = res.first
                                     val meta = res.second
                                     updatePartialResult { current ->
@@ -597,7 +713,9 @@ class AnalyzeTextUseCase @Inject constructor(
                                         primaryConfig = primaryConfig,
                                         backupConfig = backupConfig,
                                         onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
-                                        onBackup = getBackupListener(AnalysisStep.TOKENIZATION)
+                                        onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
+                                        recordId = recordId,
+                                        stepName = AnalysisStep.TOKENIZATION.name
                                     )
                                     val tokenObj = tokenRes.first
                                     val tokenMeta = tokenRes.second
@@ -630,7 +748,9 @@ class AnalyzeTextUseCase @Inject constructor(
                                         primaryConfig = primaryConfig,
                                         backupConfig = backupConfig,
                                         onRetry = getRetryListener(AnalysisStep.DETAILED_GRAMMAR),
-                                        onBackup = getBackupListener(AnalysisStep.DETAILED_GRAMMAR)
+                                        onBackup = getBackupListener(AnalysisStep.DETAILED_GRAMMAR),
+                                        recordId = recordId,
+                                        stepName = AnalysisStep.DETAILED_GRAMMAR.name
                                     )
                                     val segObj = resSeg.first
                                     val segMeta = resSeg.second
