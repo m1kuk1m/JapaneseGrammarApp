@@ -250,7 +250,14 @@ class LlmRepositoryImpl @Inject constructor(
         if (backupProvider.isBlank() || backupModel.isBlank() || backupKey.isBlank()) {
             val errorMsg = "メインAPI（${apiTypeLabel}）の再試行に失敗し、予備APIが設定されていないか有効ではありません。メインAPIエラー: ${lastException?.localizedMessage}"
             AppLogger.e("LLM_API", errorMsg, lastException)
-            throw com.example.japanesegrammarapp.domain.model.LlmApiFailedException(primaryProvider, lastException?.localizedMessage, false, null, null)
+            throw com.example.japanesegrammarapp.domain.model.LlmApiFailedException(
+                primaryProvider,
+                lastException?.localizedMessage,
+                false,
+                null,
+                null,
+                lastException
+            )
         }
 
         AppLogger.apiEvent(
@@ -312,7 +319,14 @@ class LlmRepositoryImpl @Inject constructor(
                 elapsedMs = elapsedMs
             )
             AppLogger.e("LLM_API", errorMsg, e)
-            throw com.example.japanesegrammarapp.domain.model.LlmApiFailedException(primaryProvider, lastException?.localizedMessage, true, backupProvider, e.localizedMessage)
+            throw com.example.japanesegrammarapp.domain.model.LlmApiFailedException(
+                primaryProvider,
+                lastException?.localizedMessage,
+                true,
+                backupProvider,
+                e.localizedMessage,
+                e
+            )
         }
     }
 }
