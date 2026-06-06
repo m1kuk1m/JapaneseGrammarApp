@@ -54,6 +54,13 @@ import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
 import java.util.*
 import com.example.japanesegrammarapp.ui.HistoryUiRecord
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
 
 @Composable
 fun HistorySidebar(
@@ -148,40 +155,83 @@ fun HistorySidebar(
         Divider(color = SumiInk.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
         Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchQueryChange,
+        val interactionSource = remember { MutableInteractionSource() }
+        val isFocused by interactionSource.collectIsFocusedAsState()
+        val focusRequester = remember { FocusRequester() }
+
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 4.dp)
-                .height(44.dp),
-            singleLine = true,
-            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                fontSize = 13.sp,
-                color = SumiInk
-            ),
-            placeholder = {
-                Text(
-                    text = stringResource(R.string.history_search_hint),
-                    fontSize = 13.sp,
-                    color = SumiInk.copy(alpha = 0.45f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                .height(44.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(22.dp)
                 )
-            },
-            leadingIcon = {
+                .border(
+                    width = 1.dp,
+                    color = if (isFocused) {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.65f)
+                    } else {
+                        SumiInk.copy(alpha = 0.12f)
+                    },
+                    shape = RoundedCornerShape(22.dp)
+                )
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    focusRequester.requestFocus()
+                }
+                .padding(horizontal = 14.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = null,
                     tint = SumiInk.copy(alpha = 0.5f),
                     modifier = Modifier.size(18.dp)
                 )
-            },
-            trailingIcon = {
+
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = onSearchQueryChange,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 13.sp,
+                            color = SumiInk
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        interactionSource = interactionSource
+                    )
+
+                    if (searchQuery.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.history_search_hint),
+                            fontSize = 13.sp,
+                            color = SumiInk.copy(alpha = 0.45f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
                 if (searchQuery.isNotEmpty()) {
                     IconButton(
                         onClick = { onSearchQueryChange("") },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
@@ -191,18 +241,8 @@ fun HistorySidebar(
                         )
                     }
                 }
-            },
-            shape = RoundedCornerShape(22.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = SumiInk,
-                unfocusedTextColor = SumiInk,
-                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
-                unfocusedBorderColor = SumiInk.copy(alpha = 0.12f),
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                cursorColor = MaterialTheme.colorScheme.primary
-            )
-        )
+            }
+        }
 
         // New Analysis Button (Full-width)
         Button(

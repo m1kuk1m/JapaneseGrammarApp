@@ -53,9 +53,26 @@ data class GeminiRequest(
 data class GeminiContent(val role: String = "user", val parts: List<GeminiPart>)
 data class GeminiPart(val text: String? = null, val inlineData: GeminiInlineData? = null)
 data class GeminiInlineData(val mimeType: String, val data: String) // Base64 data
-data class GeminiResponse(val candidates: List<GeminiCandidate>?, val usageMetadata: GeminiUsageMetadata? = null)
+data class GeminiResponse(
+    val candidates: List<GeminiCandidate>?,
+    val usageMetadata: GeminiUsageMetadata? = null,
+    val promptFeedback: GeminiPromptFeedback? = null
+)
 data class GeminiUsageMetadata(val totalTokenCount: Int? = null, val promptTokenCount: Int? = null, val candidatesTokenCount: Int? = null)
-data class GeminiCandidate(val content: GeminiContent?)
+data class GeminiCandidate(
+    val content: GeminiContent?,
+    val finishReason: String? = null,
+    val safetyRatings: List<GeminiSafetyRating>? = null
+)
+data class GeminiPromptFeedback(
+    val blockReason: String? = null,
+    val safetyRatings: List<GeminiSafetyRating>? = null
+)
+data class GeminiSafetyRating(
+    val category: String? = null,
+    val probability: String? = null,
+    val blocked: Boolean? = null
+)
 data class GeminiModelListResponse(val models: List<GeminiModel>)
 data class GeminiModel(val name: String, val supportedGenerationMethods: List<String>? = null)
 

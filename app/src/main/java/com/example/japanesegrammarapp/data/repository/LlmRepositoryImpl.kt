@@ -129,8 +129,18 @@ class LlmRepositoryImpl @Inject constructor(
                     ),
                     safetySettings = safetySettings
                 )
-                val response = llmService.generateGemini(url, request)
-                val text = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: throw Exception("No response from model")
+                val response = try {
+                    llmService.generateGemini(url, request)
+                } catch (e: retrofit2.HttpException) {
+                    throw Exception(formatHttpError(e), e)
+                }
+                val text = response.candidates
+                    ?.firstOrNull()
+                    ?.content
+                    ?.parts
+                    ?.firstOrNull { !it.text.isNullOrBlank() }
+                    ?.text
+                    ?: throw Exception(buildGeminiNoTextMessage(response))
                 val tokens = response.usageMetadata?.totalTokenCount ?: 0
                 var inputTokens = response.usageMetadata?.promptTokenCount ?: 0
                 var outputTokens = response.usageMetadata?.candidatesTokenCount ?: 0
@@ -142,6 +152,78 @@ class LlmRepositoryImpl @Inject constructor(
             }
             else -> throw Exception("Unsupported provider")
         }
+    }
+
+    private fun formatHttpError(e: retrofit2.HttpException): String {
+        val errorBody = e.response()?.errorBody()?.string().orEmpty()
+        val safeBody = errorBody.safeTruncate(1200)
+        return buildString {
+            append("HTTP ").append(e.code()).append(": ").append(e.message())
+            if (safeBody.isNotBlank()) {
+                append("\n").append(safeBody)
+            }
+        }
+    }
+
+    private fun buildGeminiNoTextMessage(response: GeminiResponse): String {
+        val candidate = response.candidates?.firstOrNull()
+        val usage = response.usageMetadata
+        return buildString {
+            append("No text response from Gemini")
+            append("; candidates=").append(response.candidates?.size ?: 0)
+
+            candidate?.finishReason
+                ?.takeIf { it.isNotBlank() }
+                ?.let { append("; finishReason=").append(it) }
+
+            response.promptFeedback?.blockReason
+                ?.takeIf { it.isNotBlank() }
+                ?.let { append("; promptBlockReason=").append(it) }
+
+            val candidateSafety = candidate?.safetyRatings.formatSafetyRatings()
+            if (candidateSafety.isNotBlank()) {
+                append("; candidateSafety=[").append(candidateSafety).append("]")
+            }
+
+            val promptSafety = response.promptFeedback?.safetyRatings.formatSafetyRatings()
+            if (promptSafety.isNotBlank()) {
+                append("; promptSafety=[").append(promptSafety).append("]")
+            }
+
+            if (usage != null) {
+                append("; tokens total=")
+                    .append(usage.totalTokenCount ?: 0)
+                    .append(", prompt=")
+                    .append(usage.promptTokenCount ?: 0)
+                    .append(", candidates=")
+                    .append(usage.candidatesTokenCount ?: 0)
+            }
+        }
+    }
+
+    private fun List<GeminiSafetyRating>?.formatSafetyRatings(): String {
+        return this.orEmpty()
+            .filter { rating ->
+                !rating.category.isNullOrBlank() ||
+                    !rating.probability.isNullOrBlank() ||
+                    rating.blocked != null
+            }
+            .joinToString(", ") { rating ->
+                buildString {
+                    append(rating.category ?: "UNKNOWN")
+                    rating.probability?.takeIf { it.isNotBlank() }?.let {
+                        append(":").append(it)
+                    }
+                    rating.blocked?.let {
+                        append(":blocked=").append(it)
+                    }
+                }
+            }
+            .safeTruncate(600)
+    }
+
+    private fun String.safeTruncate(maxLength: Int): String {
+        return if (length > maxLength) take(maxLength) + "\n...<truncated>" else this
     }
 
     override suspend fun executeWithFailover(

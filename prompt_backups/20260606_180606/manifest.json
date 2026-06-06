@@ -1,0 +1,47 @@
+{
+  "createdAt": "2026-06-06T10:06:06.376Z",
+  "sourcePath": "D:/project831/JapaneseGrammarApp/app/src/main/java/com/example/japanesegrammarapp/network/PromptManager.kt",
+  "promptCount": 8,
+  "prompts": [
+    {
+      "name": "SYSTEM_PROMPT_TRANSLATION",
+      "chars": 1508,
+      "lines": 53
+    },
+    {
+      "name": "SYSTEM_PROMPT_SEGMENTS",
+      "chars": 4480,
+      "lines": 108
+    },
+    {
+      "name": "SYSTEM_PROMPT_CLAUSES",
+      "chars": 1754,
+      "lines": 53
+    },
+    {
+      "name": "SYSTEM_PROMPT_GRAMMAR",
+      "chars": 1674,
+      "lines": 43
+    },
+    {
+      "name": "SYSTEM_PROMPT_TOKENIZER",
+      "chars": 1933,
+      "lines": 56
+    },
+    {
+      "name": "SYSTEM_PROMPT_TOKENIZER_OCR",
+      "chars": 2611,
+      "lines": 71
+    },
+    {
+      "name": "SYSTEM_PROMPT_TOKENIZER_IMAGE",
+      "chars": 2686,
+      "lines": 72
+    },
+    {
+      "name": "SYSTEM_PROMPT_TOKENIZER_IMAGE_REPAIR",
+      "chars": 2689,
+      "lines": 67
+    }
+  ]
+}

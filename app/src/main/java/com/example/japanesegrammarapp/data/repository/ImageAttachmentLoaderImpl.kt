@@ -20,8 +20,8 @@ class ImageAttachmentLoaderImpl @Inject constructor(
 ) : ImageAttachmentLoader {
 
     private companion object {
-        const val MAX_UPLOAD_DIMENSION = 1024
-        const val JPEG_QUALITY = 75
+        const val MAX_UPLOAD_DIMENSION = 2048
+        const val JPEG_QUALITY = 85
     }
     
     override suspend fun loadAsBase64(uriString: String): ImagePayload? = withContext(Dispatchers.IO) {

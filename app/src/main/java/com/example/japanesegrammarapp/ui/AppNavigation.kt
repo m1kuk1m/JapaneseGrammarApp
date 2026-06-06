@@ -366,6 +366,12 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                     // Replaced Edge Swipe Interceptor with global interceptor
                 }
             }
+
+            BackHandler(enabled = drawerState.isOpen || drawerState.targetValue == DrawerValue.Open) {
+                coroutineScope.launch {
+                    drawerState.close()
+                }
+            }
             
             // Deletion Confirmation Dialog
             if (recordToDelete != null) {
