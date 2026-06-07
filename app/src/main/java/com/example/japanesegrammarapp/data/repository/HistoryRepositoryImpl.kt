@@ -19,9 +19,7 @@ import javax.inject.Singleton
 @Singleton
 class HistoryRepositoryImpl @Inject constructor(
     private val analysisDao: AnalysisDao
-) : HistoryRepository {
-
-    override val history: Flow<PagingData<AnalysisDomainRecord>> = getHistory("")
+) : HistoryRepository, PagedHistoryRepository {
 
     override fun getHistory(query: String): Flow<PagingData<AnalysisDomainRecord>> = Pager(
         config = PagingConfig(pageSize = 20, enablePlaceholders = false),
@@ -49,7 +47,9 @@ class HistoryRepositoryImpl @Inject constructor(
     
     override val totalTokensConsumed: Flow<Int?> = analysisDao.getTotalTokensConsumed()
     override val tokenUsageByModel: Flow<List<ModelTokenUsage>> = analysisDao.getTokenUsageByModel()
+        .map { list -> list.map { it.toDomain() } }
     override val dailyTokenUsage: Flow<List<DailyTokenUsage>> = analysisDao.getDailyTokenUsage()
+        .map { list -> list.map { it.toDomain() } }
 
     override suspend fun getRecordById(id: Int): AnalysisDomainRecord? {
         val entity = analysisDao.getRecordById(id)

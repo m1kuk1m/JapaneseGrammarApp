@@ -18,3 +18,16 @@ local.properties
 
 # Log files
 *.log
+
+# Signing secrets and release artifacts
+*.jks
+*.keystore
+*.p12
+*.apk
+app/release/
+
+# Local research/scrape scratch files
+out*.html
+search_results.html
+bing_results*.txt
+ddg_*.txt

@@ -1,9 +1,34 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
 }
+
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.isFile) {
+        file.inputStream().use { load(it) }
+    }
+}
+
+fun releaseSigningValue(name: String): String? =
+    (project.findProperty(name) as? String)
+        ?: localProperties.getProperty(name)
+        ?: System.getenv()[name]
+
+val releaseStoreFilePath = releaseSigningValue("RELEASE_STORE_FILE")
+val releaseStorePassword = releaseSigningValue("RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = releaseSigningValue("RELEASE_KEY_ALIAS")
+val releaseKeyPassword = releaseSigningValue("RELEASE_KEY_PASSWORD")
+val hasReleaseSigningConfig = listOf(
+    releaseStoreFilePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword
+).all { !it.isNullOrBlank() }
 
 android {
     namespace = "com.example.japanesegrammarapp"
@@ -20,14 +45,20 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        ksp {
+            arg("room.schemaLocation", "$projectDir/schemas")
+        }
     }
 
     signingConfigs {
         create("release") {
-            storeFile = file("../release.jks")
-            storePassword = "japanese831"
-            keyAlias = "release"
-            keyPassword = "japanese831"
+            if (hasReleaseSigningConfig) {
+                storeFile = file(releaseStoreFilePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
         }
     }
 
@@ -39,7 +70,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            if (hasReleaseSigningConfig) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
@@ -55,6 +88,9 @@ android {
     }
     lint {
         abortOnError = false
+    }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.4"
@@ -123,7 +159,9 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test:core-ktx:1.5.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation("androidx.room:room-testing:$room_version")
     androidTestImplementation(platform("androidx.compose:compose-bom:2023.10.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")

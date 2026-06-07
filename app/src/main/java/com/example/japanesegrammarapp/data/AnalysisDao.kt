@@ -6,8 +6,19 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
-import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
-import com.example.japanesegrammarapp.domain.model.DailyTokenUsage
+
+data class ModelTokenUsageEntity(
+    val modelUsed: String,
+    val totalTokens: Int
+)
+
+data class DailyTokenUsageEntity(
+    val date: String,
+    val modelUsed: String,
+    val inputTokens: Int,
+    val outputTokens: Int,
+    val totalTokens: Int
+)
 
 @Dao
 interface AnalysisDao {
@@ -47,8 +58,8 @@ interface AnalysisDao {
     fun getTotalTokensConsumed(): Flow<Int?>
 
     @Query("SELECT modelUsed, SUM(consumedTokens) as totalTokens FROM analysis_records WHERE consumedTokens > 0 GROUP BY modelUsed ORDER BY totalTokens DESC")
-    fun getTokenUsageByModel(): Flow<List<ModelTokenUsage>>
+    fun getTokenUsageByModel(): Flow<List<ModelTokenUsageEntity>>
 
     @Query("SELECT date(timestamp / 1000, 'unixepoch', 'localtime') as date, modelUsed, SUM(inputTokens) as inputTokens, SUM(outputTokens) as outputTokens, SUM(consumedTokens) as totalTokens FROM analysis_records WHERE consumedTokens > 0 GROUP BY date, modelUsed ORDER BY date DESC, totalTokens DESC")
-    fun getDailyTokenUsage(): Flow<List<DailyTokenUsage>>
+    fun getDailyTokenUsage(): Flow<List<DailyTokenUsageEntity>>
 }

@@ -3,7 +3,6 @@ package com.example.japanesegrammarapp.data.repository
 import android.content.Context
 import android.media.MediaPlayer
 import android.util.Base64
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,14 +18,17 @@ import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.example.japanesegrammarapp.di.ApplicationScope
 import com.example.japanesegrammarapp.domain.repository.TtsRepository
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
+import kotlinx.coroutines.CoroutineScope
 
 @Singleton
 class TtsRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val okHttpClient: OkHttpClient,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    @ApplicationScope private val applicationScope: CoroutineScope
 ) : TtsRepository {
     private val _isPlaying = MutableStateFlow(false)
     override val isPlaying: StateFlow<Boolean> = _isPlaying
@@ -47,7 +49,7 @@ class TtsRepositoryImpl @Inject constructor(
         val voice = settingsRepository.getTtsVoice(provider)
         val region = settingsRepository.getTtsRegion(provider)
 
-        ttsJob = CoroutineScope(Dispatchers.IO).launch {
+        ttsJob = applicationScope.launch {
             try {
                 yield()
                 tempAudioFile?.let { if (it.exists()) it.delete() }
@@ -154,7 +156,7 @@ class TtsRepositoryImpl @Inject constructor(
             return
         }
 
-        CoroutineScope(Dispatchers.Main).launch {
+        applicationScope.launch(Dispatchers.Main) {
             try {
                 mediaPlayer = MediaPlayer().apply {
                     setDataSource(tempAudioFile!!.absolutePath)

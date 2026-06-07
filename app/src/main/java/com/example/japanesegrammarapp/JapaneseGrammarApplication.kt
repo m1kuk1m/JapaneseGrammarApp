@@ -1,12 +1,20 @@
 package com.example.japanesegrammarapp
 
 import android.app.Application
+import com.example.japanesegrammarapp.di.ApplicationScope
+import com.example.japanesegrammarapp.utils.AppLogger
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import javax.inject.Inject
 
 @HiltAndroidApp
 class JapaneseGrammarApplication : Application() {
+    @Inject
+    @ApplicationScope
+    lateinit var applicationScope: CoroutineScope
+
     override fun onCreate() {
         super.onCreate()
-        com.example.japanesegrammarapp.utils.AppLogger.init(this)
+        AppLogger.init(this, applicationScope)
     }
 }

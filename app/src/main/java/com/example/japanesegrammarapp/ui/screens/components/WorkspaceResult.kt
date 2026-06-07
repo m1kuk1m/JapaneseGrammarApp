@@ -49,19 +49,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import com.example.japanesegrammarapp.domain.model.WordSegment
 import com.example.japanesegrammarapp.domain.model.DetailedAnalysisResult
+import com.example.japanesegrammarapp.domain.repository.UiPreferencesRepository
 import com.example.japanesegrammarapp.ui.WorkspaceUiState
 import com.example.japanesegrammarapp.ui.theme.ZenColors.AizomeIndigo
 import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.MatchaGreen
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SakuraPink
 import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
-import com.example.japanesegrammarapp.utils.DictionaryHelper
-import com.example.japanesegrammarapp.utils.DictionaryApp
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -70,9 +68,9 @@ fun WorkspaceResultContent(
     isPlayingTts: Boolean = false,
     onPlayTts: () -> Unit = {},
     onStopTts: () -> Unit = {},
-    onToggleBookmark: (WordSegment) -> Unit = {}
+    onToggleBookmark: (WordSegment) -> Unit = {},
+    uiPreferencesRepository: UiPreferencesRepository
 ) {
-    val context = LocalContext.current
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val SurfaceColor = MaterialTheme.colorScheme.surface
     val detailedResult = uiState.detailedResult
@@ -371,65 +369,12 @@ fun WorkspaceResultContent(
                                         val queryWord = rawQueryWord
                                         
                                         if (queryWord.isNotBlank()) {
-                                            val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-                                            var isDictMenuExpanded by remember { mutableStateOf(false) }
-                                            var selectedDict by remember { 
-                                                val savedDict = prefs.getString("last_dict", DictionaryApp.EUDIC.name) ?: DictionaryApp.EUDIC.name
-                                                mutableStateOf(DictionaryApp.valueOf(savedDict))
-                                            }
-
-                                            ExposedDropdownMenuBox(
-                                                expanded = isDictMenuExpanded,
-                                                onExpandedChange = { isDictMenuExpanded = !isDictMenuExpanded },
-                                                modifier = Modifier.weight(1f)
-                                            ) {
-                                                OutlinedTextField(
-                                                    value = stringResource(selectedDict.nameResId),
-                                                    onValueChange = {},
-                                                    readOnly = true,
-                                                    trailingIcon = {
-                                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = isDictMenuExpanded)
-                                                    },
-                                                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
-                                                        unfocusedBorderColor = SumiInk.copy(alpha = 0.15f),
-                                                        focusedBorderColor = SumiInk.copy(alpha = 0.4f),
-                                                        unfocusedTextColor = SumiInk,
-                                                        focusedTextColor = SumiInk
-                                                    ),
-                                                    shape = RoundedCornerShape(12.dp),
-                                                    modifier = Modifier.menuAnchor().fillMaxWidth().heightIn(min = 48.dp),
-                                                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
-                                                )
-                                                ExposedDropdownMenu(
-                                                    expanded = isDictMenuExpanded,
-                                                    onDismissRequest = { isDictMenuExpanded = false }
-                                                ) {
-                                                    DictionaryApp.values().forEach { dict ->
-                                                        DropdownMenuItem(
-                                                            text = { Text(stringResource(dict.nameResId), fontSize = 14.sp) },
-                                                            onClick = {
-                                                                selectedDict = dict
-                                                                prefs.edit().putString("last_dict", dict.name).apply()
-                                                                isDictMenuExpanded = false
-                                                            },
-                                                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-                                                        )
-                                                    }
-                                                }
-                                            }
-
-                                            FilledTonalButton(
-                                                onClick = { selectedDict.search(context, queryWord) },
-                                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                                modifier = Modifier.height(48.dp),
-                                                shape = RoundedCornerShape(12.dp),
-                                                colors = ButtonDefaults.filledTonalButtonColors(
-                                                    containerColor = SumiInk,
-                                                    contentColor = SurfaceColor
-                                                )
-                                            ) {
-                                                Text(text = stringResource(R.string.search_in_dict), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                            }
+                                            DictionarySearchControls(
+                                                queryWord = queryWord,
+                                                uiPreferencesRepository = uiPreferencesRepository,
+                                                sumiInk = SumiInk,
+                                                surfaceColor = SurfaceColor
+                                            )
                                         }
                                     }
                                 }
@@ -598,7 +543,7 @@ fun WorkspaceResultContent(
                                                     )
                                                 }
                                             }
-                                            if (idx < (data.clauses?.size ?: 0) - 1) {
+                                            if (idx < data.clauses.size - 1) {
                                                 Divider(
                                                     modifier = Modifier.padding(vertical = 12.dp),
                                                     color = SumiInk.copy(alpha = 0.08f)
@@ -689,7 +634,7 @@ fun WorkspaceResultContent(
                                                     lineHeight = 20.sp
                                                 )
                                             }
-                                            if (idx < (data.grammarPoints?.size ?: 0) - 1) {
+                                            if (idx < data.grammarPoints.size - 1) {
                                                 Divider(
                                                     modifier = Modifier.padding(vertical = 14.dp),
                                                     color = SumiInk.copy(alpha = 0.08f)

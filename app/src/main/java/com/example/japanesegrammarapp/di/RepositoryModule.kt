@@ -1,6 +1,8 @@
 package com.example.japanesegrammarapp.di
 
 import com.example.japanesegrammarapp.domain.repository.*
+import com.example.japanesegrammarapp.domain.usecase.AnalysisTaskManager
+import com.example.japanesegrammarapp.domain.usecase.DefaultAnalysisTaskManager
 import com.example.japanesegrammarapp.data.repository.*
 import dagger.Binds
 import dagger.Module
@@ -17,6 +19,12 @@ abstract class RepositoryModule {
     abstract fun bindHistoryRepository(
         historyRepositoryImpl: HistoryRepositoryImpl
     ): HistoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPagedHistoryRepository(
+        historyRepositoryImpl: HistoryRepositoryImpl
+    ): PagedHistoryRepository
 
     @Binds
     @Singleton
@@ -65,4 +73,16 @@ abstract class RepositoryModule {
     abstract fun bindBookmarkRepository(
         bookmarkRepositoryImpl: BookmarkRepositoryImpl
     ): BookmarkRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindUiPreferencesRepository(
+        uiPreferencesRepositoryImpl: UiPreferencesRepositoryImpl
+    ): UiPreferencesRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAnalysisTaskManager(
+        defaultAnalysisTaskManager: DefaultAnalysisTaskManager
+    ): AnalysisTaskManager
 }

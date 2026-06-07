@@ -614,7 +614,8 @@ fun WorkspaceScreen(
                                                     onStopTts = { viewModel.stopTts() },
                                                     onToggleBookmark = { segment ->
                                                         viewModel.toggleBookmark(segment)
-                                                    }
+                                                    },
+                                                    uiPreferencesRepository = viewModel.uiPreferencesRepository
                                                 )
                                             }
                                             "FAILED" -> {
@@ -790,7 +791,8 @@ fun WorkspaceScreen(
     // Floating Action Ball
     FloatingActionBall(
         onTextClick = { showInputDialogLocal = true },
-        onCameraClick = { navController.navigate("camera") }
+        onCameraClick = { navController.navigate("camera") },
+        uiPreferencesRepository = viewModel.uiPreferencesRepository
     )
     }
 }

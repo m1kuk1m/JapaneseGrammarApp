@@ -3,6 +3,7 @@ package com.example.japanesegrammarapp.data.repository
 import android.content.SharedPreferences
 import com.example.japanesegrammarapp.di.SecurePrefs
 import com.example.japanesegrammarapp.di.StandardPrefs
+import com.example.japanesegrammarapp.di.ApplicationScope
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
@@ -10,10 +11,9 @@ import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.example.japanesegrammarapp.network.PromptManager
 import com.example.japanesegrammarapp.utils.AppLogger
 import com.google.gson.Gson
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,7 +21,8 @@ import javax.inject.Singleton
 class SettingsRepositoryImpl @Inject constructor(
     @StandardPrefs private val settingPrefs: SharedPreferences,
     @SecurePrefs private val securePrefs: SharedPreferences,
-    private val gson: Gson
+    private val gson: Gson,
+    @ApplicationScope private val applicationScope: CoroutineScope
 ) : SettingsRepository {
 
     // Thread-safe in-memory cache for ultra-fast, non-blocking UI interactions
@@ -47,7 +48,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override val wallpaperUri: kotlinx.coroutines.flow.StateFlow<String> = _wallpaperUri.asStateFlow()
 
     init {
-        CoroutineScope(Dispatchers.IO).launch {
+        applicationScope.launch {
             _themeMode.value = settingPrefs.getString("theme_mode", "System") ?: "System"
             _wallpaperUri.value = settingPrefs.getString("wallpaper_uri", "") ?: ""
         }
@@ -202,8 +203,11 @@ class SettingsRepositoryImpl @Inject constructor(
         val endpointSaved = saveSecureString(endpointKey(defaultEndpoint.id), key, "API key", provider) {
             cachedEndpointApiKeys[defaultEndpoint.id] = key
         }
+        if (!endpointSaved) {
+            return false
+        }
         val existingEndpoints = getEndpoints(provider)
-        if (endpointSaved && existingEndpoints.none { it.id == defaultEndpoint.id }) {
+        if (existingEndpoints.none { it.id == defaultEndpoint.id }) {
             saveEndpoints(provider, existingEndpoints + defaultEndpoint)
         }
         val legacySaved = saveSecureString("${provider}_key", key, "API key", provider) {

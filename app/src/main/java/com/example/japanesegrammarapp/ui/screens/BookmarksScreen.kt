@@ -1,4 +1,4 @@
-package com.example.japanesegrammarapp.ui.screens
+﻿package com.example.japanesegrammarapp.ui.screens
 
 import android.app.Activity
 import android.content.Intent
@@ -150,10 +150,10 @@ fun BookmarksScreen(
                     var isRightSwipe = false
                     var event: PointerEvent
                     do {
-                        // 使用 Main 阶段：让子组件（LazyRow 词性滚动条等）优先处理事件
+                        // 浣跨敤 Main 闃舵锛氳瀛愮粍浠讹紙LazyRow 璇嶆€ф粴鍔ㄦ潯绛夛級浼樺厛澶勭悊浜嬩欢
                         event = awaitPointerEvent(PointerEventPass.Main)
                         val change = event.changes.firstOrNull()
-                        // 若事件已被子组件消费（如横向滚动词性条），则跳过右滑判定
+                        // 鑻ヤ簨浠跺凡琚瓙缁勪欢娑堣垂锛堝妯悜婊氬姩璇嶆€ф潯锛夛紝鍒欒烦杩囧彸婊戝垽瀹?
                         if (change != null && !change.isConsumed) {
                             if (!isDecided) {
                                 totalDx += change.positionChange().x
@@ -347,8 +347,8 @@ fun BookmarksScreen(
                             .fillMaxSize()
                             .padding(paddingValues)
                     ) {
-                        // ── Filter chips bar ────────────────────────────────────────
-                        FilterChipsBar(
+                        // 鈹€鈹€ Filter chips bar 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+                        BookmarkFilterChipsBar(
                             filterMode = filterMode,
                             archiveFilter = archiveFilter,
                             posCategories = posCategories,
@@ -361,7 +361,7 @@ fun BookmarksScreen(
                             isDark = isDark
                         )
 
-                        // ── Bookmark list ────────────────────────────────────────────
+                        // 鈹€鈹€ Bookmark list 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -459,7 +459,6 @@ fun BookmarksScreen(
                         items(bookmarkedSentences, key = { it.id }) { sentence ->
                             SentenceBookmarkCard(
                                 sentence = sentence,
-                                isDark = isDark,
                                 onNavigateToDetails = {
                                     onNavigateToRecord(sentence.recordId, sentence.id)
                                 },
@@ -477,7 +476,7 @@ fun BookmarksScreen(
         }
     }
 
-    // ── Source sentence dialog ────────────────────────────────────────
+    // 鈹€鈹€ Source sentence dialog 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     sourceDialogBookmark?.let { bm ->
         SourceSentenceDialog(
             bookmark = bm,
@@ -498,247 +497,10 @@ fun BookmarksScreen(
     }
 }
 
-// ── Source Sentence Dialog ──────────────────────────────────────────────
+// 鈹€鈹€ Source Sentence Dialog 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
-@Composable
-private fun SourceSentenceDialog(
-    bookmark: BookmarkedSegmentDomain,
-    onDismiss: () -> Unit
-) {
-    val SumiInk = MaterialTheme.colorScheme.onBackground
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .padding(16.dp)
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = bookmark.segmentText,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = SumiInk
-                    )
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = SumiInk.copy(alpha = 0.5f))
-                    }
-                }
 
-                if (!bookmark.reading.isNullOrBlank() && bookmark.reading != bookmark.segmentText) {
-                    Text(bookmark.reading, fontSize = 14.sp, color = SumiInk.copy(alpha = 0.5f))
-                }
-
-                if (!bookmark.meaning.isNullOrBlank()) {
-                    Spacer(Modifier.height(8.dp))
-                    Surface(color = ZenColors.KuriAmber.copy(alpha = 0.15f), shape = RoundedCornerShape(8.dp)) {
-                        Text(bookmark.meaning, fontSize = 14.sp, color = SumiInk, lineHeight = 20.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
-                    }
-                }
-
-                Spacer(Modifier.height(16.dp))
-                Text(stringResource(R.string.target_sentence_header), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = SumiInk.copy(alpha = 0.5f))
-                Spacer(Modifier.height(6.dp))
-                Surface(color = SumiInk.copy(alpha = 0.04f), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-                    Text(bookmark.sourceText.ifBlank { stringResource(R.string.no_source_sentence) }, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = SumiInk, lineHeight = 22.sp, modifier = Modifier.padding(14.dp))
-                }
-
-                if (!bookmark.partOfSpeech.isNullOrBlank()) {
-                    Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Surface(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), shape = RoundedCornerShape(4.dp)) {
-                            Text(bookmark.partOfSpeech, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
-                        }
-                        bookmark.inflection?.let {
-                            Text(it, fontSize = 12.sp, color = SumiInk.copy(alpha = 0.5f))
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(20.dp))
-                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                    Text(stringResource(R.string.close), fontSize = 14.sp, color = SumiInk)
-                }
-            }
-        }
-    }
-}
-
-// ── Filter Chips ──────────────────────────────────────────────────────────
-
-@Composable
-private fun FilterChipsBar(
-    filterMode: BookmarkFilter,
-    archiveFilter: ArchiveFilter,
-    posCategories: List<String>,
-    selectedPosCategory: String?,
-    selectedDateFilter: String?,
-    onFilterModeChange: (BookmarkFilter) -> Unit,
-    onArchiveFilterChange: (ArchiveFilter) -> Unit,
-    onPosCategoryChange: (String?) -> Unit,
-    onDateFilterChange: (String?) -> Unit,
-    isDark: Boolean
-) {
-    val SumiInk = MaterialTheme.colorScheme.onBackground
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        // Mode chips
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            item {
-                FilterChipItem(
-                    label = stringResource(R.string.filter_all),
-                    isSelected = filterMode == BookmarkFilter.ALL,
-                    onClick = { onFilterModeChange(BookmarkFilter.ALL) }
-                )
-            }
-            item {
-                FilterChipItem(
-                    label = stringResource(R.string.filter_by_pos),
-                    isSelected = filterMode == BookmarkFilter.BY_POS,
-                    onClick = { onFilterModeChange(BookmarkFilter.BY_POS) }
-                )
-            }
-            item {
-                FilterChipItem(
-                    label = stringResource(R.string.filter_by_date),
-                    isSelected = filterMode == BookmarkFilter.BY_DATE,
-                    onClick = { onFilterModeChange(BookmarkFilter.BY_DATE) }
-                )
-            }
-        }
-
-        // Archive Filter row
-        Spacer(modifier = Modifier.height(4.dp))
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            item {
-                FilterChipItem(
-                    label = stringResource(R.string.filter_all),
-                    isSelected = archiveFilter == ArchiveFilter.ALL,
-                    onClick = { onArchiveFilterChange(ArchiveFilter.ALL) }
-                )
-            }
-            item {
-                FilterChipItem(
-                    label = stringResource(R.string.archive_filter_unarchived),
-                    isSelected = archiveFilter == ArchiveFilter.UNARCHIVED,
-                    onClick = { onArchiveFilterChange(ArchiveFilter.UNARCHIVED) }
-                )
-            }
-            item {
-                FilterChipItem(
-                    label = stringResource(R.string.archive_filter_archived),
-                    isSelected = archiveFilter == ArchiveFilter.ARCHIVED,
-                    onClick = { onArchiveFilterChange(ArchiveFilter.ARCHIVED) }
-                )
-            }
-        }
-
-        // POS sub-filter
-        AnimatedVisibility(visible = filterMode == BookmarkFilter.BY_POS && posCategories.isNotEmpty()) {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(top = 6.dp)
-            ) {
-                item {
-                    FilterChipItem(
-                        label = stringResource(R.string.filter_all),
-                        isSelected = selectedPosCategory == null,
-                        onClick = { onPosCategoryChange(null) }
-                    )
-                }
-                items(posCategories) { cat ->
-                    val chipBg = (if (isDark) PosColorsDark[cat] else PosColors[cat])
-                        ?: if (isDark) Color(0xFF2D2D2D) else Color(0xFFEFEFEF)
-                    @OptIn(ExperimentalMaterial3Api::class)
-                    FilterChip(
-                        selected = selectedPosCategory == cat,
-                        onClick = { onPosCategoryChange(cat) },
-                        label = { Text(getPosDisplayName(cat), fontSize = 12.sp) },
-                        shape = RoundedCornerShape(20.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = chipBg,
-                            containerColor = chipBg.copy(alpha = 0.4f),
-                            labelColor = SumiInk.copy(alpha = 0.7f),
-                            selectedLabelColor = SumiInk
-                        )
-                    )
-                }
-            }
-        }
-
-        // Date sub-filter
-        AnimatedVisibility(visible = filterMode == BookmarkFilter.BY_DATE) {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(top = 6.dp)
-            ) {
-                item {
-                    FilterChipItem(
-                        label = stringResource(R.string.filter_all),
-                        isSelected = selectedDateFilter == null,
-                        onClick = { onDateFilterChange(null) }
-                    )
-                }
-                item {
-                    FilterChipItem(
-                        label = stringResource(R.string.filter_today),
-                        isSelected = selectedDateFilter == "today",
-                        onClick = { onDateFilterChange("today") }
-                    )
-                }
-                item {
-                    FilterChipItem(
-                        label = stringResource(R.string.filter_week),
-                        isSelected = selectedDateFilter == "week",
-                        onClick = { onDateFilterChange("week") }
-                    )
-                }
-                item {
-                    FilterChipItem(
-                        label = stringResource(R.string.filter_older),
-                        isSelected = selectedDateFilter == "older",
-                        onClick = { onDateFilterChange("older") }
-                    )
-                }
-            }
-        }
-        Spacer(Modifier.height(4.dp))
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FilterChipItem(
-    label: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val SumiInk = MaterialTheme.colorScheme.onBackground
-    FilterChip(
-        selected = isSelected,
-        onClick = onClick,
-        label = { Text(label, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal) },
-        shape = RoundedCornerShape(20.dp),
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = SumiInk.copy(alpha = 0.12f)
-        )
-    )
-}
-
-// ── Bookmark Card ──────────────────────────────────────────────────────────
+// 鈹€鈹€ Bookmark Card 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
@@ -797,7 +559,7 @@ private fun BookmarkCard(
             )
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // ── Header row ────────────────────────────────────────────────
+            // 鈹€鈹€ Header row 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -891,7 +653,7 @@ private fun BookmarkCard(
                 }
             }
 
-            // ── Meaning preview (visible ONLY when expanded) ──────────────────────────
+            // 鈹€鈹€ Meaning preview (visible ONLY when expanded) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
             if (isExpanded && !bookmark.meaning.isNullOrBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Surface(
@@ -909,7 +671,7 @@ private fun BookmarkCard(
                 }
             }
 
-            // ── Expanded detail section ────────────────────────────────────
+            // 鈹€鈹€ Expanded detail section 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
             AnimatedVisibility(
                 visible = isExpanded,
                 enter = expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)) + fadeIn(tween(300)),
@@ -991,7 +753,7 @@ private fun BookmarkCard(
                 }
             }
 
-            // ── Delete confirmation row ────────────────────────────────────
+            // 鈹€鈹€ Delete confirmation row 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
             AnimatedVisibility(
                 visible = isPendingDelete,
                 enter = fadeIn(tween(200)),
@@ -1055,269 +817,9 @@ private fun DetailRow(label: String, value: String?) {
     }
 }
 
-// ── POS Display Name Mapping ─────────────────────────────────────────────
-
-private val PosNameKeys = mapOf(
-    "NOUN"       to R.string.pos_NOUN,
-    "VERB"       to R.string.pos_VERB,
-    "ADJECTIVE"  to R.string.pos_ADJECTIVE,
-    "AUXILIARY"  to R.string.pos_AUXILIARY,
-    "PARTICLE"   to R.string.pos_PARTICLE,
-    "ADVERB"     to R.string.pos_ADVERB,
-    "CONJUNCTION" to R.string.pos_CONJUNCTION,
-    "PRONOUN"    to R.string.pos_PRONOUN,
-    "INTERJECTION" to R.string.pos_INTERJECTION
-)
-
-@Composable
-private fun getPosDisplayName(category: String): String {
-    val resId = PosNameKeys[category] ?: R.string.pos_other
-    return stringResource(resId)
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PracticeSettingsDialog(
-    allBookmarks: List<BookmarkedSegmentDomain>,
-    posCategories: List<String>,
-    onDismiss: () -> Unit,
-    onStartPractice: (mode: String, limit: Int, pos: String, scope: String) -> Unit
-) {
-    var studyMode by remember { mutableStateOf("ja_to_zh") }
-    var cardLimit by remember { mutableStateOf(-1) }
-    var selectedPos by remember { mutableStateOf("ALL") }
-    var practiceScope by remember { mutableStateOf("unarchived") } // unarchived, archived, all
-
-    val filteredCount = remember(practiceScope, allBookmarks) {
-        when (practiceScope) {
-            "archived" -> allBookmarks.count { it.isArchived }
-            "all" -> allBookmarks.size
-            else -> allBookmarks.count { !it.isArchived }
-        }
-    }
-
-    val SumiInk = MaterialTheme.colorScheme.onBackground
-    val SurfaceColor = MaterialTheme.colorScheme.surface
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(R.string.flashcard_settings_title),
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                color = SumiInk
-            )
-        },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // 0. Review Scope
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = stringResource(R.string.flashcard_scope_label),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = SumiInk.copy(alpha = 0.5f)
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        listOf(
-                            "unarchived" to R.string.flashcard_scope_unarchived,
-                            "archived" to R.string.flashcard_scope_archived,
-                            "all" to R.string.flashcard_scope_all
-                        ).forEach { (scopeVal, labelRes) ->
-                            val isSel = practiceScope == scopeVal
-                            FilterChip(
-                                selected = isSel,
-                                onClick = { practiceScope = scopeVal },
-                                label = { Text(stringResource(labelRes), fontSize = 10.sp, maxLines = 1) },
-                                shape = RoundedCornerShape(16.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = SumiInk,
-                                    selectedLabelColor = SurfaceColor,
-                                    labelColor = SumiInk.copy(alpha = 0.7f)
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    borderColor = if (isSel) SumiInk else SumiInk.copy(alpha = 0.12f),
-                                    borderWidth = if (isSel) 1.5.dp else 1.dp
-                                ),
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-
-                // 1. Study Mode
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = stringResource(R.string.flashcard_mode_label),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = SumiInk.copy(alpha = 0.5f)
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf(
-                            "ja_to_zh" to R.string.flashcard_mode_ja_to_zh,
-                            "zh_to_ja" to R.string.flashcard_mode_zh_to_ja
-                        ).forEach { (modeVal, labelRes) ->
-                            val isSel = studyMode == modeVal
-                            FilterChip(
-                                selected = isSel,
-                                onClick = { studyMode = modeVal },
-                                label = { Text(stringResource(labelRes), fontSize = 12.sp) },
-                                shape = RoundedCornerShape(16.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = SumiInk,
-                                    selectedLabelColor = SurfaceColor,
-                                    labelColor = SumiInk.copy(alpha = 0.7f)
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    borderColor = if (isSel) SumiInk else SumiInk.copy(alpha = 0.12f),
-                                    borderWidth = if (isSel) 1.5.dp else 1.dp
-                                ),
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-
-                // 2. Card Limit
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = stringResource(R.string.flashcard_count_label),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = SumiInk.copy(alpha = 0.5f)
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf(
-                            10 to "10",
-                            20 to "20",
-                            50 to "50",
-                            -1 to stringResource(R.string.flashcard_count_all, filteredCount)
-                        ).forEach { (limitVal, label) ->
-                            val isSel = cardLimit == limitVal
-                            FilterChip(
-                                selected = isSel,
-                                onClick = { cardLimit = limitVal },
-                                label = { Text(label, fontSize = 12.sp) },
-                                shape = RoundedCornerShape(16.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = SumiInk,
-                                    selectedLabelColor = SurfaceColor,
-                                    labelColor = SumiInk.copy(alpha = 0.7f)
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    borderColor = if (isSel) SumiInk else SumiInk.copy(alpha = 0.12f),
-                                    borderWidth = if (isSel) 1.5.dp else 1.dp
-                                ),
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-
-                // 3. POS Filter
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = stringResource(R.string.flashcard_pos_label),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = SumiInk.copy(alpha = 0.5f)
-                    )
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        item {
-                            val isSel = selectedPos == "ALL"
-                            FilterChip(
-                                selected = isSel,
-                                onClick = { selectedPos = "ALL" },
-                                label = { Text(stringResource(R.string.flashcard_pos_all), fontSize = 12.sp) },
-                                shape = RoundedCornerShape(16.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = SumiInk,
-                                    selectedLabelColor = SurfaceColor,
-                                    labelColor = SumiInk.copy(alpha = 0.7f)
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    borderColor = if (isSel) SumiInk else SumiInk.copy(alpha = 0.12f),
-                                    borderWidth = if (isSel) 1.5.dp else 1.dp
-                                )
-                            )
-                        }
-                        items(posCategories) { cat ->
-                            val isSel = selectedPos == cat
-                            FilterChip(
-                                selected = isSel,
-                                onClick = { selectedPos = cat },
-                                label = { Text(getPosDisplayName(cat), fontSize = 12.sp) },
-                                shape = RoundedCornerShape(16.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = SumiInk,
-                                    selectedLabelColor = SurfaceColor,
-                                    labelColor = SumiInk.copy(alpha = 0.7f)
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    borderColor = if (isSel) SumiInk else SumiInk.copy(alpha = 0.12f),
-                                    borderWidth = if (isSel) 1.5.dp else 1.dp
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onStartPractice(studyMode, cardLimit, selectedPos, practiceScope) },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = SumiInk,
-                    contentColor = SurfaceColor
-                ),
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier.fillMaxWidth().height(48.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.flashcard_start_btn),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = stringResource(R.string.cancel),
-                    color = SumiInk.copy(alpha = 0.6f),
-                    fontSize = 14.sp
-                )
-            }
-        },
-        containerColor = SurfaceColor,
-        tonalElevation = 6.dp
-    )
-}
-
 @Composable
 private fun SentenceBookmarkCard(
     sentence: BookmarkedSentenceDomain,
-    isDark: Boolean,
     onNavigateToDetails: () -> Unit,
     onPlayTts: () -> Unit,
     onDelete: () -> Unit

@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.example.japanesegrammarapp.R
+import com.example.japanesegrammarapp.domain.repository.UiPreferencesRepository
 import kotlin.math.roundToInt
 
 enum class ActionMode {
@@ -35,6 +36,7 @@ enum class ActionMode {
 fun FloatingActionBall(
     onTextClick: () -> Unit,
     onCameraClick: () -> Unit,
+    uiPreferencesRepository: UiPreferencesRepository,
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
@@ -45,25 +47,22 @@ fun FloatingActionBall(
     val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
     val ballSizePx = with(density) { 56.dp.toPx() }
 
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val prefs = remember { context.getSharedPreferences("fab_prefs", android.content.Context.MODE_PRIVATE) }
-
     // Initial position (bottom right, avoiding typical bottom nav areas)
     var offsetX by remember { 
         val defaultX = screenWidthPx - ballSizePx - with(density) { 16.dp.toPx() }
-        val savedX = prefs.getFloat("fab_x", defaultX)
+        val savedX = uiPreferencesRepository.getFloatingActionBallX(defaultX)
         mutableFloatStateOf(savedX.coerceIn(0f, maxOf(0f, screenWidthPx - ballSizePx)))
     }
     var offsetY by remember { 
         val defaultY = screenHeightPx - ballSizePx - with(density) { 120.dp.toPx() }
-        val savedY = prefs.getFloat("fab_y", defaultY)
+        val savedY = uiPreferencesRepository.getFloatingActionBallY(defaultY)
         mutableFloatStateOf(savedY.coerceIn(0f, maxOf(0f, screenHeightPx - ballSizePx)))
     }
     
     var isDragging by remember { mutableStateOf(false) }
     var currentMode by remember { 
-        val savedMode = prefs.getString("fab_mode", ActionMode.Text.name) ?: ActionMode.Text.name
-        mutableStateOf(ActionMode.valueOf(savedMode)) 
+        val savedMode = uiPreferencesRepository.getFloatingActionBallMode(ActionMode.Text.name)
+        mutableStateOf(runCatching { ActionMode.valueOf(savedMode) }.getOrDefault(ActionMode.Text))
     }
 
     val edgeMargin = with(density) { 8.dp.toPx() }
@@ -77,7 +76,7 @@ fun FloatingActionBall(
             offsetY = offsetY.coerceIn(minY, maxY)
         }
         
-        prefs.edit().putFloat("fab_x", offsetX).putFloat("fab_y", offsetY).apply()
+        uiPreferencesRepository.saveFloatingActionBallPosition(offsetX, offsetY)
     }
 
     val animatedOffsetX by animateFloatAsState(
@@ -112,7 +111,7 @@ fun FloatingActionBall(
                                 screenHeightPx - ballSizePx - with(density) { 32.dp.toPx() }
                             )
 
-                            prefs.edit().putFloat("fab_x", offsetX).putFloat("fab_y", offsetY).apply()
+                            uiPreferencesRepository.saveFloatingActionBallPosition(offsetX, offsetY)
                         },
                         onDrag = { change, dragAmount ->
                             change.consume()
@@ -136,7 +135,7 @@ fun FloatingActionBall(
                         if (!isDragging) {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             currentMode = if (currentMode == ActionMode.Text) ActionMode.Camera else ActionMode.Text
-                            prefs.edit().putString("fab_mode", currentMode.name).apply()
+                            uiPreferencesRepository.saveFloatingActionBallMode(currentMode.name)
                         }
                     }
                 ),

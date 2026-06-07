@@ -36,7 +36,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.platform.TextToolbarStatus
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -208,8 +207,6 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 }
             }
             
-            val context = androidx.compose.ui.platform.LocalContext.current
-            val fabPrefs = remember { context.getSharedPreferences("fab_prefs", android.content.Context.MODE_PRIVATE) }
             val density = androidx.compose.ui.platform.LocalDensity.current
             val configuration = androidx.compose.ui.platform.LocalConfiguration.current
             
@@ -258,8 +255,8 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
                                     
-                                    val fabX = fabPrefs.getFloat("fab_x", defaultFabX)
-                                    val fabY = fabPrefs.getFloat("fab_y", defaultFabY)
+                                    val fabX = workspaceViewModel.uiPreferencesRepository.getFloatingActionBallX(defaultFabX)
+                                    val fabY = workspaceViewModel.uiPreferencesRepository.getFloatingActionBallY(defaultFabY)
                                     val isTouchOnFab = down.position.x >= fabX &&
                                             down.position.x <= fabX + ballSizePx &&
                                             down.position.y >= fabY &&

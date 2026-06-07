@@ -2,7 +2,6 @@ package com.example.japanesegrammarapp.utils
 
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -44,12 +43,13 @@ object AppLogger {
 
     private var appContext: Context? = null
     private val fileLock = Any()
-    private val logScope = CoroutineScope(Dispatchers.IO)
+    private lateinit var logScope: CoroutineScope
 
-    fun init(context: Context) {
+    fun init(context: Context, scope: CoroutineScope) {
         val app = context.applicationContext
         appContext = app
-        logScope.launch {
+        logScope = scope
+        launchLog {
             synchronized(fileLock) {
                 // Load general logs
                 val appLogFile = File(app.cacheDir, "exports/app_logs.txt")
@@ -78,16 +78,23 @@ object AppLogger {
 
     fun d(tag: String, message: String) {
         val time = now()
-        val log = "[$time] D/$tag: $message"
-        android.util.Log.d(tag, message)
+        val safeMessage = message.safeForLog()
+        val log = "[$time] D/$tag: $safeMessage"
+        android.util.Log.d(tag, safeMessage)
         _logs.update { (it + log).takeLast(300) }
         writeAppLogToFile(log)
     }
 
     fun e(tag: String, message: String, throwable: Throwable? = null) {
         val time = now()
-        val log = "[$time] E/$tag: $message" + (throwable?.let { "\n${it.stackTraceToString()}" } ?: "")
-        android.util.Log.e(tag, message, throwable)
+        val safeMessage = message.safeForLog()
+        val safeStackTrace = throwable?.stackTraceToString()?.safeForLog(12000)
+        val log = "[$time] E/$tag: $safeMessage" + (safeStackTrace?.let { "\n$it" } ?: "")
+        if (safeStackTrace == null) {
+            android.util.Log.e(tag, safeMessage)
+        } else {
+            android.util.Log.e(tag, "$safeMessage\n$safeStackTrace")
+        }
         _logs.update { (it + log).takeLast(300) }
         writeAppLogToFile(log)
     }
@@ -206,7 +213,7 @@ object AppLogger {
 
     fun clear() {
         _logs.value = emptyList()
-        logScope.launch {
+        launchLog {
             synchronized(fileLock) {
                 appContext?.let { context ->
                     try {
@@ -224,7 +231,7 @@ object AppLogger {
 
     fun clearApiLogs() {
         _apiLogs.value = emptyList()
-        logScope.launch {
+        launchLog {
             synchronized(fileLock) {
                 appContext?.let { context ->
                     try {
@@ -283,36 +290,38 @@ object AppLogger {
     }
 
     private fun writeAppLogToFile(log: String) {
-        logScope.launch {
+        launchLog {
             synchronized(fileLock) {
-                val context = appContext ?: return@launch
-                try {
-                    val file = File(context.cacheDir, "exports/app_logs.txt")
-                    file.parentFile?.let { if (!it.exists()) it.mkdirs() }
-                    if (file.exists() && file.length() > 2 * 1024 * 1024) { // 2MB limit
-                        val backup = File(context.cacheDir, "exports/app_logs.txt.bak")
-                        if (backup.exists()) backup.delete()
-                        file.renameTo(backup)
+                appContext?.let { context ->
+                    try {
+                        val file = File(context.cacheDir, "exports/app_logs.txt")
+                        file.parentFile?.let { if (!it.exists()) it.mkdirs() }
+                        if (file.exists() && file.length() > 2 * 1024 * 1024) { // 2MB limit
+                            val backup = File(context.cacheDir, "exports/app_logs.txt.bak")
+                            if (backup.exists()) backup.delete()
+                            file.renameTo(backup)
+                        }
+                        file.appendText(log + "\n")
+                    } catch (e: Exception) {
+                        android.util.Log.e("AppLogger", "Failed to write app log to file", e)
                     }
-                    file.appendText(log + "\n")
-                } catch (e: Exception) {
-                    android.util.Log.e("AppLogger", "Failed to write app log to file", e)
                 }
             }
         }
     }
 
     private fun writeApiLogsToFile(logsList: List<ApiDebugLog>) {
-        logScope.launch {
+        launchLog {
             synchronized(fileLock) {
-                val context = appContext ?: return@launch
-                try {
-                    val file = File(context.cacheDir, "exports/api_logs.json")
-                    file.parentFile?.let { if (!it.exists()) it.mkdirs() }
-                    val json = com.google.gson.Gson().toJson(logsList)
-                    file.writeText(json)
-                } catch (e: Exception) {
-                    android.util.Log.e("AppLogger", "Failed to write api logs to file", e)
+                appContext?.let { context ->
+                    try {
+                        val file = File(context.cacheDir, "exports/api_logs.json")
+                        file.parentFile?.let { if (!it.exists()) it.mkdirs() }
+                        val json = com.google.gson.Gson().toJson(logsList)
+                        file.writeText(json)
+                    } catch (e: Exception) {
+                        android.util.Log.e("AppLogger", "Failed to write api logs to file", e)
+                    }
                 }
             }
         }
@@ -322,8 +331,14 @@ object AppLogger {
 
     private fun nowWithMillis(): String = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date())
 
+    private fun launchLog(block: () -> Unit) {
+        if (::logScope.isInitialized) {
+            logScope.launch { block() }
+        }
+    }
+
     private fun String.safeForLog(maxLength: Int = 8000): String {
-        val redacted = replace(Regex("data:image/[^;]+;base64,[A-Za-z0-9+/=]+"), "data:image/...;base64,<redacted>")
+        val redacted = LogSanitizer.sanitize(this)
         return if (redacted.length > maxLength) redacted.take(maxLength) + "\n...<truncated>" else redacted
     }
 }

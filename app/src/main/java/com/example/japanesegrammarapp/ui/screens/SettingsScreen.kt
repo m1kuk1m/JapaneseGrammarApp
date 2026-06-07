@@ -1736,33 +1736,6 @@ fun SettingsScreen(
 }
 
 @Composable
-fun SettingsGroup(title: String, content: @Composable ColumnScope.() -> Unit) {
-    val SumiInk = MaterialTheme.colorScheme.onBackground
-    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            color = SumiInk,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
-        )
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, SumiInk.copy(alpha = 0.08f)),
-            elevation = CardDefaults.cardElevation(0.dp)
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                content()
-            }
-        }
-    }
-}
-
-@Composable
 private fun apiStatusColor(status: String): Color {
     val fallback = MaterialTheme.colorScheme.onBackground
     return when (status) {
@@ -2072,41 +2045,5 @@ private fun formatDuration(durationMs: Long): String {
         "${minutes}m ${seconds}s"
     } else {
         "${seconds}s"
-    }
-}
-
-@Composable
-fun SettingsItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String? = null,
-    onClick: (() -> Unit)? = null,
-    trailingContent: @Composable (() -> Unit)? = null
-) {
-    val SumiInk = MaterialTheme.colorScheme.onBackground
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = onClick != null, onClick = onClick ?: {})
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = SumiInk.copy(alpha = 0.7f),
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, fontSize = 15.sp, color = SumiInk, fontWeight = FontWeight.Medium)
-            if (subtitle != null) {
-                Text(text = subtitle, fontSize = 12.sp, color = SumiInk.copy(alpha = 0.5f))
-            }
-        }
-        if (trailingContent != null) {
-            Spacer(modifier = Modifier.width(16.dp))
-            trailingContent()
-        }
     }
 }

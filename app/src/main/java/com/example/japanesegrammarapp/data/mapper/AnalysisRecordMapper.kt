@@ -1,8 +1,12 @@
 package com.example.japanesegrammarapp.data.mapper
 
 import com.example.japanesegrammarapp.data.AnalysisRecord
+import com.example.japanesegrammarapp.data.DailyTokenUsageEntity
+import com.example.japanesegrammarapp.data.ModelTokenUsageEntity
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import com.example.japanesegrammarapp.domain.model.AnalysisStatus
+import com.example.japanesegrammarapp.domain.model.DailyTokenUsage
+import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
 
 fun AnalysisRecord.toDomain(): AnalysisDomainRecord {
     val domainStatus = when (status) {
@@ -40,3 +44,15 @@ fun AnalysisDomainRecord.toEntity(): AnalysisRecord {
         outputTokens = outputTokens
     )
 }
+
+fun ModelTokenUsageEntity.toDomain(): ModelTokenUsage =
+    ModelTokenUsage(modelUsed = modelUsed, totalTokens = totalTokens)
+
+fun DailyTokenUsageEntity.toDomain(): DailyTokenUsage =
+    DailyTokenUsage(
+        date = date,
+        modelUsed = modelUsed,
+        inputTokens = inputTokens,
+        outputTokens = outputTokens,
+        totalTokens = totalTokens
+    )

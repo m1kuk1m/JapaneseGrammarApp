@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.japanesegrammarapp.R
+import com.example.japanesegrammarapp.data.repository.PagedHistoryRepository
 import com.example.japanesegrammarapp.domain.model.*
 import com.example.japanesegrammarapp.domain.repository.*
 import com.example.japanesegrammarapp.domain.usecase.AnalyzeTextUseCase
@@ -15,6 +16,7 @@ import com.example.japanesegrammarapp.utils.RecordExporter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -42,17 +44,19 @@ data class HistoryUiRecord(
     val formattedTokens: String?
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class WorkspaceViewModel @Inject constructor(
     private val historyRepository: HistoryRepository,
+    private val pagedHistoryRepository: PagedHistoryRepository,
     private val settingsRepository: SettingsRepository,
     private val ocrRepository: OcrRepository,
     private val ttsRepository: TtsRepository,
     private val analyzeTextUseCase: AnalyzeTextUseCase,
     private val retryAnalysisUseCase: RetryAnalysisUseCase,
     private val eventBus: AnalysisEventBus,
-    private val bookmarkRepository: BookmarkRepository
+    private val bookmarkRepository: BookmarkRepository,
+    val uiPreferencesRepository: UiPreferencesRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(createInitialUiState())
@@ -87,7 +91,7 @@ class WorkspaceViewModel @Inject constructor(
         .debounce(250)
         .map { it.trim() }
         .distinctUntilChanged()
-        .flatMapLatest { query -> historyRepository.getHistory(query) }
+        .flatMapLatest { query -> pagedHistoryRepository.getHistory(query) }
         .map { pagingData ->
             pagingData.map { record ->
                 val dateStr = historyDateFormatter.format(Instant.ofEpochMilli(record.timestamp))
