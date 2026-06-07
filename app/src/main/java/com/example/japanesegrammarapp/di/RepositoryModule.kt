@@ -23,7 +23,7 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindPagedHistoryRepository(
-        historyRepositoryImpl: HistoryRepositoryImpl
+        pagedHistoryRepositoryImpl: PagedHistoryRepositoryImpl
     ): PagedHistoryRepository
 
     @Binds
@@ -79,6 +79,12 @@ abstract class RepositoryModule {
     abstract fun bindUiPreferencesRepository(
         uiPreferencesRepositoryImpl: UiPreferencesRepositoryImpl
     ): UiPreferencesRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAppLogWriter(
+        appLogWriterImpl: AppLogWriterImpl
+    ): AppLogWriter
 
     @Binds
     @Singleton

@@ -3,7 +3,7 @@ package com.example.japanesegrammarapp.data.repository
 import android.content.SharedPreferences
 import com.example.japanesegrammarapp.di.SecurePrefs
 import com.example.japanesegrammarapp.di.StandardPrefs
-import com.example.japanesegrammarapp.di.ApplicationScope
+import com.example.japanesegrammarapp.domain.ApplicationScope
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.repository.LlmApiConfig

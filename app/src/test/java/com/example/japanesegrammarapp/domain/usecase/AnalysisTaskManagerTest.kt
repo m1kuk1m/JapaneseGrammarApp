@@ -16,6 +16,7 @@ import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
 import com.example.japanesegrammarapp.domain.repository.LlmResultMetadata
 import com.example.japanesegrammarapp.domain.repository.OcrRepository
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
+import com.example.japanesegrammarapp.domain.repository.AppLogWriter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -119,6 +120,7 @@ class AnalysisTaskManagerTest {
             detailedResultSerializer = FakeDetailedResultSerializer(),
             eventBus = eventBus,
             settingsRepository = settings,
+            appLogWriter = NoOpAppLogWriter,
             repositoryScope = CoroutineScope(Dispatchers.Default)
         )
     }
@@ -130,6 +132,10 @@ class AnalysisTaskManagerTest {
         }
         error("Condition was not met in time")
     }
+}
+
+private object NoOpAppLogWriter : AppLogWriter {
+    override fun error(tag: String, message: String, throwable: Throwable?) = Unit
 }
 
 private class FakeLlmAnalysisService(

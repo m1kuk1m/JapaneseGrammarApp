@@ -259,16 +259,11 @@ fun WorkspaceInputForm(
                                 if (parts != null) {
                                     val uri = parts.clip.getItemAt(0).uri
                                     if (uri != null) {
-                                        // Copy to app's cache directory immediately to maintain read permissions
-                                        val cachedUri = com.example.japanesegrammarapp.utils.BitmapHelper.copyUriToCache(context, uri)
-                                        if (cachedUri != null) {
-                                            // Hide keyboard and clear focus to prevent blocking the crop review screen
-                                            val imm = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
-                                            imm?.hideSoftInputFromWindow(this@apply.windowToken, 0)
-                                            this@apply.clearFocus()
+                                        val imm = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+                                        imm?.hideSoftInputFromWindow(this@apply.windowToken, 0)
+                                        this@apply.clearFocus()
 
-                                            onPickImage(cachedUri)
-                                        }
+                                        onPickImage(uri)
                                     }
                                 }
                                 remaining

@@ -9,37 +9,13 @@ import com.example.japanesegrammarapp.domain.model.DailyTokenUsage
 import com.example.japanesegrammarapp.domain.repository.HistoryRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import androidx.paging.Pager
-import androidx.paging.PagingConfig
-import androidx.paging.PagingData
-import androidx.paging.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class HistoryRepositoryImpl @Inject constructor(
     private val analysisDao: AnalysisDao
-) : HistoryRepository, PagedHistoryRepository {
-
-    override fun getHistory(query: String): Flow<PagingData<AnalysisDomainRecord>> = Pager(
-        config = PagingConfig(pageSize = 20, enablePlaceholders = false),
-        pagingSourceFactory = {
-            val trimmedQuery = query.trim()
-            if (trimmedQuery.isEmpty()) {
-                analysisDao.getAllRecords()
-            } else {
-                analysisDao.searchRecords("%${trimmedQuery.escapeLikePattern()}%")
-            }
-        }
-    ).flow.map { pagingData ->
-        pagingData.map { it.toDomain() }
-    }
-
-    private fun String.escapeLikePattern(): String {
-        return replace("\\", "\\\\")
-            .replace("%", "\\%")
-            .replace("_", "\\_")
-    }
+) : HistoryRepository {
 
     override suspend fun getAllRecordsList(): List<AnalysisDomainRecord> {
         return analysisDao.getAllRecordsList().map { it.toDomain() }

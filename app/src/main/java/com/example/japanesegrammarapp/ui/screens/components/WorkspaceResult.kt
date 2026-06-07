@@ -3,28 +3,18 @@ package com.example.japanesegrammarapp.ui.screens.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.EaseInOutCubic
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,10 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,6 +41,7 @@ import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import com.example.japanesegrammarapp.domain.model.WordSegment
 import com.example.japanesegrammarapp.domain.model.DetailedAnalysisResult
+import com.example.japanesegrammarapp.domain.model.dictionaryQueryWord
 import com.example.japanesegrammarapp.domain.repository.UiPreferencesRepository
 import com.example.japanesegrammarapp.ui.WorkspaceUiState
 import com.example.japanesegrammarapp.ui.theme.ZenColors.AizomeIndigo
@@ -116,7 +105,11 @@ fun WorkspaceResultContent(
     } else {
         var selectedSegmentIndex by remember(data) { mutableStateOf(-1) }
 
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("workspace-result-content")
+        ) {
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -352,21 +345,7 @@ fun WorkspaceResultContent(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        var rawQueryWord = currentSegment.dictionaryFormReading?.takeIf { it.isNotBlank() } ?: currentSegment.dictionaryForm?.takeIf { it.isNotBlank() } ?: currentSegment.text ?: ""
-                                        // 智能去尾：针对形容动词和某些特殊情况，去掉字典形末尾的 だ 或 な，以便查词典
-                                        if (currentSegment.partOfSpeech == "形容動詞" || currentSegment.partOfSpeech == "形状詞") {
-                                            rawQueryWord = rawQueryWord.removeSuffix("だ").removeSuffix("な").removeSuffix("に").removeSuffix("で")
-                                        } else {
-                                            // 应对有些大模型可能把普通名词也加了だ的情况，只要是以 だ/な 结尾，可以考虑去掉，但要小心
-                                            rawQueryWord = rawQueryWord.removeSuffix("だ")
-                                        }
-                                        
-                                        // 应对サ变动词，去掉末尾的“する”以便查词典（保留单字“する”）
-                                        if (rawQueryWord.endsWith("する") && rawQueryWord != "する") {
-                                            rawQueryWord = rawQueryWord.removeSuffix("する")
-                                        }
-                                        
-                                        val queryWord = rawQueryWord
+                                        val queryWord = currentSegment.dictionaryQueryWord()
                                         
                                         if (queryWord.isNotBlank()) {
                                             DictionarySearchControls(
@@ -653,205 +632,3 @@ fun WorkspaceResultContent(
 }
 
 
-// Morandi color coding helper
-@Composable
-private fun getChipColorForPos(segment: WordSegment): Color {
-    val isDark = ZenThemeColors.isDark()
-    val category = segment.posCategory
-    if (category != null) {
-        return when (category) {
-            "NOUN" -> if (isDark) Color(0xFF1E2D3D) else Color(0xFFD3E0EA)       // 蓝染蓝 (Aizome)
-            "VERB" -> if (isDark) Color(0xFF1E3D24) else Color(0xFFD4ECD5)       // 抹茶绿 (Matcha)
-            "ADJECTIVE" -> if (isDark) Color(0xFF3D2A1E) else Color(0xFFF6E2CD)  // 栗色 (Kuri)
-            "AUXILIARY" -> if (isDark) Color(0xFF2D1E3D) else Color(0xFFE8D3EA)  // 藤紫 (Fuji)
-            "PARTICLE" -> if (isDark) Color(0xFF3D1E25) else Color(0xFFFDD4D8)   // 樱花粉 (Sakura)
-            else -> if (isDark) Color(0xFF2D2D2D) else Color(0xFFEFEFEF)         // 雾灰 (Hai)
-        }
-    }
-
-    // 向下兼容：如果历史数据没有 posCategory，回退到基于 partOfSpeech 的模糊匹配
-    val pos = segment.partOfSpeech ?: ""
-    val primaryPos = pos.split("-").firstOrNull() ?: ""
-    return when {
-        primaryPos.contains("助動詞") -> if (isDark) Color(0xFF2D1E3D) else Color(0xFFE8D3EA) // 藤紫 (Fuji)
-        primaryPos.contains("形容") || primaryPos.contains("形状") -> if (isDark) Color(0xFF3D2A1E) else Color(0xFFF6E2CD) // 栗色 (Kuri)
-        primaryPos.contains("名詞") -> if (isDark) Color(0xFF1E2D3D) else Color(0xFFD3E0EA) // 蓝染蓝 (Aizome)
-        primaryPos.contains("動詞") -> if (isDark) Color(0xFF1E3D24) else Color(0xFFD4ECD5) // 抹茶绿 (Matcha)
-        primaryPos.contains("助詞") -> if (isDark) Color(0xFF3D1E25) else Color(0xFFFDD4D8) // 樱花粉 (Sakura)
-        else -> if (isDark) Color(0xFF2D2D2D) else Color(0xFFEFEFEF) // 雾灰 (Hai)
-    }
-}
-
-@Composable
-fun AlignedDetailRow(label: String, value: String) {
-    val SumiInk = MaterialTheme.colorScheme.onBackground
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
-    ) {
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            color = SumiInk.copy(alpha = 0.5f),
-            modifier = Modifier.width(72.dp)
-        )
-        Text(
-            text = value,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = SumiInk,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun SegmentChip(
-    segment: WordSegment,
-    isSelected: Boolean,
-    isLoading: Boolean = false,
-    isBookmarked: Boolean = false,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit = {}
-) {
-    val SumiInk = MaterialTheme.colorScheme.onBackground
-    val haptic = LocalHapticFeedback.current
-
-    // Star pulse animation when bookmark state changes
-    var wasBookmarked by remember { mutableStateOf(isBookmarked) }
-    var starScale by remember { mutableFloatStateOf(1f) }
-    LaunchedEffect(isBookmarked) {
-        if (isBookmarked && !wasBookmarked) {
-            // pulse: 1.0 → 1.3 → 1.0
-            val pulse = Animatable(1f)
-            pulse.animateTo(1.3f, animationSpec = tween(120, easing = FastOutSlowInEasing))
-            pulse.animateTo(1.0f, animationSpec = tween(150, easing = FastOutSlowInEasing))
-            starScale = 1f
-        }
-        wasBookmarked = isBookmarked
-    }
-
-    val goldColor = Color(0xFFD4A017)
-
-    // Selected → SumiInk border; Bookmarked → gold border; default → faint
-    val borderColor by animateColorAsState(
-        targetValue = when {
-            isSelected -> SumiInk
-            isBookmarked -> goldColor
-            isLoading -> Color.Transparent
-            else -> SumiInk.copy(alpha = 0.15f)
-        },
-        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
-        label = "borderColor"
-    )
-    val borderWidth by animateDpAsState(
-        targetValue = if (isBookmarked && !isSelected) 2.dp else 1.5.dp,
-        label = "borderWidth"
-    )
-    val infiniteTransition = rememberInfiniteTransition(label = "chipShimmer")
-    val shimmerAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.05f,
-        targetValue = 0.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "shimmerAlpha"
-    )
-    val bgColor = if (isLoading) SumiInk.copy(alpha = shimmerAlpha) else getChipColorForPos(segment)
-    val isDark = ZenThemeColors.isDark()
-    val ChipTextColor = if (isDark) Color(0xFFE0E0E0) else Color(0xFF1E1E1E)
-
-    // Brief glow animation on bookmark (only on transition from false→true when triggered by user)
-    var showGlowAnimation by remember { mutableStateOf(false) }
-    val glow = remember { Animatable(0f) }
-    LaunchedEffect(isBookmarked) {
-        if (isBookmarked && showGlowAnimation) {
-            glow.snapTo(0.4f)
-            glow.animateTo(0f, animationSpec = tween(600, easing = EaseInOutCubic))
-            showGlowAnimation = false
-        }
-    }
-
-    Box {
-        Surface(
-            color = bgColor,
-            shape = RoundedCornerShape(8.dp),
-            border = BorderStroke(width = borderWidth, color = borderColor),
-            modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .combinedClickable(
-                onClick = onClick,
-                onLongClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    if (!isBookmarked) {
-                        showGlowAnimation = true
-                    }
-                    onLongClick()
-                }
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = segment.reading ?: "",
-                    fontSize = 9.sp,
-                    color = ChipTextColor.copy(alpha = if (isLoading) 0.0f else 0.6f)
-                )
-                Text(
-                    text = segment.text ?: "",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = ChipTextColor.copy(alpha = if (isLoading) 0.4f else 1.0f)
-                )
-            }
-        }
-        // Star badge with pulse animation when bookmarked
-        if (isBookmarked) {
-            Icon(
-                imageVector = Icons.Default.Star,
-                contentDescription = null,
-                tint = goldColor,
-                modifier = Modifier
-                    .size(11.dp)
-                    .align(Alignment.TopEnd)
-                    .offset(x = 3.dp, y = (-3).dp)
-                    .graphicsLayer {
-                        scaleX = starScale
-                        scaleY = starScale
-                    }
-            )
-        }
-        // Golden glow ring overlay on bookmark
-        if (isBookmarked && glow.value > 0.01f) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(goldColor.copy(alpha = glow.value))
-            )
-        }
-    }
-}
-@Composable
-fun ShimmerSkeleton(modifier: Modifier = Modifier, cornerRadius: androidx.compose.ui.unit.Dp = 4.dp) {
-    val SumiInk = MaterialTheme.colorScheme.onBackground
-    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "shimmer")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.05f,
-        targetValue = 0.15f,
-        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-            animation = androidx.compose.animation.core.tween(800, easing = androidx.compose.animation.core.LinearEasing),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-        ),
-        label = "alpha"
-    )
-    Box(
-        modifier = modifier
-            .background(SumiInk.copy(alpha = alpha), RoundedCornerShape(cornerRadius))
-    )
-}

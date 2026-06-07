@@ -3,6 +3,7 @@ package com.example.japanesegrammarapp.vision
 import android.content.Context
 import android.net.Uri
 import com.example.japanesegrammarapp.R
+import com.example.japanesegrammarapp.utils.AppLogger
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
@@ -117,7 +118,7 @@ class OcrHelper @Inject constructor() {
             val rawExtracted = reconstructedText.toString().trim()
             formatOcrText(rawExtracted)
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLogger.e("OCR", "Failed to extract OCR text from image", e)
             context.getString(R.string.err_ocr_failed, e.localizedMessage ?: "")
         } finally {
             recognizer.close()

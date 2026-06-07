@@ -2,7 +2,7 @@ package com.example.japanesegrammarapp.domain.usecase
 
 import com.example.japanesegrammarapp.domain.model.*
 import com.example.japanesegrammarapp.domain.repository.*
-import com.example.japanesegrammarapp.di.ApplicationScope
+import com.example.japanesegrammarapp.domain.ApplicationScope
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.ConcurrentHashMap
@@ -42,6 +42,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
     private val detailedResultSerializer: DetailedResultSerializer,
     private val eventBus: AnalysisEventBus,
     private val settingsRepository: SettingsRepository,
+    private val appLogWriter: AppLogWriter,
     @ApplicationScope private val repositoryScope: CoroutineScope
 ) : AnalysisTaskManager {
     private val activeJobs = ConcurrentHashMap<Int, Job>()
@@ -123,7 +124,8 @@ class DefaultAnalysisTaskManager @Inject constructor(
             val partialResultStore = AnalysisPartialResultStore(
                 recordId = recordId,
                 saveAnalysisRecordUseCase = saveAnalysisRecordUseCase,
-                detailedResultSerializer = detailedResultSerializer
+                detailedResultSerializer = detailedResultSerializer,
+                appLogWriter = appLogWriter
             )
 
             try {
@@ -259,7 +261,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     )
                                 }
                             } catch (e: Exception) {
-                                e.printStackTrace()
+                                logStepFailure(recordId, AnalysisStep.TRANSLATION, e)
                             } finally {
                                 progressStore.markTranslationCompleted(recordId)
                             }
@@ -290,7 +292,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     )
                                 }
                             } catch (e: Exception) {
-                                e.printStackTrace()
+                                logStepFailure(recordId, AnalysisStep.CLAUSE_ANALYSIS, e)
                             } finally {
                                 progressStore.markClausesCompleted(recordId)
                             }
@@ -321,7 +323,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     )
                                 }
                             } catch (e: Exception) {
-                                e.printStackTrace()
+                                logStepFailure(recordId, AnalysisStep.GRAMMAR_EXPLANATION, e)
                             } finally {
                                 progressStore.markGrammarCompleted(recordId)
                             }
@@ -354,7 +356,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     )
                                 }
                             } catch (e: Exception) {
-                                e.printStackTrace()
+                                logStepFailure(recordId, AnalysisStep.DETAILED_GRAMMAR, e)
                             } finally {
                                 progressStore.markSegmentsCompleted(recordId)
                             }
@@ -451,7 +453,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         )
                                     }
                                 } catch (e: Exception) {
-                                    e.printStackTrace()
+                                    logStepFailure(recordId, AnalysisStep.TRANSLATION, e)
                                 } finally {
                                     progressStore.markTranslationCompleted(recordId)
                                 }
@@ -482,7 +484,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         )
                                     }
                                 } catch (e: Exception) {
-                                    e.printStackTrace()
+                                    logStepFailure(recordId, AnalysisStep.CLAUSE_ANALYSIS, e)
                                 } finally {
                                     progressStore.markClausesCompleted(recordId)
                                 }
@@ -513,7 +515,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         )
                                     }
                                 } catch (e: Exception) {
-                                    e.printStackTrace()
+                                    logStepFailure(recordId, AnalysisStep.GRAMMAR_EXPLANATION, e)
                                 } finally {
                                     progressStore.markGrammarCompleted(recordId)
                                 }
@@ -546,7 +548,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         )
                                     }
                                 } catch (e: Exception) {
-                                    e.printStackTrace()
+                                    logStepFailure(recordId, AnalysisStep.DETAILED_GRAMMAR, e)
                                 } finally {
                                     progressStore.markSegmentsCompleted(recordId)
                                 }
@@ -582,7 +584,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         )
                                     }
                                 } catch (e: Exception) {
-                                    e.printStackTrace()
+                                    logStepFailure(recordId, AnalysisStep.TRANSLATION, e)
                                 } finally {
                                     progressStore.markTranslationCompleted(recordId)
                                 }
@@ -613,7 +615,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         )
                                     }
                                 } catch (e: Exception) {
-                                    e.printStackTrace()
+                                    logStepFailure(recordId, AnalysisStep.CLAUSE_ANALYSIS, e)
                                 } finally {
                                     progressStore.markClausesCompleted(recordId)
                                 }
@@ -644,7 +646,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         )
                                     }
                                 } catch (e: Exception) {
-                                    e.printStackTrace()
+                                    logStepFailure(recordId, AnalysisStep.GRAMMAR_EXPLANATION, e)
                                 } finally {
                                     progressStore.markGrammarCompleted(recordId)
                                 }
@@ -712,7 +714,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         )
                                     }
                                 } catch (e: Exception) {
-                                    e.printStackTrace()
+                                    logStepFailure(recordId, AnalysisStep.DETAILED_GRAMMAR, e)
                                 } finally {
                                     progressStore.markSegmentsCompleted(recordId)
                                 }
@@ -746,8 +748,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                com.example.japanesegrammarapp.utils.AppLogger.e("LLM_API", "Background analysis execution failed for recordId: $recordId", e)
-                e.printStackTrace()
+                appLogWriter.error("LLM_API", "Background analysis execution failed for recordId: $recordId", e)
 
                 val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
                 if (currentRecord != null) {
@@ -771,6 +772,14 @@ class DefaultAnalysisTaskManager @Inject constructor(
                 progressStore.finish(recordId)
             }
         }
+    }
+
+    private fun logStepFailure(recordId: Int, step: AnalysisStep, error: Exception) {
+        appLogWriter.error(
+            "LLM_STEP",
+            "Analysis step ${step.name} failed for recordId: $recordId",
+            error
+        )
     }
 
     override fun parseDetailedResult(originalText: String, jsonString: String?): DetailedAnalysisResult? {

@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.graphics.graphicsLayer
@@ -31,7 +30,6 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.Upload
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,13 +73,11 @@ fun HistorySidebar(
     onExportAll: () -> Unit,
     onExportRecord: (AnalysisDomainRecord) -> Unit,
     onCloseDrawer: () -> Unit,
-    onImportHistory: (String) -> Unit,
+    onImportHistory: (android.net.Uri) -> Unit,
     onToggleBookmarkSentence: (AnalysisDomainRecord) -> Unit
 ) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val WashiBg = MaterialTheme.colorScheme.background
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val firstRecordId = historyList.itemSnapshotList.items.firstOrNull()?.record?.id
     var previousFirstRecordId by remember { mutableStateOf<Int?>(null) }
@@ -112,18 +108,7 @@ fun HistorySidebar(
         contract = ActivityResultContracts.GetContent()
     ) { uri: android.net.Uri? ->
         if (uri != null) {
-            coroutineScope.launch {
-                try {
-                    val text = context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        inputStream.bufferedReader().readText()
-                    } ?: ""
-                    if (text.isNotBlank()) {
-                        onImportHistory(text)
-                    }
-                } catch (e: Exception) {
-                    // Failures are handled internally or logged
-                }
-            }
+            onImportHistory(uri)
         }
     }
 

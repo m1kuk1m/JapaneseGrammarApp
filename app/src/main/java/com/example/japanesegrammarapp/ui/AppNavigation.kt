@@ -241,7 +241,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                             },
                             onExportRecord = { record -> workspaceViewModel.exportRecord(record) },
                             onCloseDrawer = { coroutineScope.launch { drawerState.close() } },
-                            onImportHistory = { content -> workspaceViewModel.importHistoryFromText(content) },
+                            onImportHistory = { uri -> workspaceViewModel.importHistoryFromUri(uri) },
                             onToggleBookmarkSentence = { record -> workspaceViewModel.toggleSentenceBookmark(record) }
                         )
                     }

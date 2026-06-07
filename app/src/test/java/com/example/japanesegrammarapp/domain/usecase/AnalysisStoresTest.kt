@@ -7,6 +7,7 @@ import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
 import com.example.japanesegrammarapp.domain.model.WordSegment
 import com.example.japanesegrammarapp.domain.repository.DetailedResultSerializer
 import com.example.japanesegrammarapp.domain.repository.HistoryRepository
+import com.example.japanesegrammarapp.domain.repository.AppLogWriter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
@@ -50,7 +51,8 @@ class AnalysisStoresTest {
         val store = AnalysisPartialResultStore(
             recordId = 3,
             saveAnalysisRecordUseCase = SaveAnalysisRecordUseCase(repository),
-            detailedResultSerializer = serializer
+            detailedResultSerializer = serializer,
+            appLogWriter = NoOpAppLogWriter
         )
 
         store.update { current ->
@@ -111,5 +113,9 @@ class AnalysisStoresTest {
         override val dailyTokenUsage: Flow<List<DailyTokenUsage>> = MutableStateFlow(emptyList())
 
         fun requireRecord(id: Int): AnalysisDomainRecord = checkNotNull(records[id])
+    }
+
+    private object NoOpAppLogWriter : AppLogWriter {
+        override fun error(tag: String, message: String, throwable: Throwable?) = Unit
     }
 }

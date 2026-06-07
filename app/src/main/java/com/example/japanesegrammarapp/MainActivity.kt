@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import com.example.japanesegrammarapp.ui.AppNavigation
 import com.example.japanesegrammarapp.ui.SettingsViewModel
 import com.example.japanesegrammarapp.ui.theme.AppTheme
+import com.example.japanesegrammarapp.utils.AppLogger
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -48,7 +49,7 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    AppLogger.e("MAIN", "Failed to apply preferred display refresh rate", e)
                 }
             }
         }

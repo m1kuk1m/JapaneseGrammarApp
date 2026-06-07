@@ -1,6 +1,7 @@
 package com.example.japanesegrammarapp.domain.usecase
 
 import com.example.japanesegrammarapp.domain.model.DetailedAnalysisResult
+import com.example.japanesegrammarapp.domain.repository.AppLogWriter
 import com.example.japanesegrammarapp.domain.repository.DetailedResultSerializer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
@@ -9,7 +10,8 @@ import kotlinx.coroutines.sync.withLock
 class AnalysisPartialResultStore(
     private val recordId: Int,
     private val saveAnalysisRecordUseCase: SaveAnalysisRecordUseCase,
-    private val detailedResultSerializer: DetailedResultSerializer
+    private val detailedResultSerializer: DetailedResultSerializer,
+    private val appLogWriter: AppLogWriter
 ) {
     private val mutex = Mutex()
     private var result = DetailedAnalysisResult()
@@ -33,7 +35,7 @@ class AnalysisPartialResultStore(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                e.printStackTrace()
+                appLogWriter.error("LLM_PARTIAL", "Failed to persist partial analysis result for recordId: $recordId", e)
             }
         }
     }

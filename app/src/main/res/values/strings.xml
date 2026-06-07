@@ -310,6 +310,14 @@
     <string name="api_log_copy_response">Copy Response</string>
     <string name="api_log_copy_error">Copy Error</string>
     <string name="api_log_share_all">Export API Logs</string>
+    <string name="api_log_include_full_debug">Include full prompt/response</string>
+    <string name="log_export_confirm_title">Export logs?</string>
+    <string name="log_copy_confirm_title">Copy logs?</string>
+    <string name="app_log_export_confirm">The app log file may contain diagnostic details. Export it now?</string>
+    <string name="api_log_export_summary_confirm">API logs will be exported as a sanitized summary without full prompts or responses.</string>
+    <string name="api_log_export_full_confirm">Full API debug export includes sanitized prompts, responses, errors, and stack traces. Export only for debugging.</string>
+    <string name="api_log_copy_summary_confirm">API logs will be copied as a sanitized summary without full prompts or responses.</string>
+    <string name="api_log_copy_full_confirm">Full API debug copy includes sanitized prompts, responses, errors, and stack traces. Copy only for debugging.</string>
     <string name="api_debug_filter_success">Success</string>
     <string name="api_debug_filter_error">Error</string>
     <string name="api_details_metadata">Metadata</string>

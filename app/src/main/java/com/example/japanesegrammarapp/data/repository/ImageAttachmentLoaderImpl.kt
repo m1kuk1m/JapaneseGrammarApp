@@ -6,6 +6,7 @@ import android.net.Uri
 import com.example.japanesegrammarapp.domain.repository.ImageAttachmentLoader
 import com.example.japanesegrammarapp.domain.repository.ImagePayload
 import com.example.japanesegrammarapp.utils.BitmapHelper
+import com.example.japanesegrammarapp.utils.AppLogger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -44,7 +45,7 @@ class ImageAttachmentLoaderImpl @Inject constructor(
             // Since we compress the bitmap to JPEG, the MIME type will always be image/jpeg
             ImagePayload(base64Data, "image/jpeg")
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLogger.e("IMAGE_ATTACHMENT", "Failed to load image attachment for upload", e)
             null
         }
     }

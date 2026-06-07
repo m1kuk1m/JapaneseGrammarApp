@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,9 +41,6 @@ import com.example.japanesegrammarapp.ui.screens.components.WorkspaceResultConte
 import com.example.japanesegrammarapp.ui.screens.components.ZenLoadingView
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
 import com.example.japanesegrammarapp.ui.theme.ZenColors.WashiBg
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.EaseInOutCubic
 import androidx.compose.animation.core.tween
@@ -72,8 +70,6 @@ fun WorkspaceScreen(
     val OnPrimaryColor = MaterialTheme.colorScheme.onPrimary
 
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    
     val uiState by viewModel.uiState.collectAsState()
     val latestUiState by rememberUpdatedState(uiState)
     val snackbarHostState = remember { SnackbarHostState() }
@@ -162,37 +158,32 @@ fun WorkspaceScreen(
                         viewModel.selectRecordById(event.recordId)
                     }
                 }
-                is UiEvent.ExportRecordEvent -> {
-                    val uri = com.example.japanesegrammarapp.utils.RecordExporter.exportRecordToFile(context, event.record, event.filename)
+                is UiEvent.ShareFileEvent -> {
                     val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_STREAM, uri)
-                        putExtra(Intent.EXTRA_SUBJECT, event.filename)
+                        type = event.mimeType
+                        putExtra(Intent.EXTRA_STREAM, event.uri)
+                        event.subject?.let { putExtra(Intent.EXTRA_SUBJECT, it) }
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
-                    val chooserIntent = Intent.createChooser(sendIntent, context.getString(R.string.export_chooser_title))
+                    val chooserIntent = Intent.createChooser(sendIntent, context.getString(event.chooserTitleResId))
                     val resInfoList = context.packageManager.queryIntentActivities(chooserIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
                     for (resolveInfo in resInfoList) {
                         val packageName = resolveInfo.activityInfo.packageName
-                        context.grantUriPermission(packageName, uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        context.grantUriPermission(packageName, event.uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     context.startActivity(chooserIntent)
                 }
-                is UiEvent.ExportAllHistoryEvent -> {
-                    val uri = com.example.japanesegrammarapp.utils.RecordExporter.exportAllHistoryToFile(context, event.records, event.filename)
+                is UiEvent.ShareTextEvent -> {
                     val sendIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
-                        putExtra(Intent.EXTRA_STREAM, uri)
-                        putExtra(Intent.EXTRA_SUBJECT, event.filename)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        putExtra(Intent.EXTRA_TEXT, event.text)
+                        event.subject?.let { putExtra(Intent.EXTRA_SUBJECT, it) }
                     }
-                    val chooserIntent = Intent.createChooser(sendIntent, context.getString(R.string.export_chooser_title))
-                    val resInfoList = context.packageManager.queryIntentActivities(chooserIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
-                    for (resolveInfo in resInfoList) {
-                        val packageName = resolveInfo.activityInfo.packageName
-                        context.grantUriPermission(packageName, uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
+                    val chooserIntent = Intent.createChooser(sendIntent, context.getString(event.chooserTitleResId))
                     context.startActivity(chooserIntent)
+                }
+                is UiEvent.NavigateToCameraWithImage -> {
+                    navController.navigate("camera?imageUri=${Uri.encode(event.uri.toString())}")
                 }
                 else -> {}
             }
@@ -236,7 +227,11 @@ fun WorkspaceScreen(
             }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("workspace-screen")
+    ) {
         Scaffold(
             containerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
         snackbarHost = { 
@@ -348,13 +343,17 @@ fun WorkspaceScreen(
                                                 navController.navigate("bookmarks")
                                             }
                                         },
-                                        modifier = Modifier.size(40.dp)
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .testTag("workspace-bookmarks-button")
                                     ) {
                                         Icon(Icons.Default.Star, contentDescription = stringResource(R.string.view_bookmarks_desc), tint = SumiInk)
                                     }
                                     IconButton(
                                         onClick = navigateToSettings,
-                                        modifier = Modifier.size(40.dp)
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .testTag("workspace-settings-button")
                                     ) {
                                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings), tint = SumiInk)
                                     }
@@ -408,18 +407,8 @@ fun WorkspaceScreen(
                                         },
                                         onNavigateToCamera = { navController.navigate("camera") },
                                         onPickImage = { sourceUri ->
-                                             coroutineScope.launch {
-                                                 val finalUri = if (sourceUri.scheme == "file") {
-                                                     sourceUri
-                                                 } else {
-                                                     val localUri = withContext(Dispatchers.IO) {
-                                                         com.example.japanesegrammarapp.utils.BitmapHelper.copyUriToCache(context, sourceUri)
-                                                     }
-                                                     localUri ?: sourceUri
-                                                 }
-                                                 navController.navigate("camera?imageUri=${Uri.encode(finalUri.toString())}")
-                                             }
-                                         },
+                                            viewModel.prepareImageForCamera(sourceUri)
+                                        },
                                         onNavigateToSettings = navigateToSettings
                                     )
                                 }

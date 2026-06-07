@@ -1,5 +1,6 @@
 package com.example.japanesegrammarapp.ui
 
+import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -39,6 +40,7 @@ enum class ArchiveFilter {
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class BookmarkViewModel @Inject constructor(
+    private val application: Application,
     private val bookmarkRepository: BookmarkRepository,
     private val ttsRepository: TtsRepository,
     private val historyRepository: HistoryRepository,
@@ -243,7 +245,7 @@ class BookmarkViewModel @Inject constructor(
                 chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(chooser)
             } catch (e: Exception) {
-                e.printStackTrace()
+                com.example.japanesegrammarapp.utils.AppLogger.e("BOOKMARK", "Failed to export bookmarks", e)
             }
         }
     }
@@ -257,7 +259,22 @@ class BookmarkViewModel @Inject constructor(
             try {
                 bookmarkRepository.importFromJson(json)
             } catch (e: Exception) {
-                e.printStackTrace()
+                com.example.japanesegrammarapp.utils.AppLogger.e("BOOKMARK", "Failed to import bookmarks", e)
+                -1
+            }
+        }
+    }
+
+    suspend fun importFromUri(uri: Uri): Int {
+        return withContext(Dispatchers.IO) {
+            try {
+                val json = application.contentResolver.openInputStream(uri)
+                    ?.bufferedReader()
+                    ?.use { it.readText() }
+                    ?: return@withContext -1
+                bookmarkRepository.importFromJson(json)
+            } catch (e: Exception) {
+                com.example.japanesegrammarapp.utils.AppLogger.e("BOOKMARK", "Failed to import bookmarks from URI", e)
                 -1
             }
         }

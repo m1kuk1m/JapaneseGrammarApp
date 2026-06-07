@@ -1,5 +1,7 @@
 package com.example.japanesegrammarapp.ui
 
+import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
@@ -9,15 +11,21 @@ import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.R
+import com.example.japanesegrammarapp.utils.ApiDebugLog
+import com.example.japanesegrammarapp.utils.ApiLogExportFormatter
+import com.example.japanesegrammarapp.utils.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    private val application: Application,
     private val settingsRepository: SettingsRepository,
     private val llmRepository: LlmRepository,
     private val historyRepository: HistoryRepository
@@ -377,6 +385,76 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(wallpaperUri = uri) }
     }
 
+    fun saveWallpaper(sourceUri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val file = File(application.filesDir, WALLPAPER_FILE_NAME)
+                application.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                    FileOutputStream(file).use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                } ?: throw IllegalArgumentException("Unable to open wallpaper URI")
+
+                setWallpaperUri(Uri.fromFile(file).toString())
+            } catch (e: Exception) {
+                AppLogger.e("SETTINGS", "Failed to save custom wallpaper", e)
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.unknown_error))
+            }
+        }
+    }
+
+    fun clearWallpaper() {
+        setWallpaperUri("")
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val file = File(application.filesDir, WALLPAPER_FILE_NAME)
+                if (file.exists()) {
+                    file.delete()
+                }
+            } catch (e: Exception) {
+                AppLogger.e("SETTINGS", "Failed to delete custom wallpaper", e)
+            }
+        }
+    }
+
+    fun shareAppLogs() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val uri = AppLogger.getLogFileUri(application, isApiLog = false)
+                if (uri != null) {
+                    _uiEvent.emit(
+                        UiEvent.ShareFileEvent(
+                            uri = uri,
+                            mimeType = "text/plain",
+                            chooserTitleResId = R.string.share_logs
+                        )
+                    )
+                } else {
+                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.unknown_error))
+                }
+            } catch (e: Exception) {
+                AppLogger.e("SETTINGS", "Failed to prepare app logs for sharing", e)
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.unknown_error))
+            }
+        }
+    }
+
+    fun shareApiLogs(logs: List<ApiDebugLog>, includeFull: Boolean) {
+        viewModelScope.launch(Dispatchers.Default) {
+            try {
+                _uiEvent.emit(
+                    UiEvent.ShareTextEvent(
+                        text = ApiLogExportFormatter.format(logs, includeFull),
+                        chooserTitleResId = R.string.api_log_share_all
+                    )
+                )
+            } catch (e: Exception) {
+                AppLogger.e("SETTINGS", "Failed to prepare API logs for sharing", e)
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.unknown_error))
+            }
+        }
+    }
+
     // TTS Settings Accessors
     fun getTtsProvider(): String = settingsRepository.getTtsProvider()
     fun setTtsProvider(provider: String) = settingsRepository.setTtsProvider(provider)
@@ -408,4 +486,8 @@ class SettingsViewModel @Inject constructor(
     fun saveCustomPrompt(promptKey: String, prompt: String) = settingsRepository.saveCustomPrompt(promptKey, prompt)
     fun resetCustomPrompt(promptKey: String) = settingsRepository.resetCustomPrompt(promptKey)
     fun resetAllCustomPrompts() = settingsRepository.resetAllCustomPrompts()
+
+    private companion object {
+        const val WALLPAPER_FILE_NAME = "custom_wallpaper.jpg"
+    }
 }

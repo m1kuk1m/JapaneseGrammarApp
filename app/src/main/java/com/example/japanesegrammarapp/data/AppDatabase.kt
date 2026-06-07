@@ -46,7 +46,11 @@ abstract class AppDatabase : RoomDatabase() {
                         "WHERE consumedTokens > 0 AND consumedTokens != (inputTokens + outputTokens)"
                     )
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    com.example.japanesegrammarapp.utils.AppLogger.e(
+                        "DB_MIGRATION",
+                        "Failed to backfill token usage during migration 3 to 4",
+                        e
+                    )
                 }
             }
         }

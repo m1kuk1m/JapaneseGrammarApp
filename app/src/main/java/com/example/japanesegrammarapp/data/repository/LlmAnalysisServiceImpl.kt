@@ -48,10 +48,10 @@ class LlmAnalysisServiceImpl @Inject constructor(
         }
 
         val userPrompt = when {
-            imageBase64 != null && imageTokenizerMode == "repair" -> "画像内の日本語テキストを視覚情報優先で読み取り、不鮮明な場合も文脈は類似字形候補を選ぶ補助に限定してください。意味・自然さ・頻度・安全性を理由に一般語へ置き換えず、濁点/半濁点/長音符/小書き文字は画像上の痕跡を優先してください。最終的な本文は recognizedText に、分かち書き結果は tokens に出力してください。"
-            imageBase64 != null -> "画像内の日本語テキストを原文のまま忠実に認識し、一切修正せず、文字を変更しないでトークン化してください。画像から読み取った原文は recognizedText に、分かち書き結果は tokens に出力してください。"
-            isOcrMode -> "分析対象のOCRテキスト: \"$text\"\nこのテキストのOCR誤認識（て・で誤認、濁点脱落など）を自动修正した上で、トークン化し、文字列の配列として出力してください。"
-            else -> "分析対象の文: \"$text\"\nこの文をトークン化し、文字列の配列として出力してください。"
+            imageBase64 != null && imageTokenizerMode == "repair" -> "画像内の日本語テキストを視覚情報優先で読み取り、不鮮明な場合も文脈は類似字形候補を選ぶ補助に限定してください。意味・自然さ・頻度・安全性を理由に一般語へ置き換えず、濁点/半濁点/長音符/小書き文字は画像上の痕跡を優先してください。最終的な本文は recognizedText に、分かち書き結果は tokens に出力してください。tokens には空白・改行・タブのみの要素を含めないでください。"
+            imageBase64 != null -> "画像内の日本語テキストを原文のまま忠実に認識し、一切修正せず、文字を変更しないでトークン化してください。画像から読み取った原文は recognizedText に、分かち書き結果は tokens に出力してください。tokens には空白・改行・タブのみの要素を含めないでください。"
+            isOcrMode -> "分析対象のOCRテキスト: \"$text\"\nこのテキストのOCR誤認識（て・で誤認、濁点脱落など）を自动修正した上で、トークン化し、文字列の配列として出力してください。tokens には空白・改行・タブのみの要素を含めないでください。"
+            else -> "分析対象の文: \"$text\"\nこの文をトークン化し、文字列の配列として出力してください。tokens には空白・改行・タブのみの要素を含めないでください。"
         }
 
         return executeAnalysisStep(
@@ -222,6 +222,9 @@ class LlmAnalysisServiceImpl @Inject constructor(
         val finalSegments = mutableListOf<WordSegment>()
 
         for (token in tokens) {
+            if (token.isBlank()) {
+                continue
+            }
             if (isPunctuation(token)) {
                 finalSegments.add(getPunctuationSegment(token))
             } else {
@@ -397,7 +400,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
             '【', '】', '《', '》', '〈', '〉',
             '?', '!', '(', ')', '[', ']', '{', '}', ':', ';', ',', '.', '~', '-', '_', '/', '\\', '|', '<', '>', '"', '\''
         )
-        if (trimmed.length == 1 && trimmed[0] in punctuationChars) return true
+        if (trimmed.all { it in punctuationChars }) return true
         if (trimmed.matches(Regex("^[wW]+$"))) return true
         return false
     }
@@ -425,7 +428,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
             trimmed == "｛" || trimmed == "{" -> Triple("なみかっこ", "（前大括号）", "複数の選択肢やグループの開始を示す波括弧。")
             trimmed == "｝" || trimmed == "}" -> Triple("なみかっこ", "（后大括号）", "複数の選択肢やグループの終了を示す波括弧。")
             trimmed == "〜" || trimmed == "～" || trimmed == "~" -> Triple("なみだっしゅ", "（波浪号）", "範囲（〜から〜まで）や起点を示す波ダッシュ。")
-            trimmed == "…" || trimmed == "..." -> Triple("さんてんりーだー", "（省略号）", "言葉の省略、余韻、または沈黙を示す三点リーダー。")
+            trimmed.isEllipsisLike() -> Triple("さんてんりーだー", "（省略号）", "言葉の省略、余韻、または沈黙を示す三点リーダー。")
             trimmed == "：" || trimmed == ":" -> Triple("ころん", "（冒号）", "説明、例示、または引用の提示を示すコロン。")
             trimmed == "；" || trimmed == ";" -> Triple("せみころん", "（分号）", "文の緊密な関係にある節を区切るセミコロン。")
             trimmed == "―" || trimmed == "—" -> Triple("だっしゅ", "（破折号）", "話の転換、説明の挿入、または余韻を示すダッシュ。")
@@ -443,5 +446,9 @@ class LlmAnalysisServiceImpl @Inject constructor(
             inflection = null,
             role = role
         )
+    }
+
+    private fun String.isEllipsisLike(): Boolean {
+        return isNotBlank() && all { it == '.' || it == '…' }
     }
 }

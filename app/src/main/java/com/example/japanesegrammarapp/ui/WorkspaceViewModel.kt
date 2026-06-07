@@ -1,5 +1,6 @@
 package com.example.japanesegrammarapp.ui
 
+import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,6 +13,8 @@ import com.example.japanesegrammarapp.domain.usecase.RetryAnalysisUseCase
 import com.example.japanesegrammarapp.domain.usecase.AnalysisEventBus
 import com.example.japanesegrammarapp.domain.usecase.AnalysisProgress
 import com.example.japanesegrammarapp.domain.model.LlmConfig
+import com.example.japanesegrammarapp.utils.AppLogger
+import com.example.japanesegrammarapp.utils.BitmapHelper
 import com.example.japanesegrammarapp.utils.RecordExporter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -33,8 +36,18 @@ sealed class UiEvent {
     data class ShowLocalizedError(val resId: Int, val args: List<Any> = emptyList()) : UiEvent()
     object NavigateToResult : UiEvent()
     data class TaskCompleted(val recordId: Int, val analyzedText: String, val isShortened: Boolean) : UiEvent()
-    data class ExportRecordEvent(val record: com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord, val filename: String) : UiEvent()
-    data class ExportAllHistoryEvent(val records: List<com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord>, val filename: String) : UiEvent()
+    data class ShareTextEvent(
+        val text: String,
+        val chooserTitleResId: Int,
+        val subject: String? = null
+    ) : UiEvent()
+    data class ShareFileEvent(
+        val uri: Uri,
+        val mimeType: String,
+        val chooserTitleResId: Int,
+        val subject: String? = null
+    ) : UiEvent()
+    data class NavigateToCameraWithImage(val uri: Uri) : UiEvent()
 }
 
 data class HistoryUiRecord(
@@ -47,6 +60,7 @@ data class HistoryUiRecord(
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class WorkspaceViewModel @Inject constructor(
+    private val application: Application,
     private val historyRepository: HistoryRepository,
     private val pagedHistoryRepository: PagedHistoryRepository,
     private val settingsRepository: SettingsRepository,
@@ -586,17 +600,59 @@ class WorkspaceViewModel @Inject constructor(
     }
 
     fun exportRecord(record: AnalysisDomainRecord) {
-        viewModelScope.launch {
-            val sdf = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
-            val filename = "analysis_${sdf.format(java.util.Date(record.timestamp))}.txt"
-            _uiEvent.emit(UiEvent.ExportRecordEvent(record, filename))
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val sdf = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
+                val filename = "analysis_${sdf.format(java.util.Date(record.timestamp))}.txt"
+                val uri = RecordExporter.exportRecordToFile(application, record, filename)
+                _uiEvent.emit(
+                    UiEvent.ShareFileEvent(
+                        uri = uri,
+                        mimeType = "text/plain",
+                        chooserTitleResId = R.string.export_chooser_title,
+                        subject = filename
+                    )
+                )
+            } catch (e: Exception) {
+                AppLogger.e("WORKSPACE", "Failed to export analysis record", e)
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.unknown_error))
+            }
         }
     }
 
     fun exportAllHistory(records: List<AnalysisDomainRecord>) {
-        viewModelScope.launch {
-            val filename = "history_export_${System.currentTimeMillis()}.txt"
-            _uiEvent.emit(UiEvent.ExportAllHistoryEvent(records, filename))
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val filename = "history_export_${System.currentTimeMillis()}.txt"
+                val uri = RecordExporter.exportAllHistoryToFile(application, records, filename)
+                _uiEvent.emit(
+                    UiEvent.ShareFileEvent(
+                        uri = uri,
+                        mimeType = "text/plain",
+                        chooserTitleResId = R.string.export_chooser_title,
+                        subject = filename
+                    )
+                )
+            } catch (e: Exception) {
+                AppLogger.e("WORKSPACE", "Failed to export history", e)
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.unknown_error))
+            }
+        }
+    }
+
+    fun prepareImageForCamera(sourceUri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val finalUri = if (sourceUri.scheme == "file") {
+                    sourceUri
+                } else {
+                    BitmapHelper.copyUriToCache(application, sourceUri) ?: sourceUri
+                }
+                _uiEvent.emit(UiEvent.NavigateToCameraWithImage(finalUri))
+            } catch (e: Exception) {
+                AppLogger.e("WORKSPACE", "Failed to prepare image for camera review", e)
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.unknown_error))
+            }
         }
     }
 
@@ -655,27 +711,52 @@ class WorkspaceViewModel @Inject constructor(
     fun importHistoryFromText(content: String) {
         viewModelScope.launch {
             try {
-                val records = RecordExporter.parseRecordsFromExportText(content)
-                if (records.isEmpty()) {
-                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.import_no_valid_records))
-                    return@launch
-                }
-                var importedCount = 0
-                withContext(Dispatchers.IO) {
-                    records.forEach { record ->
-                        // De-duplication check: if a record with the same originalText and timestamp exists, skip it
-                        val existing = historyRepository.getRecordByOriginalText(record.originalText)
-                        if (existing == null || existing.timestamp != record.timestamp) {
-                            historyRepository.insertRecord(record)
-                            importedCount++
-                        }
-                    }
-                }
-                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.import_success, listOf(importedCount)))
+                importHistoryContent(content)
             } catch (e: Exception) {
                 _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.import_failed, listOf(e.localizedMessage ?: "")))
             }
         }
+    }
+
+    fun importHistoryFromUri(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val content = application.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    inputStream.bufferedReader().readText()
+                }.orEmpty()
+
+                if (content.isBlank()) {
+                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.import_no_valid_records))
+                    return@launch
+                }
+
+                importHistoryContent(content)
+            } catch (e: Exception) {
+                AppLogger.e("WORKSPACE", "Failed to import history from URI", e)
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.import_failed, listOf(e.localizedMessage ?: "")))
+            }
+        }
+    }
+
+    private suspend fun importHistoryContent(content: String) {
+        val records = RecordExporter.parseRecordsFromExportText(content)
+        if (records.isEmpty()) {
+            _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.import_no_valid_records))
+            return
+        }
+
+        var importedCount = 0
+        withContext(Dispatchers.IO) {
+            records.forEach { record ->
+                // De-duplication check: if a record with the same originalText and timestamp exists, skip it
+                val existing = historyRepository.getRecordByOriginalText(record.originalText)
+                if (existing == null || existing.timestamp != record.timestamp) {
+                    historyRepository.insertRecord(record)
+                    importedCount++
+                }
+            }
+        }
+        _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.import_success, listOf(importedCount)))
     }
 
     /**

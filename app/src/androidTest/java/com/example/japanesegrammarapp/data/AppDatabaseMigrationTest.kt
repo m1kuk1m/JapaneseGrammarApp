@@ -22,38 +22,129 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
-    fun migration8To9KeepsValidBookmarksAndDropsOrphans() {
-        createVersion8Database().close()
+    fun migration1To9PreservesAnalysisRecordAndCreatesBookmarkTables() {
+        createDatabase(version = 1, onCreate = { db ->
+            createVersion1Schema(db)
+            db.execSQL(
+                "INSERT INTO analysis_records (id, originalText, imageUri, analysisResult, timestamp, modelUsed) " +
+                    "VALUES (1, 'legacy text', NULL, '{}', 1000, 'Gemini: test')"
+            )
+        }).close()
 
-        val db = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB)
-            .addMigrations(*AppDatabase.ALL_MIGRATIONS)
-            .build()
-
-        val sqlDb = db.openHelper.writableDatabase
-        assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_segments"))
-        assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_segments WHERE recordId = 1"))
-
-        sqlDb.execSQL("DELETE FROM analysis_records WHERE id = 1")
-        assertEquals(0L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_segments"))
-
-        db.close()
+        val db = openMigratedDatabase()
+        try {
+            val sqlDb = db.openHelper.writableDatabase
+            assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM analysis_records"))
+            assertEquals("COMPLETED", sqlDb.stringForQuery("SELECT status FROM analysis_records WHERE id = 1"))
+            assertEquals(0L, sqlDb.longForQuery("SELECT consumedTokens FROM analysis_records WHERE id = 1"))
+            assertEquals(0L, sqlDb.longForQuery("SELECT inputTokens FROM analysis_records WHERE id = 1"))
+            assertEquals(0L, sqlDb.longForQuery("SELECT outputTokens FROM analysis_records WHERE id = 1"))
+            assertEquals(0L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_segments"))
+            assertEquals(0L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_sentences"))
+        } finally {
+            db.close()
+        }
     }
 
-    private fun createVersion8Database(): SupportSQLiteDatabase {
+    @Test
+    fun migration3To9SplitsLegacyTokenUsageAndKeepsFailureState() {
+        createDatabase(version = 3, onCreate = { db ->
+            createVersion3Schema(db)
+            db.execSQL(
+                "INSERT INTO analysis_records (id, originalText, imageUri, analysisResult, timestamp, modelUsed, status, errorMessage, consumedTokens) " +
+                    "VALUES (1, 'legacy token text', NULL, '{}', 1000, 'Gemini: test', 'FAILED', 'legacy error', 10)"
+            )
+        }).close()
+
+        val db = openMigratedDatabase()
+        try {
+            val sqlDb = db.openHelper.writableDatabase
+            assertEquals(10L, sqlDb.longForQuery("SELECT consumedTokens FROM analysis_records WHERE id = 1"))
+            assertEquals(6L, sqlDb.longForQuery("SELECT inputTokens FROM analysis_records WHERE id = 1"))
+            assertEquals(4L, sqlDb.longForQuery("SELECT outputTokens FROM analysis_records WHERE id = 1"))
+            assertEquals("FAILED", sqlDb.stringForQuery("SELECT status FROM analysis_records WHERE id = 1"))
+            assertEquals("legacy error", sqlDb.stringForQuery("SELECT errorMessage FROM analysis_records WHERE id = 1"))
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun migration8To9KeepsValidBookmarksAndDropsOrphans() {
+        createDatabase(version = 8, onCreate = { db ->
+            createVersion8Schema(db)
+            seedVersion8Data(db)
+        }).close()
+
+        val db = openMigratedDatabase()
+        try {
+            val sqlDb = db.openHelper.writableDatabase
+            assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_segments"))
+            assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_segments WHERE recordId = 1"))
+            assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_sentences WHERE recordId = 1"))
+
+            sqlDb.execSQL("DELETE FROM analysis_records WHERE id = 1")
+            assertEquals(0L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_segments"))
+            assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_sentences"))
+        } finally {
+            db.close()
+        }
+    }
+
+    private fun createDatabase(
+        version: Int,
+        onCreate: (SupportSQLiteDatabase) -> Unit
+    ): SupportSQLiteDatabase {
         val helper = FrameworkSQLiteOpenHelperFactory().create(
             SupportSQLiteOpenHelper.Configuration.builder(context)
                 .name(TEST_DB)
-                .callback(object : SupportSQLiteOpenHelper.Callback(8) {
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        createVersion8Schema(db)
-                        seedVersion8Data(db)
-                    }
+                .callback(object : SupportSQLiteOpenHelper.Callback(version) {
+                    override fun onCreate(db: SupportSQLiteDatabase) = onCreate(db)
 
                     override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
                 })
                 .build()
         )
         return helper.writableDatabase
+    }
+
+    private fun openMigratedDatabase(): AppDatabase {
+        return Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB)
+            .addMigrations(*AppDatabase.ALL_MIGRATIONS)
+            .build()
+    }
+
+    private fun createVersion1Schema(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE analysis_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                originalText TEXT NOT NULL,
+                imageUri TEXT,
+                analysisResult TEXT,
+                timestamp INTEGER NOT NULL,
+                modelUsed TEXT NOT NULL
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun createVersion3Schema(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE analysis_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                originalText TEXT NOT NULL,
+                imageUri TEXT,
+                analysisResult TEXT,
+                timestamp INTEGER NOT NULL,
+                modelUsed TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'COMPLETED',
+                errorMessage TEXT,
+                consumedTokens INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent()
+        )
     }
 
     private fun createVersion8Schema(db: SupportSQLiteDatabase) {
@@ -118,15 +209,19 @@ class AppDatabaseMigrationTest {
     private fun seedVersion8Data(db: SupportSQLiteDatabase) {
         db.execSQL(
             "INSERT INTO analysis_records (id, originalText, imageUri, analysisResult, timestamp, modelUsed, status, errorMessage, consumedTokens, inputTokens, outputTokens) " +
-                "VALUES (1, '食べます', NULL, '{}', 1000, 'Gemini: test', 'COMPLETED', NULL, 3, 1, 2)"
+                "VALUES (1, 'tabemasu', NULL, '{}', 1000, 'Gemini: test', 'COMPLETED', NULL, 3, 1, 2)"
         )
         db.execSQL(
             "INSERT INTO bookmarked_segments (id, recordId, segmentText, surfaceForm, reading, partOfSpeech, posCategory, dictionaryForm, dictionaryFormReading, meaning, inflection, role, bookmarkedAt, sourceText, isArchived) " +
-                "VALUES (1, 1, '食べる', '食べます', 'たべます', 'verb', 'verb', '食べる', 'たべる', 'eat', NULL, NULL, 1000, '食べます', 0)"
+                "VALUES (1, 1, 'taberu', 'tabemasu', 'tabemasu', 'verb', 'verb', 'taberu', 'taberu', 'eat', NULL, NULL, 1000, 'tabemasu', 0)"
         )
         db.execSQL(
             "INSERT INTO bookmarked_segments (id, recordId, segmentText, surfaceForm, reading, partOfSpeech, posCategory, dictionaryForm, dictionaryFormReading, meaning, inflection, role, bookmarkedAt, sourceText, isArchived) " +
-                "VALUES (2, 999, '見る', '見ます', 'みます', 'verb', 'verb', '見る', 'みる', 'see', NULL, NULL, 1000, '見ます', 0)"
+                "VALUES (2, 999, 'miru', 'mimasu', 'mimasu', 'verb', 'verb', 'miru', 'miru', 'see', NULL, NULL, 1000, 'mimasu', 0)"
+        )
+        db.execSQL(
+            "INSERT INTO bookmarked_sentences (id, recordId, originalText, translation, analysisResult, modelUsed, bookmarkedAt) " +
+                "VALUES (1, 1, 'source sentence', 'translation', '{}', 'Gemini: test', 1000)"
         )
     }
 
@@ -134,6 +229,13 @@ class AppDatabaseMigrationTest {
         query(sql).use { cursor ->
             check(cursor.moveToFirst())
             return cursor.getLong(0)
+        }
+    }
+
+    private fun SupportSQLiteDatabase.stringForQuery(sql: String): String {
+        query(sql).use { cursor ->
+            check(cursor.moveToFirst())
+            return cursor.getString(0)
         }
     }
 

@@ -1,7 +1,7 @@
 package com.example.japanesegrammarapp
 
 import android.app.Application
-import com.example.japanesegrammarapp.di.ApplicationScope
+import com.example.japanesegrammarapp.domain.ApplicationScope
 import com.example.japanesegrammarapp.utils.AppLogger
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope

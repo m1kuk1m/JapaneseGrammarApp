@@ -18,7 +18,7 @@ import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
-import com.example.japanesegrammarapp.di.ApplicationScope
+import com.example.japanesegrammarapp.domain.ApplicationScope
 import com.example.japanesegrammarapp.domain.repository.TtsRepository
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope

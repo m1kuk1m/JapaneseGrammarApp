@@ -31,3 +31,6 @@ out*.html
 search_results.html
 bing_results*.txt
 ddg_*.txt
+parse_apk*.py
+search_*.py
+scrape_*.py

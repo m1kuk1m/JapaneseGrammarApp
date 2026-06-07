@@ -2,6 +2,7 @@ package com.example.japanesegrammarapp.data.repository
 
 import com.example.japanesegrammarapp.domain.model.DetailedAnalysisResult
 import com.example.japanesegrammarapp.domain.repository.DetailedResultSerializer
+import com.example.japanesegrammarapp.utils.AppLogger
 import com.google.gson.Gson
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -34,7 +35,7 @@ class DetailedResultSerializerImpl @Inject constructor(
             }
             parsed
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLogger.e("RESULT_SERIALIZER", "Failed to parse detailed analysis result JSON", e)
             null
         }
     }
