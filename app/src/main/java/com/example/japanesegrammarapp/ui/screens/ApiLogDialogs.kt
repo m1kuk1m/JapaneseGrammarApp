@@ -118,7 +118,7 @@ fun ApiLogsDialog(
             }
         },
         text = {
-            Column(modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().heightIn(min = 420.dp, max = 560.dp)) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -166,7 +166,7 @@ fun ApiLogsDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -196,7 +196,7 @@ fun ApiLogsDialog(
 
                 if (filteredApiLogs.isEmpty()) {
                     Box(
-                        modifier = Modifier.fillMaxSize().weight(1f).padding(24.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp, max = 320.dp).padding(24.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -208,7 +208,7 @@ fun ApiLogsDialog(
                     }
                 } else {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize().weight(1f).padding(vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp, max = 320.dp).padding(vertical = 4.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(filteredApiLogs) { log ->

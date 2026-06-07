@@ -201,9 +201,9 @@
     <string name="camera_flash_on_desc">闪光灯常亮</string>
     <string name="camera_flash_auto_desc">自动闪光</string>
     <string name="camera_flash_off_desc">关闭闪光灯</string>
-    <string name="camera_flash_on_label">⚡ 开启</string>
-    <string name="camera_flash_auto_label">⚡ 自动</string>
-    <string name="camera_flash_off_label">⚡ 关闭</string>
+    <string name="camera_flash_on_label">开启</string>
+    <string name="camera_flash_auto_label">自动</string>
+    <string name="camera_flash_off_label">关闭</string>
     <string name="camera_guide_keep_inside">对准日语文本并拍摄</string>
     <string name="camera_guide_crop_hint">拍摄后可自由选取或编辑文本</string>
     <string name="camera_local_ocr">本地OCR</string>

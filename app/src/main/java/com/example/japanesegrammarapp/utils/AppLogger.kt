@@ -56,7 +56,7 @@ object AppLogger {
                 if (appLogFile.exists()) {
                     try {
                         val lines = appLogFile.readLines()
-                        _logs.value = lines.takeLast(300)
+                        _logs.update { current -> (lines + current).takeLast(300) }
                     } catch (e: Exception) {
                         android.util.Log.e("AppLogger", "Failed to load app logs", e)
                     }
@@ -66,8 +66,15 @@ object AppLogger {
                 if (apiLogFile.exists()) {
                     try {
                         val json = apiLogFile.readText()
-                        val loaded: List<ApiDebugLog> = com.google.gson.Gson().fromJson(json, Array<ApiDebugLog>::class.java)?.toList() ?: emptyList()
-                        _apiLogs.value = loaded.takeLast(80)
+                        val loaded: List<ApiDebugLog> = com.google.gson.Gson()
+                            .fromJson(json, Array<ApiDebugLog>::class.java)
+                            ?.toList()
+                            ?: emptyList()
+                        _apiLogs.update { current ->
+                            (loaded + current)
+                                .distinct()
+                                .takeLast(80)
+                        }
                     } catch (e: Exception) {
                         android.util.Log.e("AppLogger", "Failed to load api logs", e)
                     }
@@ -135,9 +142,9 @@ object AppLogger {
             attempt = attempt,
             elapsedMs = elapsedMs
         )
-        _apiLogs.update { (it + entry).takeLast(80) }
+        val updatedLogs = appendApiLog(entry)
         d("API_DEBUG", "[$apiTypeLabel] success via $provider/$model, tokens=$consumedTokens, image=$hasImage, record=$recordId, step=$stepName, elapsed=${elapsedMs ?: 0}ms")
-        writeApiLogsToFile(_apiLogs.value)
+        writeApiLogsToFile(updatedLogs)
     }
 
     fun apiEvent(
@@ -169,9 +176,9 @@ object AppLogger {
             attempt = attempt,
             elapsedMs = elapsedMs
         )
-        _apiLogs.update { (it + entry).takeLast(80) }
+        val updatedLogs = appendApiLog(entry)
         d("API_DEBUG", "[$apiTypeLabel] $status via $provider/$model, record=$recordId, step=$stepName, attempt=${attempt ?: 0}, elapsed=${elapsedMs ?: 0}ms: $message")
-        writeApiLogsToFile(_apiLogs.value)
+        writeApiLogsToFile(updatedLogs)
     }
 
     fun apiError(
@@ -206,9 +213,9 @@ object AppLogger {
             attempt = attempt,
             elapsedMs = elapsedMs
         )
-        _apiLogs.update { (it + entry).takeLast(80) }
+        val updatedLogs = appendApiLog(entry)
         e("API_DEBUG", "[$apiTypeLabel] failed via $provider/$model, image=$hasImage, record=$recordId, step=$stepName, elapsed=${elapsedMs ?: 0}ms: $message", throwable)
-        writeApiLogsToFile(_apiLogs.value)
+        writeApiLogsToFile(updatedLogs)
     }
 
     fun clear() {
@@ -325,6 +332,14 @@ object AppLogger {
                 }
             }
         }
+    }
+
+    private fun appendApiLog(entry: ApiDebugLog): List<ApiDebugLog> {
+        var updatedLogs: List<ApiDebugLog> = emptyList()
+        _apiLogs.update { current ->
+            (current + entry).takeLast(80).also { updatedLogs = it }
+        }
+        return updatedLogs
     }
 
     private fun now(): String = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
