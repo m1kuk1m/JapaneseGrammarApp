@@ -7,6 +7,7 @@ import com.example.japanesegrammarapp.domain.model.DetailedAnalysisResult
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
+import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.domain.model.TokenizationResult
 import com.example.japanesegrammarapp.domain.repository.DetailedResultSerializer
 import com.example.japanesegrammarapp.domain.repository.HistoryRepository
@@ -269,6 +270,9 @@ private class FakeSettingsRepository(
     override fun setUseOcr(value: Boolean) = Unit
     override fun getImageTokenizerMode(): String = "faithful"
     override fun setImageTokenizerMode(mode: String) = Unit
+    override fun getOcrBoxDetectionSettings(): OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT
+    override fun setOcrBoxDetectionSettings(settings: OcrBoxDetectionSettings) = Unit
+    override fun resetOcrBoxDetectionSettings() = Unit
     override fun getAutoNavigateResult(): Boolean = true
     override fun setAutoNavigateResult(value: Boolean) = Unit
     override fun getModelsForProvider(provider: String): List<String> = emptyList()

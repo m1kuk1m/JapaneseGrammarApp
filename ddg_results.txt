@@ -1,9 +1,0 @@
-https://developer.android.com/reference/android/content/Intent
-These strings use Java-style scoping, to ensure they are unique -- for example, the standard ACTION_VIEW is called &quot;android.intent.action.VIEW&quot;. Put together, the set of actions, data types, categories, and extra data defines a language for the system allowing for the expression of phrases such as &quot;call john smith&#x27;s cell&quot;.
-
-https://developer.android.com/guide/topics/manifest/action-element
-To assign one of these actions to this attribute, prepend android.intent.action. to the string that follows ACTION_. For example, for ACTION_MAIN, use android.intent.action.MAIN, and for ACTION_WEB_SEARCH, use android.intent.action.WEB_SEARCH. For actions you define, it&#x27;s best to use your app&#x27;s package name as a prefix to help ensure uniqueness.
-
-https://stackoverflow.com/questions/8971160/what-is-the-exhaustive-list-of-all-android-intent-action-actions-available-in
-Hey I think I answered my own question :) In my Android SDK directory, under /platforms/android-x/data (x being the API level) I&#x27;ve found several very interesting files: activity_actions.txt broadcast_actions.txt categories.txt features.txt widgets.txt Turns out the first two contain plenty of raw Intents, including ones that are not defined in Intent.java ! I&#x27;m not quite sure what theses ...
-

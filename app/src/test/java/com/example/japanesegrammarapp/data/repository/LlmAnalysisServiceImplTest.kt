@@ -1,6 +1,7 @@
 package com.example.japanesegrammarapp.data.repository
 
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
+import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
 import com.example.japanesegrammarapp.domain.repository.LlmRepository
 import com.example.japanesegrammarapp.domain.repository.LlmResult
@@ -176,6 +177,9 @@ private object FakeSettingsRepository : SettingsRepository {
     override fun setUseOcr(value: Boolean) = Unit
     override fun getImageTokenizerMode(): String = "faithful"
     override fun setImageTokenizerMode(mode: String) = Unit
+    override fun getOcrBoxDetectionSettings(): OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT
+    override fun setOcrBoxDetectionSettings(settings: OcrBoxDetectionSettings) = Unit
+    override fun resetOcrBoxDetectionSettings() = Unit
     override fun getAutoNavigateResult(): Boolean = true
     override fun setAutoNavigateResult(value: Boolean) = Unit
     override fun getModelsForProvider(provider: String): List<String> = emptyList()
