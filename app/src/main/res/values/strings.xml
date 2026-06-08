@@ -1,0 +1,542 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App General -->
+    <string name="app_name">Japanese Grammar App</string>
+    <string name="app_title">Grammar Analysis</string>
+    <string name="app_subtitle">AI breaks down Japanese grammar clearly for you</string>
+
+    <!-- Workspace -->
+    <string name="target_sentence">Target Sentence</string>
+    <string name="edit_and_reanalyze">Edit &amp; Reanalyze</string>
+    <string name="image_analysis">Image Grammar Analysis</string>
+    <string name="error_occurred">An error occurred</string>
+    <string name="delete">Delete</string>
+    <string name="retry">Retry</string>
+    <string name="target_sentence_header">Target Sentence</string>
+    <string name="analyzing_word_attributes">Analyzing word attributes...</string>
+    <string name="segmenting_text">Segmenting text into morphemes...</string>
+    <string name="pos">Part of Speech</string>
+    <string name="dictionary_form">Dictionary Form</string>
+    <string name="inflection">Inflection</string>
+    <string name="role_in_sentence">Role</string>
+    <string name="meaning">Meaning</string>
+    <string name="overall_translation">Overall Translation</string>
+    <string name="sentence_clauses">Sentence Structure</string>
+    <string name="grammar_points">Grammar Points</string>
+
+    <!-- Input Form -->
+    <string name="input_hint">Enter Japanese text here...</string>
+    <string name="settings">Settings</string>
+    <string name="history">History</string>
+    <string name="analyze">Analyze</string>
+    <string name="analyzing">Analyzing...</string>
+
+    <!-- Elegant UI Strings -->
+    <string name="hero_title">Parse.</string>
+    <string name="hero_subtitle">Deeply understand Japanese grammar structure</string>
+    <string name="workspace_short_title">WORKSPACE</string>
+    <string name="input_hint_elegant">Enter text here...</string>
+    <string name="camera">Camera</string>
+    <string name="album">Album</string>
+    <string name="start_parse">Start Parse</string>
+
+    <!-- Sidebar -->
+    <string name="history_title">History</string>
+    <string name="close">Close</string>
+    <string name="no_history">No history</string>
+    <string name="history_search_hint">Search sentences</string>
+    <string name="clear_history_search">Clear search</string>
+    <string name="no_search_results">No matching sentences</string>
+    <string name="export_all">Export All</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="appearance">Appearance</string>
+    <string name="theme_mode">Theme Mode</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="accent_color">Accent Color</string>
+    <string name="wallpaper">Wallpaper</string>
+    <string name="pick_wallpaper">Select Image</string>
+    <string name="clear_wallpaper">Clear</string>
+
+    <string name="general">General</string>
+    <string name="local_ocr">Local OCR for Images</string>
+    <string name="local_ocr_desc">If off, images are sent directly to AI for analysis.</string>
+    <string name="auto_navigate_result">Auto Navigate to Result</string>
+    <string name="auto_navigate_result_desc">When using the floating ball, jump to the result page automatically. If off, it runs in the background.</string>
+    <string name="token_usage">API Token Usage</string>
+    <string name="token_usage_desc">Total tokens consumed across all analyses.</string>
+
+    <string name="api_config">API Configuration</string>
+    <string name="main_api">Main API</string>
+    <string name="backup_api">Backup API</string>
+    <string name="credentials">Credentials &amp; Models</string>
+
+    <!-- Workspace Input -->
+    <string name="model_label">Model: </string>
+    <string name="select">Select</string>
+    <string name="model_not_set">Model not set (Go to settings)</string>
+    <string name="analysis_interrupted">Analysis interrupted because input changed.</string>
+    <string name="attached_image">Attached Image</string>
+    <string name="analysis_target_image">Image for Analysis</string>
+    <string name="camera_capture">Take Photo</string>
+    <string name="pick_image">Select Image</string>
+    <string name="start_analysis">Start Analysis</string>
+
+    <!-- History Sidebar -->
+    <string name="history_status_pending">Analyzing</string>
+    <string name="history_status_error">Error</string>
+    <string name="export">Export</string>
+    <string name="new_analysis">New Analysis</string>
+
+    <!-- Added for Custom Models & Language -->
+    <string name="language">Language</string>
+    <string name="language_auto">Auto (System)</string>
+    <string name="base_url">Base URL</string>
+    <string name="api_key">API Key</string>
+    <string name="save_api_key">Save API Key</string>
+    <string name="clear_api_key">Clear API Key</string>
+    <string name="clear_api_key_title">Clear API Key?</string>
+    <string name="clear_api_key_confirm">This will remove the saved API Key for this provider.</string>
+    <string name="api_key_save_success">API Key saved</string>
+    <string name="api_key_save_failed">Failed to save API Key</string>
+    <string name="fetching">Fetching...</string>
+    <string name="fetch_models">Fetch Models</string>
+    <string name="add_custom_model">Add Custom Model</string>
+    <string name="custom_hex">Custom Hex (e.g. #FF5722)</string>
+    <string name="main_model">Main Model</string>
+    <string name="backup_model">Backup Model</string>
+
+    <string name="color_default">Default</string>
+    <string name="color_sakura">Sakura Pink</string>
+    <string name="color_matcha">Matcha Green</string>
+    <string name="color_aizome">Aizome Indigo</string>
+    <string name="color_kuri">Kuri Amber</string>
+    <string name="color_hai">Hai Mist</string>
+    <string name="select_accent_color">Select Accent Color</string>
+
+    <!-- Newly added for i18n & de-hardcoding -->
+    <string name="show_action">Show</string>
+    <string name="export_chooser_title">Choose Destination</string>
+    <string name="analysis_results">Analysis Results</string>
+    <string name="history_menu_desc">History Menu</string>
+    <string name="edit_and_reanalyze_desc">Edit &amp; Reanalyze</string>
+    <string name="delete_history_title">Delete History</string>
+    <string name="delete_history_confirm">Are you sure you want to delete the analysis history of \"%1$s\"?</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Export Selection Dialog -->
+    <string name="export_history_title">Select Export History</string>
+    <string name="deselect_all">Deselect All</string>
+    <string name="select_all">Select All</string>
+    <string name="export_with_count">Export (%1$d)</string>
+
+    <!-- Zen Loading View -->
+    <string name="loading_title">AI Japanese Grammar Analysis In Progress</string>
+    <string name="loading_subtitle">Analyzing grammar structure. Please wait a moment.</string>
+    <string name="cancel_analysis">Cancel Analysis</string>
+    <string name="completed">Completed</string>
+    <string name="step_1_title">Morpheme &amp; Token Extraction</string>
+    <string name="step_1_desc">Performing morpheme analysis of Japanese text</string>
+    <string name="step_2_title">Syntactic Roles &amp; Clauses</string>
+    <string name="step_2_desc">Classifying clause roles and relationships</string>
+    <string name="step_3_title">Context Translation &amp; 对译</string>
+    <string name="step_3_desc">Generating translation and counterpart data</string>
+    <string name="step_4_title">Detailed Grammar Analysis</string>
+    <string name="step_4_desc">Creating detailed explanation cards for grammar</string>
+
+    <!-- Workspace Result -->
+    <string name="analysis_result_text_view">Analysis Results (Text View)</string>
+    <string name="no_analysis_result">No analysis results available.</string>
+    <string name="stop_tts">Stop TTS</string>
+    <string name="play_tts">Play TTS</string>
+    <string name="close_details">Close Details</string>
+    <string name="translation_label">Translation</string>
+    <string name="grammar_label">Grammar</string>
+
+    <!-- Settings Screen -->
+    <string name="app_logs_title">App Logs (Developer)</string>
+    <string name="clear_logs">Clear Logs</string>
+    <string name="back">Back</string>
+    <string name="custom_image_set">Custom Image Set</string>
+    <string name="none">None</string>
+    <string name="unselected">Unselected</string>
+    <string name="tts_settings_title">TTS Settings</string>
+    <string name="tts_provider">TTS Provider</string>
+    <string name="tts_region_placeholder">Region (e.g. eastus)</string>
+    <string name="tts_model_placeholder">Model (e.g. tts-1)</string>
+    <string name="tts_voice_placeholder">Voice (e.g. alloy, ja-JP-Neural2-B)</string>
+    <string name="view_dev_logs">View Developer Logs</string>
+    <string name="total_tokens_format">Total: %1$s tokens</string>
+
+    <!-- Phase 2 De-hardcoding -->
+    <string name="llm_retry_toast">Failed to call Main API (%1$s). Performing automatic retry #%2$d...</string>
+    <string name="llm_backup_toast">Failed to retry Main API (%1$s). Calling Backup API (%2$s)...</string>
+    <string name="ocr_fallback_toast">No text detected by local OCR. Falling back to Vision Mode...</string>
+    <string name="spelling_corrected_toast">Automatically corrected spelling/grammar errors.</string>
+    <string name="analysis_started_toast">Analysis task started.</string>
+    <string name="no_history_to_export">No history records available to export.</string>
+    <string name="unknown_error">Unknown error</string>
+    <string name="error_analysis_failed_to_start">Analysis failed to start</string>
+    <string name="error_retry_failed">Retry failed</string>
+    <string name="export_header_title">Japanese Grammar Analysis - History Export</string>
+    <string name="export_header_time">Export Time: %1$s</string>
+    <string name="export_header_count">Total Records: %1$d</string>
+    <string name="export_record_number">[%1$d]</string>
+    <string name="export_record_time">Date: %1$s</string>
+    <string name="export_record_model">Model: %1$s</string>
+    <string name="export_record_status">Status: %1$s</string>
+    <string name="export_original_text_section">[Original Text]</string>
+    <string name="export_image_analysis_fallback">(Analyzed from image)</string>
+    <string name="export_result_section">[Analysis Result]</string>
+    <string name="export_error_section">[Error Details]</string>
+    <string name="camera_permission_required_title">Camera Permission Required</string>
+    <string name="camera_permission_required_desc">Please grant camera permission so that you can capture Japanese text for grammar analysis.</string>
+    <string name="camera_request_permission_btn">Request Permission</string>
+    <string name="camera_permission_denied_permanently_title">Camera Access Denied</string>
+    <string name="camera_permission_denied_permanently_desc">Camera permission is permanently denied. Please enable it in system settings to use camera features.</string>
+    <string name="camera_go_to_settings_btn">Go to Settings</string>
+    <string name="camera_back_desc">Back</string>
+    <string name="camera_flash_on_desc">Flash Always On</string>
+    <string name="camera_flash_auto_desc">Flash Auto</string>
+    <string name="camera_flash_off_desc">Flash Off</string>
+    <string name="camera_flash_on_label">ON</string>
+    <string name="camera_flash_auto_label">AUTO</string>
+    <string name="camera_flash_off_label">OFF</string>
+    <string name="camera_guide_keep_inside">Point at Japanese text and shoot</string>
+    <string name="camera_guide_crop_hint">You can select or edit the text after capture</string>
+    <string name="camera_local_ocr">Local OCR</string>
+    <string name="camera_crop_title">Select Text Area</string>
+    <string name="camera_crop_hint">Drag corners to adjust</string>
+    <string name="camera_cancel_desc">Cancel</string>
+    <string name="camera_recapture_btn">Recapture/Back</string>
+    <string name="camera_confirm_desc">Confirm</string>
+    <string name="camera_confirm_btn">Confirm Area</string>
+    <string name="image_tokenizer_mode_title">Image tokenizer mode</string>
+    <string name="image_tokenizer_mode_faithful">Faithful text mode</string>
+    <string name="image_tokenizer_mode_faithful_desc">No correction or guessing. Keep the text exactly as it appears.</string>
+    <string name="image_tokenizer_mode_repair">Blurred image repair</string>
+    <string name="image_tokenizer_mode_repair_desc">For blurry images, allow context-based repair of clearly unreasonable dakuten or characters.</string>
+    <string name="view_api_debug_logs">View API Debug Responses</string>
+    <string name="api_debug_logs_title">API Debug Responses</string>
+    <string name="api_debug_filter_all">All</string>
+    <string name="clear_api_debug_logs">Clear API Debug Logs</string>
+    <string name="api_debug_empty">No records yet. Run an analysis to show each API role\'s request summary, raw response, and error details.</string>
+    <string name="api_debug_no_filter_results">No API logs match the current search or filter.</string>
+    <string name="api_debug_meta">image=%1$s, tokens=%2$d (in=%3$d, out=%4$d)</string>
+    <string name="api_debug_user_prompt">User Prompt</string>
+    <string name="api_debug_system_prompt">System Prompt Preview</string>
+    <string name="api_debug_raw_response">Raw Response</string>
+    <string name="api_debug_error">Error</string>
+    <string name="api_debug_stack_trace">Stack Trace</string>
+    <string name="dict_eudic">Eudic</string>
+    <string name="dict_dictango">Dictango</string>
+    <string name="dict_moji">MOJi Dict</string>
+    <string name="dict_not_installed">App %1$s is not installed.</string>
+    <string name="search_in_dict">Look up</string>
+    <string name="action_process_text">Analyze Grammar</string>
+
+    <!-- Custom Providers / API Endpoints -->
+    <string name="api_endpoints_manage">API Endpoints Manage</string>
+    <string name="endpoint_name">Endpoint Name</string>
+    <string name="delete_endpoint_confirm">Are you sure to delete this endpoint?</string>
+    <string name="endpoint_add">Add Endpoint</string>
+    <string name="endpoint_edit">Edit Endpoint</string>
+    <string name="endpoint_enabled">Enabled</string>
+    <string name="endpoint_disabled">Disabled</string>
+    <string name="endpoint_failures">Failures: %1$d</string>
+    <string name="endpoint_cooldown">Cooldown: %1$s</string>
+    <string name="endpoint_last_error">Last error: %1$s</string>
+    <string name="endpoint_priority">Priority</string>
+    <string name="endpoint_weight">Weight</string>
+    <string name="endpoint_priority_weight">Priority %1$d · Weight %2$d</string>
+    <string name="endpoint_save">Save</string>
+    <string name="endpoint_save_success">Endpoint saved</string>
+    <string name="endpoint_delete_success">Endpoint deleted</string>
+    <string name="add" translatable="false">Add</string>
+
+    <string name="input_dialog_title">Text Input</string>
+    <string name="input_dialog_placeholder">Enter text to analyze...</string>
+    <string name="start_analysis_btn">Start Analysis</string>
+    <string name="floating_camera_permission_title">Camera permission required</string>
+    <string name="floating_camera_permission_desc">Grant camera permission from the app camera page, then use the floating camera here.</string>
+    <string name="floating_camera_capturing">Capturing...</string>
+    <string name="floating_camera_unavailable">Camera is not ready yet.</string>
+    <string name="floating_camera_capture_failed">Failed to capture photo.</string>
+    <string name="ocr_overlay_empty">No Japanese text areas were detected. Try a clearer screen or use camera/photo analysis.</string>
+    <string name="ocr_overlay_processing">Preparing selected area...</string>
+
+    <!-- New UI Strings -->
+    <string name="copy_full_error_log">Copy Full Error Log</string>
+    <string name="copy_logs">Copy Logs</string>
+    <string name="screen_ocr_active">Screen OCR active</string>
+
+    <!-- Analysis Steps -->
+    <string name="step_segments">Tokenization</string>
+    <string name="step_clauses">Clause Analysis</string>
+    <string name="step_grammar">Grammar Explanation</string>
+    <string name="step_translation">Translation</string>
+    <string name="step_detailed_grammar">Detailed Grammar</string>
+    <string name="step_tokenization">Tokenization</string>
+    <string name="step_clause_analysis">Clause Analysis</string>
+    <string name="step_grammar_explanation">Grammar Explanation</string>
+
+    <!-- Dynamic Analysis Messages -->
+    <string name="analysis_completed_short">Analysis completed: \"%1$s...\"</string>
+    <string name="analysis_completed_full">Analysis completed: \"%1$s\"</string>
+
+    <!-- Errors -->
+    <string name="error_both_api_failed">Failed to call both Main and Backup API. Main: %1$s. Backup: %2$s</string>
+    <string name="error_main_api_failed_no_backup">Failed to retry Main API (%1$s) and Backup API is not set or valid. Main API error: %2$s</string>
+
+    <!-- Enhanced Developer Logs -->
+    <string name="log_search_hint">Search logs...</string>
+    <string name="log_level_all">ALL</string>
+    <string name="log_level_debug">DEBUG</string>
+    <string name="log_level_info">INFO</string>
+    <string name="log_level_warn">WARN</string>
+    <string name="log_level_error">ERROR</string>
+    <string name="share_logs">Share Logs</string>
+    <string name="log_size_label">Log Storage: %1$s</string>
+    <string name="delete_log_files">Delete Log Files</string>
+    <string name="delete_log_files_success">Log files successfully deleted</string>
+    <string name="delete_log_files_confirm">Are you sure you want to delete all persistent log files?</string>
+    <string name="scroll_to_top">Scroll to Top</string>
+    <string name="scroll_to_bottom">Scroll to Bottom</string>
+    <string name="api_details_title">API Response Details</string>
+    <string name="api_log_copy_prompt">Copy Prompt</string>
+    <string name="copy_success_toast">Copied to clipboard</string>
+    <string name="api_log_copy_response">Copy Response</string>
+    <string name="api_log_copy_error">Copy Error</string>
+    <string name="api_log_share_all">Export API Logs</string>
+    <string name="api_log_include_full_debug">Include full prompt/response</string>
+    <string name="log_export_confirm_title">Export logs?</string>
+    <string name="log_copy_confirm_title">Copy logs?</string>
+    <string name="app_log_export_confirm">The app log file may contain diagnostic details. Export it now?</string>
+    <string name="api_log_export_summary_confirm">API logs will be exported as a sanitized summary without full prompts or responses.</string>
+    <string name="api_log_export_full_confirm">Full API debug export includes sanitized prompts, responses, errors, and stack traces. Export only for debugging.</string>
+    <string name="api_log_copy_summary_confirm">API logs will be copied as a sanitized summary without full prompts or responses.</string>
+    <string name="api_log_copy_full_confirm">Full API debug copy includes sanitized prompts, responses, errors, and stack traces. Copy only for debugging.</string>
+    <string name="api_debug_filter_start">Start</string>
+    <string name="api_debug_filter_success">Success</string>
+    <string name="api_debug_filter_retry">Retry</string>
+    <string name="api_debug_filter_backup">Backup</string>
+    <string name="api_debug_filter_timeout">Timeout</string>
+    <string name="api_debug_filter_error">Error</string>
+    <string name="api_details_metadata">Metadata</string>
+    <string name="api_details_prompts">Prompts</string>
+    <string name="api_details_response">Response</string>
+    <string name="api_details_error_info">Error Info</string>
+    <string name="api_log_summary_context">record=%1$s, step=%2$s, attempt=%3$s, elapsed=%4$sms</string>
+    <string name="api_log_unknown_value">-</string>
+    <string name="import_history">Import</string>
+    <string name="import_no_valid_records">No valid history records found</string>
+    <string name="import_success">Successfully imported %1$d records</string>
+    <string name="import_failed">Import failed: %1$s</string>
+
+    <!-- Bookmarks & Flashcard -->
+    <string name="bookmarks_title">Favorites</string>
+    <string name="bookmarks_empty_title">No favorited words yet</string>
+    <string name="bookmarks_empty_hint">Long-press a word chip in analysis to add to favorites</string>
+    <string name="tab_words">Words</string>
+    <string name="tab_sentences">Sentences</string>
+    <string name="bookmarks_empty_sentences_title">No favorited sentences yet</string>
+    <string name="bookmarks_empty_sentences_hint">Long-press a history item or click the star button in analysis to favorite</string>
+    <string name="delete_analysis_confirm_title">Delete Analysis Record</string>
+    <string name="delete_analysis_confirm_message">Are you sure you want to delete this analysis record? Any favorites for this sentence will not be deleted.</string>
+    <string name="bookmark_sentence_added">Sentence added to favorites</string>
+    <string name="bookmark_sentence_removed">Sentence removed from favorites</string>
+    <string name="bookmarks_count">%1$d</string>
+    <string name="bookmarks_count_all">%1$d items</string>
+    <string name="bookmarks_count_filtered">%1$d / %2$d</string>
+    <string name="bookmark_added">Added to favorites</string>
+    <string name="bookmark_deleted">Removed from favorites</string>
+    <string name="bookmark_already_exists">Already in favorites</string>
+    <string name="import_bookmarks">Import Favorites</string>
+    <string name="export_bookmarks">Export Favorites</string>
+    <string name="import_success_msg">Successfully imported %1$d favorites</string>
+    <string name="import_failed_msg">Import failed, please check file format</string>
+    <string name="import_error_msg">Import failed: %1$s</string>
+    <string name="delete_bookmark">Delete</string>
+    <string name="delete_bookmark_confirm">Delete this favorite?</string>
+    <string name="cancel_delete">Cancel</string>
+    <string name="view_source">View Source</string>
+    <string name="source_sentence_prefix">From: %1$s</string>
+
+    <!-- Bookmark Filters -->
+    <string name="filter_all">All</string>
+    <string name="filter_by_pos">By POS</string>
+    <string name="filter_by_date">By Date</string>
+    <string name="filter_today">Today</string>
+    <string name="filter_week">This Week</string>
+    <string name="filter_older">Older</string>
+
+    <!-- Flashcard -->
+    <string name="flashcard_title">Flashcards</string>
+    <string name="flashcard_session_complete">Session Complete</string>
+    <string name="flashcard_no_cards">No favorites to practice</string>
+    <string name="flashcard_front_hint">Tap to reveal meaning</string>
+    <string name="flashcard_back_hint">Tap to flip back</string>
+    <string name="flashcard_forgot">Forgot</string>
+    <string name="flashcard_remembered">Remembered</string>
+    <string name="flashcard_retry_weak">Retry Weak Cards</string>
+    <string name="flashcard_restart">Restart</string>
+    <string name="flashcard_back_to_bookmarks">Back to Favorites</string>
+    <string name="flashcard_total_cards">Total Cards</string>
+    <string name="flashcard_mastered_count">Mastered</string>
+    <string name="flashcard_accuracy">Accuracy</string>
+    <string name="flashcard_inflection_label">Inflection: %1$s</string>
+    <string name="flashcard_role_label">Role: %1$s</string>
+    <string name="flashcard_dict_form_label">Dict form: %1$s</string>
+    <string name="flashcard_no_meaning">(No meaning)</string>
+    <string name="flashcard_round_label">Round %1$d</string>
+
+    <!-- Dictionary lookup bookmark shortcut -->
+    <string name="long_press_to_bookmark">Long-press to favorite</string>
+
+    <!-- POS Category Names (for filter localization) -->
+    <string name="pos_NOUN">Noun</string>
+    <string name="pos_VERB">Verb</string>
+    <string name="pos_ADJECTIVE">Adjective</string>
+    <string name="pos_AUXILIARY">Auxiliary</string>
+    <string name="pos_PARTICLE">Particle</string>
+    <string name="pos_ADVERB">Adverb</string>
+    <string name="pos_CONJUNCTION">Conjunction</string>
+    <string name="pos_PRONOUN">Pronoun</string>
+    <string name="pos_INTERJECTION">Interjection</string>
+    <string name="pos_other">Other</string>
+
+    <!-- Archiving and feedback -->
+    <string name="filter_archived">Archived</string>
+    <string name="bookmark_archive">Archive</string>
+    <string name="bookmark_restore">Restore</string>
+    <string name="bookmark_archived_toast">Archived successfully</string>
+    <string name="bookmark_restored_toast">Restored from archives</string>
+    <string name="flashcard_archived_auto_hint">%1$d mastered words auto-archived</string>
+    <string name="view_bookmarks_desc">View Favorites</string>
+    <string name="flashcard_mastered_label">Mastered</string>
+    <string name="archive_filter_unarchived">Active</string>
+    <string name="archive_filter_archived">Archived</string>
+
+    <!-- Flashcard Settings & Enhancements -->
+    <string name="flashcard_settings_title">Flashcard Settings</string>
+    <string name="flashcard_mode_label">Study Mode</string>
+    <string name="flashcard_mode_ja_to_zh">Japanese ➔ Chinese (Recognition)</string>
+    <string name="flashcard_mode_zh_to_ja">Chinese ➔ Japanese (Recall)</string>
+    <string name="flashcard_count_label">Card Count</string>
+    <string name="flashcard_count_all">All (%1$d)</string>
+    <string name="flashcard_pos_label">POS Filter</string>
+    <string name="flashcard_pos_all">All POS</string>
+    <string name="flashcard_auto_tts">Auto Play TTS</string>
+    <string name="flashcard_speak">Speak</string>
+    <string name="flashcard_archive_mastered_btn">Archive Mastered Cards</string>
+    <string name="flashcard_archive_success">Mastered cards archived successfully</string>
+    <string name="flashcard_start_btn">Start Practice</string>
+    <string name="flashcard_scope_label">Review Scope</string>
+    <string name="flashcard_scope_unarchived">Unarchived Only (Routine)</string>
+    <string name="flashcard_scope_archived">Archived Only (Review)</string>
+    <string name="flashcard_scope_all">All Vocabulary (Inc. Archived)</string>
+    <string name="flashcard_eval_oops">Forgot / Oops</string>
+    <string name="flashcard_eval_next">Next</string>
+    <string name="flashcard_eval_actually_remembered">Actually Remembered</string>
+    <string name="flashcard_show_answer">Show Answer</string>
+    <string name="flashcard_next_card">Next</string>
+    <string name="flashcard_unmastered_list">Unmastered Words</string>
+    <string name="flashcard_summary_total">Practiced %1$d words in total</string>
+    <string name="flashcard_unmastered_section">Unmastered Words (%1$d)</string>
+    <string name="flashcard_mastered_section">Mastered Words (%1$d)</string>
+
+    <!-- Settings API Debug Details -->
+    <string name="api_log_time">Time: %1$s</string>
+    <string name="api_log_type">Type: %1$s</string>
+    <string name="api_log_provider">Provider: %1$s</string>
+    <string name="api_log_model">Model: %1$s</string>
+    <string name="api_log_status">Status: %1$s</string>
+    <string name="api_log_tokens">Tokens: %1$d (Input: %2$d, Output: %3$d)</string>
+    <string name="api_log_has_image">Has Image: %1$b</string>
+    <string name="api_log_record">Record: %1$s</string>
+    <string name="api_log_step">Step: %1$s</string>
+    <string name="api_log_attempt">Attempt: %1$s</string>
+    <string name="api_log_elapsed">Elapsed: %1$sms</string>
+    <string name="api_log_message">Message: %1$s</string>
+
+    <!-- Additional UI & Descriptions -->
+    <string name="history_record_tokens">Tokens: %1$s</string>
+    <string name="cd_remove_image">Remove attached image</string>
+    <string name="cd_text_input">Text Input</string>
+    <string name="cd_background_wallpaper">Background Wallpaper</string>
+
+    <!-- Exception warning messages -->
+    <string name="err_missing_api_key">Please configure API Key in Settings first.</string>
+    <string name="err_empty_input">Please enter text or capture an image.</string>
+    <string name="err_ocr_failed">Error extracting text: %1$s</string>
+
+    <!-- Prompt Customization Settings -->
+    <string name="custom_prompts_title">Custom AI Prompts</string>
+    <string name="custom_prompts_desc">Modify system prompts for translation, tokenization and analysis tasks</string>
+    <string name="prompt_editor_title">System Prompt Editor</string>
+    <string name="prompt_save_success">Prompt saved successfully</string>
+    <string name="prompt_reset_success">Prompt reset to default</string>
+    <string name="prompt_reset_all_success">All prompts reset to defaults</string>
+    <string name="prompt_reset_confirm">Are you sure you want to reset this prompt to default?</string>
+    <string name="prompt_reset_all_confirm">Are you sure you want to reset ALL prompts to defaults? This will erase all your custom prompts.</string>
+    <string name="save_prompt">Save Prompt</string>
+    <string name="reset_prompt">Reset Default</string>
+    <string name="reset_all_prompts">Reset All Defaults</string>
+    <string name="prompt_select_type">Select Task</string>
+    <string name="prompt_type_translation">Translation</string>
+    <string name="prompt_type_segments">Morpheme Analysis</string>
+    <string name="prompt_type_clauses">Clause Structure</string>
+    <string name="prompt_type_grammar">Grammar Explanation</string>
+    <string name="prompt_type_tokenizer">Text Tokenizer</string>
+    <string name="prompt_type_tokenizer_ocr">OCR Tokenizer</string>
+    <string name="prompt_type_tokenizer_image">Image Tokenizer</string>
+    <string name="prompt_type_tokenizer_image_repair">Image Repair Tokenizer</string>
+
+    <!-- OCR Box Debug Settings -->
+    <string name="ocr_debug_title">OCR Box Debug</string>
+    <string name="ocr_debug_entry_desc">Preview and tune automatic OCR selection boxes</string>
+    <string name="ocr_debug_pick_sample">Select Sample Image</string>
+    <string name="ocr_debug_reset_defaults">Reset Defaults</string>
+    <string name="ocr_debug_empty_preview">No sample image selected</string>
+    <string name="ocr_debug_preview_hint">Upload a screenshot or photo to preview OCR selection boxes with the current parameters.</string>
+    <string name="ocr_debug_box_count">%1$d boxes detected</string>
+    <string name="ocr_debug_load_failed">Failed to load the selected image.</string>
+    <string name="ocr_debug_merge_settings">Merge thresholds</string>
+    <string name="ocr_debug_padding_settings">Output padding</string>
+    <string name="ocr_debug_horizontal_gap">Horizontal row gap</string>
+    <string name="ocr_debug_horizontal_overlap">Horizontal overlap</string>
+    <string name="ocr_debug_horizontal_fill">Horizontal compactness</string>
+    <string name="ocr_debug_vertical_gap">Vertical column gap</string>
+    <string name="ocr_debug_vertical_overlap">Vertical overlap</string>
+    <string name="ocr_debug_vertical_fill">Vertical compactness</string>
+    <string name="ocr_debug_horizontal_padding_x">Horizontal padding X</string>
+    <string name="ocr_debug_horizontal_padding_y">Horizontal padding Y</string>
+    <string name="ocr_debug_vertical_padding_x">Vertical padding X</string>
+    <string name="ocr_debug_vertical_padding_y">Vertical padding Y</string>
+    <string name="ocr_debug_detector_engine">Detector engine</string>
+    <string name="ocr_detector_engine_title">OCR box detector</string>
+    <string name="ocr_debug_engine_mlkit">ML Kit</string>
+    <string name="ocr_debug_engine_rapidocr">RapidOCR</string>
+    <string name="ocr_debug_engine_hybrid">Hybrid</string>
+    <string name="ocr_debug_engine_auto">Auto</string>
+    <string name="ocr_debug_preview_mode">Preview mode</string>
+    <string name="ocr_debug_preview_final">Final</string>
+    <string name="ocr_debug_preview_raw">Raw</string>
+    <string name="ocr_debug_rapidocr_settings">RapidOCR raw detector</string>
+    <string name="ocr_debug_rapidocr_input_size">Input long side</string>
+    <string name="ocr_debug_rapidocr_det_threshold">Detection threshold</string>
+    <string name="ocr_debug_rapidocr_box_threshold">Box threshold</string>
+    <string name="ocr_debug_rapidocr_unclip">Unclip ratio</string>
+
+    <!-- New UI and Favorites Strings -->
+    <string name="no_source_sentence">(No original sentence)</string>
+    <string name="collapse">Collapse</string>
+    <string name="expand">Expand</string>
+    <string name="view_details">View Details</string>
+    <string name="unfavorite">Unfavorite</string>
+    <string name="dict_form_reading">Reading</string>
+    <string name="flashcard_no_weak_cards">No weak cards to practice</string>
+</resources>
