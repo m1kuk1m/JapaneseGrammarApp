@@ -6,8 +6,10 @@ Android app for Japanese grammar analysis, OCR-assisted text capture, bookmarks,
 
 ## Preview
 
-![Zen design mock](design_mocks/mock_design_1_zen.svg)
-![Minimal design mock](design_mocks/mock_design_2_minimal.svg)
+<p>
+  <img src="docs/screenshots/home.jpg" alt="Japanese Grammar App home screen" width="280">
+  <img src="docs/screenshots/analysis-result.jpg" alt="Japanese Grammar App analysis result screen" width="280">
+</p>
 
 ## Tech Stack
 
