@@ -231,6 +231,7 @@ fun SettingsScreen(
 
     val apiLogs by com.example.japanesegrammarapp.utils.AppLogger.apiLogs.collectAsState()
     var showApiLogsDialog by remember { mutableStateOf(false) }
+    var showOcrDebugDialog by remember { mutableStateOf(false) }
     var selectedApiLogDetail by remember { mutableStateOf<com.example.japanesegrammarapp.utils.ApiDebugLog?>(null) }
     var includeFullApiLogExport by remember { mutableStateOf(false) }
     var pendingShareLogs by remember { mutableStateOf<Boolean?>(null) }
@@ -257,6 +258,15 @@ fun SettingsScreen(
         onShareAppLogs = viewModel::shareAppLogs,
         onShareApiLogs = viewModel::shareApiLogs
     )
+
+    if (showOcrDebugDialog) {
+        OcrBoxDebugDialog(
+            settings = uiState.ocrBoxDetectionSettings,
+            onSettingsChange = viewModel::setOcrBoxDetectionSettings,
+            onResetDefaults = viewModel::resetOcrBoxDetectionSettings,
+            onDismiss = { showOcrDebugDialog = false }
+        )
+    }
 
     pendingTtsKeyClearProvider?.let { provider ->
         AlertDialog(
@@ -398,8 +408,10 @@ fun SettingsScreen(
                 onImageTokenizerModeChange = viewModel::setImageTokenizerMode,
                 onShowTokenDialog = { showTokenDialog = true },
                 onShowApiLogs = { showApiLogsDialog = true },
+                onShowOcrDebug = { showOcrDebugDialog = true },
                 onShowPromptEditor = { showPromptEditor = true }
             )
+
             // API Priority Section
             SettingsApiPrioritySection(
                 uiState = uiState,

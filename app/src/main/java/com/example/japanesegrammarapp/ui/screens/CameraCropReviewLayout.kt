@@ -43,9 +43,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect as ComposeRect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -58,12 +58,14 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.japanesegrammarapp.R
+import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
 import com.example.japanesegrammarapp.utils.AppLogger
 @Composable
 fun ImageCropReviewLayout(
     bitmap: Bitmap,
+    ocrBoxDetectionSettings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT,
     onCancel: () -> Unit,
     onConfirm: (Bitmap) -> Unit
 ) {
@@ -84,16 +86,14 @@ fun ImageCropReviewLayout(
         cropState.isInitialized = false
     }
 
-    var detectedBoxes by remember(bitmap) { mutableStateOf<List<Rect>>(emptyList()) }
+    var detectedBoxes by remember(bitmap, ocrBoxDetectionSettings) { mutableStateOf<List<Rect>>(emptyList()) }
     var hideOcrBoxes by remember { mutableStateOf(false) }
 
-    LaunchedEffect(bitmap) {
+    LaunchedEffect(bitmap, ocrBoxDetectionSettings) {
         try {
-            val mergedBoxes = detectCameraOcrBoxes(bitmap)
+            val mergedBoxes = detectCameraOcrBoxes(bitmap, ocrBoxDetectionSettings)
             detectedBoxes = mergedBoxes
-            if (mergedBoxes.isEmpty()) {
-                hideOcrBoxes = true
-            }
+            hideOcrBoxes = mergedBoxes.isEmpty()
         } catch (e: Exception) {
             AppLogger.e("CAMERA", "Failed to detect OCR text boxes", e)
         }
@@ -113,12 +113,10 @@ fun ImageCropReviewLayout(
     }
 
     fun confirmOcrBox(box: Rect) {
-        val paddingX = (box.width() * 0.05f).toInt()
-        val paddingY = (box.height() * 0.05f).toInt()
-        val x = maxOf(0, box.left - paddingX)
-        val y = maxOf(0, box.top - paddingY)
-        val w = minOf(bitmap.width - x, box.width() + paddingX * 2)
-        val h = minOf(bitmap.height - y, box.height() + paddingY * 2)
+        val x = box.left.coerceIn(0, bitmap.width)
+        val y = box.top.coerceIn(0, bitmap.height)
+        val w = minOf(bitmap.width - x, box.width())
+        val h = minOf(bitmap.height - y, box.height())
         confirmBitmapRegion(x, y, w, h)
     }
 
@@ -394,33 +392,40 @@ fun ImageCropReviewLayout(
                             val imageRight = cropState.imgOffsetX + cropState.imgDispWidth
                             val imageBottom = cropState.imgOffsetY + cropState.imgDispHeight
                             val visualPadding = 3.dp.toPx()
-
-                            val dimmingPath = Path().apply {
-                                fillType = PathFillType.EvenOdd
-                                addRect(ComposeRect(imageLeft, imageTop, imageRight, imageBottom))
-
-                                detectedBoxes.forEach { box ->
-                                    val displayLeft = (cropState.imgOffsetX + box.left * cropState.scaleFactor - visualPadding).coerceIn(imageLeft, imageRight)
-                                    val displayTop = (cropState.imgOffsetY + box.top * cropState.scaleFactor - visualPadding).coerceIn(imageTop, imageBottom)
-                                    val displayRight = (cropState.imgOffsetX + box.right * cropState.scaleFactor + visualPadding).coerceIn(imageLeft, imageRight)
-                                    val displayBottom = (cropState.imgOffsetY + box.bottom * cropState.scaleFactor + visualPadding).coerceIn(imageTop, imageBottom)
-
-                                    if (displayRight > displayLeft && displayBottom > displayTop) {
-                                        addRect(ComposeRect(displayLeft, displayTop, displayRight, displayBottom))
-                                    }
-                                }
-                            }
-
-                            drawPath(
-                                path = dimmingPath,
-                                color = Color.Black.copy(alpha = 0.58f)
-                            )
-
-                            detectedBoxes.forEach { box ->
+                            val highlightedRects = detectedBoxes.mapNotNull { box ->
                                 val displayLeft = (cropState.imgOffsetX + box.left * cropState.scaleFactor - visualPadding).coerceIn(imageLeft, imageRight)
                                 val displayTop = (cropState.imgOffsetY + box.top * cropState.scaleFactor - visualPadding).coerceIn(imageTop, imageBottom)
                                 val displayRight = (cropState.imgOffsetX + box.right * cropState.scaleFactor + visualPadding).coerceIn(imageLeft, imageRight)
                                 val displayBottom = (cropState.imgOffsetY + box.bottom * cropState.scaleFactor + visualPadding).coerceIn(imageTop, imageBottom)
+
+                                if (displayRight > displayLeft && displayBottom > displayTop) {
+                                    ComposeRect(displayLeft, displayTop, displayRight, displayBottom)
+                                } else {
+                                    null
+                                }
+                            }
+
+                            drawContext.canvas.saveLayer(ComposeRect(imageLeft, imageTop, imageRight, imageBottom), Paint())
+                            drawRect(
+                                color = Color.Black.copy(alpha = 0.24f),
+                                topLeft = Offset(imageLeft, imageTop),
+                                size = Size(imageRight - imageLeft, imageBottom - imageTop)
+                            )
+                            highlightedRects.forEach { rect ->
+                                drawRect(
+                                    color = Color.Transparent,
+                                    topLeft = Offset(rect.left, rect.top),
+                                    size = Size(rect.width, rect.height),
+                                    blendMode = BlendMode.Clear
+                                )
+                            }
+                            drawContext.canvas.restore()
+
+                            highlightedRects.forEach { rect ->
+                                val displayLeft = rect.left
+                                val displayTop = rect.top
+                                val displayRight = rect.right
+                                val displayBottom = rect.bottom
                                 val frameWidth = displayRight - displayLeft
                                 val frameHeight = displayBottom - displayTop
 
@@ -428,13 +433,28 @@ fun ImageCropReviewLayout(
                                     return@forEach
                                 }
 
-                                val borderStroke = 1.5.dp.toPx()
+                                val haloStroke = 5.dp.toPx()
+                                val shadowStroke = 3.5.dp.toPx()
+                                val borderStroke = 2.dp.toPx()
                                 val cornerLength = minOf(12.dp.toPx(), frameWidth / 2f, frameHeight / 2f)
                                 val cornerStroke = 2.dp.toPx()
                                 val selectionColor = Color.White
 
                                 drawRect(
-                                    color = selectionColor.copy(alpha = 0.95f),
+                                    color = selectionColor.copy(alpha = 0.20f),
+                                    topLeft = Offset(displayLeft, displayTop),
+                                    size = Size(frameWidth, frameHeight),
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = haloStroke)
+                                )
+                                drawRect(
+                                    color = Color.Black.copy(alpha = 0.35f),
+                                    topLeft = Offset(displayLeft, displayTop),
+                                    size = Size(frameWidth, frameHeight),
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = shadowStroke)
+                                )
+
+                                drawRect(
+                                    color = selectionColor,
                                     topLeft = Offset(displayLeft, displayTop),
                                     size = Size(frameWidth, frameHeight),
                                     style = androidx.compose.ui.graphics.drawscope.Stroke(width = borderStroke)

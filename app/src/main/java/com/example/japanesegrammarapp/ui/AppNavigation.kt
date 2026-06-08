@@ -423,9 +423,12 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             )
         ) { backStackEntry ->
             val galleryImageUriString = backStackEntry.arguments?.getString("imageUri")
+            val settingsViewModel: SettingsViewModel = hiltViewModel()
+            val settingsUiState by settingsViewModel.uiState.collectAsState()
             CameraScreen(
                 navController = navController,
-                galleryImageUriString = galleryImageUriString
+                galleryImageUriString = galleryImageUriString,
+                ocrBoxDetectionSettings = settingsUiState.ocrBoxDetectionSettings
             )
         }
 

@@ -57,12 +57,14 @@ import android.content.pm.ActivityInfo
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CameraScreen(
     navController: NavController,
-    galleryImageUriString: String? = null
+    galleryImageUriString: String? = null,
+    ocrBoxDetectionSettings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -284,6 +286,7 @@ fun CameraScreen(
                     capturedBitmap?.let { bitmap ->
                         ImageCropReviewLayout(
                             bitmap = bitmap,
+                            ocrBoxDetectionSettings = ocrBoxDetectionSettings,
                             onCancel = {
                                 if (!galleryImageUriString.isNullOrBlank()) {
                                     // If started from gallery selection, go back directly

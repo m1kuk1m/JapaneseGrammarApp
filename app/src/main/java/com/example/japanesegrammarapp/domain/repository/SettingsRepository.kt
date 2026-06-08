@@ -1,6 +1,7 @@
 package com.example.japanesegrammarapp.domain.repository
 
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
+import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 
 interface SettingsRepository {
     fun getAllProviders(): List<String>
@@ -27,6 +28,9 @@ interface SettingsRepository {
     fun setUseOcr(value: Boolean)
     fun getImageTokenizerMode(): String
     fun setImageTokenizerMode(mode: String)
+    fun getOcrBoxDetectionSettings(): OcrBoxDetectionSettings
+    fun setOcrBoxDetectionSettings(settings: OcrBoxDetectionSettings)
+    fun resetOcrBoxDetectionSettings()
     fun getAutoNavigateResult(): Boolean
     fun setAutoNavigateResult(value: Boolean)
     fun getModelsForProvider(provider: String): List<String>

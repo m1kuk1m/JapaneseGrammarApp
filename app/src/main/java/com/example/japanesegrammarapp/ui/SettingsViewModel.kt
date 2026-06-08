@@ -10,6 +10,7 @@ import com.example.japanesegrammarapp.domain.repository.HistoryRepository
 import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
+import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.utils.ApiDebugLog
 import com.example.japanesegrammarapp.utils.ApiLogExportFormatter
@@ -53,6 +54,7 @@ class SettingsViewModel @Inject constructor(
             val useOcr = settingsRepository.getUseOcr()
             val autoNavigateResult = settingsRepository.getAutoNavigateResult()
             val imageTokenizerMode = settingsRepository.getImageTokenizerMode()
+            val ocrBoxDetectionSettings = settingsRepository.getOcrBoxDetectionSettings()
             val backupProvider = settingsRepository.getBackupProvider()
             val backupModel = settingsRepository.getBackupModel()
 
@@ -79,6 +81,7 @@ class SettingsViewModel @Inject constructor(
                     useOcr = useOcr,
                     autoNavigateResult = autoNavigateResult,
                     imageTokenizerMode = imageTokenizerMode,
+                    ocrBoxDetectionSettings = ocrBoxDetectionSettings,
                     providerModels = providerModels,
                     availableModels = models,
                     backupProvider = backupProvider,
@@ -238,6 +241,17 @@ class SettingsViewModel @Inject constructor(
     fun setImageTokenizerMode(mode: String) {
         settingsRepository.setImageTokenizerMode(mode)
         _uiState.update { it.copy(imageTokenizerMode = mode) }
+    }
+
+    fun setOcrBoxDetectionSettings(settings: OcrBoxDetectionSettings) {
+        val normalized = settings.normalized()
+        settingsRepository.setOcrBoxDetectionSettings(normalized)
+        _uiState.update { it.copy(ocrBoxDetectionSettings = normalized) }
+    }
+
+    fun resetOcrBoxDetectionSettings() {
+        settingsRepository.resetOcrBoxDetectionSettings()
+        _uiState.update { it.copy(ocrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT) }
     }
 
     fun setActiveProvider(provider: String) {

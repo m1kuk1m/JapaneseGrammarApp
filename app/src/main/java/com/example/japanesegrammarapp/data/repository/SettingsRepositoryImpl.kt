@@ -6,6 +6,7 @@ import com.example.japanesegrammarapp.di.StandardPrefs
 import com.example.japanesegrammarapp.domain.ApplicationScope
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
+import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.example.japanesegrammarapp.network.PromptManager
@@ -29,6 +30,7 @@ class SettingsRepositoryImpl @Inject constructor(
     @Volatile private var cachedActiveProvider: String? = null
     @Volatile private var cachedUseOcr: Boolean? = null
     @Volatile private var cachedImageTokenizerMode: String? = null
+    @Volatile private var cachedOcrBoxDetectionSettings: OcrBoxDetectionSettings? = null
     @Volatile private var cachedBackupProvider: String? = null
     @Volatile private var cachedBackupModel: String? = null
     private val cachedActiveModels = java.util.concurrent.ConcurrentHashMap<String, String>()
@@ -145,6 +147,42 @@ class SettingsRepositoryImpl @Inject constructor(
     override fun setImageTokenizerMode(mode: String) {
         cachedImageTokenizerMode = mode
         settingPrefs.edit().putString("image_tokenizer_mode", mode).apply()
+    }
+
+    override fun getOcrBoxDetectionSettings(): OcrBoxDetectionSettings {
+        return cachedOcrBoxDetectionSettings ?: synchronized(this) {
+            val cached = cachedOcrBoxDetectionSettings
+            if (cached != null) {
+                cached
+            } else {
+                val json = settingPrefs.getString(OCR_BOX_DETECTION_SETTINGS_KEY, null)
+                val value = if (!json.isNullOrBlank()) {
+                    try {
+                        gson.fromJson(json, OcrBoxDetectionSettings::class.java)
+                            ?.normalized()
+                            ?: OcrBoxDetectionSettings.DEFAULT
+                    } catch (e: Exception) {
+                        AppLogger.e("SETTINGS", "Failed to parse OCR box detection settings", e)
+                        OcrBoxDetectionSettings.DEFAULT
+                    }
+                } else {
+                    OcrBoxDetectionSettings.DEFAULT
+                }
+                cachedOcrBoxDetectionSettings = value
+                value
+            }
+        }
+    }
+
+    override fun setOcrBoxDetectionSettings(settings: OcrBoxDetectionSettings) {
+        val normalized = settings.normalized()
+        cachedOcrBoxDetectionSettings = normalized
+        settingPrefs.edit().putString(OCR_BOX_DETECTION_SETTINGS_KEY, gson.toJson(normalized)).apply()
+    }
+
+    override fun resetOcrBoxDetectionSettings() {
+        cachedOcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT
+        settingPrefs.edit().remove(OCR_BOX_DETECTION_SETTINGS_KEY).apply()
     }
 
     override fun getModelsForProvider(provider: String): List<String> {
@@ -658,6 +696,10 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     private fun endpointPoolKey(provider: String): String = "llm_${provider}_endpoints_json"
+
+    private companion object {
+        const val OCR_BOX_DETECTION_SETTINGS_KEY = "ocr_box_detection_settings_json"
+    }
 
     private fun endpointKey(endpointId: String): String = "llm_endpoint_${endpointId}_key"
 

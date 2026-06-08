@@ -155,6 +155,7 @@ fun SettingsGeneralSection(
     onImageTokenizerModeChange: (String) -> Unit,
     onShowTokenDialog: () -> Unit,
     onShowApiLogs: () -> Unit,
+    onShowOcrDebug: () -> Unit,
     onShowPromptEditor: () -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
@@ -234,6 +235,18 @@ fun SettingsGeneralSection(
                     onCheckedChange = onUseOcrChange,
                     colors = SettingsSwitchColors(onPrimaryColor, primaryColor, sumiInk)
                 )
+            }
+        )
+
+        SettingsDivider()
+
+        SettingsItem(
+            icon = Icons.Default.Tune,
+            title = stringResource(R.string.ocr_debug_title),
+            subtitle = stringResource(R.string.ocr_debug_entry_desc),
+            onClick = onShowOcrDebug,
+            trailingContent = {
+                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = sumiInk.copy(alpha = 0.4f))
             }
         )
 

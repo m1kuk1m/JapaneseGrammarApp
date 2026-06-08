@@ -224,6 +224,7 @@
     <string name="api_debug_filter_all">All</string>
     <string name="clear_api_debug_logs">Clear API Debug Logs</string>
     <string name="api_debug_empty">No records yet. Run an analysis to show each API role\'s request summary, raw response, and error details.</string>
+    <string name="api_debug_no_filter_results">No API logs match the current search or filter.</string>
     <string name="api_debug_meta">image=%1$s, tokens=%2$d (in=%3$d, out=%4$d)</string>
     <string name="api_debug_user_prompt">User Prompt</string>
     <string name="api_debug_system_prompt">System Prompt Preview</string>
@@ -318,12 +319,18 @@
     <string name="api_log_export_full_confirm">Full API debug export includes sanitized prompts, responses, errors, and stack traces. Export only for debugging.</string>
     <string name="api_log_copy_summary_confirm">API logs will be copied as a sanitized summary without full prompts or responses.</string>
     <string name="api_log_copy_full_confirm">Full API debug copy includes sanitized prompts, responses, errors, and stack traces. Copy only for debugging.</string>
+    <string name="api_debug_filter_start">Start</string>
     <string name="api_debug_filter_success">Success</string>
+    <string name="api_debug_filter_retry">Retry</string>
+    <string name="api_debug_filter_backup">Backup</string>
+    <string name="api_debug_filter_timeout">Timeout</string>
     <string name="api_debug_filter_error">Error</string>
     <string name="api_details_metadata">Metadata</string>
     <string name="api_details_prompts">Prompts</string>
     <string name="api_details_response">Response</string>
     <string name="api_details_error_info">Error Info</string>
+    <string name="api_log_summary_context">record=%1$s, step=%2$s, attempt=%3$s, elapsed=%4$sms</string>
+    <string name="api_log_unknown_value">-</string>
     <string name="import_history">Import</string>
     <string name="import_no_valid_records">No valid history records found</string>
     <string name="import_success">Successfully imported %1$d records</string>
@@ -449,6 +456,11 @@
     <string name="api_log_status">Status: %1$s</string>
     <string name="api_log_tokens">Tokens: %1$d (Input: %2$d, Output: %3$d)</string>
     <string name="api_log_has_image">Has Image: %1$b</string>
+    <string name="api_log_record">Record: %1$s</string>
+    <string name="api_log_step">Step: %1$s</string>
+    <string name="api_log_attempt">Attempt: %1$s</string>
+    <string name="api_log_elapsed">Elapsed: %1$sms</string>
+    <string name="api_log_message">Message: %1$s</string>
 
     <!-- Additional UI & Descriptions -->
     <string name="history_record_tokens">Tokens: %1$s</string>
@@ -482,6 +494,28 @@
     <string name="prompt_type_tokenizer_ocr">OCR Tokenizer</string>
     <string name="prompt_type_tokenizer_image">Image Tokenizer</string>
     <string name="prompt_type_tokenizer_image_repair">Image Repair Tokenizer</string>
+
+    <!-- OCR Box Debug Settings -->
+    <string name="ocr_debug_title">OCR Box Debug</string>
+    <string name="ocr_debug_entry_desc">Preview and tune automatic OCR selection boxes</string>
+    <string name="ocr_debug_pick_sample">Select Sample Image</string>
+    <string name="ocr_debug_reset_defaults">Reset Defaults</string>
+    <string name="ocr_debug_empty_preview">No sample image selected</string>
+    <string name="ocr_debug_preview_hint">Upload a screenshot or photo to preview OCR selection boxes with the current parameters.</string>
+    <string name="ocr_debug_box_count">%1$d boxes detected</string>
+    <string name="ocr_debug_load_failed">Failed to load the selected image.</string>
+    <string name="ocr_debug_merge_settings">Merge thresholds</string>
+    <string name="ocr_debug_padding_settings">Output padding</string>
+    <string name="ocr_debug_horizontal_gap">Horizontal row gap</string>
+    <string name="ocr_debug_horizontal_overlap">Horizontal overlap</string>
+    <string name="ocr_debug_horizontal_fill">Horizontal compactness</string>
+    <string name="ocr_debug_vertical_gap">Vertical column gap</string>
+    <string name="ocr_debug_vertical_overlap">Vertical overlap</string>
+    <string name="ocr_debug_vertical_fill">Vertical compactness</string>
+    <string name="ocr_debug_horizontal_padding_x">Horizontal padding X</string>
+    <string name="ocr_debug_horizontal_padding_y">Horizontal padding Y</string>
+    <string name="ocr_debug_vertical_padding_x">Vertical padding X</string>
+    <string name="ocr_debug_vertical_padding_y">Vertical padding Y</string>
 
     <!-- New UI and Favorites Strings -->
     <string name="no_source_sentence">(No original sentence)</string>

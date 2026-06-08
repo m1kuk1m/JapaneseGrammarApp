@@ -1,6 +1,7 @@
 package com.example.japanesegrammarapp.ui
 
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
+import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 
 data class SettingsUiState(
     val activeProvider: String = "Gemini",
@@ -10,6 +11,7 @@ data class SettingsUiState(
     val useOcr: Boolean = true,
     val autoNavigateResult: Boolean = true,
     val imageTokenizerMode: String = "repair",
+    val ocrBoxDetectionSettings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT,
     val isFetchingModels: Boolean = false,
     val fetchingProvider: String? = null,
     val backupProvider: String = "DeepSeek",

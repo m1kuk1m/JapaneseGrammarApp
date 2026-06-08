@@ -233,6 +233,7 @@
     <string name="api_debug_filter_all">すべて</string>
     <string name="clear_api_debug_logs">APIデバッグログを消去</string>
     <string name="api_debug_empty">まだ記録がありません。分析を実行すると、各API役割のリクエスト概要、原文応答、エラー詳細が表示されます。</string>
+    <string name="api_debug_no_filter_results">現在の検索条件またはフィルターに一致するAPIログはありません。</string>
     <string name="api_debug_meta">image=%1$s, tokens=%2$d (in=%3$d, out=%4$d)</string>
     <string name="api_debug_user_prompt">ユーザープロンプト</string>
     <string name="api_debug_system_prompt">システムプロンプトプレビュー</string>
@@ -304,12 +305,26 @@
     <string name="api_log_copy_response">レスポンスをコピー</string>
     <string name="api_log_copy_error">エラーをコピー</string>
     <string name="api_log_share_all">APIデバッグログをエクスポート</string>
+    <string name="api_log_include_full_debug">完全なプロンプト/レスポンスを含める</string>
+    <string name="log_export_confirm_title">ログをエクスポートしますか？</string>
+    <string name="log_copy_confirm_title">ログをコピーしますか？</string>
+    <string name="app_log_export_confirm">アプリログには診断情報が含まれる場合があります。エクスポートしますか？</string>
+    <string name="api_log_export_summary_confirm">APIログは、完全なプロンプトやレスポンスを含まないサニタイズ済み概要としてエクスポートされます。</string>
+    <string name="api_log_export_full_confirm">完全なAPIデバッグエクスポートには、サニタイズ済みのプロンプト、レスポンス、エラー、スタックトレースが含まれます。デバッグ用途でのみ使用してください。</string>
+    <string name="api_log_copy_summary_confirm">APIログは、完全なプロンプトやレスポンスを含まないサニタイズ済み概要としてコピーされます。</string>
+    <string name="api_log_copy_full_confirm">完全なAPIデバッグコピーには、サニタイズ済みのプロンプト、レスポンス、エラー、スタックトレースが含まれます。デバッグ用途でのみ使用してください。</string>
+    <string name="api_debug_filter_start">開始</string>
     <string name="api_debug_filter_success">成功</string>
+    <string name="api_debug_filter_retry">再試行</string>
+    <string name="api_debug_filter_backup">予備API</string>
+    <string name="api_debug_filter_timeout">タイムアウト</string>
     <string name="api_debug_filter_error">失敗</string>
     <string name="api_details_metadata">メタデータ</string>
     <string name="api_details_prompts">プロンプト</string>
     <string name="api_details_response">レスポンス</string>
     <string name="api_details_error_info">エラー情報</string>
+    <string name="api_log_summary_context">record=%1$s, step=%2$s, attempt=%3$s, elapsed=%4$sms</string>
+    <string name="api_log_unknown_value">-</string>
     <string name="import_history">インポート</string>
     <string name="import_no_valid_records">有効な履歴レコードが見つかりません</string>
     <string name="import_success">%1$d 件のレコードが正常にインポートされました</string>
@@ -427,6 +442,11 @@
     <string name="api_log_status">ステータス：%1$s</string>
     <string name="api_log_tokens">トークン消費量：%1$d (入力: %2$d, 出力: %3$d)</string>
     <string name="api_log_has_image">画像添付：%1$b</string>
+    <string name="api_log_record">レコード：%1$s</string>
+    <string name="api_log_step">ステップ：%1$s</string>
+    <string name="api_log_attempt">試行回数：%1$s</string>
+    <string name="api_log_elapsed">経過時間：%1$sms</string>
+    <string name="api_log_message">メッセージ：%1$s</string>
 
     <!-- Additional UI & Descriptions -->
     <string name="history_record_tokens">トークン消費：%1$s</string>
@@ -480,4 +500,24 @@
     <string name="unfavorite">お気に入り解除</string>
     <string name="dict_form_reading">読み</string>
     <string name="flashcard_no_weak_cards">苦手なカードはありません</string>
+    <string name="ocr_debug_title">OCR範囲デバッグ</string>
+    <string name="ocr_debug_entry_desc">OCR自動選択枠のプレビューと調整</string>
+    <string name="ocr_debug_pick_sample">サンプル画像を選択</string>
+    <string name="ocr_debug_reset_defaults">デフォルトに戻す</string>
+    <string name="ocr_debug_empty_preview">サンプル画像が未選択です</string>
+    <string name="ocr_debug_preview_hint">スクリーンショットや写真をアップロードして、現在のパラメータでOCR選択枠を確認できます。</string>
+    <string name="ocr_debug_box_count">%1$d 個の枠を検出</string>
+    <string name="ocr_debug_load_failed">選択した画像を読み込めませんでした。</string>
+    <string name="ocr_debug_merge_settings">結合しきい値</string>
+    <string name="ocr_debug_padding_settings">出力余白</string>
+    <string name="ocr_debug_horizontal_gap">横書き行間</string>
+    <string name="ocr_debug_horizontal_overlap">横書き重なり</string>
+    <string name="ocr_debug_horizontal_fill">横書き密度</string>
+    <string name="ocr_debug_vertical_gap">縦書き列間</string>
+    <string name="ocr_debug_vertical_overlap">縦書き重なり</string>
+    <string name="ocr_debug_vertical_fill">縦書き密度</string>
+    <string name="ocr_debug_horizontal_padding_x">横書き左右余白</string>
+    <string name="ocr_debug_horizontal_padding_y">横書き上下余白</string>
+    <string name="ocr_debug_vertical_padding_x">縦書き左右余白</string>
+    <string name="ocr_debug_vertical_padding_y">縦書き上下余白</string>
 </resources>

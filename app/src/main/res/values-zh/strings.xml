@@ -233,6 +233,7 @@
     <string name="api_debug_filter_all">全部</string>
     <string name="clear_api_debug_logs">清除 API 调试记录</string>
     <string name="api_debug_empty">暂无记录。运行一次分析后，这里会显示各职责 API 的请求摘要、原始返回和错误详情。</string>
+    <string name="api_debug_no_filter_results">没有符合当前搜索或筛选条件的 API 日志。</string>
     <string name="api_debug_meta">image=%1$s, tokens=%2$d (in=%3$d, out=%4$d)</string>
     <string name="api_debug_user_prompt">用户提示词</string>
     <string name="api_debug_system_prompt">系统提示词预览</string>
@@ -304,12 +305,26 @@
     <string name="api_log_copy_response">复制原始返回</string>
     <string name="api_log_copy_error">复制报错内容</string>
     <string name="api_log_share_all">导出 API 调试日志</string>
+    <string name="api_log_include_full_debug">包含完整提示词/响应</string>
+    <string name="log_export_confirm_title">导出日志？</string>
+    <string name="log_copy_confirm_title">复制日志？</string>
+    <string name="app_log_export_confirm">应用日志可能包含诊断信息。现在导出吗？</string>
+    <string name="api_log_export_summary_confirm">API 日志将以脱敏摘要形式导出，不包含完整提示词或响应。</string>
+    <string name="api_log_export_full_confirm">完整 API 调试导出会包含已脱敏的提示词、响应、错误和堆栈信息，仅建议用于调试。</string>
+    <string name="api_log_copy_summary_confirm">API 日志将以脱敏摘要形式复制，不包含完整提示词或响应。</string>
+    <string name="api_log_copy_full_confirm">完整 API 调试复制会包含已脱敏的提示词、响应、错误和堆栈信息，仅建议用于调试。</string>
+    <string name="api_debug_filter_start">开始</string>
     <string name="api_debug_filter_success">成功</string>
+    <string name="api_debug_filter_retry">重试</string>
+    <string name="api_debug_filter_backup">备用</string>
+    <string name="api_debug_filter_timeout">超时</string>
     <string name="api_debug_filter_error">失败</string>
     <string name="api_details_metadata">元数据</string>
     <string name="api_details_prompts">提示词</string>
     <string name="api_details_response">接口返回</string>
     <string name="api_details_error_info">错误信息</string>
+    <string name="api_log_summary_context">record=%1$s, step=%2$s, attempt=%3$s, elapsed=%4$sms</string>
+    <string name="api_log_unknown_value">-</string>
     <string name="import_history">导入记录</string>
     <string name="import_no_valid_records">未找到有效的历史记录</string>
     <string name="import_success">成功导入 %1$d 条记录</string>
@@ -435,6 +450,11 @@
     <string name="api_log_status">接口状态：%1$s</string>
     <string name="api_log_tokens">Token消耗：%1$d (输入: %2$d, 输出: %3$d)</string>
     <string name="api_log_has_image">附带图片：%1$b</string>
+    <string name="api_log_record">记录：%1$s</string>
+    <string name="api_log_step">步骤：%1$s</string>
+    <string name="api_log_attempt">尝试次数：%1$s</string>
+    <string name="api_log_elapsed">耗时：%1$sms</string>
+    <string name="api_log_message">消息：%1$s</string>
 
     <!-- Additional UI & Descriptions -->
     <string name="history_record_tokens">消耗量：%1$s</string>
@@ -480,4 +500,24 @@
     <string name="unfavorite">取消收藏</string>
     <string name="dict_form_reading">读音</string>
     <string name="flashcard_no_weak_cards">没有不熟的卡片可练</string>
+    <string name="ocr_debug_title">OCR 选框调试</string>
+    <string name="ocr_debug_entry_desc">预览并调整 OCR 自动选框参数</string>
+    <string name="ocr_debug_pick_sample">选择示例图片</string>
+    <string name="ocr_debug_reset_defaults">恢复默认</string>
+    <string name="ocr_debug_empty_preview">尚未选择示例图片</string>
+    <string name="ocr_debug_preview_hint">上传截图或照片，用当前参数预览 OCR 自动选框结果。</string>
+    <string name="ocr_debug_box_count">检测到 %1$d 个选框</string>
+    <string name="ocr_debug_load_failed">无法加载所选图片。</string>
+    <string name="ocr_debug_merge_settings">合并阈值</string>
+    <string name="ocr_debug_padding_settings">输出留白</string>
+    <string name="ocr_debug_horizontal_gap">横排行距</string>
+    <string name="ocr_debug_horizontal_overlap">横排重叠</string>
+    <string name="ocr_debug_horizontal_fill">横排紧凑度</string>
+    <string name="ocr_debug_vertical_gap">竖排列距</string>
+    <string name="ocr_debug_vertical_overlap">竖排重叠</string>
+    <string name="ocr_debug_vertical_fill">竖排紧凑度</string>
+    <string name="ocr_debug_horizontal_padding_x">横排水平留白</string>
+    <string name="ocr_debug_horizontal_padding_y">横排垂直留白</string>
+    <string name="ocr_debug_vertical_padding_x">竖排水平留白</string>
+    <string name="ocr_debug_vertical_padding_y">竖排垂直留白</string>
 </resources>

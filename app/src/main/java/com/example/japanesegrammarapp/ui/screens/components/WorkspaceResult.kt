@@ -103,7 +103,7 @@ fun WorkspaceResultContent(
             }
         }
     } else {
-        var selectedSegmentIndex by remember(data) { mutableStateOf(-1) }
+        var selectedSegmentIndex by remember(uiState.selectedRecord?.id) { mutableStateOf(-1) }
 
         Column(
             modifier = Modifier
