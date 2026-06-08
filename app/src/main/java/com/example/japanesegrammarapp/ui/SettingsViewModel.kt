@@ -11,6 +11,7 @@ import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
+import com.example.japanesegrammarapp.domain.model.OcrBoxDetectorEngine
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.utils.ApiDebugLog
 import com.example.japanesegrammarapp.utils.ApiLogExportFormatter
@@ -245,6 +246,12 @@ class SettingsViewModel @Inject constructor(
 
     fun setOcrBoxDetectionSettings(settings: OcrBoxDetectionSettings) {
         val normalized = settings.normalized()
+        settingsRepository.setOcrBoxDetectionSettings(normalized)
+        _uiState.update { it.copy(ocrBoxDetectionSettings = normalized) }
+    }
+
+    fun setOcrBoxDetectorEngine(engine: OcrBoxDetectorEngine) {
+        val normalized = _uiState.value.ocrBoxDetectionSettings.copy(detectorEngine = engine).normalized()
         settingsRepository.setOcrBoxDetectionSettings(normalized)
         _uiState.update { it.copy(ocrBoxDetectionSettings = normalized) }
     }

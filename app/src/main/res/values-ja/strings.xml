@@ -520,4 +520,18 @@
     <string name="ocr_debug_horizontal_padding_y">横書き上下余白</string>
     <string name="ocr_debug_vertical_padding_x">縦書き左右余白</string>
     <string name="ocr_debug_vertical_padding_y">縦書き上下余白</string>
+    <string name="ocr_debug_detector_engine">検出エンジン</string>
+    <string name="ocr_detector_engine_title">OCR選択枠の検出方式</string>
+    <string name="ocr_debug_engine_mlkit">ML Kit</string>
+    <string name="ocr_debug_engine_rapidocr">RapidOCR</string>
+    <string name="ocr_debug_engine_hybrid">ハイブリッド</string>
+    <string name="ocr_debug_engine_auto">自動</string>
+    <string name="ocr_debug_preview_mode">プレビューモード</string>
+    <string name="ocr_debug_preview_final">最終</string>
+    <string name="ocr_debug_preview_raw">原始</string>
+    <string name="ocr_debug_rapidocr_settings">RapidOCR原始検出</string>
+    <string name="ocr_debug_rapidocr_input_size">入力の長辺</string>
+    <string name="ocr_debug_rapidocr_det_threshold">検出しきい値</string>
+    <string name="ocr_debug_rapidocr_box_threshold">枠しきい値</string>
+    <string name="ocr_debug_rapidocr_unclip">拡張比率</string>
 </resources>

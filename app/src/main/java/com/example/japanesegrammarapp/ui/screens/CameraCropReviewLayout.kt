@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -69,6 +70,7 @@ fun ImageCropReviewLayout(
     onCancel: () -> Unit,
     onConfirm: (Bitmap) -> Unit
 ) {
+    val context = LocalContext.current
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -91,7 +93,11 @@ fun ImageCropReviewLayout(
 
     LaunchedEffect(bitmap, ocrBoxDetectionSettings) {
         try {
-            val mergedBoxes = detectCameraOcrBoxes(bitmap, ocrBoxDetectionSettings)
+            val mergedBoxes = detectCameraOcrBoxes(
+                bitmap = bitmap,
+                settings = ocrBoxDetectionSettings,
+                context = context
+            )
             detectedBoxes = mergedBoxes
             hideOcrBoxes = mergedBoxes.isEmpty()
         } catch (e: Exception) {
@@ -391,12 +397,11 @@ fun ImageCropReviewLayout(
                             val imageTop = cropState.imgOffsetY
                             val imageRight = cropState.imgOffsetX + cropState.imgDispWidth
                             val imageBottom = cropState.imgOffsetY + cropState.imgDispHeight
-                            val visualPadding = 3.dp.toPx()
                             val highlightedRects = detectedBoxes.mapNotNull { box ->
-                                val displayLeft = (cropState.imgOffsetX + box.left * cropState.scaleFactor - visualPadding).coerceIn(imageLeft, imageRight)
-                                val displayTop = (cropState.imgOffsetY + box.top * cropState.scaleFactor - visualPadding).coerceIn(imageTop, imageBottom)
-                                val displayRight = (cropState.imgOffsetX + box.right * cropState.scaleFactor + visualPadding).coerceIn(imageLeft, imageRight)
-                                val displayBottom = (cropState.imgOffsetY + box.bottom * cropState.scaleFactor + visualPadding).coerceIn(imageTop, imageBottom)
+                                val displayLeft = (cropState.imgOffsetX + box.left * cropState.scaleFactor).coerceIn(imageLeft, imageRight)
+                                val displayTop = (cropState.imgOffsetY + box.top * cropState.scaleFactor).coerceIn(imageTop, imageBottom)
+                                val displayRight = (cropState.imgOffsetX + box.right * cropState.scaleFactor).coerceIn(imageLeft, imageRight)
+                                val displayBottom = (cropState.imgOffsetY + box.bottom * cropState.scaleFactor).coerceIn(imageTop, imageBottom)
 
                                 if (displayRight > displayLeft && displayBottom > displayTop) {
                                     ComposeRect(displayLeft, displayTop, displayRight, displayBottom)

@@ -1,8 +1,12 @@
 package com.example.japanesegrammarapp.ui.screens
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
+import com.example.japanesegrammarapp.domain.model.OcrBoxDetectorEngine
+import com.example.japanesegrammarapp.domain.model.OcrBoxPreviewMode
+import com.example.japanesegrammarapp.utils.AppLogger
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
@@ -13,7 +17,66 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 
 suspend fun detectCameraOcrBoxes(
     bitmap: Bitmap,
-    settings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT
+    settings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT,
+    context: Context? = null
+): List<Rect> {
+    val normalizedSettings = settings.normalized()
+    return when (normalizedSettings.detectorEngine) {
+        OcrBoxDetectorEngine.ML_KIT -> detectMlKitCameraOcrBoxes(bitmap, normalizedSettings)
+        OcrBoxDetectorEngine.RAPID_OCR -> detectRapidOcrCameraBoxes(
+            context = context ?: error("RapidOCR detection requires Android context"),
+            bitmap = bitmap,
+            settings = normalizedSettings
+        )
+        OcrBoxDetectorEngine.HYBRID -> detectHybridCameraOcrBoxes(
+            context = context ?: error("Hybrid OCR detection requires Android context"),
+            bitmap = bitmap,
+            settings = normalizedSettings
+        )
+        OcrBoxDetectorEngine.AUTO -> runCatching {
+            detectHybridCameraOcrBoxes(
+                context = context ?: error("RapidOCR detection requires Android context"),
+                bitmap = bitmap,
+                settings = normalizedSettings
+            )
+        }.getOrElse { error ->
+            AppLogger.e("CAMERA", "Hybrid OCR box detection failed; falling back to ML Kit", error)
+            detectMlKitCameraOcrBoxes(bitmap, normalizedSettings.copy(detectorEngine = OcrBoxDetectorEngine.ML_KIT))
+        }
+    }
+}
+
+private suspend fun detectHybridCameraOcrBoxes(
+    context: Context,
+    bitmap: Bitmap,
+    settings: OcrBoxDetectionSettings
+): List<Rect> {
+    val normalized = settings.normalized()
+    if (normalized.previewMode == OcrBoxPreviewMode.RAW) {
+        return detectRapidOcrRawCameraBoxes(context, bitmap, normalized)
+    }
+
+    val mlKitBoxes = detectMlKitCameraOcrBoxes(
+        bitmap = bitmap,
+        settings = normalized.copy(
+            detectorEngine = OcrBoxDetectorEngine.ML_KIT,
+            previewMode = OcrBoxPreviewMode.FINAL
+        )
+    )
+    val rapidRawBoxes = detectRapidOcrRawCameraBoxes(context, bitmap, normalized)
+
+    return mergeHybridBoxes(
+        mlKitBoxes = mlKitBoxes,
+        rapidRawBoxes = rapidRawBoxes,
+        bitmapWidth = bitmap.width,
+        bitmapHeight = bitmap.height,
+        settings = normalized
+    )
+}
+
+private suspend fun detectMlKitCameraOcrBoxes(
+    bitmap: Bitmap,
+    settings: OcrBoxDetectionSettings
 ): List<Rect> = suspendCancellableCoroutine { continuation ->
     val recognizer = TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
     val image = InputImage.fromBitmap(bitmap, 0)
@@ -23,14 +86,17 @@ suspend fun detectCameraOcrBoxes(
         .addOnSuccessListener { visionText ->
             val candidates = buildBlockCandidates(visionText.textBlocks)
             if (continuation.isActive) {
-                continuation.resume(
+                val boxes = if (normalizedSettings.previewMode == OcrBoxPreviewMode.RAW) {
+                    candidates.map { it.rect }.sortedWith(compareBy<Rect> { it.top }.thenBy { it.left })
+                } else {
                     mergeNearbyBlockCandidates(
                         candidates = candidates,
                         bitmapWidth = bitmap.width,
                         bitmapHeight = bitmap.height,
                         settings = normalizedSettings
                     )
-                )
+                }
+                continuation.resume(boxes)
             }
         }
         .addOnFailureListener { error ->
@@ -541,7 +607,7 @@ private fun paddedRect(
     val thickness = candidate.averageLineThickness.toInt().coerceAtLeast(1)
     val (paddingX, paddingY) = when {
         candidate.isVerticalLike() -> {
-            val x = maxOf((width * settings.verticalPaddingXRatio).toInt(), (thickness * 0.55f).toInt(), 8)
+            val x = maxOf((width * maxOf(settings.verticalPaddingXRatio, 0.16f)).toInt(), (thickness * 0.9f).toInt(), 12)
             val y = maxOf((height * settings.verticalPaddingYRatio).toInt(), thickness, 14)
             x to y
         }
@@ -603,6 +669,183 @@ private fun overlapRatio(startA: Int, endA: Int, startB: Int, endB: Int): Float 
 private fun mergedTextFillRatio(rectI: Rect, rectJ: Rect, union: Rect): Float {
     val textArea = rectI.area() + rectJ.area() - intersectionArea(rectI, rectJ)
     return textArea / union.area().coerceAtLeast(1f)
+}
+
+private fun mergeHybridBoxes(
+    mlKitBoxes: List<Rect>,
+    rapidRawBoxes: List<Rect>,
+    bitmapWidth: Int,
+    bitmapHeight: Int,
+    settings: OcrBoxDetectionSettings
+): List<Rect> {
+    if (mlKitBoxes.isEmpty()) {
+        return mergeRapidOcrFinalBoxes(rapidRawBoxes, bitmapWidth, bitmapHeight, settings)
+    }
+    if (rapidRawBoxes.isEmpty()) {
+        return mlKitBoxes
+    }
+
+    val consumedRapidIndexes = mutableSetOf<Int>()
+    val refinedMlKitBoxes = mlKitBoxes.map { mlKitBox ->
+        val matches = rapidRawBoxes.withIndex()
+            .filter { (_, rapidBox) -> shouldRapidBoxRefineMlKitBox(rapidBox, mlKitBox) }
+        matches.forEach { (index, _) -> consumedRapidIndexes.add(index) }
+        val matchedRects = matches.map { it.value }
+        unionRects(listOf(mlKitBox) + matchedRects)
+            ?.let { clampRect(it, bitmapWidth, bitmapHeight) }
+            ?: mlKitBox
+    }
+
+    val orphanRapidBoxes = rapidRawBoxes.filterIndexed { index, _ -> index !in consumedRapidIndexes }
+    val supplementalBoxes = buildHybridSupplementalRapidBoxes(
+        boxes = orphanRapidBoxes,
+        mlKitBoxes = refinedMlKitBoxes,
+        bitmapWidth = bitmapWidth,
+        bitmapHeight = bitmapHeight
+    )
+
+    return dedupeHybridBoxes(refinedMlKitBoxes + supplementalBoxes)
+        .sortedWith(compareBy<Rect> { it.top }.thenBy { it.left })
+}
+
+private fun shouldRapidBoxRefineMlKitBox(rapidBox: Rect, mlKitBox: Rect): Boolean {
+    val expandedMlKit = expandRectForMatching(mlKitBox)
+    val rapidArea = rapidBox.area().coerceAtLeast(1f)
+    val mlKitArea = mlKitBox.area().coerceAtLeast(1f)
+    val expandedMlKitArea = expandedMlKit.area().coerceAtLeast(1f)
+    val union = unionRects(listOf(rapidBox, mlKitBox)) ?: return false
+    val unionGrowth = union.area() / mlKitArea
+    val rapidTooDominant = rapidArea > mlKitArea * 2.6f && containmentRatio(mlKitBox, rapidBox) < 0.58f
+    if (rapidTooDominant || unionGrowth > 2.8f) return false
+
+    val overlap = intersectionArea(rapidBox, expandedMlKit)
+    if (overlap <= 0f) return false
+    val overlapRapid = overlap / rapidArea
+    val overlapMlKit = overlap / expandedMlKitArea
+
+    val rapidCenterInside = rapidBox.centerX() in expandedMlKit.left..expandedMlKit.right &&
+        rapidBox.centerY() in expandedMlKit.top..expandedMlKit.bottom
+    if (rapidCenterInside && (overlapRapid >= 0.45f || overlapMlKit >= 0.08f)) return true
+
+    val rapidInsideMlKit = overlapRapid >= 0.55f
+    if (rapidInsideMlKit) return true
+
+    return overlapRapid >= 0.34f && overlapMlKit >= 0.04f
+}
+
+private fun expandRectForMatching(rect: Rect): Rect {
+    val padX = maxOf((rect.width() * 0.18f).toInt(), 10)
+    val padY = maxOf((rect.height() * 0.16f).toInt(), 10)
+    return Rect(
+        rect.left - padX,
+        rect.top - padY,
+        rect.right + padX,
+        rect.bottom + padY
+    )
+}
+
+private fun clampRect(rect: Rect, bitmapWidth: Int, bitmapHeight: Int): Rect {
+    return Rect(
+        rect.left.coerceIn(0, bitmapWidth),
+        rect.top.coerceIn(0, bitmapHeight),
+        rect.right.coerceIn(0, bitmapWidth),
+        rect.bottom.coerceIn(0, bitmapHeight)
+    )
+}
+
+private fun isHybridDuplicate(rectI: Rect, rectJ: Rect): Boolean {
+    return intersectionOverUnion(rectI, rectJ) >= 0.52f ||
+        maxOf(containmentRatio(rectI, rectJ), containmentRatio(rectJ, rectI)) >= 0.78f
+}
+
+private fun buildHybridSupplementalRapidBoxes(
+    boxes: List<Rect>,
+    mlKitBoxes: List<Rect>,
+    bitmapWidth: Int,
+    bitmapHeight: Int
+): List<Rect> {
+    if (boxes.isEmpty()) return emptyList()
+
+    val imageArea = (bitmapWidth * bitmapHeight).coerceAtLeast(1).toFloat()
+    val candidates = boxes
+        .asSequence()
+        .filter { rect -> isPlausibleHybridSupplementalRapidBox(rect, imageArea, bitmapWidth, bitmapHeight) }
+        .map { rect -> padHybridSupplementalRapidBox(rect, bitmapWidth, bitmapHeight) }
+        .filter { rect ->
+            mlKitBoxes.none { mlKitBox ->
+                isHybridDuplicate(rect, mlKitBox) || isRapidSupplementTooCloseToMlKit(rect, mlKitBox)
+            }
+        }
+        .toList()
+
+    return dedupeHybridBoxes(candidates)
+}
+
+private fun isPlausibleHybridSupplementalRapidBox(
+    rect: Rect,
+    imageArea: Float,
+    bitmapWidth: Int,
+    bitmapHeight: Int
+): Boolean {
+    val width = rect.width()
+    val height = rect.height()
+    if (width <= 0 || height <= 0) return false
+
+    val areaRatio = rect.area() / imageArea
+    val minDimension = minOf(width, height)
+    val maxDimension = maxOf(width, height)
+    val aspectRatio = maxDimension.toFloat() / minDimension.coerceAtLeast(1)
+    val verticalLike = height >= width * 1.25f
+
+    if (areaRatio !in 0.00018f..0.055f) return false
+    if (aspectRatio > 24f) return false
+    if (verticalLike) {
+        if (width < maxOf(7, (bitmapWidth * 0.006f).toInt())) return false
+        if (height < maxOf(28, (bitmapHeight * 0.018f).toInt())) return false
+    } else {
+        if (height < maxOf(7, (bitmapHeight * 0.005f).toInt())) return false
+        if (width < maxOf(28, (bitmapWidth * 0.020f).toInt())) return false
+    }
+
+    return !(minDimension <= 5 && maxDimension > minOf(bitmapWidth, bitmapHeight) * 0.10f)
+}
+
+private fun padHybridSupplementalRapidBox(
+    rect: Rect,
+    bitmapWidth: Int,
+    bitmapHeight: Int
+): Rect {
+    val verticalLike = rect.height() >= rect.width() * 1.25f
+    val paddingX = if (verticalLike) maxOf((rect.width() * 0.14f).toInt(), 8) else maxOf((rect.width() * 0.04f).toInt(), 4)
+    val paddingY = if (verticalLike) maxOf((rect.height() * 0.03f).toInt(), 3) else maxOf((rect.height() * 0.08f).toInt(), 4)
+    return Rect(
+        maxOf(0, rect.left - paddingX),
+        maxOf(0, rect.top - paddingY),
+        minOf(bitmapWidth, rect.right + paddingX),
+        minOf(bitmapHeight, rect.bottom + paddingY)
+    )
+}
+
+private fun isRapidSupplementTooCloseToMlKit(rapidBox: Rect, mlKitBox: Rect): Boolean {
+    val expandedMlKit = expandRectForMatching(mlKitBox)
+    val overlapRapid = containmentRatio(rapidBox, expandedMlKit)
+    if (overlapRapid >= 0.22f) return true
+
+    val centerAlignedX = overlapRatio(rapidBox.left, rapidBox.right, mlKitBox.left, mlKitBox.right) >= 0.45f
+    val centerAlignedY = overlapRatio(rapidBox.top, rapidBox.bottom, mlKitBox.top, mlKitBox.bottom) >= 0.45f
+    val closeVerticalNeighbor = centerAlignedX && gapY(rapidBox, mlKitBox) <= maxOf(rapidBox.height(), mlKitBox.height()) * 0.25f
+    val closeHorizontalNeighbor = centerAlignedY && gapX(rapidBox, mlKitBox) <= maxOf(rapidBox.width(), mlKitBox.width()) * 0.25f
+    return closeVerticalNeighbor || closeHorizontalNeighbor
+}
+
+private fun dedupeHybridBoxes(boxes: List<Rect>): List<Rect> {
+    val result = mutableListOf<Rect>()
+    for (box in boxes.sortedByDescending { it.area() }) {
+        if (result.none { existing -> isHybridDuplicate(box, existing) }) {
+            result.add(box)
+        }
+    }
+    return result
 }
 
 private fun gapX(rectI: Rect, rectJ: Rect): Int {

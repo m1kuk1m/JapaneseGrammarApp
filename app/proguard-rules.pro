@@ -26,3 +26,7 @@
 # Protect logger models
 -keep class com.example.japanesegrammarapp.utils.ApiDebugLog { *; }
 
+# ONNX Runtime uses native/JNI entry points for RapidOCR detection.
+-keep class ai.onnxruntime.** { *; }
+-dontwarn ai.onnxruntime.**
+

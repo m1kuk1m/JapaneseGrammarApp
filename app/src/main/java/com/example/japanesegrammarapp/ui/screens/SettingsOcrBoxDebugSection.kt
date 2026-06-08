@@ -34,6 +34,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -61,8 +62,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
+import com.example.japanesegrammarapp.domain.model.OcrBoxDetectorEngine
+import com.example.japanesegrammarapp.domain.model.OcrBoxPreviewMode
 import com.example.japanesegrammarapp.utils.BitmapHelper
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -112,10 +117,17 @@ fun OcrBoxDebugDialog(
 
     LaunchedEffect(sampleBitmap, settings) {
         val bitmap = sampleBitmap ?: return@LaunchedEffect
+        delay(OCR_DEBUG_DETECT_DEBOUNCE_MS)
         isDetecting = true
         errorMessage = null
         try {
-            detectedBoxes = detectCameraOcrBoxes(bitmap, settings)
+            detectedBoxes = detectCameraOcrBoxes(
+                bitmap = bitmap,
+                settings = settings,
+                context = context
+            )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             detectedBoxes = emptyList()
             errorMessage = e.localizedMessage ?: context.getString(R.string.unknown_error)
@@ -194,6 +206,28 @@ fun OcrBoxDebugDialog(
                             }
                         }
 
+                        OcrOptionRow(
+                            label = stringResource(R.string.ocr_debug_detector_engine),
+                            options = listOf(
+                                OcrBoxDetectorEngine.ML_KIT to stringResource(R.string.ocr_debug_engine_mlkit),
+                                OcrBoxDetectorEngine.RAPID_OCR to stringResource(R.string.ocr_debug_engine_rapidocr),
+                                OcrBoxDetectorEngine.HYBRID to stringResource(R.string.ocr_debug_engine_hybrid),
+                                OcrBoxDetectorEngine.AUTO to stringResource(R.string.ocr_debug_engine_auto)
+                            ),
+                            selected = settings.detectorEngine,
+                            onSelected = { engine -> onSettingsChange(settings.copy(detectorEngine = engine)) }
+                        )
+
+                        OcrOptionRow(
+                            label = stringResource(R.string.ocr_debug_preview_mode),
+                            options = listOf(
+                                OcrBoxPreviewMode.FINAL to stringResource(R.string.ocr_debug_preview_final),
+                                OcrBoxPreviewMode.RAW to stringResource(R.string.ocr_debug_preview_raw)
+                            ),
+                            selected = settings.previewMode,
+                            onSelected = { mode -> onSettingsChange(settings.copy(previewMode = mode)) }
+                        )
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -244,6 +278,37 @@ fun OcrBoxDebugDialog(
                         }
 
                         Text(
+                            text = stringResource(R.string.ocr_debug_rapidocr_settings),
+                            color = sumiInk,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                        OcrSettingSlider(
+                            label = stringResource(R.string.ocr_debug_rapidocr_input_size),
+                            value = settings.rapidOcrInputLongSide.toFloat(),
+                            valueRange = OcrBoxDetectionSettings.RAPID_OCR_INPUT_LONG_SIDE_MIN.toFloat()..OcrBoxDetectionSettings.RAPID_OCR_INPUT_LONG_SIDE_MAX.toFloat(),
+                            onValueChange = { onSettingsChange(settings.copy(rapidOcrInputLongSide = it.toInt())) }
+                        )
+                        OcrSettingSlider(
+                            label = stringResource(R.string.ocr_debug_rapidocr_det_threshold),
+                            value = settings.rapidOcrDetThreshold,
+                            valueRange = OcrBoxDetectionSettings.THRESHOLD_MIN..OcrBoxDetectionSettings.THRESHOLD_MAX,
+                            onValueChange = { onSettingsChange(settings.copy(rapidOcrDetThreshold = it)) }
+                        )
+                        OcrSettingSlider(
+                            label = stringResource(R.string.ocr_debug_rapidocr_box_threshold),
+                            value = settings.rapidOcrBoxThreshold,
+                            valueRange = OcrBoxDetectionSettings.THRESHOLD_MIN..OcrBoxDetectionSettings.THRESHOLD_MAX,
+                            onValueChange = { onSettingsChange(settings.copy(rapidOcrBoxThreshold = it)) }
+                        )
+                        OcrSettingSlider(
+                            label = stringResource(R.string.ocr_debug_rapidocr_unclip),
+                            value = settings.rapidOcrUnclipRatio,
+                            valueRange = OcrBoxDetectionSettings.RAPID_OCR_UNCLIP_MIN..OcrBoxDetectionSettings.RAPID_OCR_UNCLIP_MAX,
+                            onValueChange = { onSettingsChange(settings.copy(rapidOcrUnclipRatio = it)) }
+                        )
+
+                        Text(
                             text = stringResource(R.string.ocr_debug_merge_settings),
                             color = sumiInk,
                             fontWeight = FontWeight.Bold,
@@ -252,37 +317,37 @@ fun OcrBoxDebugDialog(
                         OcrSettingSlider(
                             label = stringResource(R.string.ocr_debug_horizontal_gap),
                             value = settings.horizontalRowGapMultiplier,
-                            valueRange = 0.4f..3.0f,
+                            valueRange = OcrBoxDetectionSettings.MERGE_GAP_MIN..OcrBoxDetectionSettings.MERGE_GAP_MAX,
                             onValueChange = { onSettingsChange(settings.copy(horizontalRowGapMultiplier = it)) }
                         )
                         OcrSettingSlider(
                             label = stringResource(R.string.ocr_debug_horizontal_overlap),
                             value = settings.horizontalXOverlapThreshold,
-                            valueRange = 0.05f..0.9f,
+                            valueRange = OcrBoxDetectionSettings.THRESHOLD_MIN..OcrBoxDetectionSettings.THRESHOLD_MAX,
                             onValueChange = { onSettingsChange(settings.copy(horizontalXOverlapThreshold = it)) }
                         )
                         OcrSettingSlider(
                             label = stringResource(R.string.ocr_debug_horizontal_fill),
                             value = settings.horizontalFillRatioMin,
-                            valueRange = 0.05f..0.8f,
+                            valueRange = OcrBoxDetectionSettings.THRESHOLD_MIN..OcrBoxDetectionSettings.FILL_RATIO_MAX,
                             onValueChange = { onSettingsChange(settings.copy(horizontalFillRatioMin = it)) }
                         )
                         OcrSettingSlider(
                             label = stringResource(R.string.ocr_debug_vertical_gap),
                             value = settings.verticalColumnGapMultiplier,
-                            valueRange = 0.4f..3.0f,
+                            valueRange = OcrBoxDetectionSettings.MERGE_GAP_MIN..OcrBoxDetectionSettings.MERGE_GAP_MAX,
                             onValueChange = { onSettingsChange(settings.copy(verticalColumnGapMultiplier = it)) }
                         )
                         OcrSettingSlider(
                             label = stringResource(R.string.ocr_debug_vertical_overlap),
                             value = settings.verticalXOverlapThreshold,
-                            valueRange = 0.05f..0.9f,
+                            valueRange = OcrBoxDetectionSettings.THRESHOLD_MIN..OcrBoxDetectionSettings.THRESHOLD_MAX,
                             onValueChange = { onSettingsChange(settings.copy(verticalXOverlapThreshold = it)) }
                         )
                         OcrSettingSlider(
                             label = stringResource(R.string.ocr_debug_vertical_fill),
                             value = settings.verticalFillRatioMin,
-                            valueRange = 0.05f..0.8f,
+                            valueRange = OcrBoxDetectionSettings.THRESHOLD_MIN..OcrBoxDetectionSettings.FILL_RATIO_MAX,
                             onValueChange = { onSettingsChange(settings.copy(verticalFillRatioMin = it)) }
                         )
 
@@ -295,25 +360,25 @@ fun OcrBoxDebugDialog(
                         OcrSettingSlider(
                             label = stringResource(R.string.ocr_debug_horizontal_padding_x),
                             value = settings.horizontalPaddingXRatio,
-                            valueRange = 0f..0.3f,
+                            valueRange = OcrBoxDetectionSettings.PADDING_MIN..OcrBoxDetectionSettings.PADDING_MAX,
                             onValueChange = { onSettingsChange(settings.copy(horizontalPaddingXRatio = it)) }
                         )
                         OcrSettingSlider(
                             label = stringResource(R.string.ocr_debug_horizontal_padding_y),
                             value = settings.horizontalPaddingYRatio,
-                            valueRange = 0f..0.3f,
+                            valueRange = OcrBoxDetectionSettings.PADDING_MIN..OcrBoxDetectionSettings.PADDING_MAX,
                             onValueChange = { onSettingsChange(settings.copy(horizontalPaddingYRatio = it)) }
                         )
                         OcrSettingSlider(
                             label = stringResource(R.string.ocr_debug_vertical_padding_x),
                             value = settings.verticalPaddingXRatio,
-                            valueRange = 0f..0.3f,
+                            valueRange = OcrBoxDetectionSettings.PADDING_MIN..OcrBoxDetectionSettings.PADDING_MAX,
                             onValueChange = { onSettingsChange(settings.copy(verticalPaddingXRatio = it)) }
                         )
                         OcrSettingSlider(
                             label = stringResource(R.string.ocr_debug_vertical_padding_y),
                             value = settings.verticalPaddingYRatio,
-                            valueRange = 0f..0.3f,
+                            valueRange = OcrBoxDetectionSettings.PADDING_MIN..OcrBoxDetectionSettings.PADDING_MAX,
                             onValueChange = { onSettingsChange(settings.copy(verticalPaddingYRatio = it)) }
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -347,6 +412,40 @@ private fun OcrSettingSlider(
             valueRange = valueRange,
             steps = 0
         )
+    }
+}
+
+@Composable
+private fun <T> OcrOptionRow(
+    label: String,
+    options: List<Pair<T, String>>,
+    selected: T,
+    onSelected: (T) -> Unit
+) {
+    val sumiInk = MaterialTheme.colorScheme.onBackground
+    val primary = MaterialTheme.colorScheme.primary
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(label, color = sumiInk, fontSize = 13.sp)
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            options.forEach { (value, text) ->
+                val isSelected = value == selected
+                val contentColor = if (isSelected) Color.White else sumiInk
+                TextButton(
+                    onClick = { onSelected(value) },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.textButtonColors(
+                        containerColor = if (isSelected) primary else sumiInk.copy(alpha = 0.06f),
+                        contentColor = contentColor
+                    )
+                ) {
+                    Text(text = text, fontSize = 12.sp, maxLines = 1)
+                }
+            }
+        }
     }
 }
 
@@ -405,3 +504,4 @@ private fun OcrDebugPreview(
 }
 
 private const val OCR_DEBUG_MAX_DIMENSION = 1600
+private const val OCR_DEBUG_DETECT_DEBOUNCE_MS = 450L

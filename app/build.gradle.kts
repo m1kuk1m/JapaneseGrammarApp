@@ -46,6 +46,10 @@ android {
             useSupportLibrary = true
         }
 
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
+
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
         }
@@ -149,6 +153,9 @@ dependencies {
     // ML Kit Text Recognition
     implementation("com.google.mlkit:text-recognition-japanese:16.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+    // RapidOCR detection-only runtime (ONNX model loaded from app assets)
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.18.0")
 
     // Paging 3
     implementation("androidx.paging:paging-runtime-ktx:3.2.1")

@@ -404,6 +404,7 @@ fun SettingsScreen(
                 currentLangLabel = currentLangLabel,
                 totalTokensConsumed = totalTokensConsumed,
                 onUseOcrChange = viewModel::setUseOcr,
+                onOcrBoxDetectorEngineChange = viewModel::setOcrBoxDetectorEngine,
                 onAutoNavigateResultChange = viewModel::setAutoNavigateResult,
                 onImageTokenizerModeChange = viewModel::setImageTokenizerMode,
                 onShowTokenDialog = { showTokenDialog = true },

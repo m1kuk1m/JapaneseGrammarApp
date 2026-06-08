@@ -520,4 +520,18 @@
     <string name="ocr_debug_horizontal_padding_y">横排垂直留白</string>
     <string name="ocr_debug_vertical_padding_x">竖排水平留白</string>
     <string name="ocr_debug_vertical_padding_y">竖排垂直留白</string>
+    <string name="ocr_debug_detector_engine">检测引擎</string>
+    <string name="ocr_detector_engine_title">OCR 选框检测方案</string>
+    <string name="ocr_debug_engine_mlkit">ML Kit</string>
+    <string name="ocr_debug_engine_rapidocr">RapidOCR</string>
+    <string name="ocr_debug_engine_hybrid">混合模式</string>
+    <string name="ocr_debug_engine_auto">自动</string>
+    <string name="ocr_debug_preview_mode">预览模式</string>
+    <string name="ocr_debug_preview_final">最终</string>
+    <string name="ocr_debug_preview_raw">原始</string>
+    <string name="ocr_debug_rapidocr_settings">RapidOCR 原始检测器</string>
+    <string name="ocr_debug_rapidocr_input_size">输入最长边</string>
+    <string name="ocr_debug_rapidocr_det_threshold">检测阈值</string>
+    <string name="ocr_debug_rapidocr_box_threshold">选框阈值</string>
+    <string name="ocr_debug_rapidocr_unclip">扩框比例</string>
 </resources>

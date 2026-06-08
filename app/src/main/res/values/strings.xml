@@ -516,6 +516,20 @@
     <string name="ocr_debug_horizontal_padding_y">Horizontal padding Y</string>
     <string name="ocr_debug_vertical_padding_x">Vertical padding X</string>
     <string name="ocr_debug_vertical_padding_y">Vertical padding Y</string>
+    <string name="ocr_debug_detector_engine">Detector engine</string>
+    <string name="ocr_detector_engine_title">OCR box detector</string>
+    <string name="ocr_debug_engine_mlkit">ML Kit</string>
+    <string name="ocr_debug_engine_rapidocr">RapidOCR</string>
+    <string name="ocr_debug_engine_hybrid">Hybrid</string>
+    <string name="ocr_debug_engine_auto">Auto</string>
+    <string name="ocr_debug_preview_mode">Preview mode</string>
+    <string name="ocr_debug_preview_final">Final</string>
+    <string name="ocr_debug_preview_raw">Raw</string>
+    <string name="ocr_debug_rapidocr_settings">RapidOCR raw detector</string>
+    <string name="ocr_debug_rapidocr_input_size">Input long side</string>
+    <string name="ocr_debug_rapidocr_det_threshold">Detection threshold</string>
+    <string name="ocr_debug_rapidocr_box_threshold">Box threshold</string>
+    <string name="ocr_debug_rapidocr_unclip">Unclip ratio</string>
 
     <!-- New UI and Favorites Strings -->
     <string name="no_source_sentence">(No original sentence)</string>

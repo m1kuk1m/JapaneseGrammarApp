@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.japanesegrammarapp.R
+import com.example.japanesegrammarapp.domain.model.OcrBoxDetectorEngine
 import com.example.japanesegrammarapp.ui.SettingsUiState
 
 @Composable
@@ -151,6 +152,7 @@ fun SettingsGeneralSection(
     currentLangLabel: String,
     totalTokensConsumed: Int,
     onUseOcrChange: (Boolean) -> Unit,
+    onOcrBoxDetectorEngineChange: (OcrBoxDetectorEngine) -> Unit,
     onAutoNavigateResultChange: (Boolean) -> Unit,
     onImageTokenizerModeChange: (String) -> Unit,
     onShowTokenDialog: () -> Unit,
@@ -235,6 +237,37 @@ fun SettingsGeneralSection(
                     onCheckedChange = onUseOcrChange,
                     colors = SettingsSwitchColors(onPrimaryColor, primaryColor, sumiInk)
                 )
+            }
+        )
+
+        SettingsDivider()
+
+        var detectorEngineDropdownExpanded by remember { mutableStateOf(false) }
+        val detectorEngineLabel = ocrBoxDetectorEngineLabel(uiState.ocrBoxDetectionSettings.detectorEngine)
+
+        SettingsItem(
+            icon = Icons.Default.Tune,
+            title = stringResource(R.string.ocr_detector_engine_title),
+            subtitle = detectorEngineLabel,
+            onClick = { detectorEngineDropdownExpanded = true },
+            trailingContent = {
+                Box {
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = sumiInk.copy(alpha = 0.5f))
+                    DropdownMenu(
+                        expanded = detectorEngineDropdownExpanded,
+                        onDismissRequest = { detectorEngineDropdownExpanded = false }
+                    ) {
+                        OcrBoxDetectorEngine.entries.forEach { engine ->
+                            DropdownMenuItem(
+                                text = { Text(ocrBoxDetectorEngineLabel(engine)) },
+                                onClick = {
+                                    onOcrBoxDetectorEngineChange(engine)
+                                    detectorEngineDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         )
 
@@ -354,6 +387,16 @@ fun SettingsGeneralSection(
                 Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = sumiInk.copy(alpha = 0.4f))
             }
         )
+    }
+}
+
+@Composable
+private fun ocrBoxDetectorEngineLabel(engine: OcrBoxDetectorEngine): String {
+    return when (engine) {
+        OcrBoxDetectorEngine.ML_KIT -> stringResource(R.string.ocr_debug_engine_mlkit)
+        OcrBoxDetectorEngine.RAPID_OCR -> stringResource(R.string.ocr_debug_engine_rapidocr)
+        OcrBoxDetectorEngine.HYBRID -> stringResource(R.string.ocr_debug_engine_hybrid)
+        OcrBoxDetectorEngine.AUTO -> stringResource(R.string.ocr_debug_engine_auto)
     }
 }
 
