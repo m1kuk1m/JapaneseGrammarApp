@@ -49,7 +49,7 @@ object PromptManager {
         2. `segments` の要素数、順序、各 `text` は、入力トークンリストと完全に一致させてください。結合・分割・並べ替えは禁止です。
         3. 記号・句読点は入力トークンから除外済みなので分析しないでください。
         4. `meaning` のみ簡体字中国語で書いてください。他の説明は日本語で書いてください。
-        5. `posCategory` は必ず `NOUN`, `VERB`, `ADJECTIVE`, `AUXILIARY`, `PARTICLE`, `OTHER` のいずれか1つにしてください。
+        5. `posCategory` は必ず `NOUN`, `VERB`, `ADJECTIVE`, `AUXILIARY`, `PARTICLE`, `ADVERB`, `CONJUNCTION`, `PRONOUN`, `PRE_NOUN_ADJECTIVAL`, `INTERJECTION`, `SYMBOL`, `OTHER` のいずれか1つにしてください。
         6. 活用語は `dictionaryForm` と `dictionaryFormReading` を入れ、非活用語・助詞は原則 null にしてください。
         7. 口語縮約（〜てる、〜とく、〜ちゃう、関西弁の〜とる等）は、必要に応じて補助動詞として扱ってください。
         8. 簡潔に出力してください。`meaning` は20字以内、`inflection` は40字以内、`role` は50字以内を目安にしてください。
@@ -62,7 +62,7 @@ object PromptManager {
               "text": "入力トークンと完全一致",
               "reading": "ひらがな",
               "partOfSpeech": "品詞名",
-              "posCategory": "NOUN|VERB|ADJECTIVE|AUXILIARY|PARTICLE|OTHER",
+              "posCategory": "NOUN|VERB|ADJECTIVE|AUXILIARY|PARTICLE|ADVERB|CONJUNCTION|PRONOUN|PRE_NOUN_ADJECTIVAL|INTERJECTION|SYMBOL|OTHER",
               "dictionaryForm": "辞書形またはnull",
               "dictionaryFormReading": "辞書形の読みまたはnull",
               "meaning": "この文脈での簡体字中国語の意味",

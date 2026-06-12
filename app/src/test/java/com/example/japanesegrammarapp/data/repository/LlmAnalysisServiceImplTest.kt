@@ -92,6 +92,82 @@ class LlmAnalysisServiceImplTest {
         assertEquals("補助記号", result?.segments?.firstOrNull()?.partOfSpeech)
     }
 
+    @Test
+    fun executeSegmentsFiltersPunctuationAndUnknownSymbolsLocally() = runBlocking {
+        val repository = FakeLlmRepository(
+            response = """
+                {
+                  "segments": [
+                    {"text":"あの","reading":"あの"},
+                    {"text":"元気","reading":"げんき"}
+                  ]
+                }
+            """.trimIndent()
+        )
+        val service = LlmAnalysisServiceImpl(
+            llmRepository = repository,
+            settingsRepository = FakeSettingsRepository,
+            gson = Gson()
+        )
+
+        val (result, _) = service.executeSegments(
+            text = "あの★元気",
+            tokens = listOf("あの", "★", "元気"),
+            imageBase64 = null,
+            mimeType = null,
+            primaryConfigs = listOf(testConfig),
+            backupConfigs = emptyList()
+        )
+
+        // It should filter out ★ from the tokens sent to LLM
+        assertTrue(repository.lastUserPrompt.contains("""["あの","元気"]"""))
+        // The reconstructed final segments should correctly put ★ back in the middle
+        assertEquals(
+            listOf("あの", "★", "元気"),
+            result?.segments?.map { it.text }
+        )
+        assertEquals("補助記号", result?.segments?.get(1)?.partOfSpeech)
+        assertEquals("きごう", result?.segments?.get(1)?.reading)
+    }
+
+    @Test
+    fun executeSegmentsFiltersCJKDoubleQuotesAndProvidesCustomDescriptions() = runBlocking {
+        val repository = FakeLlmRepository(
+            response = """
+                {
+                  "segments": [
+                    {"text":"はなまる","reading":"はなまる"},
+                    {"text":"大正解","reading":"たいせいかい"}
+                  ]
+                }
+            """.trimIndent()
+        )
+        val service = LlmAnalysisServiceImpl(
+            llmRepository = repository,
+            settingsRepository = FakeSettingsRepository,
+            gson = Gson()
+        )
+
+        val (result, _) = service.executeSegments(
+            text = "〝はなまる大正解〟",
+            tokens = listOf("〝", "はなまる", "大正解", "〟"),
+            imageBase64 = null,
+            mimeType = null,
+            primaryConfigs = listOf(testConfig),
+            backupConfigs = emptyList()
+        )
+
+        // It should filter out CJK quotes from the tokens sent to LLM
+        assertTrue(repository.lastUserPrompt.contains("""["はなまる","大正解"]"""))
+        // The final segments should be perfectly aligned with symbols reconstructed locally
+        assertEquals(
+            listOf("〝", "はなまる", "大正解", "〟"),
+            result?.segments?.map { it.text }
+        )
+        assertEquals("（前双引号）", result?.segments?.get(0)?.meaning)
+        assertEquals("（后双引号）", result?.segments?.get(3)?.meaning)
+    }
+
     private companion object {
         val testConfig = LlmApiConfig(
             provider = "Gemini",

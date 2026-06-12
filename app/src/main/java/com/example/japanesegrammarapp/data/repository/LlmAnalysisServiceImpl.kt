@@ -243,6 +243,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
 
 
 
+
     private suspend fun <T> executeAnalysisStep(
         systemPrompt: String,
         userPrompt: String,
@@ -391,18 +392,45 @@ class LlmAnalysisServiceImpl @Inject constructor(
         return cleanJson
     }
 
+    private fun isJapaneseChar(c: Char): Boolean {
+        val block = Character.UnicodeBlock.of(c)
+        return block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS ||
+               block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS ||
+               block == Character.UnicodeBlock.HIRAGANA ||
+               block == Character.UnicodeBlock.KATAKANA
+    }
+
     private fun isPunctuation(token: String): Boolean {
         val trimmed = token.trim()
         if (trimmed.isEmpty()) return true
         val punctuationChars = setOf(
             '。', '、', '・', '？', '！', '「', '」', '『', '』', '（', '）',
             '〔', '〕', '［', '］', '｛', '｝', '〜', '～', '…', '：', '；', '―',
-            '【', '】', '《', '》', '〈', '〉',
+            '【', '】', '《', '》', '〈', '〉', '〝', '〟',
             '?', '!', '(', ')', '[', ']', '{', '}', ':', ';', ',', '.', '~', '-', '_', '/', '\\', '|', '<', '>', '"', '\''
         )
         if (trimmed.all { it in punctuationChars }) return true
         if (trimmed.matches(Regex("^[wW]+$"))) return true
-        return false
+        
+        return trimmed.all { c ->
+            if (c.isLetterOrDigit()) return@all false
+            val block = Character.UnicodeBlock.of(c)
+            if (isJapaneseChar(c)) return@all false
+            
+            val type = Character.getType(c).toByte()
+            type == Character.START_PUNCTUATION ||
+            type == Character.END_PUNCTUATION ||
+            type == Character.OTHER_PUNCTUATION ||
+            type == Character.CONNECTOR_PUNCTUATION ||
+            type == Character.DASH_PUNCTUATION ||
+            type == Character.INITIAL_QUOTE_PUNCTUATION ||
+            type == Character.FINAL_QUOTE_PUNCTUATION ||
+            type == Character.MATH_SYMBOL ||
+            type == Character.CURRENCY_SYMBOL ||
+            type == Character.MODIFIER_SYMBOL ||
+            type == Character.OTHER_SYMBOL ||
+            block == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION
+        }
     }
 
     private fun getPunctuationSegment(token: String): WordSegment {
@@ -415,6 +443,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
             trimmed == "！" || trimmed == "!" -> Triple("かんたんふ", "（感叹号）", "強い感情、驚き、または命令を表す感嘆符。")
             trimmed == "「" -> Triple("かぎかっこ", "（前引号）", "会話、引用、または強調する語句の開始を示す鉤括弧。")
             trimmed == "」" -> Triple("かぎかっこ", "（后引号）", "会話、引用、または強調する語句の終了を示す鉤括弧。")
+            trimmed == "〝" -> Triple("かぎかっこ", "（前双引号）", "引用や強調を示す二重引用符の開始（ノの字形ダブルクォーテーション）。")
+            trimmed == "〟" -> Triple("かぎかっこ", "（后双引号）", "引用や強調を示す二重引用符の終了（ノの字形ダブルクォーテーション）。")
             trimmed == "『" -> Triple("にじゅうかぎかっこ", "（前双引号）", "書名、作品名、または鉤括弧内での引用の開始を示す二重鉤括弧。")
             trimmed == "』" -> Triple("にじゅうかぎかっこ", "（后双引号）", "書名、作品名、または鉤括弧内での引用の終了を示す二重鉤括弧。")
             trimmed == "（" || trimmed == "(" -> Triple("かっこ", "（前括号）", "注記、補足説明、または読み仮名の開始を示す丸括弧。")
