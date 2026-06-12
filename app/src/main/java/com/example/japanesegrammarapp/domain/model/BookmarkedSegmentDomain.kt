@@ -22,7 +22,8 @@ data class BookmarkedSegmentDomain(
 
 val BookmarkedSegmentDomain.effectivePosCategory: String
     get() {
-        if (!posCategory.isNullOrBlank()) return posCategory
+        val cat = posCategory ?: ""
+        if (cat.isNotBlank() && cat != "OTHER") return cat
         val pos = partOfSpeech ?: ""
         val primaryPos = pos.split("-").firstOrNull() ?: ""
         return when {
@@ -31,6 +32,12 @@ val BookmarkedSegmentDomain.effectivePosCategory: String
             primaryPos.contains("名詞") -> "NOUN"
             primaryPos.contains("動詞") -> "VERB"
             primaryPos.contains("助詞") -> "PARTICLE"
+            primaryPos.contains("副詞") -> "ADVERB"
+            primaryPos.contains("接続詞") -> "CONJUNCTION"
+            primaryPos.contains("代名詞") -> "PRONOUN"
+            primaryPos.contains("感動詞") -> "INTERJECTION"
+            primaryPos.contains("連体詞") -> "PRE_NOUN_ADJECTIVAL"
+            primaryPos.contains("記号") || primaryPos.contains("補助記号") -> "SYMBOL"
             else -> "OTHER"
         }
     }

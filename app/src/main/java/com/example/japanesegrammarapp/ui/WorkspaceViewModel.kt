@@ -377,6 +377,10 @@ class WorkspaceViewModel @Inject constructor(
                 withContext(Dispatchers.Main) {
                     selectRecord(record, clearExternalQuery = clearExternalQuery)
                 }
+            } else {
+                withContext(Dispatchers.Main) {
+                    clearSelectedRecord()
+                }
             }
         }
     }
@@ -578,6 +582,28 @@ class WorkspaceViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.error_retry_failed))
+                withContext(Dispatchers.IO) {
+                    val record = historyRepository.getRecordById(recordId)
+                    if (record != null) {
+                        val fullMessage = e.localizedMessage ?: "Unknown initialization error"
+                        historyRepository.updateRecord(record.copy(status = AnalysisStatus.FAILED, errorMessage = fullMessage))
+                    }
+                }
+                _uiState.update { state ->
+                    if (state.selectedRecord?.id != recordId) {
+                        state
+                    } else {
+                        val currentRecord = state.selectedRecord
+                        if (currentRecord != null) {
+                            state.copy(
+                                selectedRecord = currentRecord.copy(status = AnalysisStatus.FAILED, errorMessage = e.localizedMessage),
+                                selectedRecordProgress = null
+                            )
+                        } else {
+                            state
+                        }
+                    }
+                }
             }
         }
     }
