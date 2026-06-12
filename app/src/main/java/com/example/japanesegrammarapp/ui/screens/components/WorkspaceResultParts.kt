@@ -221,27 +221,26 @@ fun ShimmerSkeleton(modifier: Modifier = Modifier, cornerRadius: Dp = 4.dp) {
 
 @Composable
 private fun getChipColorForPos(segment: WordSegment): Color {
-    val isDark = ZenThemeColors.isDark()
     val category = segment.posCategory
-    if (category != null) {
-        return when (category) {
-            "NOUN" -> if (isDark) Color(0xFF1E2D3D) else Color(0xFFD3E0EA)
-            "VERB" -> if (isDark) Color(0xFF1E3D24) else Color(0xFFD4ECD5)
-            "ADJECTIVE" -> if (isDark) Color(0xFF3D2A1E) else Color(0xFFF6E2CD)
-            "AUXILIARY" -> if (isDark) Color(0xFF2D1E3D) else Color(0xFFE8D3EA)
-            "PARTICLE" -> if (isDark) Color(0xFF3D1E25) else Color(0xFFFDD4D8)
-            else -> if (isDark) Color(0xFF2D2D2D) else Color(0xFFEFEFEF)
+    val resolvedCategory = if (category != null && category != "OTHER") {
+        category
+    } else {
+        val pos = segment.partOfSpeech ?: ""
+        val primaryPos = pos.split("-").firstOrNull() ?: ""
+        when {
+            primaryPos.contains("助動詞") -> "AUXILIARY"
+            primaryPos.contains("形容") || primaryPos.contains("形状") -> "ADJECTIVE"
+            primaryPos.contains("名詞") -> "NOUN"
+            primaryPos.contains("動詞") -> "VERB"
+            primaryPos.contains("助詞") -> "PARTICLE"
+            primaryPos.contains("副詞") -> "ADVERB"
+            primaryPos.contains("接続詞") -> "CONJUNCTION"
+            primaryPos.contains("代名詞") -> "PRONOUN"
+            primaryPos.contains("感動詞") -> "INTERJECTION"
+            primaryPos.contains("連体詞") -> "PRE_NOUN_ADJECTIVAL"
+            primaryPos.contains("記号") || primaryPos.contains("補助記号") -> "SYMBOL"
+            else -> "OTHER"
         }
     }
-
-    val pos = segment.partOfSpeech ?: ""
-    val primaryPos = pos.split("-").firstOrNull() ?: ""
-    return when {
-        primaryPos.contains("助動詞") -> if (isDark) Color(0xFF2D1E3D) else Color(0xFFE8D3EA)
-        primaryPos.contains("形容") || primaryPos.contains("形状") -> if (isDark) Color(0xFF3D2A1E) else Color(0xFFF6E2CD)
-        primaryPos.contains("名詞") -> if (isDark) Color(0xFF1E2D3D) else Color(0xFFD3E0EA)
-        primaryPos.contains("動詞") -> if (isDark) Color(0xFF1E3D24) else Color(0xFFD4ECD5)
-        primaryPos.contains("助詞") -> if (isDark) Color(0xFF3D1E25) else Color(0xFFFDD4D8)
-        else -> if (isDark) Color(0xFF2D2D2D) else Color(0xFFEFEFEF)
-    }
+    return ZenThemeColors.getChipColor(resolvedCategory)
 }

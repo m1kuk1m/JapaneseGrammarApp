@@ -19,6 +19,44 @@ object ZenThemeColors {
     @Composable
     fun isDark(): Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
+    val PosColorsLight = mapOf(
+        "NOUN" to Color(0xFFD3E0EA),
+        "VERB" to Color(0xFFD4ECD5),
+        "ADJECTIVE" to Color(0xFFF6E2CD),
+        "AUXILIARY" to Color(0xFFE8D3EA),
+        "PARTICLE" to Color(0xFFFDD4D8),
+        "ADVERB" to Color(0xFFFAF0D2),
+        "CONJUNCTION" to Color(0xFFD2F5F0),
+        "PRONOUN" to Color(0xFFE1E0F5),
+        "PRE_NOUN_ADJECTIVAL" to Color(0xFFECEFC9),
+        "INTERJECTION" to Color(0xFFFCE1D4),
+        "SYMBOL" to Color(0xFFEAEAEA)
+    )
+
+    val PosColorsDark = mapOf(
+        "NOUN" to Color(0xFF1E2D3D),
+        "VERB" to Color(0xFF1E3D24),
+        "ADJECTIVE" to Color(0xFF3D2A1E),
+        "AUXILIARY" to Color(0xFF2D1E3D),
+        "PARTICLE" to Color(0xFF3D1E25),
+        "ADVERB" to Color(0xFF3D351E),
+        "CONJUNCTION" to Color(0xFF1E3D3A),
+        "PRONOUN" to Color(0xFF24223D),
+        "PRE_NOUN_ADJECTIVAL" to Color(0xFF323D1E),
+        "INTERJECTION" to Color(0xFF3D2A22),
+        "SYMBOL" to Color(0xFF232323)
+    )
+
+    @Composable
+    fun getChipColor(category: String): Color {
+        return getChipColor(category, isDark())
+    }
+
+    fun getChipColor(category: String, isDark: Boolean): Color {
+        val colorMap = if (isDark) PosColorsDark else PosColorsLight
+        return colorMap[category] ?: (if (isDark) Color(0xFF2D2D2D) else Color(0xFFEFEFEF))
+    }
+
     @Composable
     fun sumiInk(): Color = if (isDark()) Color(0xFFE0E0E0) else ZenColors.SumiInk
 

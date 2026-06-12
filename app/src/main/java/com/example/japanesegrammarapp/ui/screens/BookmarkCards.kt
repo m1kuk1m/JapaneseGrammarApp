@@ -61,25 +61,10 @@ import com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain
 import com.example.japanesegrammarapp.domain.model.BookmarkedSentenceDomain
 import com.example.japanesegrammarapp.domain.model.effectivePosCategory
 import com.example.japanesegrammarapp.ui.theme.ZenColors
+import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
-private val PosColors = mapOf(
-    "NOUN" to Color(0xFFD3E0EA),
-    "VERB" to Color(0xFFD4ECD5),
-    "ADJECTIVE" to Color(0xFFF6E2CD),
-    "AUXILIARY" to Color(0xFFE8D3EA),
-    "PARTICLE" to Color(0xFFFDD4D8)
-)
-
-private val PosColorsDark = mapOf(
-    "NOUN" to Color(0xFF1E2D3D),
-    "VERB" to Color(0xFF1E3D24),
-    "ADJECTIVE" to Color(0xFF3D2A1E),
-    "AUXILIARY" to Color(0xFF2D1E3D),
-    "PARTICLE" to Color(0xFF3D1E25)
-)
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
@@ -99,8 +84,7 @@ fun BookmarkCard(
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val surfaceColor = MaterialTheme.colorScheme.surface
     val posCat = bookmark.effectivePosCategory
-    val chipBg = (if (isDark) PosColorsDark[posCat] else PosColors[posCat])
-        ?: if (isDark) Color(0xFF2D2D2D) else Color(0xFFEFEFEF)
+    val chipBg = ZenThemeColors.getChipColor(posCat, isDark)
 
     val borderColor by animateColorAsState(
         targetValue = when {

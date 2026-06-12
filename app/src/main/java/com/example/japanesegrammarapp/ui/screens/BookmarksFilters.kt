@@ -24,22 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.ui.ArchiveFilter
 import com.example.japanesegrammarapp.ui.BookmarkFilter
-
-private val filterPosColors = mapOf(
-    "NOUN" to Color(0xFFD3E0EA),
-    "VERB" to Color(0xFFD4ECD5),
-    "ADJECTIVE" to Color(0xFFF6E2CD),
-    "AUXILIARY" to Color(0xFFE8D3EA),
-    "PARTICLE" to Color(0xFFFDD4D8)
-)
-
-private val filterPosColorsDark = mapOf(
-    "NOUN" to Color(0xFF1E2D3D),
-    "VERB" to Color(0xFF1E3D24),
-    "ADJECTIVE" to Color(0xFF3D2A1E),
-    "AUXILIARY" to Color(0xFF2D1E3D),
-    "PARTICLE" to Color(0xFF3D1E25)
-)
+import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
 
 @Composable
 fun BookmarkFilterChipsBar(
@@ -118,8 +103,7 @@ fun BookmarkFilterChipsBar(
                     )
                 }
                 items(posCategories) { cat ->
-                    val chipBg = (if (isDark) filterPosColorsDark[cat] else filterPosColors[cat])
-                        ?: if (isDark) Color(0xFF2D2D2D) else Color(0xFFEFEFEF)
+                    val chipBg = ZenThemeColors.getChipColor(cat, isDark)
                     PosFilterChip(
                         label = bookmarkPosDisplayName(cat),
                         isSelected = selectedPosCategory == cat,
@@ -227,7 +211,9 @@ private val bookmarkPosNameKeys = mapOf(
     "ADVERB" to R.string.pos_ADVERB,
     "CONJUNCTION" to R.string.pos_CONJUNCTION,
     "PRONOUN" to R.string.pos_PRONOUN,
-    "INTERJECTION" to R.string.pos_INTERJECTION
+    "INTERJECTION" to R.string.pos_INTERJECTION,
+    "PRE_NOUN_ADJECTIVAL" to R.string.pos_PRE_NOUN_ADJECTIVAL,
+    "SYMBOL" to R.string.pos_SYMBOL
 )
 
 @Composable
