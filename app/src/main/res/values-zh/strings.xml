@@ -68,6 +68,12 @@
     <string name="auto_navigate_result_desc">使用悬浮球上传或拍照后自动跳转。关闭时将在后台分析，可稍后在历史记录查看。</string>
     <string name="token_usage">API Token 消耗量</string>
     <string name="token_usage_desc">所有分析消耗的 Token 总计</string>
+    <string name="input_tokens">输入 Token</string>
+    <string name="output_tokens">输出 Token</string>
+    <string name="model_breakdown">各模型消耗明细</string>
+    <string name="daily_usage">每日消耗趋势</string>
+    <string name="no_daily_data">暂无每日消耗记录</string>
+    <string name="in_out_ratio">输入输出占比</string>
 
     <string name="api_config">API 优先级设置</string>
     <string name="main_api">主 API</string>
@@ -400,6 +406,8 @@
     <string name="pos_CONJUNCTION">接続詞</string>
     <string name="pos_PRONOUN">代名詞</string>
     <string name="pos_INTERJECTION">感動詞</string>
+    <string name="pos_PRE_NOUN_ADJECTIVAL">连体词</string>
+    <string name="pos_SYMBOL">符号</string>
     <string name="pos_other">其他</string>
 
     <!-- Archiving and feedback -->

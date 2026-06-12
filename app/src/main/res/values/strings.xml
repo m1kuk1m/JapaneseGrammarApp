@@ -68,6 +68,12 @@
     <string name="auto_navigate_result_desc">When using the floating ball, jump to the result page automatically. If off, it runs in the background.</string>
     <string name="token_usage">API Token Usage</string>
     <string name="token_usage_desc">Total tokens consumed across all analyses.</string>
+    <string name="input_tokens">Input Tokens</string>
+    <string name="output_tokens">Output Tokens</string>
+    <string name="model_breakdown">Model Usage Breakdown</string>
+    <string name="daily_usage">Daily Trend</string>
+    <string name="no_daily_data">No daily records yet</string>
+    <string name="in_out_ratio">In/Out Ratio</string>
 
     <string name="api_config">API Configuration</string>
     <string name="main_api">Main API</string>
@@ -406,6 +412,8 @@
     <string name="pos_CONJUNCTION">Conjunction</string>
     <string name="pos_PRONOUN">Pronoun</string>
     <string name="pos_INTERJECTION">Interjection</string>
+    <string name="pos_PRE_NOUN_ADJECTIVAL">Attributive</string>
+    <string name="pos_SYMBOL">Symbol</string>
     <string name="pos_other">Other</string>
 
     <!-- Archiving and feedback -->

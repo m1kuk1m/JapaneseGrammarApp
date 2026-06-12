@@ -68,6 +68,12 @@
     <string name="auto_navigate_result_desc">フローティングボタンからアップロード後、自動で結果画面に移動します。オフの場合はバックグラウンドで分析し、履歴から確認できます。</string>
     <string name="token_usage">APIトークン消費量（累計）</string>
     <string name="token_usage_desc">すべての分析で消費されたトークンの合計です。</string>
+    <string name="input_tokens">入力トークン</string>
+    <string name="output_tokens">出力トークン</string>
+    <string name="model_breakdown">モデル别消費内訳</string>
+    <string name="daily_usage">日别消費の推移</string>
+    <string name="no_daily_data">日别消費データはありません</string>
+    <string name="in_out_ratio">入出力比率</string>
 
     <string name="api_config">API優先度設定</string>
     <string name="main_api">メインAPI</string>
@@ -392,6 +398,8 @@
     <string name="pos_CONJUNCTION">接続詞</string>
     <string name="pos_PRONOUN">代名詞</string>
     <string name="pos_INTERJECTION">感動詞</string>
+    <string name="pos_PRE_NOUN_ADJECTIVAL">連体詞</string>
+    <string name="pos_SYMBOL">記号</string>
     <string name="pos_other">その他</string>
 
     <!-- Archiving and feedback -->

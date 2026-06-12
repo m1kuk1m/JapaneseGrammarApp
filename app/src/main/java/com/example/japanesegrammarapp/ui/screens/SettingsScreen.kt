@@ -70,6 +70,7 @@ fun SettingsScreen(
     val providerModels = uiState.providerModels
     val totalTokensConsumed by viewModel.totalTokensConsumed.collectAsState()
     val tokenUsageByModel by viewModel.tokenUsageByModel.collectAsState()
+    val dailyTokenUsage by viewModel.dailyTokenUsage.collectAsState()
 
     var showTokenDialog by remember { mutableStateOf(false) }
 
@@ -513,17 +514,250 @@ fun SettingsScreen(
     )
 
     if (showTokenDialog) {
+        val formatCount: (Int) -> String = { count ->
+            String.format(java.util.Locale.US, "%,d", count)
+        }
+
+        val totalInput = tokenUsageByModel.sumOf { it.inputTokens }
+        val totalOutput = tokenUsageByModel.sumOf { it.outputTokens }
+
         AlertDialog(
             onDismissRequest = { showTokenDialog = false },
-            title = { Text(stringResource(R.string.token_usage), fontWeight = FontWeight.Bold) },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = stringResource(R.string.token_usage),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = SumiInk
+                    )
+                    IconButton(
+                        onClick = { showTokenDialog = false },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.close),
+                            tint = SumiInk.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            },
             text = {
-                Column {
-                    val formattedTotal = if (totalTokensConsumed >= 1000) String.format(java.util.Locale.US, "%.1fk", totalTokensConsumed / 1000.0) else totalTokensConsumed.toString()
-                    Text(stringResource(R.string.total_tokens_format, formattedTotal), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 450.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    // 1. Overview Card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = stringResource(R.string.total_tokens_format, formatCount(totalTokensConsumed)),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = SumiInk
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            // Ratio Progress Bar
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(SumiInk.copy(alpha = 0.1f))
+                            ) {
+                                val inputRatio = if (totalTokensConsumed > 0) totalInput.toFloat() / totalTokensConsumed else 0f
+                                if (inputRatio > 0f) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .weight(inputRatio.coerceAtLeast(0.01f))
+                                            .background(MaterialTheme.colorScheme.primary)
+                                    )
+                                }
+                                val outputRatio = 1f - inputRatio
+                                if (outputRatio > 0f) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .weight(outputRatio.coerceAtLeast(0.01f))
+                                            .background(ZenColors.SakuraPink)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            // Legend
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "${stringResource(R.string.input_tokens)}: ${formatCount(totalInput)}",
+                                        fontSize = 11.sp,
+                                        color = SumiInk.copy(alpha = 0.8f)
+                                    )
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(ZenColors.SakuraPink)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "${stringResource(R.string.output_tokens)}: ${formatCount(totalOutput)}",
+                                        fontSize = 11.sp,
+                                        color = SumiInk.copy(alpha = 0.8f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 2. Model Breakdown
+                    Text(
+                        text = stringResource(R.string.model_breakdown),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = SumiInk
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
-                    tokenUsageByModel.forEach { usage ->
-                        val u = if (usage.totalTokens >= 1000) String.format(java.util.Locale.US, "%.1fk", usage.totalTokens / 1000.0) else usage.totalTokens.toString()
-                        Text("${usage.modelUsed}: $u", fontSize = 13.sp)
+
+                    if (tokenUsageByModel.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.no_daily_data),
+                            fontSize = 12.sp,
+                            color = SumiInk.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    } else {
+                        tokenUsageByModel.forEach { usage ->
+                            val modelRatio = if (totalTokensConsumed > 0) usage.totalTokens.toFloat() / totalTokensConsumed else 0f
+                            val modelPercentage = (modelRatio * 100).toInt()
+                            
+                            Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = usage.modelUsed,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = SumiInk
+                                    )
+                                    Text(
+                                        text = "${formatCount(usage.totalTokens)} ($modelPercentage%)",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = SumiInk
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "${stringResource(R.string.input_tokens)}: ${formatCount(usage.inputTokens)}  |  ${stringResource(R.string.output_tokens)}: ${formatCount(usage.outputTokens)}",
+                                    fontSize = 11.sp,
+                                    color = SumiInk.copy(alpha = 0.6f)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                LinearProgressIndicator(
+                                    progress = modelRatio,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(4.dp)
+                                        .clip(RoundedCornerShape(2.dp)),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    trackColor = SumiInk.copy(alpha = 0.05f)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 3. Daily Usage Trend
+                    Text(
+                        text = stringResource(R.string.daily_usage),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = SumiInk
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (dailyTokenUsage.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.no_daily_data),
+                            fontSize = 12.sp,
+                            color = SumiInk.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    } else {
+                        dailyTokenUsage.forEach { daily ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = daily.date,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = SumiInk
+                                        )
+                                        Text(
+                                            text = daily.modelUsed,
+                                            fontSize = 10.sp,
+                                            color = SumiInk.copy(alpha = 0.5f)
+                                        )
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text(
+                                            text = "${formatCount(daily.totalTokens)} tkn",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = SumiInk
+                                        )
+                                        Text(
+                                            text = "in: ${formatCount(daily.inputTokens)} | out: ${formatCount(daily.outputTokens)}",
+                                            fontSize = 10.sp,
+                                            color = SumiInk.copy(alpha = 0.5f)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Divider(color = SumiInk.copy(alpha = 0.08f))
+                            }
+                        }
                     }
                 }
             },
@@ -538,4 +772,3 @@ fun SettingsScreen(
 
     }
 }
-

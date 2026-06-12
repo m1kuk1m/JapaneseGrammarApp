@@ -46,7 +46,12 @@ fun AnalysisDomainRecord.toEntity(): AnalysisRecord {
 }
 
 fun ModelTokenUsageEntity.toDomain(): ModelTokenUsage =
-    ModelTokenUsage(modelUsed = modelUsed, totalTokens = totalTokens)
+    ModelTokenUsage(
+        modelUsed = modelUsed,
+        inputTokens = inputTokens,
+        outputTokens = outputTokens,
+        totalTokens = totalTokens
+    )
 
 fun DailyTokenUsageEntity.toDomain(): DailyTokenUsage =
     DailyTokenUsage(

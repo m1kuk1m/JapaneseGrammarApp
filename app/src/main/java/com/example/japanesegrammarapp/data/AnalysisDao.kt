@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.Flow
 
 data class ModelTokenUsageEntity(
     val modelUsed: String,
+    val inputTokens: Int,
+    val outputTokens: Int,
     val totalTokens: Int
 )
 
@@ -57,7 +59,7 @@ interface AnalysisDao {
     @Query("SELECT SUM(consumedTokens) FROM analysis_records")
     fun getTotalTokensConsumed(): Flow<Int?>
 
-    @Query("SELECT modelUsed, SUM(consumedTokens) as totalTokens FROM analysis_records WHERE consumedTokens > 0 GROUP BY modelUsed ORDER BY totalTokens DESC")
+    @Query("SELECT modelUsed, SUM(inputTokens) as inputTokens, SUM(outputTokens) as outputTokens, SUM(consumedTokens) as totalTokens FROM analysis_records WHERE consumedTokens > 0 GROUP BY modelUsed ORDER BY totalTokens DESC")
     fun getTokenUsageByModel(): Flow<List<ModelTokenUsageEntity>>
 
     @Query("SELECT date(timestamp / 1000, 'unixepoch', 'localtime') as date, modelUsed, SUM(inputTokens) as inputTokens, SUM(outputTokens) as outputTokens, SUM(consumedTokens) as totalTokens FROM analysis_records WHERE consumedTokens > 0 GROUP BY date, modelUsed ORDER BY date DESC, totalTokens DESC")
