@@ -1,0 +1,545 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App General -->
+    <string name="app_name">日本語文法分析</string>
+    <string name="app_title">文法分析</string>
+    <string name="app_subtitle">AIが日本語の文法構造をわかりやすく解説します</string>
+
+    <!-- Workspace -->
+    <string name="target_sentence">分析対象</string>
+    <string name="edit_and_reanalyze">編集して再分析</string>
+    <string name="image_analysis">画像文法分析</string>
+    <string name="error_occurred">エラーが発生しました</string>
+    <string name="delete">削除</string>
+    <string name="retry">再試行</string>
+    <string name="target_sentence_header">対象の例文</string>
+    <string name="analyzing_word_attributes">単語の属性を深く解析中...</string>
+    <string name="segmenting_text">テキストを形態素に分割中...</string>
+    <string name="pos">品詞</string>
+    <string name="dictionary_form">辞書形</string>
+    <string name="inflection">構成・活用</string>
+    <string name="role_in_sentence">文中の役割</string>
+    <string name="meaning">中国語の訳・意味</string>
+    <string name="overall_translation">全体の翻訳</string>
+    <string name="sentence_clauses">文の構造と解釈</string>
+    <string name="grammar_points">文法ポイント</string>
+
+    <!-- Input Form -->
+    <string name="input_hint">ここに日本語を入力してください...</string>
+    <string name="settings">設定</string>
+    <string name="history">履歴</string>
+    <string name="analyze">分析</string>
+    <string name="analyzing">分析中...</string>
+
+    <!-- Elegant UI Strings -->
+    <string name="hero_title">解析.</string>
+    <string name="hero_subtitle">日本語の文法構造を深く理解する</string>
+    <string name="workspace_short_title">WORKSPACE</string>
+    <string name="input_hint_elegant">テキストを入力...</string>
+    <string name="camera">カメラ</string>
+    <string name="album">アルバム</string>
+    <string name="start_parse">解析開始</string>
+
+    <!-- Sidebar -->
+    <string name="history_title">履歴</string>
+    <string name="close">閉じる</string>
+    <string name="no_history">履歴がありません</string>
+    <string name="history_search_hint">文を検索</string>
+    <string name="clear_history_search">検索をクリア</string>
+    <string name="no_search_results">一致する文がありません</string>
+    <string name="export_all">全てエクスポート</string>
+
+    <!-- Settings -->
+    <string name="settings_title">設定</string>
+    <string name="appearance">外観</string>
+    <string name="theme_mode">テーマ</string>
+    <string name="theme_system">システム</string>
+    <string name="theme_light">ライト</string>
+    <string name="theme_dark">ダーク</string>
+    <string name="accent_color">アクセントカラー</string>
+    <string name="wallpaper">壁紙</string>
+    <string name="pick_wallpaper">画像を選択</string>
+    <string name="clear_wallpaper">クリア</string>
+
+    <string name="general">一般設定</string>
+    <string name="local_ocr">ローカルOCRでテキスト抽出</string>
+    <string name="local_ocr_desc">オフにすると、画像を直接AIに送信して分析します。</string>
+    <string name="auto_navigate_result">分析結果へ自動ジャンプ</string>
+    <string name="auto_navigate_result_desc">フローティングボタンからアップロード後、自動で結果画面に移動します。オフの場合はバックグラウンドで分析し、履歴から確認できます。</string>
+    <string name="token_usage">APIトークン消費量（累計）</string>
+    <string name="token_usage_desc">すべての分析で消費されたトークンの合計です。</string>
+    <string name="input_tokens">入力トークン</string>
+    <string name="output_tokens">出力トークン</string>
+    <string name="model_breakdown">モデル别消費内訳</string>
+    <string name="daily_usage">日别消費の推移</string>
+    <string name="no_daily_data">日别消費データはありません</string>
+    <string name="in_out_ratio">入出力比率</string>
+
+    <string name="api_config">API優先度設定</string>
+    <string name="main_api">メインAPI</string>
+    <string name="backup_api">予備API</string>
+    <string name="credentials">API設定とモデル管理</string>
+
+    <!-- Workspace Input -->
+    <string name="model_label">モデル：</string>
+    <string name="select">選択</string>
+    <string name="model_not_set">モデル未設定 (設定へ)</string>
+    <string name="analysis_interrupted">入力を変更したため、自動分析を中断しました。</string>
+    <string name="attached_image">添付画像</string>
+    <string name="analysis_target_image">分析対象の画像</string>
+    <string name="camera_capture">カメラで撮影</string>
+    <string name="pick_image">画像を選択</string>
+    <string name="start_analysis">分析開始</string>
+
+    <!-- History Sidebar -->
+    <string name="history_status_pending">分析中</string>
+    <string name="history_status_error">エラー</string>
+    <string name="export">エクスポート</string>
+    <string name="new_analysis">新規分析</string>
+
+    <string name="language">言語設定</string>
+    <string name="language_auto">システムに従う</string>
+    <string name="base_url">ベースURL</string>
+    <string name="api_key">APIキー</string>
+    <string name="save_api_key">APIキーを保存</string>
+    <string name="clear_api_key">APIキーを削除</string>
+    <string name="clear_api_key_title">APIキーを削除しますか？</string>
+    <string name="clear_api_key_confirm">このプロバイダに保存済みのAPIキーを削除します。</string>
+    <string name="api_key_save_success">APIキーを保存しました</string>
+    <string name="api_key_save_failed">APIキーの保存に失敗しました</string>
+    <string name="fetching">取得中...</string>
+    <string name="fetch_models">モデルを取得</string>
+    <string name="add_custom_model">カスタムモデルを追加</string>
+    <string name="custom_hex">カスタムHex (例 #FF5722)</string>
+    <string name="main_model">メインモデル</string>
+    <string name="backup_model">バックアップモデル</string>
+
+    <string name="color_default">デフォルト</string>
+    <string name="color_sakura">桜色</string>
+    <string name="color_matcha">抹茶色</string>
+    <string name="color_aizome">藍染</string>
+    <string name="color_kuri">栗色</string>
+    <string name="color_hai">灰霞</string>
+    <string name="select_accent_color">アクセントカラーを選択</string>
+
+    <!-- Newly added for i18n & de-hardcoding -->
+    <string name="show_action">表示</string>
+    <string name="export_chooser_title">エクスポート先を選択</string>
+    <string name="analysis_results">分析結果</string>
+    <string name="history_menu_desc">履歴メニュー</string>
+    <string name="edit_and_reanalyze_desc">編集して再分析</string>
+    <string name="delete_history_title">履歴の削除</string>
+    <string name="delete_history_confirm">「%1$s」の分析履歴を削除しますか？</string>
+    <string name="cancel">キャンセル</string>
+
+    <!-- Export Selection Dialog -->
+    <string name="export_history_title">エクスポート履歴の選択</string>
+    <string name="deselect_all">選択をすべて解除</string>
+    <string name="select_all">すべて選択</string>
+    <string name="export_with_count">エクスポート (%1$d)</string>
+
+    <!-- Zen Loading View -->
+    <string name="loading_title">AIによる日本語文法解析中</string>
+    <string name="loading_subtitle">文法の構造を分析しています。少々お待ちください。</string>
+    <string name="cancel_analysis">解析をキャンセル</string>
+    <string name="completed">完了</string>
+    <string name="step_1_title">形態素解析・単語トークンの抽出</string>
+    <string name="step_1_desc">和文テキストの形態素解析を行っています</string>
+    <string name="step_2_title">統語役割・文節の関係性識別</string>
+    <string name="step_2_desc">文節の役割と相互関係を分類しています</string>
+    <string name="step_3_title">日本語文脈翻訳・スマート対訳</string>
+    <string name="step_3_desc">適切な翻訳と対照データを生成しています</string>
+    <string name="step_4_title">詳細な文法解説・アドバイスの構築</string>
+    <string name="step_4_desc">重要文法の詳細な解説カードを作成しています</string>
+
+    <!-- Workspace Result -->
+    <string name="analysis_result_text_view">分析結果 (テキスト表示)</string>
+    <string name="no_analysis_result">分析結果はありません。</string>
+    <string name="stop_tts">音声読み上げを停止</string>
+    <string name="play_tts">音声読み上げを開始</string>
+    <string name="close_details">詳細を閉じる</string>
+    <string name="translation_label">翻訳</string>
+    <string name="grammar_label">文法</string>
+
+    <!-- Settings Screen -->
+    <string name="app_logs_title">アプリログ (開発者向け)</string>
+    <string name="clear_logs">ログ消去</string>
+    <string name="back">戻る</string>
+    <string name="custom_image_set">カスタム画像設定済み</string>
+    <string name="none">なし</string>
+    <string name="unselected">未選択</string>
+    <string name="tts_settings_title">音声合成 (TTS) 設定</string>
+    <string name="tts_provider">音声合成プロバイダー</string>
+    <string name="tts_region_placeholder">サービス地域 / リージョン (例：eastus)</string>
+    <string name="tts_model_placeholder">音声合成モデル (例：tts-1)</string>
+    <string name="tts_voice_placeholder">話者音声 / ボイス (例：alloy, ja-JP-Neural2-B)</string>
+    <string name="view_dev_logs">開発者用ログを表示</string>
+    <string name="total_tokens_format">合計: %1$s トークン</string>
+
+    <!-- Phase 2 De-hardcoding -->
+    <string name="llm_retry_toast">メインAPI（%1$s）の呼び出しに失敗しました。%2$d回目の自動再試行を行います。</string>
+    <string name="llm_backup_toast">メインAPI（%1$s）の再試行に失敗しました。予備API（%2$s）を呼び出しています。</string>
+    <string name="ocr_fallback_toast">ローカルOCRで文字が検出されなかったため、Visionモードにフォールバックします。</string>
+    <string name="spelling_corrected_toast">文章の誤りを自動修正しました。</string>
+    <string name="analysis_started_toast">分析タスクを開始しました。</string>
+    <string name="no_history_to_export">エクスポートする履歴がありません。</string>
+    <string name="unknown_error">不明なエラー</string>
+    <string name="error_analysis_failed_to_start">分析の開始に失敗しました</string>
+    <string name="error_retry_failed">再試行に失敗しました</string>
+    <string name="export_header_title">日本語文法分析 - 履歴エクスポート</string>
+    <string name="export_header_time">エクスポート日時: %1$s</string>
+    <string name="export_header_count">合計レコード数: %1$d件</string>
+    <string name="export_record_number">【%1$d】</string>
+    <string name="export_record_time">日時: %1$s</string>
+    <string name="export_record_model">モデル: %1$s</string>
+    <string name="export_record_status">ステータス: %1$s</string>
+    <string name="export_original_text_section">【原文】</string>
+    <string name="export_image_analysis_fallback">（画像から分析）</string>
+    <string name="export_result_section">【分析結果】</string>
+    <string name="export_error_section">【エラー内容】</string>
+    <string name="camera_permission_required_title">カメラのアクセス許可が必要です</string>
+    <string name="camera_permission_required_desc">文法分析する日本語をカメラで撮影するために、カメラの権限を許可してください。</string>
+    <string name="camera_request_permission_btn">許可を求める</string>
+    <string name="camera_permission_denied_permanently_title">カメラ権限が拒否されました</string>
+    <string name="camera_permission_denied_permanently_desc">カメラのアクセス許可が永久に拒否されています。カメラ機能を利用するには、端末の設定から権限を有効にしてください。</string>
+    <string name="camera_go_to_settings_btn">設定へ移動</string>
+    <string name="camera_back_desc">戻る</string>
+    <string name="camera_flash_on_desc">常時発光</string>
+    <string name="camera_flash_auto_desc">自動発光</string>
+    <string name="camera_flash_off_desc">発光禁止</string>
+    <string name="camera_flash_on_label">ON</string>
+    <string name="camera_flash_auto_label">AUTO</string>
+    <string name="camera_flash_off_label">OFF</string>
+    <string name="camera_guide_keep_inside">日本語のテキストに向けて撮影してください</string>
+    <string name="camera_guide_crop_hint">撮影後にテキストを自由に選択・編集できます</string>
+    <string name="camera_local_ocr">ローカルOCR</string>
+    <string name="camera_crop_title">文字範囲を選択</string>
+    <string name="camera_crop_hint">角をドラッグして調整</string>
+    <string name="camera_cancel_desc">キャンセル</string>
+    <string name="camera_recapture_btn">再撮影/戻る</string>
+    <string name="camera_confirm_desc">確定</string>
+    <string name="camera_confirm_btn">範囲決定</string>
+    <string name="input_dialog_title">テキスト入力</string>
+    <string name="input_dialog_placeholder">分析するテキストを入力...</string>
+    <string name="start_analysis_btn">分析開始</string>
+    <string name="floating_camera_permission_title">カメラ権限が必要です</string>
+    <string name="floating_camera_permission_desc">先にアプリのカメラ画面で権限を許可すると、ここで浮遊カメラを使えます。</string>
+    <string name="floating_camera_capturing">撮影中...</string>
+    <string name="floating_camera_unavailable">カメラの準備がまだ完了していません。</string>
+    <string name="floating_camera_capture_failed">撮影に失敗しました。</string>
+    <string name="ocr_overlay_empty">日本語テキスト領域が検出されませんでした。より鮮明な画面にするか、カメラ/画像分析をお試しください。</string>
+    <string name="ocr_overlay_processing">選択範囲を準備中...</string>
+    <string name="image_tokenizer_mode_title">画像分かち書き認識モード</string>
+    <string name="image_tokenizer_mode_faithful">鮮明画像・原文忠実</string>
+    <string name="image_tokenizer_mode_faithful_desc">修正や推測をせず、画像に見える文字をそのまま保持します。</string>
+    <string name="image_tokenizer_mode_repair">不鮮明画像・文脈補正</string>
+    <string name="image_tokenizer_mode_repair_desc">画像が不鮮明な場合、文脈から明らかに不自然な濁点や文字を補正します。</string>
+    <string name="view_api_debug_logs">APIデバッグ応答を表示</string>
+    <string name="api_debug_logs_title">APIデバッグ応答</string>
+    <string name="api_debug_filter_all">すべて</string>
+    <string name="clear_api_debug_logs">APIデバッグログを消去</string>
+    <string name="api_debug_empty">まだ記録がありません。分析を実行すると、各API役割のリクエスト概要、原文応答、エラー詳細が表示されます。</string>
+    <string name="api_debug_no_filter_results">現在の検索条件またはフィルターに一致するAPIログはありません。</string>
+    <string name="api_debug_meta">image=%1$s, tokens=%2$d (in=%3$d, out=%4$d)</string>
+    <string name="api_debug_user_prompt">ユーザープロンプト</string>
+    <string name="api_debug_system_prompt">システムプロンプトプレビュー</string>
+    <string name="api_debug_raw_response">原文応答</string>
+    <string name="api_debug_error">エラー</string>
+    <string name="api_debug_stack_trace">スタックトレース</string>
+    <string name="dict_eudic">Eudic辞書</string>
+    <string name="dict_dictango">Dictango</string>
+    <string name="dict_moji">MOJi辞書</string>
+    <string name="dict_not_installed">アプリ %1$s がインストールされていません。</string>
+    <string name="search_in_dict">辞書で引く</string>
+    <string name="action_process_text">文法分析</string>
+
+    <!-- API Endpoints -->
+    <string name="api_endpoints_manage">APIエンドポイント管理</string>
+    <string name="endpoint_name">エンドポイント名</string>
+    <string name="delete_endpoint_confirm">このエンドポイントを削除してもよろしいですか？</string>
+    <string name="endpoint_add">エンドポイントを追加</string>
+    <string name="endpoint_edit">エンドポイントを編集</string>
+    <string name="endpoint_enabled">有効</string>
+    <string name="endpoint_disabled">無効</string>
+    <string name="endpoint_failures">失敗回数：%1$d</string>
+    <string name="endpoint_cooldown">クールダウン：%1$s</string>
+    <string name="endpoint_last_error">前回のエラー：%1$s</string>
+    <string name="endpoint_priority">優先度</string>
+    <string name="endpoint_weight">重み</string>
+    <string name="endpoint_priority_weight">優先度 %1$d · 重み %2$d</string>
+    <string name="endpoint_save">保存</string>
+    <string name="endpoint_save_success">エンドポイントを保存しました</string>
+    <string name="endpoint_delete_success">エンドポイントを削除しました</string>
+
+    <!-- New UI Strings -->
+    <string name="copy_full_error_log">完全なエラーログをコピー</string>
+    <string name="copy_logs">ログをコピー</string>
+    <string name="screen_ocr_active">画面OCRがアクティブです</string>
+
+    <!-- Analysis Steps -->
+    <string name="step_tokenization">単語分割</string>
+    <string name="step_translation">翻訳</string>
+    <string name="step_clause_analysis">文節解析</string>
+    <string name="step_grammar_explanation">文法解説</string>
+    <string name="step_detailed_grammar">詳細文法解析</string>
+
+    <!-- Dynamic Analysis Messages -->
+    <string name="analysis_completed_short">「%1$s...」の分析が完了しました</string>
+    <string name="analysis_completed_full">「%1$s」の分析が完了しました</string>
+
+    <!-- Errors -->
+    <string name="error_both_api_failed">メインAPIおよび予備APIの呼び出しに失敗しました。メインAPIエラー: %1$s。予備APIエラー: %2$s</string>
+    <string name="error_main_api_failed_no_backup">メインAPI（%1$s）の再試行に失败し、予備APIが設定されていないか有効ではありません。メインAPIエラー: %2$s</string>
+
+    <!-- Enhanced Developer Logs -->
+    <string name="log_search_hint">ログを検索...</string>
+    <string name="log_level_all">すべて</string>
+    <string name="log_level_debug">デバッグ</string>
+    <string name="log_level_info">情報</string>
+    <string name="log_level_warn">警告</string>
+    <string name="log_level_error">エラー</string>
+    <string name="share_logs">ログファイルを共有</string>
+    <string name="log_size_label">ログストレージ容量: %1$s</string>
+    <string name="delete_log_files">ローカルログファイルを削除</string>
+    <string name="delete_log_files_success">ローカルログファイルを正常に削除しました</string>
+    <string name="delete_log_files_confirm">すべてのローカル永続化ログファイルを削除してもよろしいですか？</string>
+    <string name="scroll_to_top">トップへ戻る</string>
+    <string name="scroll_to_bottom">一番下へスクロール</string>
+    <string name="api_details_title">APIレスポンス詳細</string>
+    <string name="api_log_copy_prompt">プロンプトをコピー</string>
+    <string name="copy_success_toast">クリップボードにコピーしました</string>
+    <string name="api_log_copy_response">レスポンスをコピー</string>
+    <string name="api_log_copy_error">エラーをコピー</string>
+    <string name="api_log_share_all">APIデバッグログをエクスポート</string>
+    <string name="api_log_include_full_debug">完全なプロンプト/レスポンスを含める</string>
+    <string name="log_export_confirm_title">ログをエクスポートしますか？</string>
+    <string name="log_copy_confirm_title">ログをコピーしますか？</string>
+    <string name="app_log_export_confirm">アプリログには診断情報が含まれる場合があります。エクスポートしますか？</string>
+    <string name="api_log_export_summary_confirm">APIログは、完全なプロンプトやレスポンスを含まないサニタイズ済み概要としてエクスポートされます。</string>
+    <string name="api_log_export_full_confirm">完全なAPIデバッグエクスポートには、サニタイズ済みのプロンプト、レスポンス、エラー、スタックトレースが含まれます。デバッグ用途でのみ使用してください。</string>
+    <string name="api_log_copy_summary_confirm">APIログは、完全なプロンプトやレスポンスを含まないサニタイズ済み概要としてコピーされます。</string>
+    <string name="api_log_copy_full_confirm">完全なAPIデバッグコピーには、サニタイズ済みのプロンプト、レスポンス、エラー、スタックトレースが含まれます。デバッグ用途でのみ使用してください。</string>
+    <string name="api_debug_filter_start">開始</string>
+    <string name="api_debug_filter_success">成功</string>
+    <string name="api_debug_filter_retry">再試行</string>
+    <string name="api_debug_filter_backup">予備API</string>
+    <string name="api_debug_filter_timeout">タイムアウト</string>
+    <string name="api_debug_filter_error">失敗</string>
+    <string name="api_details_metadata">メタデータ</string>
+    <string name="api_details_prompts">プロンプト</string>
+    <string name="api_details_response">レスポンス</string>
+    <string name="api_details_error_info">エラー情報</string>
+    <string name="api_log_summary_context">record=%1$s, step=%2$s, attempt=%3$s, elapsed=%4$sms</string>
+    <string name="api_log_unknown_value">-</string>
+    <string name="import_history">インポート</string>
+    <string name="import_no_valid_records">有効な履歴レコードが見つかりません</string>
+    <string name="import_success">%1$d 件のレコードが正常にインポートされました</string>
+    <string name="import_failed">インポート失敗: %1$s</string>
+
+    <!-- Bookmarks & Flashcard -->
+    <string name="bookmarks_title">お気に入り</string>
+    <string name="bookmarks_empty_title">まだお気に入りの単語がありません</string>
+    <string name="bookmarks_empty_hint">分析ページで単語チップを長押ししてお気に入りに追加</string>
+    <string name="bookmarks_count">%1$d</string>
+    <string name="bookmarks_count_all">%1$d件</string>
+    <string name="bookmarks_count_filtered">%1$d / %2$d</string>
+    <string name="bookmark_added">お気に入りに追加</string>
+    <string name="bookmark_deleted">お気に入りを削除しました</string>
+    <string name="bookmark_already_exists">既にお気に入りに追加されています</string>
+    <string name="import_bookmarks">お気に入りをインポート</string>
+    <string name="export_bookmarks">お気に入りをエクスポート</string>
+    <string name="import_success_msg">%1$d 件のお気に入りをインポートしました</string>
+    <string name="import_failed_msg">インポートに失敗しました。ファイル形式を確認してください</string>
+    <string name="import_error_msg">インポート失敗: %1$s</string>
+    <string name="delete_bookmark">削除</string>
+    <string name="delete_bookmark_confirm">このお気に入りを削除しますか？</string>
+    <string name="cancel_delete">キャンセル</string>
+    <string name="view_source">原文を見る</string>
+    <string name="source_sentence_prefix">出典：%1$s</string>
+
+    <!-- Bookmark Filters -->
+    <string name="filter_all">すべて</string>
+    <string name="filter_by_pos">品詞別</string>
+    <string name="filter_by_date">日付別</string>
+    <string name="filter_today">今日</string>
+    <string name="filter_week">今週</string>
+    <string name="filter_older">以前</string>
+
+    <!-- Flashcard -->
+    <string name="flashcard_title">フラッシュカード</string>
+    <string name="flashcard_session_complete">練習完了</string>
+    <string name="flashcard_no_cards">練習できるお気に入りがありません</string>
+    <string name="flashcard_front_hint">タップして意味を見る</string>
+    <string name="flashcard_back_hint">タップして戻す</string>
+    <string name="flashcard_forgot">わからない</string>
+    <string name="flashcard_remembered">覚えた</string>
+    <string name="flashcard_retry_weak">苦手なものだけ再練習</string>
+    <string name="flashcard_restart">もう一度</string>
+    <string name="flashcard_back_to_bookmarks">お気に入りに戻る</string>
+    <string name="flashcard_total_cards">総カード数</string>
+    <string name="flashcard_mastered_count">マスター</string>
+    <string name="flashcard_accuracy">正解率</string>
+    <string name="flashcard_inflection_label">活用：%1$s</string>
+    <string name="flashcard_role_label">役割：%1$s</string>
+    <string name="flashcard_dict_form_label">原形：%1$s</string>
+    <string name="flashcard_no_meaning">（意味なし）</string>
+    <string name="flashcard_round_label">第 %1$d ラウンド</string>
+
+    <!-- Dictionary lookup bookmark shortcut -->
+    <string name="long_press_to_bookmark">長押しでお気に入りに追加</string>
+
+    <!-- POS Category Names (for filter localization) -->
+    <string name="pos_NOUN">名詞</string>
+    <string name="pos_VERB">動詞</string>
+    <string name="pos_ADJECTIVE">形容詞</string>
+    <string name="pos_AUXILIARY">助動詞</string>
+    <string name="pos_PARTICLE">助詞</string>
+    <string name="pos_ADVERB">副詞</string>
+    <string name="pos_CONJUNCTION">接続詞</string>
+    <string name="pos_PRONOUN">代名詞</string>
+    <string name="pos_INTERJECTION">感動詞</string>
+    <string name="pos_PRE_NOUN_ADJECTIVAL">連体詞</string>
+    <string name="pos_SYMBOL">記号</string>
+    <string name="pos_other">その他</string>
+
+    <!-- Archiving and feedback -->
+    <string name="filter_archived">アーカイブ</string>
+    <string name="bookmark_archive">アーカイブ</string>
+    <string name="bookmark_restore">元に戻す</string>
+    <string name="bookmark_archived_toast">アーカイブしました</string>
+    <string name="bookmark_restored_toast">アーカイブから復元しました</string>
+    <string name="flashcard_archived_auto_hint">マスターした %1$d 語を自動アーカイブしました</string>
+    <string name="view_bookmarks_desc">お気に入り一覧</string>
+    <string name="flashcard_mastered_label">マスター</string>
+    <string name="archive_filter_unarchived">未アーカイブ</string>
+    <string name="archive_filter_archived">アーカイブ済み</string>
+
+    <!-- Flashcard Settings & Enhancements -->
+    <string name="flashcard_settings_title">フラッシュカード設定</string>
+    <string name="flashcard_mode_label">練習モード</string>
+    <string name="flashcard_mode_ja_to_zh">日本語 ➔ 中国語 (認識)</string>
+    <string name="flashcard_mode_zh_to_ja">中国語 ➔ 日本語 (想起)</string>
+    <string name="flashcard_count_label">カード枚数</string>
+    <string name="flashcard_count_all">すべて (%1$d)</string>
+    <string name="flashcard_pos_label">品詞フィルター</string>
+    <string name="flashcard_pos_all">すべての品詞</string>
+    <string name="flashcard_auto_tts">自動音声読み上げ</string>
+    <string name="flashcard_speak">読み上げ</string>
+    <string name="flashcard_archive_mastered_btn">マスターした単語をアーカイブする</string>
+    <string name="flashcard_archive_success">マスターした単語をアーカイブしました</string>
+    <string name="flashcard_start_btn">練習を開始</string>
+    <string name="flashcard_scope_label">復習範囲</string>
+    <string name="flashcard_scope_unarchived">未アーカイブのみ (通常)</string>
+    <string name="flashcard_scope_archived">アーカイブ済みのみ (再学習)</string>
+    <string name="flashcard_scope_all">すべての単語 (アーカイブ含む)</string>
+    <string name="flashcard_eval_oops">間違えた</string>
+    <string name="flashcard_eval_next">次へ</string>
+    <string name="flashcard_eval_actually_remembered">実は覚えた</string>
+    <string name="flashcard_show_answer">答えを表示</string>
+    <string name="flashcard_next_card">次へ</string>
+    <string name="flashcard_unmastered_list">未習得の単語リスト</string>
+    <string name="flashcard_summary_total">合計 %1$d 語を練習しました</string>
+    <string name="flashcard_unmastered_section">未習得の単語 (%1$d)</string>
+    <string name="flashcard_mastered_section">習得済みの単語 (%1$d)</string>
+
+    <!-- Settings API Debug Details -->
+    <string name="api_log_time">リクエスト日時：%1$s</string>
+    <string name="api_log_type">API種別：%1$s</string>
+    <string name="api_log_provider">プロバイダ：%1$s</string>
+    <string name="api_log_model">モデル名：%1$s</string>
+    <string name="api_log_status">ステータス：%1$s</string>
+    <string name="api_log_tokens">トークン消費量：%1$d (入力: %2$d, 出力: %3$d)</string>
+    <string name="api_log_has_image">画像添付：%1$b</string>
+    <string name="api_log_record">レコード：%1$s</string>
+    <string name="api_log_step">ステップ：%1$s</string>
+    <string name="api_log_attempt">試行回数：%1$s</string>
+    <string name="api_log_elapsed">経過時間：%1$sms</string>
+    <string name="api_log_message">メッセージ：%1$s</string>
+
+    <!-- Additional UI & Descriptions -->
+    <string name="history_record_tokens">トークン消費：%1$s</string>
+    <string name="cd_remove_image">選択した画像を削除</string>
+    <string name="cd_text_input">テキスト入力</string>
+    <string name="cd_background_wallpaper">背景壁紙</string>
+
+    <!-- Exception warning messages -->
+    <string name="err_missing_api_key">先に設定画面でAPIキーを登録してください。</string>
+    <string name="err_empty_input">日本語のテキストを入力するか、画像を撮影してください。</string>
+    <string name="err_ocr_failed">文字認識に失敗しました：%1$s</string>
+
+    <!-- Prompt Customization Settings -->
+    <string name="custom_prompts_title">AIプロンプトのカスタマイズ</string>
+    <string name="custom_prompts_desc">翻訳、形態素解析、文節解析など、各分析タスクのシステムプロンプトを変更・初期化します</string>
+    <string name="prompt_editor_title">システムプロンプトエディタ</string>
+    <string name="prompt_save_success">プロンプトを保存しました</string>
+    <string name="prompt_reset_success">プロンプトをデフォルトに戻しました</string>
+    <string name="prompt_reset_all_success">すべてのプロンプトをデフォルトに戻しました</string>
+    <string name="prompt_reset_confirm">このプロンプトをデフォルト設定に戻してもよろしいですか？</string>
+    <string name="prompt_reset_all_confirm">すべてのプロンプトをデフォルト設定に戻してもよろしいですか？カスタマイズした変更はすべて消去されます。</string>
+    <string name="save_prompt">プロンプトを保存</string>
+    <string name="reset_prompt">デフォルトに戻す</string>
+    <string name="reset_all_prompts">すべてデフォルトに戻す</string>
+    <string name="prompt_select_type">タスクを選択</string>
+    <string name="prompt_type_translation">翻訳</string>
+    <string name="prompt_type_segments">形態素解析・単語情報</string>
+    <string name="prompt_type_clauses">文節・文構造解析</string>
+    <string name="prompt_type_grammar">核心文法ポイント解説</string>
+    <string name="prompt_type_tokenizer">テキスト分かち書き</string>
+    <string name="prompt_type_tokenizer_ocr">OCRテキスト分かち書き・校正</string>
+    <string name="prompt_type_tokenizer_image">画像文字認識分かち書き</string>
+    <string name="prompt_type_tokenizer_image_repair">不鮮明画像スマート補正分かち書き</string>
+
+    <string name="add">追加</string>
+    <string name="tab_words">単語</string>
+    <string name="tab_sentences">文</string>
+    <string name="bookmarks_empty_sentences_title">お気に入りの文はまだありません</string>
+    <string name="bookmarks_empty_sentences_hint">履歴項目を長押しするか、分析画面で星印をクリックしてお気に入りに追加します</string>
+    <string name="delete_analysis_confirm_title">分析履歴の削除</string>
+    <string name="delete_analysis_confirm_message">この分析履歴を削除してもよろしいですか？（この文のお気に入りは削除されません）</string>
+    <string name="bookmark_sentence_added">文をお気に入りに追加しました</string>
+    <string name="bookmark_sentence_removed">文のお気に入りを解除しました</string>
+    <string name="step_segments">単語分割</string>
+    <string name="step_clauses">文節解析</string>
+    <string name="step_grammar">文法解説</string>
+    <string name="no_source_sentence">（原文なし）</string>
+    <string name="collapse">折りたたむ</string>
+    <string name="expand">展開する</string>
+    <string name="view_details">詳細を表示</string>
+    <string name="unfavorite">お気に入り解除</string>
+    <string name="dict_form_reading">読み</string>
+    <string name="flashcard_no_weak_cards">苦手なカードはありません</string>
+    <string name="ocr_debug_title">OCR範囲デバッグ</string>
+    <string name="ocr_debug_entry_desc">OCR自動選択枠のプレビューと調整</string>
+    <string name="ocr_debug_pick_sample">サンプル画像を選択</string>
+    <string name="ocr_debug_reset_defaults">デフォルトに戻す</string>
+    <string name="ocr_debug_empty_preview">サンプル画像が未選択です</string>
+    <string name="ocr_debug_preview_hint">スクリーンショットや写真をアップロードして、現在のパラメータでOCR選択枠を確認できます。</string>
+    <string name="ocr_debug_box_count">%1$d 個の枠を検出</string>
+    <string name="ocr_debug_load_failed">選択した画像を読み込めませんでした。</string>
+    <string name="ocr_debug_merge_settings">結合しきい値</string>
+    <string name="ocr_debug_padding_settings">出力余白</string>
+    <string name="ocr_debug_horizontal_gap">横書き行間</string>
+    <string name="ocr_debug_horizontal_overlap">横書き重なり</string>
+    <string name="ocr_debug_horizontal_fill">横書き密度</string>
+    <string name="ocr_debug_vertical_gap">縦書き列間</string>
+    <string name="ocr_debug_vertical_overlap">縦書き重なり</string>
+    <string name="ocr_debug_vertical_fill">縦書き密度</string>
+    <string name="ocr_debug_horizontal_padding_x">横書き左右余白</string>
+    <string name="ocr_debug_horizontal_padding_y">横書き上下余白</string>
+    <string name="ocr_debug_vertical_padding_x">縦書き左右余白</string>
+    <string name="ocr_debug_vertical_padding_y">縦書き上下余白</string>
+    <string name="ocr_debug_detector_engine">検出エンジン</string>
+    <string name="ocr_detector_engine_title">OCR選択枠の検出方式</string>
+    <string name="ocr_debug_engine_mlkit">ML Kit</string>
+    <string name="ocr_debug_engine_rapidocr">RapidOCR</string>
+    <string name="ocr_debug_engine_hybrid">ハイブリッド</string>
+    <string name="ocr_debug_engine_auto">自動</string>
+    <string name="ocr_debug_preview_mode">プレビューモード</string>
+    <string name="ocr_debug_preview_final">最終</string>
+    <string name="ocr_debug_preview_raw">原始</string>
+    <string name="ocr_debug_rapidocr_settings">RapidOCR原始検出</string>
+    <string name="ocr_debug_rapidocr_input_size">入力の長辺</string>
+    <string name="ocr_debug_rapidocr_det_threshold">検出しきい値</string>
+    <string name="ocr_debug_rapidocr_box_threshold">枠しきい値</string>
+    <string name="ocr_debug_rapidocr_unclip">拡張比率</string>
+</resources>

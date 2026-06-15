@@ -1,0 +1,43 @@
+# Built files
+/build
+app/build/
+build/
+
+# Gradle files
+.gradle/
+
+# Local configuration file (sdk path etc)
+local.properties
+
+# Android Studio local files
+.idea/
+.idea/workspace.xml
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/deploymentTargetSelector.xml
+
+# Log files
+*.log
+
+# Signing secrets and release artifacts
+*.jks
+*.keystore
+*.p12
+*.apk
+app/release/
+
+# Local research/scrape scratch files
+out*.html
+search_results.html
+bing_results*.txt
+ddg_*.txt
+search*.py
+dl_apk.py
+opt.js
+parse_apk*.py
+scrape_*.py
+
+# Local prompt snapshots and assistant state
+.claude/
+prompt_backups/
