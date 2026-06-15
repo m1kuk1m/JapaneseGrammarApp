@@ -1,0 +1,20 @@
+package com.example.japanesegrammarapp.data.repository
+
+import android.content.Context
+import android.net.Uri
+import com.example.japanesegrammarapp.vision.OcrHelper
+import com.example.japanesegrammarapp.domain.repository.OcrRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class OcrRepositoryImpl @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val ocrHelper: OcrHelper
+) : OcrRepository {
+
+    override suspend fun extractTextFromImage(imageUri: String): String {
+        return ocrHelper.extractTextFromUri(context, Uri.parse(imageUri))
+    }
+}

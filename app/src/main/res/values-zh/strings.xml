@@ -1,0 +1,545 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App General -->
+    <string name="app_name">日语语法分析</string>
+    <string name="app_title">语法分析</string>
+    <string name="app_subtitle">AI为你清晰拆解日语语法结构</string>
+
+    <!-- Workspace -->
+    <string name="target_sentence">分析对象</string>
+    <string name="edit_and_reanalyze">编辑并重新分析</string>
+    <string name="image_analysis">图片语法分析</string>
+    <string name="error_occurred">发生错误</string>
+    <string name="delete">删除</string>
+    <string name="retry">重试</string>
+    <string name="target_sentence_header">目标例句</string>
+    <string name="analyzing_word_attributes">正在深度解析单词属性...</string>
+    <string name="segmenting_text">正在进行形态素拆分...</string>
+    <string name="pos">词性</string>
+    <string name="dictionary_form">字典形</string>
+    <string name="inflection">构成/活用</string>
+    <string name="role_in_sentence">句中作用</string>
+    <string name="meaning">中文释义</string>
+    <string name="overall_translation">全文翻译</string>
+    <string name="sentence_clauses">句子结构与解释</string>
+    <string name="grammar_points">语法要点</string>
+
+    <!-- Input Form -->
+    <string name="input_hint">在此输入日语...</string>
+    <string name="settings">设置</string>
+    <string name="history">历史</string>
+    <string name="analyze">开始分析</string>
+    <string name="analyzing">分析中...</string>
+
+    <!-- Elegant UI Strings -->
+    <string name="hero_title">解析.</string>
+    <string name="hero_subtitle">深入理解日语语法结构</string>
+    <string name="workspace_short_title">WORKSPACE</string>
+    <string name="input_hint_elegant">输入日文...</string>
+    <string name="camera">拍照</string>
+    <string name="album">相册</string>
+    <string name="start_parse">解析开始</string>
+
+    <!-- Sidebar -->
+    <string name="history_title">历史记录</string>
+    <string name="close">关闭</string>
+    <string name="no_history">暂无记录</string>
+    <string name="history_search_hint">搜索句子</string>
+    <string name="clear_history_search">清空搜索</string>
+    <string name="no_search_results">未找到相关句子</string>
+    <string name="export_all">全部导出</string>
+
+    <!-- Settings -->
+    <string name="settings_title">设置</string>
+    <string name="appearance">外观</string>
+    <string name="theme_mode">主题模式</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="accent_color">主题色</string>
+    <string name="wallpaper">自定义壁纸</string>
+    <string name="pick_wallpaper">选择图片</string>
+    <string name="clear_wallpaper">清除</string>
+
+    <string name="general">常规</string>
+    <string name="local_ocr">本地 OCR 提取文本</string>
+    <string name="local_ocr_desc">关闭时，图片将直接发送给 AI 进行分析。</string>
+    <string name="auto_navigate_result">自动跳转分析结果</string>
+    <string name="auto_navigate_result_desc">使用悬浮球上传或拍照后自动跳转。关闭时将在后台分析，可稍后在历史记录查看。</string>
+    <string name="token_usage">API Token 消耗量</string>
+    <string name="token_usage_desc">所有分析消耗的 Token 总计</string>
+    <string name="input_tokens">输入 Token</string>
+    <string name="output_tokens">输出 Token</string>
+    <string name="model_breakdown">各模型消耗明细</string>
+    <string name="daily_usage">每日消耗趋势</string>
+    <string name="no_daily_data">暂无每日消耗记录</string>
+    <string name="in_out_ratio">输入输出占比</string>
+
+    <string name="api_config">API 优先级设置</string>
+    <string name="main_api">主 API</string>
+    <string name="backup_api">备用 API</string>
+    <string name="credentials">API 凭据与模型管理</string>
+
+    <!-- Workspace Input -->
+    <string name="model_label">模型：</string>
+    <string name="select">选择</string>
+    <string name="model_not_set">未设置模型 (前往设置)</string>
+    <string name="analysis_interrupted">输入已更改，自动分析已中断。</string>
+    <string name="attached_image">附加图片</string>
+    <string name="analysis_target_image">分析目标图片</string>
+    <string name="camera_capture">拍照</string>
+    <string name="pick_image">选择图片</string>
+    <string name="start_analysis">开始分析</string>
+
+    <!-- History Sidebar -->
+    <string name="history_status_pending">分析中</string>
+    <string name="history_status_error">错误</string>
+    <string name="export">导出</string>
+    <string name="new_analysis">新建分析</string>
+
+    <string name="language">显示语言</string>
+    <string name="language_auto">跟随系统</string>
+    <string name="base_url">接口地址 (Base URL)</string>
+    <string name="api_key">API 密钥 (API Key)</string>
+    <string name="save_api_key">保存 API 密钥</string>
+    <string name="clear_api_key">清除 API 密钥</string>
+    <string name="clear_api_key_title">清除 API 密钥？</string>
+    <string name="clear_api_key_confirm">这会移除此服务商已保存的 API 密钥。</string>
+    <string name="api_key_save_success">API 密钥已保存</string>
+    <string name="api_key_save_failed">API 密钥保存失败</string>
+    <string name="fetching">获取中...</string>
+    <string name="fetch_models">获取可用模型</string>
+    <string name="add_custom_model">添加自定义模型</string>
+    <string name="custom_hex">自定义 Hex (如 #FF5722)</string>
+    <string name="main_model">主模型</string>
+    <string name="backup_model">备用模型</string>
+
+    <string name="color_default">默认</string>
+    <string name="color_sakura">樱粉</string>
+    <string name="color_matcha">抹茶绿</string>
+    <string name="color_aizome">蓝染</string>
+    <string name="color_kuri">栗色</string>
+    <string name="color_hai">雾灰</string>
+    <string name="select_accent_color">选择主题色</string>
+
+    <!-- Newly added for i18n & de-hardcoding -->
+    <string name="show_action">显示</string>
+    <string name="export_chooser_title">选择导出目标</string>
+    <string name="analysis_results">分析结果</string>
+    <string name="history_menu_desc">历史记录菜单</string>
+    <string name="edit_and_reanalyze_desc">编辑并重新分析</string>
+    <string name="delete_history_title">删除历史记录</string>
+    <string name="delete_history_confirm">确定要删除“%1$s”的分析历史记录吗？</string>
+    <string name="cancel">取消</string>
+
+    <!-- Export Selection Dialog -->
+    <string name="export_history_title">选择导出历史记录</string>
+    <string name="deselect_all">取消全选</string>
+    <string name="select_all">全选</string>
+    <string name="export_with_count">导出 (%1$d)</string>
+
+    <!-- Zen Loading View -->
+    <string name="loading_title">AI 日语语法分析进行中</string>
+    <string name="loading_subtitle">正在分析语法结构，请稍候。</string>
+    <string name="cancel_analysis">取消分析</string>
+    <string name="completed">完成</string>
+    <string name="step_1_title">分词与形态素提取</string>
+    <string name="step_1_desc">正在对日文文本进行形态素分词</string>
+    <string name="step_2_title">语法角色与文节关系识别</string>
+    <string name="step_2_desc">正在对文节成分和语法关系进行分类</string>
+    <string name="step_3_title">语境翻译与智能对照</string>
+    <string name="step_3_desc">正在生成最符合语境的翻译和对照数据</string>
+    <string name="step_4_title">核心语法深度解析</string>
+    <string name="step_4_desc">正在为重要语法生成详细的解析卡片</string>
+
+    <!-- Workspace Result -->
+    <string name="analysis_result_text_view">分析结果 (文本视图)</string>
+    <string name="no_analysis_result">暂无分析结果。</string>
+    <string name="stop_tts">停止朗读</string>
+    <string name="play_tts">开始朗读</string>
+    <string name="close_details">关闭详情</string>
+    <string name="translation_label">翻译</string>
+    <string name="grammar_label">语法</string>
+
+    <!-- Settings Screen -->
+    <string name="app_logs_title">应用日志 (开发者)</string>
+    <string name="clear_logs">清除日志</string>
+    <string name="back">返回</string>
+    <string name="custom_image_set">已设置自定义壁纸</string>
+    <string name="none">无</string>
+    <string name="unselected">未选择</string>
+    <string name="tts_settings_title">TTS 语音合成设置</string>
+    <string name="tts_provider">TTS 服务商</string>
+    <string name="tts_region_placeholder">区域/服务区 (例如 eastus)</string>
+    <string name="tts_model_placeholder">语音模型 (例如 tts-1)</string>
+    <string name="tts_voice_placeholder">合成声音 (例如 alloy, ja-JP-Neural2-B)</string>
+    <string name="view_dev_logs">查看开发者日志</string>
+    <string name="total_tokens_format">总计: %1$s 词 (tokens)</string>
+
+    <!-- Phase 2 De-hardcoding -->
+    <string name="llm_retry_toast">调用主 API (%1$s) 失败。正在进行第 %2$d 次自动重试...</string>
+    <string name="llm_backup_toast">主 API (%1$s) 重试失败。正在调用备用 API (%2$s)...</string>
+    <string name="ocr_fallback_toast">本地 OCR 未检测到文字，正在回退到 Vision 视觉模式...</string>
+    <string name="spelling_corrected_toast">已自动修正文本中的拼写错误。</string>
+    <string name="analysis_started_toast">分析任务已开始。</string>
+    <string name="no_history_to_export">没有可导出的历史记录。</string>
+    <string name="unknown_error">未知错误</string>
+    <string name="error_analysis_failed_to_start">分析启动失败</string>
+    <string name="error_retry_failed">重试失败</string>
+    <string name="export_header_title">日语语法分析 - 历史导出</string>
+    <string name="export_header_time">导出时间: %1$s</string>
+    <string name="export_header_count">总计记录数: %1$d条</string>
+    <string name="export_record_number">【%1$d】</string>
+    <string name="export_record_time">时间: %1$s</string>
+    <string name="export_record_model">模型: %1$s</string>
+    <string name="export_record_status">状态: %1$s</string>
+    <string name="export_original_text_section">【原文】</string>
+    <string name="export_image_analysis_fallback">（图片分析）</string>
+    <string name="export_result_section">【分析结果】</string>
+    <string name="export_error_section">【错误内容】</string>
+    <string name="camera_permission_required_title">需要相机权限</string>
+    <string name="camera_permission_required_desc">请授予相机权限以拍摄日语进行语法分析。</string>
+    <string name="camera_request_permission_btn">请求授权</string>
+    <string name="camera_permission_denied_permanently_title">相机权限已被禁用</string>
+    <string name="camera_permission_denied_permanently_desc">已永久拒绝相机权限。请前往系统设置启用相机权限，以便使用拍摄分析功能。</string>
+    <string name="camera_go_to_settings_btn">前往设置</string>
+    <string name="camera_back_desc">返回</string>
+    <string name="camera_flash_on_desc">闪光灯常亮</string>
+    <string name="camera_flash_auto_desc">自动闪光</string>
+    <string name="camera_flash_off_desc">关闭闪光灯</string>
+    <string name="camera_flash_on_label">开启</string>
+    <string name="camera_flash_auto_label">自动</string>
+    <string name="camera_flash_off_label">关闭</string>
+    <string name="camera_guide_keep_inside">对准日语文本并拍摄</string>
+    <string name="camera_guide_crop_hint">拍摄后可自由选取或编辑文本</string>
+    <string name="camera_local_ocr">本地OCR</string>
+    <string name="camera_crop_title">选择文字范围</string>
+    <string name="camera_crop_hint">拖动角进行调整</string>
+    <string name="camera_cancel_desc">取消</string>
+    <string name="camera_recapture_btn">重新拍摄/返回</string>
+    <string name="camera_confirm_desc">确定</string>
+    <string name="camera_confirm_btn">范围决定</string>
+    <string name="input_dialog_title">文字输入</string>
+    <string name="input_dialog_placeholder">输入要分析的日语文本...</string>
+    <string name="start_analysis_btn">开始分析</string>
+    <string name="floating_camera_permission_title">需要相机权限</string>
+    <string name="floating_camera_permission_desc">请先在应用相机页授予权限，然后即可在这里使用悬浮相机。</string>
+    <string name="floating_camera_capturing">拍摄中...</string>
+    <string name="floating_camera_unavailable">相机尚未准备好。</string>
+    <string name="floating_camera_capture_failed">拍照失败。</string>
+    <string name="ocr_overlay_empty">未检测到日语文字区域。请尝试更清晰的画面，或使用拍照/图片分析。</string>
+    <string name="ocr_overlay_processing">正在准备选中区域...</string>
+    <string name="image_tokenizer_mode_title">图片分词识别模式</string>
+    <string name="image_tokenizer_mode_faithful">清晰图片忠实原文</string>
+    <string name="image_tokenizer_mode_faithful_desc">不修正、不脑补，严格保持图片里看到的文字。</string>
+    <string name="image_tokenizer_mode_repair">模糊图片智能修复</string>
+    <string name="image_tokenizer_mode_repair_desc">图片模糊时允许按语境修复明显不合理的浊点/文字。</string>
+    <string name="view_api_debug_logs">查看 API 调试返回</string>
+    <string name="api_debug_logs_title">API 调试返回</string>
+    <string name="api_debug_filter_all">全部</string>
+    <string name="clear_api_debug_logs">清除 API 调试记录</string>
+    <string name="api_debug_empty">暂无记录。运行一次分析后，这里会显示各职责 API 的请求摘要、原始返回和错误详情。</string>
+    <string name="api_debug_no_filter_results">没有符合当前搜索或筛选条件的 API 日志。</string>
+    <string name="api_debug_meta">image=%1$s, tokens=%2$d (in=%3$d, out=%4$d)</string>
+    <string name="api_debug_user_prompt">用户提示词</string>
+    <string name="api_debug_system_prompt">系统提示词预览</string>
+    <string name="api_debug_raw_response">原始返回</string>
+    <string name="api_debug_error">错误</string>
+    <string name="api_debug_stack_trace">堆栈跟踪</string>
+    <string name="dict_eudic">欧路词典</string>
+    <string name="dict_dictango">辞林(Dictango)</string>
+    <string name="dict_moji">MOJi辞书</string>
+    <string name="dict_not_installed">未安装应用 %1$s</string>
+    <string name="search_in_dict">查词典</string>
+    <string name="action_process_text">分析语法</string>
+
+    <!-- API Endpoints -->
+    <string name="api_endpoints_manage">API 节点池管理</string>
+    <string name="endpoint_name">节点名称</string>
+    <string name="delete_endpoint_confirm">确定要删除此节点吗？</string>
+    <string name="endpoint_add">添加节点</string>
+    <string name="endpoint_edit">编辑节点</string>
+    <string name="endpoint_enabled">已启用</string>
+    <string name="endpoint_disabled">已禁用</string>
+    <string name="endpoint_failures">失败次数：%1$d</string>
+    <string name="endpoint_cooldown">冷却中：%1$s</string>
+    <string name="endpoint_last_error">上次错误：%1$s</string>
+    <string name="endpoint_priority">优先级</string>
+    <string name="endpoint_weight">权重</string>
+    <string name="endpoint_priority_weight">优先级 %1$d · 权重 %2$d</string>
+    <string name="endpoint_save">保存</string>
+    <string name="endpoint_save_success">节点已保存</string>
+    <string name="endpoint_delete_success">节点已删除</string>
+
+    <!-- New UI Strings -->
+    <string name="copy_full_error_log">复制完整报错日志</string>
+    <string name="copy_logs">复制日志</string>
+    <string name="screen_ocr_active">屏幕 OCR 已激活</string>
+
+    <!-- Analysis Steps -->
+    <string name="step_tokenization">单词分割</string>
+    <string name="step_translation">翻译</string>
+    <string name="step_clause_analysis">句子结构分析</string>
+    <string name="step_grammar_explanation">语法解析</string>
+    <string name="step_detailed_grammar">详细语法解析</string>
+
+    <!-- Dynamic Analysis Messages -->
+    <string name="analysis_completed_short">“%1$s...” 的分析已完成</string>
+    <string name="analysis_completed_full">“%1$s” 的分析已完成</string>
+
+    <!-- Errors -->
+    <string name="error_both_api_failed">主API和备用API均调用失败。主API错误：%1$s。备用API错误：%2$s</string>
+    <string name="error_main_api_failed_no_backup">主API（%1$s）重试失败，且备用API未设置或无效。主API错误：%2$s</string>
+
+    <!-- Enhanced Developer Logs -->
+    <string name="log_search_hint">搜索日志...</string>
+    <string name="log_level_all">全部</string>
+    <string name="log_level_debug">调试</string>
+    <string name="log_level_info">信息</string>
+    <string name="log_level_warn">警告</string>
+    <string name="log_level_error">错误</string>
+    <string name="share_logs">分享日志文件</string>
+    <string name="log_size_label">日志存储容量: %1$s</string>
+    <string name="delete_log_files">清除本地日志文件</string>
+    <string name="delete_log_files_success">已成功删除本地日志文件</string>
+    <string name="delete_log_files_confirm">确定要清除所有本地持久化日志文件吗？</string>
+    <string name="scroll_to_top">返回顶部</string>
+    <string name="scroll_to_bottom">滚到底部</string>
+    <string name="api_details_title">API 响应详情</string>
+    <string name="api_log_copy_prompt">复制提示词</string>
+    <string name="copy_success_toast">已成功复制到剪贴板</string>
+    <string name="api_log_copy_response">复制原始返回</string>
+    <string name="api_log_copy_error">复制报错内容</string>
+    <string name="api_log_share_all">导出 API 调试日志</string>
+    <string name="api_log_include_full_debug">包含完整提示词/响应</string>
+    <string name="log_export_confirm_title">导出日志？</string>
+    <string name="log_copy_confirm_title">复制日志？</string>
+    <string name="app_log_export_confirm">应用日志可能包含诊断信息。现在导出吗？</string>
+    <string name="api_log_export_summary_confirm">API 日志将以脱敏摘要形式导出，不包含完整提示词或响应。</string>
+    <string name="api_log_export_full_confirm">完整 API 调试导出会包含已脱敏的提示词、响应、错误和堆栈信息，仅建议用于调试。</string>
+    <string name="api_log_copy_summary_confirm">API 日志将以脱敏摘要形式复制，不包含完整提示词或响应。</string>
+    <string name="api_log_copy_full_confirm">完整 API 调试复制会包含已脱敏的提示词、响应、错误和堆栈信息，仅建议用于调试。</string>
+    <string name="api_debug_filter_start">开始</string>
+    <string name="api_debug_filter_success">成功</string>
+    <string name="api_debug_filter_retry">重试</string>
+    <string name="api_debug_filter_backup">备用</string>
+    <string name="api_debug_filter_timeout">超时</string>
+    <string name="api_debug_filter_error">失败</string>
+    <string name="api_details_metadata">元数据</string>
+    <string name="api_details_prompts">提示词</string>
+    <string name="api_details_response">接口返回</string>
+    <string name="api_details_error_info">错误信息</string>
+    <string name="api_log_summary_context">record=%1$s, step=%2$s, attempt=%3$s, elapsed=%4$sms</string>
+    <string name="api_log_unknown_value">-</string>
+    <string name="import_history">导入记录</string>
+    <string name="import_no_valid_records">未找到有效的历史记录</string>
+    <string name="import_success">成功导入 %1$d 条记录</string>
+    <string name="import_failed">导入失败：%1$s</string>
+
+    <!-- Bookmarks & Flashcard -->
+    <string name="bookmarks_title">收藏夹</string>
+    <string name="bookmarks_empty_title">暂无收藏的单词</string>
+    <string name="bookmarks_empty_hint">在分析页面长按分词卡片即可收藏</string>
+    <string name="tab_words">单词</string>
+    <string name="tab_sentences">句子</string>
+    <string name="bookmarks_empty_sentences_title">暂无收藏的句子</string>
+    <string name="bookmarks_empty_sentences_hint">在侧边栏长按历史记录或在分析页面点击星标即可收藏句子</string>
+    <string name="delete_analysis_confirm_title">删除分析记录</string>
+    <string name="delete_analysis_confirm_message">确定要删除这条分析记录吗？已收藏的句子将不会被删除。</string>
+    <string name="bookmark_sentence_added">已加入句子收藏</string>
+    <string name="bookmark_sentence_removed">已取消句子收藏</string>
+    <string name="bookmarks_count">%1$d</string>
+    <string name="bookmarks_count_all">共 %1$d 个</string>
+    <string name="bookmarks_count_filtered">%1$d / %2$d</string>
+    <string name="bookmark_added">已加入收藏</string>
+    <string name="bookmark_deleted">已删除收藏</string>
+    <string name="bookmark_already_exists">已收藏过</string>
+    <string name="import_bookmarks">导入收藏</string>
+    <string name="export_bookmarks">导出收藏</string>
+    <string name="import_success_msg">成功导入 %1$d 条收藏</string>
+    <string name="import_failed_msg">导入失败，请检查文件格式</string>
+    <string name="import_error_msg">导入失败：%1$s</string>
+    <string name="delete_bookmark">删除收藏</string>
+    <string name="delete_bookmark_confirm">确定要删除这项收藏吗？</string>
+    <string name="cancel_delete">取消</string>
+    <string name="view_source">查看原句</string>
+    <string name="source_sentence_prefix">来自：%1$s</string>
+
+    <!-- Bookmark Filters -->
+    <string name="filter_all">全部</string>
+    <string name="filter_by_pos">词性</string>
+    <string name="filter_by_date">日期</string>
+    <string name="filter_today">今天</string>
+    <string name="filter_week">本周</string>
+    <string name="filter_older">更早</string>
+
+    <!-- Flashcard -->
+    <string name="flashcard_title">闪卡练习</string>
+    <string name="flashcard_session_complete">练习完成</string>
+    <string name="flashcard_no_cards">没有可练习的收藏</string>
+    <string name="flashcard_front_hint">点击翻转查看释义</string>
+    <string name="flashcard_back_hint">点击翻转回到正面</string>
+    <string name="flashcard_forgot">不认识</string>
+    <string name="flashcard_remembered">记住了</string>
+    <string name="flashcard_retry_weak">再练不熟的</string>
+    <string name="flashcard_restart">重新开始</string>
+    <string name="flashcard_back_to_bookmarks">返回收藏</string>
+    <string name="flashcard_total_cards">总卡数</string>
+    <string name="flashcard_mastered_count">已掌握</string>
+    <string name="flashcard_accuracy">正确率</string>
+    <string name="flashcard_inflection_label">活用：%1$s</string>
+    <string name="flashcard_role_label">角色：%1$s</string>
+    <string name="flashcard_dict_form_label">原形：%1$s</string>
+    <string name="flashcard_no_meaning">（暂无释义）</string>
+    <string name="flashcard_round_label">第 %1$d 轮</string>
+
+    <!-- Dictionary lookup bookmark shortcut -->
+    <string name="long_press_to_bookmark">长按收藏</string>
+
+    <!-- POS Category Names (for filter localization) -->
+    <string name="pos_NOUN">名詞</string>
+    <string name="pos_VERB">動詞</string>
+    <string name="pos_ADJECTIVE">形容詞</string>
+    <string name="pos_AUXILIARY">助動詞</string>
+    <string name="pos_PARTICLE">助詞</string>
+    <string name="pos_ADVERB">副詞</string>
+    <string name="pos_CONJUNCTION">接続詞</string>
+    <string name="pos_PRONOUN">代名詞</string>
+    <string name="pos_INTERJECTION">感動詞</string>
+    <string name="pos_PRE_NOUN_ADJECTIVAL">连体词</string>
+    <string name="pos_SYMBOL">符号</string>
+    <string name="pos_other">其他</string>
+
+    <!-- Archiving and feedback -->
+    <string name="filter_archived">已归档</string>
+    <string name="bookmark_archive">归档单词</string>
+    <string name="bookmark_restore">移出归档</string>
+    <string name="bookmark_archived_toast">已移入归档</string>
+    <string name="bookmark_restored_toast">已恢复至收藏</string>
+    <string name="flashcard_archived_auto_hint">已掌握的 %1$d 个单词已自动移入归档</string>
+    <string name="view_bookmarks_desc">查看收藏夹</string>
+    <string name="flashcard_mastered_label">已掌握</string>
+    <string name="archive_filter_unarchived">未归档</string>
+    <string name="archive_filter_archived">已归档</string>
+
+    <!-- Flashcard Settings & Enhancements -->
+    <string name="flashcard_settings_title">闪卡练习设置</string>
+    <string name="flashcard_mode_label">练习模式</string>
+    <string name="flashcard_mode_ja_to_zh">日文 ➔ 中文 (识记)</string>
+    <string name="flashcard_mode_zh_to_ja">中文 ➔ 日文 (回忆)</string>
+    <string name="flashcard_count_label">卡片数量</string>
+    <string name="flashcard_count_all">全部 (%1$d)</string>
+    <string name="flashcard_pos_label">词性过滤</string>
+    <string name="flashcard_pos_all">全部词性</string>
+    <string name="flashcard_auto_tts">自动朗读</string>
+    <string name="flashcard_speak">朗读</string>
+    <string name="flashcard_archive_mastered_btn">将已掌握单词移入归档</string>
+    <string name="flashcard_archive_success">已归档已掌握的单词</string>
+    <string name="flashcard_start_btn">开始练习</string>
+    <string name="flashcard_scope_label">复习范围</string>
+    <string name="flashcard_scope_unarchived">仅未归档 (日常复习)</string>
+    <string name="flashcard_scope_archived">仅已归档 (重新温习)</string>
+    <string name="flashcard_scope_all">全部词汇 (含归档)</string>
+    <string name="flashcard_eval_oops">记错了</string>
+    <string name="flashcard_eval_next">下一个</string>
+    <string name="flashcard_eval_actually_remembered">其实记住了</string>
+    <string name="flashcard_show_answer">查看答案</string>
+    <string name="flashcard_next_card">下一张</string>
+    <string name="flashcard_unmastered_list">未掌握单词清单</string>
+    <string name="flashcard_summary_total">共练习了 %1$d 个单词</string>
+    <string name="flashcard_unmastered_section">未掌握的单词 (%1$d)</string>
+    <string name="flashcard_mastered_section">已掌握的单词 (%1$d)</string>
+
+    <!-- Settings API Debug Details -->
+    <string name="api_log_time">请求时间：%1$s</string>
+    <string name="api_log_type">接口职责：%1$s</string>
+    <string name="api_log_provider">接口服务商：%1$s</string>
+    <string name="api_log_model">模型名称：%1$s</string>
+    <string name="api_log_status">接口状态：%1$s</string>
+    <string name="api_log_tokens">Token消耗：%1$d (输入: %2$d, 输出: %3$d)</string>
+    <string name="api_log_has_image">附带图片：%1$b</string>
+    <string name="api_log_record">记录：%1$s</string>
+    <string name="api_log_step">步骤：%1$s</string>
+    <string name="api_log_attempt">尝试次数：%1$s</string>
+    <string name="api_log_elapsed">耗时：%1$sms</string>
+    <string name="api_log_message">消息：%1$s</string>
+
+    <!-- Additional UI & Descriptions -->
+    <string name="history_record_tokens">消耗量：%1$s</string>
+    <string name="cd_remove_image">移除已选图片</string>
+    <string name="cd_text_input">文本输入</string>
+    <string name="cd_background_wallpaper">背景壁纸</string>
+
+    <!-- Exception warning messages -->
+    <string name="err_missing_api_key">请先在设置中配置 API 密钥。</string>
+    <string name="err_empty_input">请输入日语文本或拍摄图片。</string>
+    <string name="err_ocr_failed">文字提取失败：%1$s</string>
+
+    <!-- Prompt Customization Settings -->
+    <string name="custom_prompts_title">自定义 AI 提示词</string>
+    <string name="custom_prompts_desc">修改和恢复各个分析状态的系统提示词（System Prompt）</string>
+    <string name="prompt_editor_title">系统提示词编辑器</string>
+    <string name="prompt_save_success">提示词已保存</string>
+    <string name="prompt_reset_success">提示词已恢复默认</string>
+    <string name="prompt_reset_all_success">所有提示词已恢复默认</string>
+    <string name="prompt_reset_confirm">确定要将该提示词恢复为默认设置吗？</string>
+    <string name="prompt_reset_all_confirm">确定要恢复所有提示词为默认设置吗？这将清除您所有的自定义修改且无法撤销。</string>
+    <string name="save_prompt">保存提示词</string>
+    <string name="reset_prompt">恢复默认</string>
+    <string name="reset_all_prompts">恢复全部默认</string>
+    <string name="prompt_select_type">选择分析职责</string>
+    <string name="prompt_type_translation">全文翻译</string>
+    <string name="prompt_type_segments">形态素与词性解析</string>
+    <string name="prompt_type_clauses">文节与句子结构</string>
+    <string name="prompt_type_grammar">核心语法要点</string>
+    <string name="prompt_type_tokenizer">普通文本分词</string>
+    <string name="prompt_type_tokenizer_ocr">OCR文字纠错分词</string>
+    <string name="prompt_type_tokenizer_image">图片分词识别</string>
+    <string name="prompt_type_tokenizer_image_repair">模糊图片智能修复分词</string>
+
+    <string name="add">添加</string>
+    <string name="step_segments">分词解析</string>
+    <string name="step_clauses">句子结构分析</string>
+    <string name="step_grammar">核心语法解析</string>
+    <string name="no_source_sentence">（无原句）</string>
+    <string name="collapse">收起</string>
+    <string name="expand">展开</string>
+    <string name="view_details">查看详情</string>
+    <string name="unfavorite">取消收藏</string>
+    <string name="dict_form_reading">读音</string>
+    <string name="flashcard_no_weak_cards">没有不熟的卡片可练</string>
+    <string name="ocr_debug_title">OCR 选框调试</string>
+    <string name="ocr_debug_entry_desc">预览并调整 OCR 自动选框参数</string>
+    <string name="ocr_debug_pick_sample">选择示例图片</string>
+    <string name="ocr_debug_reset_defaults">恢复默认</string>
+    <string name="ocr_debug_empty_preview">尚未选择示例图片</string>
+    <string name="ocr_debug_preview_hint">上传截图或照片，用当前参数预览 OCR 自动选框结果。</string>
+    <string name="ocr_debug_box_count">检测到 %1$d 个选框</string>
+    <string name="ocr_debug_load_failed">无法加载所选图片。</string>
+    <string name="ocr_debug_merge_settings">合并阈值</string>
+    <string name="ocr_debug_padding_settings">输出留白</string>
+    <string name="ocr_debug_horizontal_gap">横排行距</string>
+    <string name="ocr_debug_horizontal_overlap">横排重叠</string>
+    <string name="ocr_debug_horizontal_fill">横排紧凑度</string>
+    <string name="ocr_debug_vertical_gap">竖排列距</string>
+    <string name="ocr_debug_vertical_overlap">竖排重叠</string>
+    <string name="ocr_debug_vertical_fill">竖排紧凑度</string>
+    <string name="ocr_debug_horizontal_padding_x">横排水平留白</string>
+    <string name="ocr_debug_horizontal_padding_y">横排垂直留白</string>
+    <string name="ocr_debug_vertical_padding_x">竖排水平留白</string>
+    <string name="ocr_debug_vertical_padding_y">竖排垂直留白</string>
+    <string name="ocr_debug_detector_engine">检测引擎</string>
+    <string name="ocr_detector_engine_title">OCR 选框检测方案</string>
+    <string name="ocr_debug_engine_mlkit">ML Kit</string>
+    <string name="ocr_debug_engine_rapidocr">RapidOCR</string>
+    <string name="ocr_debug_engine_hybrid">混合模式</string>
+    <string name="ocr_debug_engine_auto">自动</string>
+    <string name="ocr_debug_preview_mode">预览模式</string>
+    <string name="ocr_debug_preview_final">最终</string>
+    <string name="ocr_debug_preview_raw">原始</string>
+    <string name="ocr_debug_rapidocr_settings">RapidOCR 原始检测器</string>
+    <string name="ocr_debug_rapidocr_input_size">输入最长边</string>
+    <string name="ocr_debug_rapidocr_det_threshold">检测阈值</string>
+    <string name="ocr_debug_rapidocr_box_threshold">选框阈值</string>
+    <string name="ocr_debug_rapidocr_unclip">扩框比例</string>
+</resources>
