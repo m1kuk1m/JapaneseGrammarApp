@@ -7,9 +7,6 @@ import com.example.japanesegrammarapp.domain.repository.LlmRepository
 import com.example.japanesegrammarapp.domain.repository.LlmResult
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.google.gson.Gson
-import com.google.gson.GsonBuilder
-import com.example.japanesegrammarapp.domain.model.WordSegment
-import com.example.japanesegrammarapp.domain.model.SentenceClause
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -17,11 +14,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LlmAnalysisServiceImplTest {
-    private fun createTestGson(): Gson = GsonBuilder()
-        .registerTypeAdapter(WordSegment::class.java, WordSegmentTypeAdapter())
-        .registerTypeAdapter(SentenceClause::class.java, SentenceClauseTypeAdapter())
-        .create()
-
     @Test
     fun executeSegmentsTreatsMultiCharacterEllipsisAsPunctuation() = runBlocking {
         assertEllipsisTokenIsKeptOutOfDetailedAnalysis("……")
@@ -46,7 +38,7 @@ class LlmAnalysisServiceImplTest {
         val service = LlmAnalysisServiceImpl(
             llmRepository = repository,
             settingsRepository = FakeSettingsRepository,
-            gson = createTestGson()
+            gson = Gson()
         )
 
         val (result, _) = service.executeSegments(
@@ -80,7 +72,7 @@ class LlmAnalysisServiceImplTest {
         val service = LlmAnalysisServiceImpl(
             llmRepository = repository,
             settingsRepository = FakeSettingsRepository,
-            gson = createTestGson()
+            gson = Gson()
         )
 
         val (result, _) = service.executeSegments(
@@ -115,7 +107,7 @@ class LlmAnalysisServiceImplTest {
         val service = LlmAnalysisServiceImpl(
             llmRepository = repository,
             settingsRepository = FakeSettingsRepository,
-            gson = createTestGson()
+            gson = Gson()
         )
 
         val (result, _) = service.executeSegments(
@@ -153,7 +145,7 @@ class LlmAnalysisServiceImplTest {
         val service = LlmAnalysisServiceImpl(
             llmRepository = repository,
             settingsRepository = FakeSettingsRepository,
-            gson = createTestGson()
+            gson = Gson()
         )
 
         val (result, _) = service.executeSegments(
@@ -174,76 +166,6 @@ class LlmAnalysisServiceImplTest {
         )
         assertEquals("（前双引号）", result?.segments?.get(0)?.meaning)
         assertEquals("（后双引号）", result?.segments?.get(3)?.meaning)
-    }
-
-    @Test
-    fun executeSegmentsCanParseArrayFormat() = runBlocking {
-        val repository = FakeLlmRepository(
-            response = """
-                {
-                  "segments": [
-                    ["あの", "あの", "接続詞", "CONJUNCTION", null, null, "那个", null, "フィラーとして使用。"],
-                    ["元気", "げんき", "名詞", "NOUN", null, null, "精神", null, "状態を示す名詞。"]
-                  ]
-                }
-            """.trimIndent()
-        )
-        val service = LlmAnalysisServiceImpl(
-            llmRepository = repository,
-            settingsRepository = FakeSettingsRepository,
-            gson = createTestGson()
-        )
-
-        val (result, _) = service.executeSegments(
-            text = "あの元気",
-            tokens = listOf("あの", "元気"),
-            imageBase64 = null,
-            mimeType = null,
-            primaryConfigs = listOf(testConfig),
-            backupConfigs = emptyList()
-        )
-
-        assertEquals(2, result?.segments?.size)
-        val first = result?.segments?.get(0)
-        assertEquals("あの", first?.text)
-        assertEquals("あの", first?.reading)
-        assertEquals("接続詞", first?.partOfSpeech)
-        assertEquals("CONJUNCTION", first?.posCategory)
-        assertEquals("那个", first?.meaning)
-        assertEquals("フィラーとして使用。", first?.role)
-    }
-
-    @Test
-    fun executeClausesCanParseArrayFormat() = runBlocking {
-        val repository = FakeLlmRepository(
-            response = """
-                {
-                  "clauses": [
-                    [1, "連用修飾語", "図書館で", "動作が行われる場所を示す。"]
-                  ]
-                }
-            """.trimIndent()
-        )
-        val service = LlmAnalysisServiceImpl(
-            llmRepository = repository,
-            settingsRepository = FakeSettingsRepository,
-            gson = createTestGson()
-        )
-
-        val (result, _) = service.executeClauses(
-            text = "図書館で",
-            imageBase64 = null,
-            mimeType = null,
-            primaryConfigs = listOf(testConfig),
-            backupConfigs = emptyList()
-        )
-
-        assertEquals(1, result?.clauses?.size)
-        val first = result?.clauses?.get(0)
-        assertEquals(1, first?.index)
-        assertEquals("連用修飾語", first?.role)
-        assertEquals("図書館で", first?.text)
-        assertEquals("動作が行われる場所を示す。", first?.explanation)
     }
 
     private companion object {

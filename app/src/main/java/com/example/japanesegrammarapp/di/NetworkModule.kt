@@ -1,4 +1,4 @@
-package com.example.japanesegrammarapp.di
+﻿package com.example.japanesegrammarapp.di
 
 import com.example.japanesegrammarapp.BuildConfig
 import com.example.japanesegrammarapp.network.LlmApiService
@@ -20,10 +20,7 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideGson(): Gson = com.google.gson.GsonBuilder()
-        .registerTypeAdapter(com.example.japanesegrammarapp.domain.model.WordSegment::class.java, com.example.japanesegrammarapp.data.repository.WordSegmentTypeAdapter())
-        .registerTypeAdapter(com.example.japanesegrammarapp.domain.model.SentenceClause::class.java, com.example.japanesegrammarapp.data.repository.SentenceClauseTypeAdapter())
-        .create()
+    fun provideGson(): Gson = Gson()
 
     @Provides
     @Singleton
