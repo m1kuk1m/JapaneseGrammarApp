@@ -235,7 +235,8 @@ fun SettingsScreen(
     var showOcrDebugDialog by remember { mutableStateOf(false) }
     var selectedApiLogDetail by remember { mutableStateOf<com.example.japanesegrammarapp.utils.ApiDebugLog?>(null) }
     var includeFullApiLogExport by remember { mutableStateOf(false) }
-    var pendingShareLogs by remember { mutableStateOf<Boolean?>(null) }
+    var pendingShareAppLogs by remember { mutableStateOf<List<String>?>(null) }
+    var pendingShareApiLogs by remember { mutableStateOf<List<com.example.japanesegrammarapp.utils.ApiDebugLog>?>(null) }
     var pendingCopyApiLogs by remember { mutableStateOf<List<com.example.japanesegrammarapp.utils.ApiDebugLog>?>(null) }
     var endpointBeingEdited by remember { mutableStateOf<LlmEndpoint?>(null) }
     var endpointAddProvider by remember { mutableStateOf<String?>(null) }
@@ -252,8 +253,10 @@ fun SettingsScreen(
         onSelectedApiLogDetailChange = { selectedApiLogDetail = it },
         includeFullApiLogExport = includeFullApiLogExport,
         onIncludeFullApiLogExportChange = { includeFullApiLogExport = it },
-        pendingShareLogs = pendingShareLogs,
-        onPendingShareLogsChange = { pendingShareLogs = it },
+        pendingShareAppLogs = pendingShareAppLogs,
+        onPendingShareAppLogsChange = { pendingShareAppLogs = it },
+        pendingShareApiLogs = pendingShareApiLogs,
+        onPendingShareApiLogsChange = { pendingShareApiLogs = it },
         pendingCopyApiLogs = pendingCopyApiLogs,
         onPendingCopyApiLogsChange = { pendingCopyApiLogs = it },
         onShareAppLogs = viewModel::shareAppLogs,

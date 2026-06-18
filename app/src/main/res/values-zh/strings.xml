@@ -542,4 +542,10 @@
     <string name="ocr_debug_rapidocr_det_threshold">检测阈值</string>
     <string name="ocr_debug_rapidocr_box_threshold">选框阈值</string>
     <string name="ocr_debug_rapidocr_unclip">扩框比例</string>
+
+    <!-- Import / Export Options -->
+    <string name="export_options_title">导出选项</string>
+    <string name="import_options_title">导入选项</string>
+    <string name="option_words">单词</string>
+    <string name="option_sentences">句子</string>
 </resources>

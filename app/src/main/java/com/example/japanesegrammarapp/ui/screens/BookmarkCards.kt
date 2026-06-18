@@ -60,6 +60,8 @@ import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain
 import com.example.japanesegrammarapp.domain.model.BookmarkedSentenceDomain
 import com.example.japanesegrammarapp.domain.model.effectivePosCategory
+import com.example.japanesegrammarapp.domain.repository.UiPreferencesRepository
+import com.example.japanesegrammarapp.ui.screens.components.DictionarySearchControls
 import com.example.japanesegrammarapp.ui.theme.ZenColors
 import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
 import java.text.SimpleDateFormat
@@ -73,6 +75,7 @@ fun BookmarkCard(
     isExpanded: Boolean,
     isPendingDelete: Boolean,
     isDark: Boolean,
+    uiPreferencesRepository: UiPreferencesRepository,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
     onConfirmDelete: () -> Unit,
@@ -251,6 +254,21 @@ fun BookmarkCard(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
                             )
                         }
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val queryWord = bookmark.dictionaryForm.takeIf { !it.isNullOrBlank() } ?: bookmark.segmentText
+                        DictionarySearchControls(
+                            queryWord = queryWord,
+                            uiPreferencesRepository = uiPreferencesRepository,
+                            sumiInk = sumiInk,
+                            surfaceColor = surfaceColor
+                        )
                     }
 
                     Spacer(Modifier.height(8.dp))

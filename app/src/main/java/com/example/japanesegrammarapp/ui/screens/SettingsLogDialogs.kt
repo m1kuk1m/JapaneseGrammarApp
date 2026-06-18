@@ -25,11 +25,13 @@ fun SettingsLogDialogs(
     onSelectedApiLogDetailChange: (ApiDebugLog?) -> Unit,
     includeFullApiLogExport: Boolean,
     onIncludeFullApiLogExportChange: (Boolean) -> Unit,
-    pendingShareLogs: Boolean?,
-    onPendingShareLogsChange: (Boolean?) -> Unit,
+    pendingShareAppLogs: List<String>?,
+    onPendingShareAppLogsChange: (List<String>?) -> Unit,
+    pendingShareApiLogs: List<ApiDebugLog>?,
+    onPendingShareApiLogsChange: (List<ApiDebugLog>?) -> Unit,
     pendingCopyApiLogs: List<ApiDebugLog>?,
     onPendingCopyApiLogsChange: (List<ApiDebugLog>?) -> Unit,
-    onShareAppLogs: () -> Unit,
+    onShareAppLogs: (List<String>) -> Unit,
     onShareApiLogs: (List<ApiDebugLog>, Boolean) -> Unit
 ) {
     val context = LocalContext.current
@@ -39,7 +41,7 @@ fun SettingsLogDialogs(
         AppLogsDialog(
             logs = logs,
             onDismiss = onDismissLogs,
-            onShare = { onPendingShareLogsChange(false) }
+            onShare = { onPendingShareAppLogsChange(logs) }
         )
     }
 
@@ -49,7 +51,7 @@ fun SettingsLogDialogs(
             includeFullApiLogExport = includeFullApiLogExport,
             onIncludeFullApiLogExportChange = onIncludeFullApiLogExportChange,
             onDismiss = onDismissApiLogs,
-            onShareAll = { onPendingShareLogsChange(true) },
+            onShareAll = { onPendingShareApiLogsChange(apiLogs) },
             onCopyLogs = { onPendingCopyApiLogsChange(it) },
             onSelectLog = onSelectedApiLogDetailChange
         )
@@ -62,37 +64,54 @@ fun SettingsLogDialogs(
         )
     }
 
-    pendingShareLogs?.let { isApiLog ->
+    pendingShareAppLogs?.let { logsToShare ->
         AlertDialog(
-            onDismissRequest = { onPendingShareLogsChange(null) },
+            onDismissRequest = { onPendingShareAppLogsChange(null) },
             title = { Text(stringResource(R.string.log_export_confirm_title)) },
-            text = {
-                Text(
-                    text = if (isApiLog && includeFullApiLogExport) {
-                        stringResource(R.string.api_log_export_full_confirm)
-                    } else if (isApiLog) {
-                        stringResource(R.string.api_log_export_summary_confirm)
-                    } else {
-                        stringResource(R.string.app_log_export_confirm)
-                    }
-                )
-            },
+            text = { Text(stringResource(R.string.app_log_export_confirm)) },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (isApiLog) {
-                            onShareApiLogs(apiLogs.reversed(), includeFullApiLogExport)
-                        } else {
-                            onShareAppLogs()
-                        }
-                        onPendingShareLogsChange(null)
+                        onShareAppLogs(logsToShare)
+                        onPendingShareAppLogsChange(null)
                     }
                 ) {
                     Text(stringResource(R.string.export))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { onPendingShareLogsChange(null) }) {
+                TextButton(onClick = { onPendingShareAppLogsChange(null) }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    pendingShareApiLogs?.let { apiLogsToShare ->
+        AlertDialog(
+            onDismissRequest = { onPendingShareApiLogsChange(null) },
+            title = { Text(stringResource(R.string.log_export_confirm_title)) },
+            text = {
+                Text(
+                    text = if (includeFullApiLogExport) {
+                        stringResource(R.string.api_log_export_full_confirm)
+                    } else {
+                        stringResource(R.string.api_log_export_summary_confirm)
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onShareApiLogs(apiLogsToShare, includeFullApiLogExport)
+                        onPendingShareApiLogsChange(null)
+                    }
+                ) {
+                    Text(stringResource(R.string.export))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { onPendingShareApiLogsChange(null) }) {
                     Text(stringResource(R.string.cancel))
                 }
             }

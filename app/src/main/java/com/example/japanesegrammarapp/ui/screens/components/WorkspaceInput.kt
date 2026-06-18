@@ -81,6 +81,7 @@ fun WorkspaceInputForm(
     val latestCanSubmit by rememberUpdatedState(canSubmit)
     val latestOnStartAnalysis by rememberUpdatedState(onStartAnalysis)
     val latestOnSelectedImageUriChanged by rememberUpdatedState(onSelectedImageUriChanged)
+    val latestOnTextInputChanged by rememberUpdatedState(onTextInputChanged)
 
     val submitIfPossible = remember {
         {
@@ -212,34 +213,34 @@ fun WorkspaceInputForm(
                             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                                 val newText = s?.toString() ?: ""
-                                if (newText != textInput) {
-                                    onTextInputChanged(newText)
-                                    if (isAnalyzing) {
-                                        onCancelAnalysis()
-                                        android.widget.Toast.makeText(
-                                            context,
-                                            context.getString(R.string.analysis_interrupted),
-                                            android.widget.Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
+                                if (newText != latestTextInput) {
+                                    latestOnTextInputChanged(newText)
                                 }
                             }
                             override fun afterTextChanged(s: android.text.Editable?) {}
                         })
 
-                        setOnEditorActionListener { _, actionId, event ->
+                        setOnEditorActionListener { v, actionId, event ->
                             val isImeSubmit = actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEND ||
                                 actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE
                             val isPlainEnter = event?.keyCode == android.view.KeyEvent.KEYCODE_ENTER &&
                                 !event.isShiftPressed
 
+                            val hideKeyboardAndClearFocus = {
+                                val imm = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+                                imm?.hideSoftInputFromWindow(v.windowToken, 0)
+                                v.clearFocus()
+                            }
+
                             when {
                                 isImeSubmit -> {
+                                    hideKeyboardAndClearFocus()
                                     submitIfPossible()
                                     true
                                 }
                                 isPlainEnter -> {
                                     if (event?.action == android.view.KeyEvent.ACTION_UP) {
+                                        hideKeyboardAndClearFocus()
                                         submitIfPossible()
                                     }
                                     true

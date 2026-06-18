@@ -48,4 +48,18 @@ interface LlmRepository {
         onRetry: (attempt: Int) -> Unit = {},
         onBackup: (backupProvider: String) -> Unit = {}
     ): LlmResult
+
+    suspend fun executeWithStreaming(
+        systemPrompt: String,
+        userPrompt: String,
+        imageBase64: String?,
+        mimeType: String?,
+        apiTypeLabel: String,
+        primaryConfigs: List<LlmApiConfig>,
+        backupConfigs: List<LlmApiConfig>,
+        recordId: Int?,
+        stepName: String?,
+        onRetry: (attempt: Int) -> Unit = {},
+        onBackup: (backupProvider: String) -> Unit = {}
+    ): kotlinx.coroutines.flow.Flow<com.example.japanesegrammarapp.domain.model.LlmStreamEvent>
 }

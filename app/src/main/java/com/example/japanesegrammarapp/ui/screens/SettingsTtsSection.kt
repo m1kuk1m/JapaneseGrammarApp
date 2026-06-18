@@ -35,14 +35,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import com.example.japanesegrammarapp.R
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun SettingsTtsSection(
     selectedTtsProvider: String,
@@ -63,6 +68,12 @@ fun SettingsTtsSection(
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val surfaceColor = MaterialTheme.colorScheme.surface
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val defaultKeyboardActions = KeyboardActions(onDone = {
+        keyboardController?.hide()
+        focusManager.clearFocus()
+    })
 
     Card(
         modifier = Modifier
@@ -125,7 +136,9 @@ fun SettingsTtsSection(
                     label = { Text(stringResource(R.string.base_url)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = defaultKeyboardActions
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -137,7 +150,9 @@ fun SettingsTtsSection(
                     label = { Text(stringResource(R.string.tts_region_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = defaultKeyboardActions
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -154,7 +169,9 @@ fun SettingsTtsSection(
                         Icon(if (ttsKeyVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null)
                     }
                 },
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(8.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = defaultKeyboardActions
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -185,7 +202,9 @@ fun SettingsTtsSection(
                     label = { Text(stringResource(R.string.tts_model_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = defaultKeyboardActions
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -196,7 +215,9 @@ fun SettingsTtsSection(
                 label = { Text(stringResource(R.string.tts_voice_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(8.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = defaultKeyboardActions
             )
         }
     }

@@ -8,6 +8,7 @@ import com.example.japanesegrammarapp.domain.repository.LlmResult
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -24,15 +25,11 @@ class LlmAnalysisServiceImplTest {
     fun executeSegmentsDropsWhitespaceOnlyTokensFromDisplaySegments() = runBlocking {
         val repository = FakeLlmRepository(
             response = """
-                {
-                  "segments": [
-                    {"text":"あの","reading":"あの"},
-                    {"text":"極端に","reading":"きょくたんに"},
-                    {"text":"蹴落とさない","reading":"けおとさない"},
-                    {"text":"で","reading":"で"},
-                    {"text":"もらえます","reading":"もらえます"}
-                  ]
-                }
+                あの|あの||
+                極端に|きょくたんに||
+                蹴落とさない|けおとさない||
+                で|で||
+                もらえます|もらえます||
             """.trimIndent()
         )
         val service = LlmAnalysisServiceImpl(
@@ -48,9 +45,9 @@ class LlmAnalysisServiceImplTest {
             mimeType = null,
             primaryConfigs = listOf(testConfig),
             backupConfigs = emptyList()
-        )
+        ).last()
 
-        assertTrue(repository.lastUserPrompt.contains("""["あの","極端に","蹴落とさない","で","もらえます"]"""))
+        assertTrue(repository.lastUserPrompt.contains("あの, 極端に, 蹴落とさない, で, もらえます"))
         assertEquals(
             listOf("あの", "、", "極端に", "蹴落とさない", "で", "もらえます", "？"),
             result?.segments?.map { it.text }
@@ -60,13 +57,9 @@ class LlmAnalysisServiceImplTest {
     private suspend fun assertEllipsisTokenIsKeptOutOfDetailedAnalysis(ellipsisToken: String) {
         val repository = FakeLlmRepository(
             response = """
-                {
-                  "segments": [
-                    {"text":"あたし","reading":"あたし"},
-                    {"text":"みなしご","reading":"みなしご"},
-                    {"text":"なの","reading":"なの"}
-                  ]
-                }
+                あたし|あたし||
+                みなしご|みなしご||
+                なの|なの||
             """.trimIndent()
         )
         val service = LlmAnalysisServiceImpl(
@@ -82,9 +75,9 @@ class LlmAnalysisServiceImplTest {
             mimeType = null,
             primaryConfigs = listOf(testConfig),
             backupConfigs = emptyList()
-        )
+        ).last()
 
-        assertTrue(repository.lastUserPrompt.contains("""["あたし","みなしご","なの"]"""))
+        assertTrue(repository.lastUserPrompt.contains("あたし, みなしご, なの"))
         assertEquals(
             listOf(ellipsisToken, "あたし", "、", "みなしご", "なの", "。"),
             result?.segments?.map { it.text }
@@ -96,12 +89,8 @@ class LlmAnalysisServiceImplTest {
     fun executeSegmentsFiltersPunctuationAndUnknownSymbolsLocally() = runBlocking {
         val repository = FakeLlmRepository(
             response = """
-                {
-                  "segments": [
-                    {"text":"あの","reading":"あの"},
-                    {"text":"元気","reading":"げんき"}
-                  ]
-                }
+                あの|あの||
+                元気|げんき||
             """.trimIndent()
         )
         val service = LlmAnalysisServiceImpl(
@@ -117,10 +106,9 @@ class LlmAnalysisServiceImplTest {
             mimeType = null,
             primaryConfigs = listOf(testConfig),
             backupConfigs = emptyList()
-        )
+        ).last()
 
-        // It should filter out ★ from the tokens sent to LLM
-        assertTrue(repository.lastUserPrompt.contains("""["あの","元気"]"""))
+        assertTrue(repository.lastUserPrompt.contains("あの, 元気"))
         // The reconstructed final segments should correctly put ★ back in the middle
         assertEquals(
             listOf("あの", "★", "元気"),
@@ -134,12 +122,8 @@ class LlmAnalysisServiceImplTest {
     fun executeSegmentsFiltersCJKDoubleQuotesAndProvidesCustomDescriptions() = runBlocking {
         val repository = FakeLlmRepository(
             response = """
-                {
-                  "segments": [
-                    {"text":"はなまる","reading":"はなまる"},
-                    {"text":"大正解","reading":"たいせいかい"}
-                  ]
-                }
+                はなまる|はなまる||
+                大正解|たいせいかい||
             """.trimIndent()
         )
         val service = LlmAnalysisServiceImpl(
@@ -155,10 +139,9 @@ class LlmAnalysisServiceImplTest {
             mimeType = null,
             primaryConfigs = listOf(testConfig),
             backupConfigs = emptyList()
-        )
+        ).last()
 
-        // It should filter out CJK quotes from the tokens sent to LLM
-        assertTrue(repository.lastUserPrompt.contains("""["はなまる","大正解"]"""))
+        assertTrue(repository.lastUserPrompt.contains("はなまる, 大正解"))
         // The final segments should be perfectly aligned with symbols reconstructed locally
         assertEquals(
             listOf("〝", "はなまる", "大正解", "〟"),
@@ -225,6 +208,23 @@ private class FakeLlmRepository(
             provider = "Gemini",
             modelName = "gemini-test"
         )
+    }
+
+    override suspend fun executeWithStreaming(
+        systemPrompt: String,
+        userPrompt: String,
+        imageBase64: String?,
+        mimeType: String?,
+        apiTypeLabel: String,
+        primaryConfigs: List<LlmApiConfig>,
+        backupConfigs: List<LlmApiConfig>,
+        recordId: Int?,
+        stepName: String?,
+        onRetry: (attempt: Int) -> Unit,
+        onBackup: (backupProvider: String) -> Unit
+    ): kotlinx.coroutines.flow.Flow<String> {
+        lastUserPrompt = userPrompt
+        return kotlinx.coroutines.flow.flowOf(response)
     }
 }
 

@@ -12,6 +12,7 @@ import com.example.japanesegrammarapp.domain.model.*
 import com.example.japanesegrammarapp.domain.repository.BookmarkRepository
 import com.example.japanesegrammarapp.domain.repository.HistoryRepository
 import com.example.japanesegrammarapp.domain.repository.TtsRepository
+import com.example.japanesegrammarapp.domain.repository.UiPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,7 +45,8 @@ class BookmarkViewModel @Inject constructor(
     private val bookmarkRepository: BookmarkRepository,
     private val ttsRepository: TtsRepository,
     private val historyRepository: HistoryRepository,
-    private val detailedResultSerializer: com.example.japanesegrammarapp.domain.repository.DetailedResultSerializer
+    private val detailedResultSerializer: com.example.japanesegrammarapp.domain.repository.DetailedResultSerializer,
+    val uiPreferencesRepository: UiPreferencesRepository
 ) : ViewModel() {
 
     fun playSentenceTts(analysisResultJson: String?, originalText: String) {
@@ -221,12 +223,12 @@ class BookmarkViewModel @Inject constructor(
     }
 
     /**
-     * Export all bookmarks as a JSON file and share it via system share sheet.
+     * Export bookmarks as a JSON file and share it via system share sheet.
      */
-    fun exportAndShare(context: Context) {
+    fun exportAndShare(context: Context, includeWords: Boolean, includeSentences: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val json = bookmarkRepository.exportToJson()
+                val json = bookmarkRepository.exportToJson(includeWords, includeSentences)
                 val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
                 val fileName = "bookmarks_${sdf.format(Date())}.json"
                 val file = File(context.cacheDir, fileName)
@@ -254,10 +256,10 @@ class BookmarkViewModel @Inject constructor(
      * Import bookmarks from a JSON string (e.g. picked from file picker).
      * @return number of newly imported bookmarks, or -1 on error
      */
-    suspend fun importFromJson(json: String): Int {
+    suspend fun importFromJson(json: String, includeWords: Boolean, includeSentences: Boolean): Int {
         return withContext(Dispatchers.IO) {
             try {
-                bookmarkRepository.importFromJson(json)
+                bookmarkRepository.importFromJson(json, includeWords, includeSentences)
             } catch (e: Exception) {
                 com.example.japanesegrammarapp.utils.AppLogger.e("BOOKMARK", "Failed to import bookmarks", e)
                 -1
@@ -265,14 +267,14 @@ class BookmarkViewModel @Inject constructor(
         }
     }
 
-    suspend fun importFromUri(uri: Uri): Int {
+    suspend fun importFromUri(uri: Uri, includeWords: Boolean, includeSentences: Boolean): Int {
         return withContext(Dispatchers.IO) {
             try {
                 val json = application.contentResolver.openInputStream(uri)
                     ?.bufferedReader()
                     ?.use { it.readText() }
                     ?: return@withContext -1
-                bookmarkRepository.importFromJson(json)
+                bookmarkRepository.importFromJson(json, includeWords, includeSentences)
             } catch (e: Exception) {
                 com.example.japanesegrammarapp.utils.AppLogger.e("BOOKMARK", "Failed to import bookmarks from URI", e)
                 -1

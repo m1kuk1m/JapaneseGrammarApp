@@ -33,6 +33,10 @@ fun Modifier.bookmarkRightSwipeBack(onBack: () -> Unit): Modifier = pointerInput
                         }
                     }
                 }
+                
+                if (isDecided && isRightSwipe) {
+                    change.consume()
+                }
             }
         } while (event.changes.any { it.pressed })
 
