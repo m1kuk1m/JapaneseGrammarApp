@@ -222,9 +222,9 @@ private class FakeLlmRepository(
         stepName: String?,
         onRetry: (attempt: Int) -> Unit,
         onBackup: (backupProvider: String) -> Unit
-    ): kotlinx.coroutines.flow.Flow<String> {
+    ): kotlinx.coroutines.flow.Flow<com.example.japanesegrammarapp.domain.model.LlmStreamEvent> {
         lastUserPrompt = userPrompt
-        return kotlinx.coroutines.flow.flowOf(response)
+        return kotlinx.coroutines.flow.flowOf(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Chunk(response))
     }
 }
 
