@@ -157,10 +157,10 @@ private class FakeLlmAnalysisService(
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
         stepName: String?
-    ): Pair<TokenizationResult?, LlmResultMetadata> {
+    ): kotlinx.coroutines.flow.Flow<Pair<TokenizationResult?, LlmResultMetadata>> = kotlinx.coroutines.flow.flow {
         tokenizerCalls++
         if (delayMs > 0) delay(delayMs)
-        return TokenizationResult(tokens = text.toList().map { it.toString() }) to metadata()
+        emit(TokenizationResult(tokens = text.toList().map { it.toString() }) to metadata())
     }
 
     override suspend fun executeTranslation(
@@ -173,10 +173,10 @@ private class FakeLlmAnalysisService(
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
         stepName: String?
-    ): Pair<DetailedAnalysisResult?, LlmResultMetadata> {
+    ): kotlinx.coroutines.flow.Flow<Pair<DetailedAnalysisResult?, LlmResultMetadata>> = kotlinx.coroutines.flow.flow {
         if (failTranslation) error("translation failed")
         if (delayMs > 0) delay(delayMs)
-        return DetailedAnalysisResult(translation = "translated") to metadata()
+        emit(DetailedAnalysisResult(translation = "translated") to metadata())
     }
 
     override suspend fun executeClauses(
@@ -189,9 +189,9 @@ private class FakeLlmAnalysisService(
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
         stepName: String?
-    ): Pair<DetailedAnalysisResult?, LlmResultMetadata> {
+    ): kotlinx.coroutines.flow.Flow<Pair<DetailedAnalysisResult?, LlmResultMetadata>> = kotlinx.coroutines.flow.flow {
         if (delayMs > 0) delay(delayMs)
-        return DetailedAnalysisResult() to metadata()
+        emit(DetailedAnalysisResult() to metadata())
     }
 
     override suspend fun executeGrammar(
@@ -204,9 +204,9 @@ private class FakeLlmAnalysisService(
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
         stepName: String?
-    ): Pair<DetailedAnalysisResult?, LlmResultMetadata> {
+    ): kotlinx.coroutines.flow.Flow<Pair<DetailedAnalysisResult?, LlmResultMetadata>> = kotlinx.coroutines.flow.flow {
         if (delayMs > 0) delay(delayMs)
-        return DetailedAnalysisResult() to metadata()
+        emit(DetailedAnalysisResult() to metadata())
     }
 
     override suspend fun executeSegments(
@@ -220,9 +220,9 @@ private class FakeLlmAnalysisService(
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
         stepName: String?
-    ): Pair<DetailedAnalysisResult?, LlmResultMetadata> {
+    ): kotlinx.coroutines.flow.Flow<Pair<DetailedAnalysisResult?, LlmResultMetadata>> = kotlinx.coroutines.flow.flow {
         if (delayMs > 0) delay(delayMs)
-        return DetailedAnalysisResult() to metadata()
+        emit(DetailedAnalysisResult() to metadata())
     }
 
     private fun metadata() = LlmResultMetadata(consumedTokens = 1, inputTokens = 1, outputTokens = 0)

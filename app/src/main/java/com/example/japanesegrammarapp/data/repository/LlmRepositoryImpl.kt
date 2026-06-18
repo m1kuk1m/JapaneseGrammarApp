@@ -1,6 +1,9 @@
 package com.example.japanesegrammarapp.data.repository
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.awaitClose
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import com.example.japanesegrammarapp.network.*
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.repository.LlmRepository
@@ -10,11 +13,14 @@ import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.example.japanesegrammarapp.utils.AppLogger
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.channels.awaitClose
 
 @Singleton
 class LlmRepositoryImpl @Inject constructor(
     private val llmService: LlmApiService,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val okHttpClient: okhttp3.OkHttpClient,
+    private val gson: com.google.gson.Gson
 ) : LlmRepository {
 
     override suspend fun fetchModels(provider: String, baseUrl: String, apiKey: String): List<String> {
@@ -624,5 +630,251 @@ class LlmRepositoryImpl @Inject constructor(
             in 500..599 -> 60 * 1000L
             else -> 30 * 1000L
         }
+    }
+
+    override suspend fun executeWithStreaming(
+        systemPrompt: String,
+        userPrompt: String,
+        imageBase64: String?,
+        mimeType: String?,
+        apiTypeLabel: String,
+        primaryConfigs: List<LlmApiConfig>,
+        backupConfigs: List<LlmApiConfig>,
+        recordId: Int?,
+        stepName: String?,
+        onRetry: (attempt: Int) -> Unit,
+        onBackup: (backupProvider: String) -> Unit
+    ): kotlinx.coroutines.flow.Flow<com.example.japanesegrammarapp.domain.model.LlmStreamEvent> = kotlinx.coroutines.flow.flow {
+        val configs = primaryConfigs + backupConfigs
+        if (configs.isEmpty()) throw Exception("No config available for streaming")
+
+        var lastException: Exception? = null
+
+        for ((index, config) in configs.withIndex()) {
+            val attemptNumber = index + 1
+            val isBackup = index >= primaryConfigs.size
+            if (isBackup && index == primaryConfigs.size) {
+                com.example.japanesegrammarapp.utils.AppLogger.apiEvent(
+                    apiTypeLabel = apiTypeLabel,
+                    provider = config.provider,
+                    model = config.modelName,
+                    status = "BACKUP",
+                    hasImage = imageBase64 != null,
+                    userPrompt = userPrompt,
+                    systemPrompt = systemPrompt,
+                    message = "Switching to backup endpoint pool after primary pool failed.",
+                    recordId = recordId,
+                    stepName = stepName
+                )
+                onBackup(config.provider)
+            }
+
+            val attemptStartMs = System.currentTimeMillis()
+            val endpointLabel = config.endpointName.ifBlank {
+                config.endpointId.ifBlank { "default" }
+            }
+            val role = if (isBackup) "Backup" else "Primary"
+
+            try {
+                com.example.japanesegrammarapp.utils.AppLogger.apiEvent(
+                    apiTypeLabel = apiTypeLabel,
+                    provider = config.provider,
+                    model = config.modelName,
+                    status = "START",
+                    hasImage = imageBase64 != null,
+                    userPrompt = userPrompt,
+                    systemPrompt = systemPrompt,
+                    message = "$role request attempt $attemptNumber started via endpoint $endpointLabel",
+                    recordId = recordId,
+                    stepName = stepName,
+                    attempt = attemptNumber
+                )
+                
+                if (config.endpointId.isNotBlank()) {
+                    settingsRepository.touchEndpoint(config.provider, config.endpointId)
+                }
+
+                val streamFlow = kotlinx.coroutines.flow.callbackFlow {
+                    val requestUrl: String
+                    val requestBodyStr: String
+                    
+                    when (config.baseProvider) {
+                        "OpenAI", "DeepSeek", "OpenAI Compatible", "Qwen" -> {
+                            val cleanBase = config.url.trimEnd('/')
+                            requestUrl = "$cleanBase/chat/completions"
+                            val userContent: Any = if (imageBase64 != null) {
+                                listOf(
+                                    OpenAiContentPart(type = "text", text = userPrompt),
+                                    OpenAiContentPart(
+                                        type = "image_url",
+                                        image_url = OpenAiImageUrl(url = "data:$mimeType;base64,$imageBase64")
+                                    )
+                                )
+                            } else {
+                                userPrompt
+                            }
+                            val request = OpenAiRequest(
+                                model = config.modelName,
+                                messages = listOf(
+                                    OpenAiMessage(role = "system", content = systemPrompt),
+                                    OpenAiMessage(role = "user", content = userContent)
+                                ),
+                                temperature = 0.1,
+                                stream = true,
+                                stream_options = mapOf("include_usage" to true)
+                            )
+                            requestBodyStr = gson.toJson(request)
+                        }
+                        "Gemini", "Vertex AI" -> {
+                            val cleanBase = config.url.trimEnd('/')
+                            requestUrl = "$cleanBase/models/${config.modelName}:streamGenerateContent?alt=sse&key=${config.key.trim()}"
+                            
+                            val parts = mutableListOf<GeminiPart>()
+                            parts.add(GeminiPart(text = userPrompt))
+                            if (imageBase64 != null && mimeType != null) {
+                                parts.add(GeminiPart(inlineData = GeminiInlineData(mimeType = mimeType, data = imageBase64)))
+                            }
+
+                            val safetySettings = listOf(
+                                GeminiSafetySetting("HARM_CATEGORY_HARASSMENT", "BLOCK_NONE"),
+                                GeminiSafetySetting("HARM_CATEGORY_HATE_SPEECH", "BLOCK_NONE"),
+                                GeminiSafetySetting("HARM_CATEGORY_SEXUALLY_EXPLICIT", "BLOCK_NONE"),
+                                GeminiSafetySetting("HARM_CATEGORY_DANGEROUS_CONTENT", "BLOCK_NONE")
+                            )
+
+                            val request = GeminiRequest(
+                                contents = listOf(GeminiContent(role = "user", parts = parts)),
+                                systemInstruction = GeminiSystemInstruction(parts = listOf(GeminiPart(text = systemPrompt))),
+                                generationConfig = GeminiGenerationConfig(
+                                    temperature = 0.1
+                                ),
+                                safetySettings = safetySettings
+                            )
+                            requestBodyStr = gson.toJson(request)
+                        }
+                        else -> throw Exception("Unsupported provider for streaming")
+                    }
+
+                    val mediaType = "application/json; charset=utf-8".toMediaType()
+                    val body = requestBodyStr.toRequestBody(mediaType)
+                    val httpRequest = okhttp3.Request.Builder()
+                        .url(requestUrl)
+                        .post(body)
+                        .apply {
+                            if (config.baseProvider in listOf("OpenAI", "DeepSeek", "OpenAI Compatible", "Qwen")) {
+                                addHeader("Authorization", "Bearer ${config.key.trim()}")
+                            }
+                            addHeader("Accept", "text/event-stream")
+                        }
+                        .build()
+
+                    val factory = okhttp3.sse.EventSources.createFactory(okHttpClient)
+                    var currentUsage = com.example.japanesegrammarapp.domain.repository.LlmResultMetadata(0, 0, 0)
+                    var hasEmittedMetadata = false
+
+                    val eventSourceListener = object : okhttp3.sse.EventSourceListener() {
+                        override fun onEvent(eventSource: okhttp3.sse.EventSource, id: String?, type: String?, data: String) {
+                            if (data == "[DONE]") return
+                            try {
+                                var textChunk = ""
+                                if (config.baseProvider in listOf("OpenAI", "DeepSeek", "OpenAI Compatible", "Qwen")) {
+                                    val response = gson.fromJson(data, OpenAiResponse::class.java)
+                                    textChunk = response.choices?.firstOrNull()?.delta?.content ?: ""
+                                    response.usage?.let { u ->
+                                        currentUsage = com.example.japanesegrammarapp.domain.repository.LlmResultMetadata(
+                                            consumedTokens = u.total_tokens ?: 0,
+                                            inputTokens = u.prompt_tokens ?: 0,
+                                            outputTokens = u.completion_tokens ?: 0
+                                        )
+                                    }
+                                } else {
+                                    val response = gson.fromJson(data, GeminiResponse::class.java)
+                                    textChunk = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: ""
+                                    response.usageMetadata?.let { u ->
+                                        currentUsage = com.example.japanesegrammarapp.domain.repository.LlmResultMetadata(
+                                            consumedTokens = u.totalTokenCount ?: 0,
+                                            inputTokens = u.promptTokenCount ?: 0,
+                                            outputTokens = u.candidatesTokenCount ?: 0
+                                        )
+                                    }
+                                }
+                                if (textChunk.isNotEmpty()) {
+                                    trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Chunk(textChunk))
+                                }
+                            } catch (e: Exception) {
+                                AppLogger.e("LLM_API", "Error parsing SSE chunk: $data", e)
+                            }
+                        }
+
+                        override fun onFailure(eventSource: okhttp3.sse.EventSource, t: Throwable?, response: okhttp3.Response?) {
+                            if (t != null) {
+                                AppLogger.e("LLM_API", "SSE Failure: ${t.message}", t)
+                                close(t)
+                            } else {
+                                val errorMsg = "SSE Failure HTTP Code: ${response?.code}"
+                                AppLogger.e("LLM_API", errorMsg, Exception(errorMsg))
+                                close(Exception(errorMsg))
+                            }
+                        }
+
+                        override fun onClosed(eventSource: okhttp3.sse.EventSource) {
+                            if (!hasEmittedMetadata) {
+                                hasEmittedMetadata = true
+                                trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Metadata(
+                                    provider = config.provider,
+                                    modelName = config.modelName,
+                                    usage = currentUsage
+                                ))
+                            }
+                            close()
+                        }
+                    }
+
+                    val eventSource = factory.newEventSource(httpRequest, eventSourceListener)
+                    awaitClose { eventSource.cancel() }
+                }
+
+                streamFlow.collect { event ->
+                    emit(event)
+                }
+
+                if (config.endpointId.isNotBlank()) {
+                    settingsRepository.markEndpointSuccess(config.provider, config.endpointId)
+                }
+                return@flow 
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                val elapsedMs = System.currentTimeMillis() - attemptStartMs
+                lastException = e
+                if (config.endpointId.isNotBlank()) {
+                    settingsRepository.markEndpointFailure(
+                        provider = config.provider,
+                        endpointId = config.endpointId,
+                        error = e.localizedMessage ?: "Unknown error",
+                        cooldownMs = endpointCooldownMs(e)
+                    )
+                }
+                com.example.japanesegrammarapp.utils.AppLogger.e("LLM_API", "Streaming attempt $attemptNumber failed via ${config.provider}", e)
+                if (index < configs.lastIndex) {
+                    com.example.japanesegrammarapp.utils.AppLogger.apiEvent(
+                        apiTypeLabel = apiTypeLabel,
+                        provider = config.provider,
+                        model = config.modelName,
+                        status = "RETRY",
+                        hasImage = imageBase64 != null,
+                        userPrompt = userPrompt,
+                        systemPrompt = systemPrompt,
+                        message = "$role endpoint $endpointLabel failed after ${elapsedMs}ms: ${e.localizedMessage ?: "Unknown error"}. Trying next endpoint.",
+                        recordId = recordId,
+                        stepName = stepName,
+                        attempt = attemptNumber,
+                        elapsedMs = elapsedMs
+                    )
+                    onRetry(attemptNumber)
+                    kotlinx.coroutines.delay(600L)
+                }
+            }
+        }
+        throw lastException ?: Exception("Streaming failed for unknown reasons")
     }
 }

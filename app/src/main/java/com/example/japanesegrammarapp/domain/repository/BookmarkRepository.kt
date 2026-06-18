@@ -27,15 +27,15 @@ interface BookmarkRepository {
 
     suspend fun removeBookmarkById(id: Int)
 
-    /** Serialize all bookmarks to a JSON string for export */
-    suspend fun exportToJson(): String
+    /** Serialize bookmarks to a JSON string for export */
+    suspend fun exportToJson(includeWords: Boolean, includeSentences: Boolean): String
 
     /**
      * Import bookmarks from a JSON string (produced by [exportToJson]).
      * Duplicates are silently skipped.
      * @return number of newly inserted bookmarks
      */
-    suspend fun importFromJson(json: String): Int
+    suspend fun importFromJson(json: String, includeWords: Boolean, includeSentences: Boolean): Int
 
     suspend fun updateArchivedStatus(id: Int, isArchived: Boolean)
 

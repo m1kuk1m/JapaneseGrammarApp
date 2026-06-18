@@ -14,7 +14,8 @@ data class AnalysisProgress(
     val segmentsCompleted: Boolean = false,
     val clausesCompleted: Boolean = false,
     val translationCompleted: Boolean = false,
-    val grammarCompleted: Boolean = false
+    val grammarCompleted: Boolean = false,
+    val partialSegments: List<WordSegment>? = null
 )
 
 interface AnalysisTaskManager {
@@ -66,14 +67,14 @@ class DefaultAnalysisTaskManager @Inject constructor(
             throw IllegalArgumentException("Missing API Key.")
         }
 
-        // Fast-path for explicit text input: if a record already exists, return it directly
+        // Prevent duplicate concurrent analysis for the same text
         if (text.isNotBlank()) {
             val duplicate = saveAnalysisRecordUseCase.getByOriginalText(text)
             if (duplicate != null) {
                 val isRunning = activeJobs.containsKey(duplicate.id)
-                if (duplicate.status == AnalysisStatus.COMPLETED || isRunning) {
+                if (isRunning) {
                     return duplicate.id
-                } else {
+                } else if (duplicate.status == AnalysisStatus.FAILED || duplicate.status == AnalysisStatus.PENDING) {
                     // Zombie PENDING or FAILED record: restart background analysis
                     executeRetry(duplicate.id, text, duplicate.imageUri)
                     return duplicate.id
@@ -177,7 +178,10 @@ class DefaultAnalysisTaskManager @Inject constructor(
                     // ==========================================
                     // OCR Mode Flow (Sequential Tokenizer first)
                     // ==========================================
-                    val tokenRes = llmAnalysisService.executeTokenizer(
+                    var tokens = emptyList<String>()
+                    var correctedText: String? = null
+
+                    llmAnalysisService.executeTokenizer(
                         text = ocrText,
                         imageBase64 = null,
                         mimeType = null,
@@ -189,15 +193,31 @@ class DefaultAnalysisTaskManager @Inject constructor(
                         onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
                         recordId = recordId,
                         stepName = AnalysisStep.TOKENIZATION.name
-                    )
-                    val tokenObj = tokenRes.first
-                    val metadata = tokenRes.second
-                    val tokens = tokenObj?.tokens ?: emptyList()
-                    val correctedText = tokenObj?.correctedText
+                    ).collect { res ->
+                        val tokenObj = res.first
+                        val metadata = res.second
+                        tokens = tokenObj?.tokens ?: emptyList()
+                        correctedText = tokenObj?.correctedText
+
+                        val skeletonSegments = tokens.map { WordSegment(text = it) }
+                        progressStore.updatePartialSegments(recordId, skeletonSegments)
+                        partialResultStore.update { current ->
+                            var updated = current
+                            if (skeletonSegments.isNotEmpty()) {
+                                updated = updated.copy(segments = skeletonSegments)
+                            }
+                            updated.copy(
+                                consumedTokens = updated.consumedTokens + metadata.consumedTokens,
+                                inputTokens = updated.inputTokens + metadata.inputTokens,
+                                outputTokens = updated.outputTokens + metadata.outputTokens
+                            )
+                        }
+                    }
 
                     var effectiveText = ocrText
-                    if (!correctedText.isNullOrBlank() && correctedText != ocrText) {
-                        effectiveText = correctedText
+                    val finalCorrectedText = correctedText
+                    if (!finalCorrectedText.isNullOrBlank() && finalCorrectedText != ocrText) {
+                        effectiveText = finalCorrectedText
                         eventBus.post(AnalysisEvent.SpellingCorrectedTriggered(recordId, effectiveText))
                     }
 
@@ -214,23 +234,11 @@ class DefaultAnalysisTaskManager @Inject constructor(
                         return@launch
                     }
 
-                    val skeletonSegments = tokens.map { WordSegment(text = it) }
                     if (effectiveText != text) {
                         val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
                         if (currentRecord != null) {
                             saveAnalysisRecordUseCase.update(currentRecord.copy(originalText = effectiveText))
                         }
-                    }
-                    partialResultStore.update { current ->
-                        var updated = current
-                        if (skeletonSegments.isNotEmpty()) {
-                            updated = updated.copy(segments = skeletonSegments)
-                        }
-                        updated.copy(
-                            consumedTokens = updated.consumedTokens + metadata.consumedTokens,
-                            inputTokens = updated.inputTokens + metadata.inputTokens,
-                            outputTokens = updated.outputTokens + metadata.outputTokens
-                        )
                     }
 
                     progressStore.markTokenizerCompleted(recordId)
@@ -239,7 +247,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                         // Translation
                         launch {
                             try {
-                                val res = llmAnalysisService.executeTranslation(
+                                llmAnalysisService.executeTranslation(
                                     text = effectiveText,
                                     imageBase64 = null,
                                     mimeType = null,
@@ -249,16 +257,17 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     onBackup = getBackupListener(AnalysisStep.TRANSLATION),
                                     recordId = recordId,
                                     stepName = AnalysisStep.TRANSLATION.name
-                                )
-                                val obj = res.first
-                                val meta = res.second
-                                partialResultStore.update { current ->
+                                ).collect { res ->
+                                    val obj = res.first
+                                    val meta = res.second
+                                    partialResultStore.update { current ->
                                     current.copy(
                                         translation = obj?.translation,
                                         consumedTokens = current.consumedTokens + meta.consumedTokens,
                                         inputTokens = current.inputTokens + meta.inputTokens,
                                         outputTokens = current.outputTokens + meta.outputTokens
                                     )
+                                }
                                 }
                             } catch (e: Exception) {
                                 logStepFailure(recordId, AnalysisStep.TRANSLATION, e)
@@ -270,7 +279,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                         // Clauses
                         launch {
                             try {
-                                val res = llmAnalysisService.executeClauses(
+                                llmAnalysisService.executeClauses(
                                     text = effectiveText,
                                     imageBase64 = null,
                                     mimeType = null,
@@ -280,16 +289,17 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     onBackup = getBackupListener(AnalysisStep.CLAUSE_ANALYSIS),
                                     recordId = recordId,
                                     stepName = AnalysisStep.CLAUSE_ANALYSIS.name
-                                )
-                                val obj = res.first
-                                val meta = res.second
-                                partialResultStore.update { current ->
+                                ).collect { res ->
+                                    val obj = res.first
+                                    val meta = res.second
+                                    partialResultStore.update { current ->
                                     current.copy(
                                         clauses = obj?.clauses,
                                         consumedTokens = current.consumedTokens + meta.consumedTokens,
                                         inputTokens = current.inputTokens + meta.inputTokens,
                                         outputTokens = current.outputTokens + meta.outputTokens
                                     )
+                                }
                                 }
                             } catch (e: Exception) {
                                 logStepFailure(recordId, AnalysisStep.CLAUSE_ANALYSIS, e)
@@ -301,7 +311,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                         // Grammar
                         launch {
                             try {
-                                val res = llmAnalysisService.executeGrammar(
+                                llmAnalysisService.executeGrammar(
                                     text = effectiveText,
                                     imageBase64 = null,
                                     mimeType = null,
@@ -311,16 +321,17 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     onBackup = getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION),
                                     recordId = recordId,
                                     stepName = AnalysisStep.GRAMMAR_EXPLANATION.name
-                                )
-                                val obj = res.first
-                                val meta = res.second
-                                partialResultStore.update { current ->
+                                ).collect { res ->
+                                    val obj = res.first
+                                    val meta = res.second
+                                    partialResultStore.update { current ->
                                     current.copy(
                                         grammarPoints = obj?.grammarPoints,
                                         consumedTokens = current.consumedTokens + meta.consumedTokens,
                                         inputTokens = current.inputTokens + meta.inputTokens,
                                         outputTokens = current.outputTokens + meta.outputTokens
                                     )
+                                }
                                 }
                             } catch (e: Exception) {
                                 logStepFailure(recordId, AnalysisStep.GRAMMAR_EXPLANATION, e)
@@ -332,7 +343,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                         // Segments (detailed segmentation analysis)
                         launch {
                             try {
-                                val res = llmAnalysisService.executeSegments(
+                                llmAnalysisService.executeSegments(
                                     text = effectiveText,
                                     tokens = tokens,
                                     imageBase64 = null,
@@ -343,10 +354,11 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     onBackup = getBackupListener(AnalysisStep.DETAILED_GRAMMAR),
                                     recordId = recordId,
                                     stepName = AnalysisStep.DETAILED_GRAMMAR.name
-                                )
-                                val obj = res.first
-                                val meta = res.second
-                                partialResultStore.update { current ->
+                                ).collect { res ->
+                                    val obj = res.first
+                                    val meta = res.second
+                                    obj?.segments?.let { progressStore.updatePartialSegments(recordId, it) }
+                                    partialResultStore.update { current ->
                                     val nextSegments = obj?.segments ?: current.segments
                                     current.copy(
                                         segments = nextSegments,
@@ -354,6 +366,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         inputTokens = current.inputTokens + meta.inputTokens,
                                         outputTokens = current.outputTokens + meta.outputTokens
                                     )
+                                }
                                 }
                             } catch (e: Exception) {
                                 logStepFailure(recordId, AnalysisStep.DETAILED_GRAMMAR, e)
@@ -370,7 +383,10 @@ class DefaultAnalysisTaskManager @Inject constructor(
                         // ==========================================
                         // Direct Image Upload Mode Flow (Sequential, Image uploaded to Tokenizer only)
                         // ==========================================
-                        val tokenRes = llmAnalysisService.executeTokenizer(
+                        var tokens = emptyList<String>()
+                        var recognizedText: String? = null
+
+                        llmAnalysisService.executeTokenizer(
                             text = "",
                             imageBase64 = imageBase64,
                             mimeType = mimeType,
@@ -382,15 +398,31 @@ class DefaultAnalysisTaskManager @Inject constructor(
                             onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
                             recordId = recordId,
                             stepName = AnalysisStep.TOKENIZATION.name
-                        )
-                        val tokenObj = tokenRes.first
-                        val metadata = tokenRes.second
-                        val tokens = tokenObj?.tokens ?: emptyList()
-                        val recognizedText = tokenObj?.recognizedText
+                        ).collect { res ->
+                            val tokenObj = res.first
+                            val metadata = res.second
+                            tokens = tokenObj?.tokens ?: emptyList()
+                            recognizedText = tokenObj?.recognizedText
+
+                            val skeletonSegments = tokens.map { WordSegment(text = it) }
+                            progressStore.updatePartialSegments(recordId, skeletonSegments)
+                            partialResultStore.update { current ->
+                                var updated = current
+                                if (skeletonSegments.isNotEmpty()) {
+                                    updated = updated.copy(segments = skeletonSegments)
+                                }
+                                updated.copy(
+                                    consumedTokens = updated.consumedTokens + metadata.consumedTokens,
+                                    inputTokens = updated.inputTokens + metadata.inputTokens,
+                                    outputTokens = updated.outputTokens + metadata.outputTokens
+                                )
+                            }
+                        }
 
                         var effectiveText = text
-                        if (!recognizedText.isNullOrBlank()) {
-                            effectiveText = recognizedText
+                        val finalRecognizedText = recognizedText
+                        if (!finalRecognizedText.isNullOrBlank()) {
+                            effectiveText = finalRecognizedText
                         } else if (tokens.isNotEmpty()) {
                             effectiveText = tokens.joinToString("")
                         }
@@ -406,23 +438,11 @@ class DefaultAnalysisTaskManager @Inject constructor(
                             return@launch
                         }
 
-                        val skeletonSegments = tokens.map { WordSegment(text = it) }
                         if (effectiveText != text) {
                             val currentRecord = saveAnalysisRecordUseCase.getById(recordId)
                             if (currentRecord != null) {
                                 saveAnalysisRecordUseCase.update(currentRecord.copy(originalText = effectiveText))
                             }
-                        }
-                        partialResultStore.update { current ->
-                            var updated = current
-                            if (skeletonSegments.isNotEmpty()) {
-                                updated = updated.copy(segments = skeletonSegments)
-                            }
-                            updated.copy(
-                                consumedTokens = updated.consumedTokens + metadata.consumedTokens,
-                                inputTokens = updated.inputTokens + metadata.inputTokens,
-                                outputTokens = updated.outputTokens + metadata.outputTokens
-                            )
                         }
 
                         progressStore.markTokenizerCompleted(recordId)
@@ -431,7 +451,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                             // 1. Translation
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeTranslation(
+                                    llmAnalysisService.executeTranslation(
                                         text = effectiveText,
                                         imageBase64 = null,
                                         mimeType = null,
@@ -441,16 +461,17 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         onBackup = getBackupListener(AnalysisStep.TRANSLATION),
                                         recordId = recordId,
                                         stepName = AnalysisStep.TRANSLATION.name
-                                    )
-                                    val obj = res.first
-                                    val meta = res.second
-                                    partialResultStore.update { current ->
+                                    ).collect { res ->
+                                        val obj = res.first
+                                        val meta = res.second
+                                        partialResultStore.update { current ->
                                         current.copy(
                                             translation = obj?.translation,
                                             consumedTokens = current.consumedTokens + meta.consumedTokens,
                                             inputTokens = current.inputTokens + meta.inputTokens,
                                             outputTokens = current.outputTokens + meta.outputTokens
                                         )
+                                    }
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.TRANSLATION, e)
@@ -462,7 +483,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                             // 2. Clauses
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeClauses(
+                                    llmAnalysisService.executeClauses(
                                         text = effectiveText,
                                         imageBase64 = null,
                                         mimeType = null,
@@ -472,16 +493,17 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         onBackup = getBackupListener(AnalysisStep.CLAUSE_ANALYSIS),
                                         recordId = recordId,
                                         stepName = AnalysisStep.CLAUSE_ANALYSIS.name
-                                    )
-                                    val obj = res.first
-                                    val meta = res.second
-                                    partialResultStore.update { current ->
+                                    ).collect { res ->
+                                        val obj = res.first
+                                        val meta = res.second
+                                        partialResultStore.update { current ->
                                         current.copy(
                                             clauses = obj?.clauses,
                                             consumedTokens = current.consumedTokens + meta.consumedTokens,
                                             inputTokens = current.inputTokens + meta.inputTokens,
                                             outputTokens = current.outputTokens + meta.outputTokens
                                         )
+                                    }
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.CLAUSE_ANALYSIS, e)
@@ -493,7 +515,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                             // 3. Grammar
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeGrammar(
+                                    llmAnalysisService.executeGrammar(
                                         text = effectiveText,
                                         imageBase64 = null,
                                         mimeType = null,
@@ -503,16 +525,17 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         onBackup = getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION),
                                         recordId = recordId,
                                         stepName = AnalysisStep.GRAMMAR_EXPLANATION.name
-                                    )
-                                    val obj = res.first
-                                    val meta = res.second
-                                    partialResultStore.update { current ->
+                                    ).collect { res ->
+                                        val obj = res.first
+                                        val meta = res.second
+                                        partialResultStore.update { current ->
                                         current.copy(
                                             grammarPoints = obj?.grammarPoints,
                                             consumedTokens = current.consumedTokens + meta.consumedTokens,
                                             inputTokens = current.inputTokens + meta.inputTokens,
                                             outputTokens = current.outputTokens + meta.outputTokens
                                         )
+                                    }
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.GRAMMAR_EXPLANATION, e)
@@ -524,7 +547,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                             // 4. Segments
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeSegments(
+                                    llmAnalysisService.executeSegments(
                                         text = effectiveText,
                                         tokens = tokens,
                                         imageBase64 = null,
@@ -535,10 +558,11 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         onBackup = getBackupListener(AnalysisStep.DETAILED_GRAMMAR),
                                         recordId = recordId,
                                         stepName = AnalysisStep.DETAILED_GRAMMAR.name
-                                    )
-                                    val obj = res.first
-                                    val meta = res.second
-                                    partialResultStore.update { current ->
+                                    ).collect { res ->
+                                        val obj = res.first
+                                        val meta = res.second
+                                        obj?.segments?.let { progressStore.updatePartialSegments(recordId, it) }
+                                        partialResultStore.update { current ->
                                         val nextSegments = obj?.segments ?: current.segments
                                         current.copy(
                                             segments = nextSegments,
@@ -546,6 +570,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                             inputTokens = current.inputTokens + meta.inputTokens,
                                             outputTokens = current.outputTokens + meta.outputTokens
                                         )
+                                    }
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.DETAILED_GRAMMAR, e)
@@ -562,7 +587,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                             // 1. Translation
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeTranslation(
+                                    llmAnalysisService.executeTranslation(
                                         text = text,
                                         imageBase64 = imageBase64,
                                         mimeType = mimeType,
@@ -572,16 +597,17 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         onBackup = getBackupListener(AnalysisStep.TRANSLATION),
                                         recordId = recordId,
                                         stepName = AnalysisStep.TRANSLATION.name
-                                    )
-                                    val obj = res.first
-                                    val meta = res.second
-                                    partialResultStore.update { current ->
+                                    ).collect { res ->
+                                        val obj = res.first
+                                        val meta = res.second
+                                        partialResultStore.update { current ->
                                         current.copy(
                                             translation = obj?.translation,
                                             consumedTokens = current.consumedTokens + meta.consumedTokens,
                                             inputTokens = current.inputTokens + meta.inputTokens,
                                             outputTokens = current.outputTokens + meta.outputTokens
                                         )
+                                    }
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.TRANSLATION, e)
@@ -593,7 +619,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                             // 2. Clauses
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeClauses(
+                                    llmAnalysisService.executeClauses(
                                         text = text,
                                         imageBase64 = imageBase64,
                                         mimeType = mimeType,
@@ -603,16 +629,17 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         onBackup = getBackupListener(AnalysisStep.CLAUSE_ANALYSIS),
                                         recordId = recordId,
                                         stepName = AnalysisStep.CLAUSE_ANALYSIS.name
-                                    )
-                                    val obj = res.first
-                                    val meta = res.second
-                                    partialResultStore.update { current ->
+                                    ).collect { res ->
+                                        val obj = res.first
+                                        val meta = res.second
+                                        partialResultStore.update { current ->
                                         current.copy(
                                             clauses = obj?.clauses,
                                             consumedTokens = current.consumedTokens + meta.consumedTokens,
                                             inputTokens = current.inputTokens + meta.inputTokens,
                                             outputTokens = current.outputTokens + meta.outputTokens
                                         )
+                                    }
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.CLAUSE_ANALYSIS, e)
@@ -624,7 +651,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                             // 3. Grammar
                             launch {
                                 try {
-                                    val res = llmAnalysisService.executeGrammar(
+                                    llmAnalysisService.executeGrammar(
                                         text = text,
                                         imageBase64 = imageBase64,
                                         mimeType = mimeType,
@@ -634,16 +661,17 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         onBackup = getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION),
                                         recordId = recordId,
                                         stepName = AnalysisStep.GRAMMAR_EXPLANATION.name
-                                    )
-                                    val obj = res.first
-                                    val meta = res.second
-                                    partialResultStore.update { current ->
+                                    ).collect { res ->
+                                        val obj = res.first
+                                        val meta = res.second
+                                        partialResultStore.update { current ->
                                         current.copy(
                                             grammarPoints = obj?.grammarPoints,
                                             consumedTokens = current.consumedTokens + meta.consumedTokens,
                                             inputTokens = current.inputTokens + meta.inputTokens,
                                             outputTokens = current.outputTokens + meta.outputTokens
                                         )
+                                    }
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.GRAMMAR_EXPLANATION, e)
@@ -656,7 +684,9 @@ class DefaultAnalysisTaskManager @Inject constructor(
                             launch {
                                 try {
                                     // 4a. Execute Tokenizer first
-                                    val tokenRes = llmAnalysisService.executeTokenizer(
+                                    var tokens = emptyList<String>()
+
+                                    llmAnalysisService.executeTokenizer(
                                         text = text,
                                         imageBase64 = imageBase64,
                                         mimeType = mimeType,
@@ -668,28 +698,30 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
                                         recordId = recordId,
                                         stepName = AnalysisStep.TOKENIZATION.name
-                                    )
-                                    val tokenObj = tokenRes.first
-                                    val tokenMeta = tokenRes.second
-                                    val tokens = tokenObj?.tokens ?: emptyList()
+                                    ).collect { res ->
+                                        val tokenObj = res.first
+                                        val tokenMeta = res.second
+                                        tokens = tokenObj?.tokens ?: emptyList()
 
-                                    val skeletonSegments = tokens.map { WordSegment(text = it) }
-                                    partialResultStore.update { current ->
-                                        var updated = current
-                                        if (skeletonSegments.isNotEmpty()) {
-                                            updated = updated.copy(segments = skeletonSegments)
+                                        val skeletonSegments = tokens.map { WordSegment(text = it) }
+                                        progressStore.updatePartialSegments(recordId, skeletonSegments)
+                                        partialResultStore.update { current ->
+                                            var updated = current
+                                            if (skeletonSegments.isNotEmpty()) {
+                                                updated = updated.copy(segments = skeletonSegments)
+                                            }
+                                            updated.copy(
+                                                consumedTokens = updated.consumedTokens + tokenMeta.consumedTokens,
+                                                inputTokens = updated.inputTokens + tokenMeta.inputTokens,
+                                                outputTokens = updated.outputTokens + tokenMeta.outputTokens
+                                            )
                                         }
-                                        updated.copy(
-                                            consumedTokens = updated.consumedTokens + tokenMeta.consumedTokens,
-                                            inputTokens = updated.inputTokens + tokenMeta.inputTokens,
-                                            outputTokens = updated.outputTokens + tokenMeta.outputTokens
-                                        )
                                     }
 
                                     progressStore.markTokenizerCompleted(recordId)
 
                                     // 4b. Execute detailed segments analysis using the retrieved tokens
-                                    val resSeg = llmAnalysisService.executeSegments(
+                                    llmAnalysisService.executeSegments(
                                         text = text,
                                         tokens = tokens,
                                         imageBase64 = imageBase64,
@@ -700,11 +732,11 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         onBackup = getBackupListener(AnalysisStep.DETAILED_GRAMMAR),
                                         recordId = recordId,
                                         stepName = AnalysisStep.DETAILED_GRAMMAR.name
-                                    )
-                                    val segObj = resSeg.first
-                                    val segMeta = resSeg.second
-
-                                    partialResultStore.update { current ->
+                                    ).collect { resSeg ->
+                                        val segObj = resSeg.first
+                                        val segMeta = resSeg.second
+                                        segObj?.segments?.let { progressStore.updatePartialSegments(recordId, it) }
+                                        partialResultStore.update { current ->
                                         val nextSegments = segObj?.segments ?: current.segments
                                         current.copy(
                                             segments = nextSegments,
@@ -712,6 +744,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                             inputTokens = current.inputTokens + segMeta.inputTokens,
                                             outputTokens = current.outputTokens + segMeta.outputTokens
                                         )
+                                    }
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.DETAILED_GRAMMAR, e)

@@ -63,64 +63,107 @@ class BookmarkRepositoryImpl @Inject constructor(
         dao.deleteById(id)
     }
 
-    override suspend fun exportToJson(): String = withContext(Dispatchers.IO) {
-        val bookmarks = dao.getAll().first()
+    override suspend fun exportToJson(includeWords: Boolean, includeSentences: Boolean): String = withContext(Dispatchers.IO) {
         val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault())
         val root = JSONObject().apply {
-            put("version", 1)
+            put("version", 2)
             put("exported_at", sdf.format(Date()))
-            put("bookmarks", JSONArray().also { arr ->
-                bookmarks.forEach { b ->
-                    arr.put(JSONObject().apply {
-                        put("id", b.id)
-                        put("recordId", b.recordId)
-                        put("text", b.segmentText)
-                        putOpt("surfaceForm", b.surfaceForm)
-                        putOpt("reading", b.reading)
-                        putOpt("partOfSpeech", b.partOfSpeech)
-                        putOpt("posCategory", b.posCategory)
-                        putOpt("dictionaryForm", b.dictionaryForm)
-                        putOpt("dictionaryFormReading", b.dictionaryFormReading)
-                        putOpt("meaning", b.meaning)
-                        putOpt("inflection", b.inflection)
-                        putOpt("role", b.role)
-                        put("bookmarkedAt", b.bookmarkedAt)
-                        put("sourceText", b.sourceText)
-                        put("isArchived", b.isArchived)
-                    })
-                }
-            })
+            
+            if (includeWords) {
+                val bookmarks = dao.getAll().first()
+                put("bookmarks", JSONArray().also { arr ->
+                    bookmarks.forEach { b ->
+                        arr.put(JSONObject().apply {
+                            put("id", b.id)
+                            put("recordId", b.recordId)
+                            put("text", b.segmentText)
+                            putOpt("surfaceForm", b.surfaceForm)
+                            putOpt("reading", b.reading)
+                            putOpt("partOfSpeech", b.partOfSpeech)
+                            putOpt("posCategory", b.posCategory)
+                            putOpt("dictionaryForm", b.dictionaryForm)
+                            putOpt("dictionaryFormReading", b.dictionaryFormReading)
+                            putOpt("meaning", b.meaning)
+                            putOpt("inflection", b.inflection)
+                            putOpt("role", b.role)
+                            put("bookmarkedAt", b.bookmarkedAt)
+                            put("sourceText", b.sourceText)
+                            put("isArchived", b.isArchived)
+                        })
+                    }
+                })
+            }
+            
+            if (includeSentences) {
+                val sentences = sentenceDao.getAll().first()
+                put("sentences", JSONArray().also { arr ->
+                    sentences.forEach { s ->
+                        arr.put(JSONObject().apply {
+                            put("id", s.id)
+                            put("recordId", s.recordId)
+                            put("originalText", s.originalText)
+                            putOpt("translation", s.translation)
+                            putOpt("analysisResult", s.analysisResult)
+                            putOpt("modelUsed", s.modelUsed)
+                            put("bookmarkedAt", s.bookmarkedAt)
+                        })
+                    }
+                })
+            }
         }
         root.toString(2)
     }
 
-    override suspend fun importFromJson(json: String): Int = withContext(Dispatchers.IO) {
+    override suspend fun importFromJson(json: String, includeWords: Boolean, includeSentences: Boolean): Int = withContext(Dispatchers.IO) {
         val root = JSONObject(json)
-        val arr = root.getJSONArray("bookmarks")
         var inserted = 0
-        for (i in 0 until arr.length()) {
-            val obj = arr.getJSONObject(i)
-            val entity = BookmarkedSegment(
-                recordId = obj.optInt("recordId", -1),
-                segmentText = obj.optString("text", ""),
-                surfaceForm = obj.optStringOrNull("surfaceForm"),
-                reading = obj.optStringOrNull("reading"),
-                partOfSpeech = obj.optStringOrNull("partOfSpeech"),
-                posCategory = obj.optStringOrNull("posCategory"),
-                dictionaryForm = obj.optStringOrNull("dictionaryForm"),
-                dictionaryFormReading = obj.optStringOrNull("dictionaryFormReading"),
-                meaning = obj.optStringOrNull("meaning"),
-                inflection = obj.optStringOrNull("inflection"),
-                role = obj.optStringOrNull("role"),
-                bookmarkedAt = obj.optLong("bookmarkedAt", System.currentTimeMillis()),
-                sourceText = obj.optString("sourceText", ""),
-                isArchived = obj.optBoolean("isArchived", false)
-            )
-            if (entity.recordId >= 0 && entity.segmentText.isNotBlank()) {
-                val result = dao.insert(entity)
-                if (result != -1L) inserted++
+        
+        if (includeWords && root.has("bookmarks")) {
+            val arr = root.getJSONArray("bookmarks")
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                val entity = BookmarkedSegment(
+                    recordId = obj.optInt("recordId", -1),
+                    segmentText = obj.optString("text", ""),
+                    surfaceForm = obj.optStringOrNull("surfaceForm"),
+                    reading = obj.optStringOrNull("reading"),
+                    partOfSpeech = obj.optStringOrNull("partOfSpeech"),
+                    posCategory = obj.optStringOrNull("posCategory"),
+                    dictionaryForm = obj.optStringOrNull("dictionaryForm"),
+                    dictionaryFormReading = obj.optStringOrNull("dictionaryFormReading"),
+                    meaning = obj.optStringOrNull("meaning"),
+                    inflection = obj.optStringOrNull("inflection"),
+                    role = obj.optStringOrNull("role"),
+                    bookmarkedAt = obj.optLong("bookmarkedAt", System.currentTimeMillis()),
+                    sourceText = obj.optString("sourceText", ""),
+                    isArchived = obj.optBoolean("isArchived", false)
+                )
+                if (entity.recordId >= 0 && entity.segmentText.isNotBlank()) {
+                    val result = dao.insert(entity)
+                    if (result != -1L) inserted++
+                }
             }
         }
+        
+        if (includeSentences && root.has("sentences")) {
+            val arr = root.getJSONArray("sentences")
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                val entity = BookmarkedSentence(
+                    recordId = obj.optInt("recordId", -1),
+                    originalText = obj.optString("originalText", ""),
+                    translation = obj.optStringOrNull("translation"),
+                    analysisResult = obj.optStringOrNull("analysisResult"),
+                    modelUsed = obj.optStringOrNull("modelUsed"),
+                    bookmarkedAt = obj.optLong("bookmarkedAt", System.currentTimeMillis())
+                )
+                if (entity.originalText.isNotBlank()) {
+                    val result = sentenceDao.insert(entity)
+                    if (result != -1L) inserted++
+                }
+            }
+        }
+        
         inserted
     }
 

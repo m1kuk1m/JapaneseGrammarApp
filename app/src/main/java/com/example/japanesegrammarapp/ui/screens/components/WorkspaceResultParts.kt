@@ -1,6 +1,8 @@
 package com.example.japanesegrammarapp.ui.screens.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseInOutCubic
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -11,6 +13,9 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -125,7 +130,21 @@ fun SegmentChip(
         ),
         label = "shimmerAlpha"
     )
-    val bgColor = if (isLoading) sumiInk.copy(alpha = shimmerAlpha) else getChipColorForPos(segment)
+    val baseBgColor = getChipColorForPos(segment)
+    val hasDetails = !segment.meaning.isNullOrBlank() || !segment.role.isNullOrBlank()
+    val targetBgColor = if (isLoading) {
+        sumiInk.copy(alpha = shimmerAlpha)
+    } else if (hasDetails) {
+        baseBgColor
+    } else {
+        baseBgColor.copy(alpha = 0.35f)
+    }
+    
+    val bgColor by animateColorAsState(
+        targetValue = targetBgColor,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
+        label = "bgColor"
+    )
     val chipTextColor = if (ZenThemeColors.isDark()) Color(0xFFE0E0E0) else Color(0xFF1E1E1E)
 
     var showGlowAnimation by remember { mutableStateOf(false) }
@@ -144,6 +163,7 @@ fun SegmentChip(
             shape = RoundedCornerShape(8.dp),
             border = BorderStroke(width = borderWidth, color = borderColor),
             modifier = Modifier
+                .animateContentSize(animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing))
                 .clip(RoundedCornerShape(8.dp))
                 .combinedClickable(
                     onClick = onClick,
@@ -160,17 +180,29 @@ fun SegmentChip(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = segment.reading ?: "",
-                    fontSize = 9.sp,
-                    color = chipTextColor.copy(alpha = if (isLoading) 0.0f else 0.6f)
-                )
-                Text(
-                    text = segment.text ?: "",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = chipTextColor.copy(alpha = if (isLoading) 0.4f else 1.0f)
-                )
+                AnimatedContent(
+                    targetState = segment.reading ?: "",
+                    transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(150)) },
+                    label = "readingReveal"
+                ) { targetReading ->
+                    Text(
+                        text = targetReading,
+                        fontSize = 9.sp,
+                        color = chipTextColor.copy(alpha = if (isLoading) 0.0f else 0.6f)
+                    )
+                }
+                AnimatedContent(
+                    targetState = segment.text ?: "",
+                    transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(150)) },
+                    label = "textReveal"
+                ) { targetText ->
+                    Text(
+                        text = targetText,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = chipTextColor.copy(alpha = if (isLoading) 0.4f else 1.0f)
+                    )
+                }
             }
         }
 

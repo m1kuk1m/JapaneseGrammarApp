@@ -542,4 +542,10 @@
     <string name="ocr_debug_rapidocr_det_threshold">検出しきい値</string>
     <string name="ocr_debug_rapidocr_box_threshold">枠しきい値</string>
     <string name="ocr_debug_rapidocr_unclip">拡張比率</string>
+
+    <!-- Import / Export Options -->
+    <string name="export_options_title">エクスポートオプション</string>
+    <string name="import_options_title">インポートオプション</string>
+    <string name="option_words">単語</string>
+    <string name="option_sentences">文章</string>
 </resources>

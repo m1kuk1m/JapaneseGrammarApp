@@ -45,6 +45,8 @@ object AppLogger {
     private val fileLock = Any()
     private lateinit var logScope: CoroutineScope
 
+    val sessionStartTimeMs: Long = System.currentTimeMillis()
+
     fun init(context: Context, scope: CoroutineScope) {
         val app = context.applicationContext
         appContext = app
@@ -79,6 +81,12 @@ object AppLogger {
                         android.util.Log.e("AppLogger", "Failed to load api logs", e)
                     }
                 }
+                
+                // Add session start marker after loading old logs
+                val time = now()
+                val marker = "[$time] D/SYSTEM: --- APP SESSION START ---"
+                _logs.update { current -> (current + marker).takeLast(300) }
+                writeAppLogToFile(marker)
             }
         }
     }
@@ -271,8 +279,8 @@ object AppLogger {
         }
     }
 
-    fun getLogFileUri(context: Context, isApiLog: Boolean): android.net.Uri? {
-        val filename = if (isApiLog) "api_logs.json" else "app_logs.txt"
+    fun getLogFileUri(context: Context): android.net.Uri? {
+        val filename = "app_logs.txt"
         val file = File(context.cacheDir, "exports/$filename")
         synchronized(fileLock) {
             if (!file.exists()) {
@@ -342,9 +350,9 @@ object AppLogger {
         return updatedLogs
     }
 
-    private fun now(): String = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+    private fun now(): String = SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
-    private fun nowWithMillis(): String = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date())
+    private fun nowWithMillis(): String = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.getDefault()).format(Date())
 
     private fun launchLog(block: () -> Unit) {
         if (::logScope.isInitialized) {
@@ -355,5 +363,25 @@ object AppLogger {
     private fun String.safeForLog(maxLength: Int = 8000): String {
         val redacted = LogSanitizer.sanitize(this)
         return if (redacted.length > maxLength) redacted.take(maxLength) + "\n...<truncated>" else redacted
+    }
+
+    fun logCrashSync(throwable: Throwable) {
+        val time = now()
+        val safeStackTrace = throwable.stackTraceToString().safeForLog(12000)
+        val log = "[$time] F/CRASH: FATAL UNCAUGHT EXCEPTION\n$safeStackTrace"
+
+        android.util.Log.e("CRASH", log)
+
+        synchronized(fileLock) {
+            appContext?.let { context ->
+                try {
+                    val file = File(context.cacheDir, "exports/app_logs.txt")
+                    file.parentFile?.let { if (!it.exists()) it.mkdirs() }
+                    file.appendText(log + "\n")
+                } catch (e: Exception) {
+                    android.util.Log.e("AppLogger", "Failed to write crash log synchronously", e)
+                }
+            }
+        }
     }
 }

@@ -276,7 +276,16 @@ class WorkspaceViewModel @Inject constructor(
                     if (needsRefresh) {
                         refreshSelectedRecordFromRepository(currentSelected.id, clearProgress = progress == null)
                     } else {
-                        _uiState.update { it.copy(selectedRecordProgress = progress) }
+                        _uiState.update { state -> 
+                            val updatedDetail = state.detailedResult?.copy(
+                                segments = progress?.partialSegments ?: state.detailedResult.segments
+                            ) ?: DetailedAnalysisResult(segments = progress?.partialSegments)
+                            
+                            state.copy(
+                                selectedRecordProgress = progress,
+                                detailedResult = updatedDetail
+                            ) 
+                        }
                     }
                 } else {
                     _uiState.update { it.copy(selectedRecordProgress = null) }
@@ -314,7 +323,11 @@ class WorkspaceViewModel @Inject constructor(
     fun refreshCurrentRecord() {
         val recordId = _uiState.value.selectedRecord?.id ?: return
         viewModelScope.launch {
-            refreshSelectedRecordFromRepository(recordId, clearProgress = false)
+            try {
+                refreshSelectedRecordFromRepository(recordId, clearProgress = false)
+            } catch (e: Exception) {
+                AppLogger.e("WORKSPACE", "Failed to refresh current record", e)
+            }
         }
     }
 
@@ -325,27 +338,33 @@ class WorkspaceViewModel @Inject constructor(
         }
 
         ttsRepository.stop()
+        
+        val syncDetail = analyzeTextUseCase.parseDetailedResult(record.originalText, record.analysisResult)
 
         // Immediately update selectedRecord synchronously on the Main thread to avoid UI lag/flicker
         _uiState.update { it.copy(
             selectedRecord = record,
             currentOriginalText = record.originalText,
             analysisResult = record.analysisResult,
-            isParsingDetailedResult = true,
+            detailedResult = syncDetail,
+            isParsingDetailedResult = false,
             isExternalQuery = if (clearExternalQuery) false else it.isExternalQuery,
             selectedRecordProgress = if (record.status != AnalysisStatus.COMPLETED) {
                 analyzeTextUseCase.progressFlow.value[record.id]
             } else null
         ) }
 
-        // If the record is PENDING but there is no active job running (zombie PENDING record), automatically resume/retry the analysis
-        val isRunning = analyzeTextUseCase.progressFlow.value.containsKey(record.id)
-        if (record.status == AnalysisStatus.PENDING && !isRunning) {
-            retryAnalysis(record.id)
-        }
-
         viewModelScope.launch(Dispatchers.IO) {
             val freshRecord = historyRepository.getRecordById(record.id) ?: record
+            
+            // If the fresh record is PENDING but there is no active job running (zombie PENDING record), automatically resume/retry the analysis
+            val isRunning = analyzeTextUseCase.progressFlow.value.containsKey(freshRecord.id)
+            if (freshRecord.status == AnalysisStatus.PENDING && !isRunning) {
+                withContext(Dispatchers.Main) {
+                    retryAnalysis(freshRecord.id)
+                }
+            }
+            
             val detail = analyzeTextUseCase.parseDetailedResult(freshRecord.originalText, freshRecord.analysisResult)
             withContext(Dispatchers.Main) {
                 _uiState.update { state ->
@@ -405,29 +424,33 @@ class WorkspaceViewModel @Inject constructor(
     }
 
     private suspend fun refreshSelectedRecordFromRepository(recordId: Int, clearProgress: Boolean = false) {
-        val updated = withContext(Dispatchers.IO) { historyRepository.getRecordById(recordId) } ?: return
-        val detail = withContext(Dispatchers.IO) {
-            analyzeTextUseCase.parseDetailedResult(updated.originalText, updated.analysisResult)
-        }
-        _uiState.update { state ->
-            if (state.selectedRecord?.id != recordId) {
-                state
-            } else if (state.selectedRecord.status == AnalysisStatus.COMPLETED && updated.status == AnalysisStatus.PENDING) {
-                state
-            } else {
-                state.copy(
-                    selectedRecord = updated,
-                    currentOriginalText = updated.originalText,
-                    analysisResult = updated.analysisResult,
-                    detailedResult = detail,
-                    isParsingDetailedResult = false,
-                    selectedRecordProgress = if (clearProgress || updated.status == AnalysisStatus.COMPLETED) {
-                        null
-                    } else {
-                        analyzeTextUseCase.progressFlow.value[recordId]
-                    }
-                )
+        try {
+            val updated = withContext(Dispatchers.IO) { historyRepository.getRecordById(recordId) } ?: return
+            val detail = withContext(Dispatchers.IO) {
+                analyzeTextUseCase.parseDetailedResult(updated.originalText, updated.analysisResult)
             }
+            _uiState.update { state ->
+                if (state.selectedRecord?.id != recordId) {
+                    state
+                } else if (state.selectedRecord.status == AnalysisStatus.COMPLETED && updated.status == AnalysisStatus.PENDING) {
+                    state
+                } else {
+                    state.copy(
+                        selectedRecord = updated,
+                        currentOriginalText = updated.originalText,
+                        analysisResult = updated.analysisResult,
+                        detailedResult = detail,
+                        isParsingDetailedResult = false,
+                        selectedRecordProgress = if (clearProgress || updated.status == AnalysisStatus.COMPLETED) {
+                            null
+                        } else {
+                            analyzeTextUseCase.progressFlow.value[recordId]
+                        }
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("WORKSPACE", "Error refreshing selected record from repository", e)
         }
     }
 
@@ -570,24 +593,33 @@ class WorkspaceViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 retryAnalysisUseCase.execute(recordId)
-                val record = historyRepository.getRecordById(recordId)
+                val record = withContext(Dispatchers.IO) { historyRepository.getRecordById(recordId) }
                 if (record != null) {
                     _uiState.update { state ->
                         if (state.selectedRecord?.id != recordId) {
                             state
                         } else {
-                            state.copy(selectedRecord = record)
+                            state.copy(
+                                selectedRecord = record,
+                                detailedResult = null,
+                                analysisResult = "",
+                                selectedRecordProgress = null
+                            )
                         }
                     }
                 }
             } catch (e: Exception) {
                 _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.error_retry_failed))
-                withContext(Dispatchers.IO) {
-                    val record = historyRepository.getRecordById(recordId)
-                    if (record != null) {
-                        val fullMessage = e.localizedMessage ?: "Unknown initialization error"
-                        historyRepository.updateRecord(record.copy(status = AnalysisStatus.FAILED, errorMessage = fullMessage))
+                try {
+                    withContext(Dispatchers.IO) {
+                        val record = historyRepository.getRecordById(recordId)
+                        if (record != null) {
+                            val fullMessage = e.localizedMessage ?: "Unknown initialization error"
+                            historyRepository.updateRecord(record.copy(status = AnalysisStatus.FAILED, errorMessage = fullMessage))
+                        }
                     }
+                } catch (innerEx: Exception) {
+                    AppLogger.e("WORKSPACE", "Failed to update record status to FAILED after retry error", innerEx)
                 }
                 _uiState.update { state ->
                     if (state.selectedRecord?.id != recordId) {

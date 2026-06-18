@@ -12,6 +12,8 @@ import com.example.japanesegrammarapp.utils.AppLogger
 import com.google.gson.Gson
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,7 +41,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
         stepName: String?
-    ): Pair<TokenizationResult?, LlmResultMetadata> {
+    ): Flow<Pair<TokenizationResult?, LlmResultMetadata>> {
         val systemPrompt = when {
             imageBase64 != null && imageTokenizerMode == "repair" -> settingsRepository.getCustomPrompt("prompt_tokenizer_image_repair")
             imageBase64 != null -> settingsRepository.getCustomPrompt("prompt_tokenizer_image")
@@ -48,13 +50,13 @@ class LlmAnalysisServiceImpl @Inject constructor(
         }
 
         val userPrompt = when {
-            imageBase64 != null && imageTokenizerMode == "repair" -> "画像内の日本語テキストを視覚情報優先で読み取り、不鮮明な場合も文脈は類似字形候補を選ぶ補助に限定してください。意味・自然さ・頻度・安全性を理由に一般語へ置き換えず、濁点/半濁点/長音符/小書き文字は画像上の痕跡を優先してください。最終的な本文は recognizedText に、分かち書き結果は tokens に出力してください。tokens には空白・改行・タブのみの要素を含めないでください。"
-            imageBase64 != null -> "画像内の日本語テキストを原文のまま忠実に認識し、一切修正せず、文字を変更しないでトークン化してください。画像から読み取った原文は recognizedText に、分かち書き結果は tokens に出力してください。tokens には空白・改行・タブのみの要素を含めないでください。"
-            isOcrMode -> "分析対象のOCRテキスト: \"$text\"\nこのテキストのOCR誤認識（て・で誤認、濁点脱落など）を自动修正した上で、トークン化し、文字列の配列として出力してください。tokens には空白・改行・タブのみの要素を含めないでください。"
-            else -> "分析対象の文: \"$text\"\nこの文をトークン化し、文字列の配列として出力してください。tokens には空白・改行・タブのみの要素を含めないでください。"
+            imageBase64 != null && imageTokenizerMode == "repair" -> "画像内の日本語テキストを視覚情報優先で読み取り、不鮮明な場合も文脈は類似字形候補を選ぶ補助に限定してください。意味・自然さ・頻度・安全性を理由に一般語へ置き換えず、濁点/半濁点/長音符/小書き文字は画像上の痕跡を優先してください。テキストで出力してください。"
+            imageBase64 != null -> "画像内の日本語テキストを原文のまま忠実に認識し、一切修正せず、文字を変更しないでトークン化してください。テキストで出力してください。"
+            isOcrMode -> "分析対象のOCRテキスト: \"$text\"\nこのテキストのOCR誤認識（て・で誤認、濁点脱落など）を自动修正した上で、トークン化し、出力してください。"
+            else -> "分析対象の文: \"$text\"\nこの文をトークン化し、出力してください。"
         }
 
-        return executeAnalysisStep(
+        return executeAnalysisStepStreaming(
             systemPrompt = systemPrompt,
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
@@ -64,11 +66,27 @@ class LlmAnalysisServiceImpl @Inject constructor(
             backupConfigs = backupConfigs,
             onRetry = onRetry,
             onBackup = onBackup,
-            clazz = TokenizationResult::class.java,
             recordId = recordId,
             stepName = stepName,
             timeoutMs = DEFAULT_STEP_TIMEOUT_MS
-        )
+        ) { accumulated ->
+            val lines = accumulated.lines().map { it.trim() }.filter { it.isNotBlank() }
+            if (lines.isEmpty()) {
+                TokenizationResult()
+            } else {
+                if (imageBase64 != null || isOcrMode) {
+                    val firstLine = lines.firstOrNull() ?: ""
+                    val tokens = if (lines.size > 1) lines.drop(1) else emptyList()
+                    if (isOcrMode) {
+                        TokenizationResult(correctedText = firstLine, tokens = tokens)
+                    } else {
+                        TokenizationResult(recognizedText = firstLine, tokens = tokens)
+                    }
+                } else {
+                    TokenizationResult(tokens = lines)
+                }
+            }
+        }
     }
 
     override suspend fun executeTranslation(
@@ -81,14 +99,14 @@ class LlmAnalysisServiceImpl @Inject constructor(
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
         stepName: String?
-    ): Pair<DetailedAnalysisResult?, LlmResultMetadata> {
+    ): Flow<Pair<DetailedAnalysisResult?, LlmResultMetadata>> {
         val userPrompt = if (text.isNotBlank()) {
             "分析対象の文: \"$text\"\nこの文の自然な中国語訳を出力してください。"
         } else {
             "画像内の日本語テキストを自然な中国語（簡体字）に翻訳してください。"
         }
 
-        return executeAnalysisStep(
+        return executeAnalysisStepStreaming(
             systemPrompt = settingsRepository.getCustomPrompt("prompt_translation"),
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
@@ -98,11 +116,12 @@ class LlmAnalysisServiceImpl @Inject constructor(
             backupConfigs = backupConfigs,
             onRetry = onRetry,
             onBackup = onBackup,
-            clazz = DetailedAnalysisResult::class.java,
             recordId = recordId,
             stepName = stepName,
             timeoutMs = DEFAULT_STEP_TIMEOUT_MS
-        )
+        ) { accumulated ->
+            DetailedAnalysisResult(translation = accumulated.trim())
+        }
     }
 
     override suspend fun executeClauses(
@@ -115,14 +134,14 @@ class LlmAnalysisServiceImpl @Inject constructor(
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
         stepName: String?
-    ): Pair<DetailedAnalysisResult?, LlmResultMetadata> {
+    ): Flow<Pair<DetailedAnalysisResult?, LlmResultMetadata>> {
         val userPrompt = if (text.isNotBlank()) {
             "分析対象の文: \"$text\"\nこの文の文節（フレーズ）ごとの文法的役割の詳細な解説を行ってください。"
         } else {
             "画像内のすべての日本語の文節構造と文法的役割を詳細に分析してください。"
         }
 
-        return executeAnalysisStep(
+        return executeAnalysisStepStreaming(
             systemPrompt = settingsRepository.getCustomPrompt("prompt_clauses"),
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
@@ -132,11 +151,24 @@ class LlmAnalysisServiceImpl @Inject constructor(
             backupConfigs = backupConfigs,
             onRetry = onRetry,
             onBackup = onBackup,
-            clazz = DetailedAnalysisResult::class.java,
             recordId = recordId,
             stepName = stepName,
             timeoutMs = DEFAULT_STEP_TIMEOUT_MS
-        )
+        ) { accumulated ->
+            val lines = accumulated.lines().map { it.trim() }.filter { it.isNotBlank() }
+            val clauses = lines.mapNotNull { line ->
+                val parts = line.split("|")
+                if (parts.size >= 4) {
+                    com.example.japanesegrammarapp.domain.model.SentenceClause(
+                        index = parts[0].toIntOrNull(),
+                        role = parts[1],
+                        text = parts[2],
+                        explanation = parts.drop(3).joinToString("|")
+                    )
+                } else null
+            }
+            DetailedAnalysisResult(clauses = clauses)
+        }
     }
 
     override suspend fun executeGrammar(
@@ -149,14 +181,14 @@ class LlmAnalysisServiceImpl @Inject constructor(
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
         stepName: String?
-    ): Pair<DetailedAnalysisResult?, LlmResultMetadata> {
+    ): Flow<Pair<DetailedAnalysisResult?, LlmResultMetadata>> {
         val userPrompt = if (text.isNotBlank()) {
             "分析対象の文: \"$text\"\nこの文に含まれる最も重要かつ難度の高い文法項目・慣用表現を厳選して解説してください。"
         } else {
             "画像内のすべての日本語の文法表现や固定表現を詳細に分析してください。"
         }
 
-        return executeAnalysisStep(
+        return executeAnalysisStepStreaming(
             systemPrompt = settingsRepository.getCustomPrompt("prompt_grammar"),
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
@@ -166,11 +198,22 @@ class LlmAnalysisServiceImpl @Inject constructor(
             backupConfigs = backupConfigs,
             onRetry = onRetry,
             onBackup = onBackup,
-            clazz = DetailedAnalysisResult::class.java,
             recordId = recordId,
             stepName = stepName,
             timeoutMs = GRAMMAR_STEP_TIMEOUT_MS
-        )
+        ) { accumulated ->
+            val lines = accumulated.lines().map { it.trim() }.filter { it.isNotBlank() }
+            val points = lines.mapNotNull { line ->
+                val parts = line.split("|")
+                if (parts.size >= 2) {
+                    com.example.japanesegrammarapp.domain.model.DetailedGrammarPoint(
+                        pattern = parts[0],
+                        explanation = parts.drop(1).joinToString("|")
+                    )
+                } else null
+            }
+            DetailedAnalysisResult(grammarPoints = points)
+        }
     }
 
     override suspend fun executeSegments(
@@ -184,24 +227,24 @@ class LlmAnalysisServiceImpl @Inject constructor(
         onBackup: (backupProvider: String) -> Unit,
         recordId: Int?,
         stepName: String?
-    ): Pair<DetailedAnalysisResult?, LlmResultMetadata> {
+    ): Flow<Pair<DetailedAnalysisResult?, LlmResultMetadata>> = flow {
         val nonPunctuationTokens = tokens.filter { !isPunctuation(it) }
 
-        // If the sentence contains only punctuation (or is empty), return immediately without calling LLM
         if (nonPunctuationTokens.isEmpty()) {
             val finalSegments = tokens.map { getPunctuationSegment(it) }
             val result = DetailedAnalysisResult(segments = finalSegments)
-            return Pair(result, LlmResultMetadata(0, 0, 0))
+            emit(Pair(result, LlmResultMetadata(0, 0, 0)))
+            return@flow
         }
 
-        val tokensJson = gson.toJson(nonPunctuationTokens)
+        val tokensStr = nonPunctuationTokens.joinToString(", ")
         val userPrompt = if (text.isNotBlank()) {
-            "分析対象の文: \"$text\"\nユーザーが提供したトークン配列（記号除く）: $tokensJson\n各トークンの詳細な文法分析を行ってください。"
+            "分析対象の文: \"$text\"\nユーザーが提供したトークン配列（記号除く）: $tokensStr\n各トークンの詳細な文法分析を行ってください。"
         } else {
-            "画像内の日本語テキストのトークン配列（記号除く）: $tokensJson\n各トークンの詳細な文法分析を行ってください。"
+            "画像内の日本語テキストのトークン配列（記号除く）: $tokensStr\n各トークンの詳細な文法分析を行ってください。"
         }
 
-        val (parsed, metadata) = executeAnalysisStep(
+        executeAnalysisStepStreaming(
             systemPrompt = settingsRepository.getCustomPrompt("prompt_segments"),
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
@@ -211,40 +254,59 @@ class LlmAnalysisServiceImpl @Inject constructor(
             backupConfigs = backupConfigs,
             onRetry = onRetry,
             onBackup = onBackup,
-            clazz = DetailedAnalysisResult::class.java,
             recordId = recordId,
             stepName = stepName,
             timeoutMs = DEFAULT_STEP_TIMEOUT_MS
-        )
-
-        val returnedSegments = parsed?.segments ?: emptyList()
-        var returnedIdx = 0
-        val finalSegments = mutableListOf<WordSegment>()
-
-        for (token in tokens) {
-            if (token.isBlank()) {
-                continue
+        ) { accumulated ->
+            val lines = accumulated.lines().map { it.trim() }.filter { it.isNotBlank() }
+            val segments = lines.mapNotNull { line ->
+                val parts = line.split("|")
+                if (parts.size >= 8) {
+                    WordSegment(
+                        text = parts[0].trim(),
+                        reading = parts[1].trim().takeIf { it.isNotBlank() && it != "null" },
+                        meaning = parts[2].trim().takeIf { it.isNotBlank() && it != "null" },
+                        partOfSpeech = parts[3].trim().takeIf { it.isNotBlank() && it != "null" },
+                        dictionaryForm = parts[4].trim().takeIf { it.isNotBlank() && it != "null" },
+                        dictionaryFormReading = parts[5].trim().takeIf { it.isNotBlank() && it != "null" },
+                        inflection = parts[6].trim().takeIf { it.isNotBlank() && it != "null" },
+                        role = parts.drop(7).joinToString("|").trim().takeIf { it.isNotBlank() && it != "null" }
+                    )
+                } else if (parts.size >= 5) {
+                    WordSegment(
+                        text = parts[0].trim(),
+                        reading = parts[1].trim().takeIf { it.isNotBlank() && it != "null" },
+                        meaning = parts[2].trim().takeIf { it.isNotBlank() && it != "null" },
+                        partOfSpeech = parts[3].trim().takeIf { it.isNotBlank() && it != "null" },
+                        role = parts.drop(4).joinToString("|").trim().takeIf { it.isNotBlank() && it != "null" }
+                    )
+                } else null
             }
-            if (isPunctuation(token)) {
-                finalSegments.add(getPunctuationSegment(token))
-            } else {
-                if (returnedIdx < returnedSegments.size) {
-                    finalSegments.add(returnedSegments[returnedIdx])
-                    returnedIdx++
+
+            val returnedSegments = segments
+            var returnedIdx = 0
+            val finalSegments = mutableListOf<WordSegment>()
+
+            for (token in tokens) {
+                if (token.isBlank()) continue
+                if (isPunctuation(token)) {
+                    finalSegments.add(getPunctuationSegment(token))
                 } else {
-                    finalSegments.add(WordSegment(text = token))
+                    if (returnedIdx < returnedSegments.size) {
+                        finalSegments.add(returnedSegments[returnedIdx])
+                        returnedIdx++
+                    } else {
+                        finalSegments.add(WordSegment(text = token))
+                    }
                 }
             }
+            DetailedAnalysisResult(segments = finalSegments)
+        }.collect {
+            emit(it)
         }
-
-        val optimizedResult = parsed?.copy(segments = finalSegments) ?: DetailedAnalysisResult(segments = finalSegments)
-        return Pair(optimizedResult, metadata)
     }
 
-
-
-
-    private suspend fun <T> executeAnalysisStep(
+    private fun <T> executeAnalysisStepStreaming(
         systemPrompt: String,
         userPrompt: String,
         imageBase64: String?,
@@ -254,92 +316,87 @@ class LlmAnalysisServiceImpl @Inject constructor(
         backupConfigs: List<LlmApiConfig>,
         onRetry: (attempt: Int) -> Unit,
         onBackup: (backupProvider: String) -> Unit,
-        clazz: Class<T>,
         recordId: Int?,
         stepName: String?,
-        timeoutMs: Long
-    ): Pair<T?, LlmResultMetadata> {
-        val providerLabel = buildString {
+        timeoutMs: Long,
+        parser: (String) -> T?
+    ): Flow<Pair<T?, LlmResultMetadata>> = flow {
+        var providerLabel = buildString {
             append(primaryConfigs.firstOrNull()?.provider ?: "Main API")
             backupConfigs.firstOrNull()?.provider?.let { append(" -> ").append(it) }
         }
-        val modelLabel = buildString {
+        var modelLabel = buildString {
             append(primaryConfigs.firstOrNull()?.modelName ?: "Unknown")
             backupConfigs.firstOrNull()?.modelName?.let { append(" -> ").append(it) }
         }
         try {
             val stepStartMs = System.currentTimeMillis()
-            val result = try {
-                withTimeout(timeoutMs) {
-                    llmRepository.executeWithFailover(
-                        systemPrompt = systemPrompt,
-                        userPrompt = userPrompt,
-                        imageBase64 = imageBase64,
-                        mimeType = mimeType,
-                        apiTypeLabel = apiTypeLabel,
-                        primaryConfigs = primaryConfigs,
-                        backupConfigs = backupConfigs,
-                        recordId = recordId,
-                        stepName = stepName,
-                        onRetry = onRetry,
-                        onBackup = onBackup
-                    )
+            var accumulatedText = ""
+            var currentMetadata = LlmResultMetadata(0, 0, 0)
+            
+            withTimeout(timeoutMs) {
+                llmRepository.executeWithStreaming(
+                    systemPrompt = systemPrompt,
+                    userPrompt = userPrompt,
+                    imageBase64 = imageBase64,
+                    mimeType = mimeType,
+                    apiTypeLabel = apiTypeLabel,
+                    primaryConfigs = primaryConfigs,
+                    backupConfigs = backupConfigs,
+                    recordId = recordId,
+                    stepName = stepName,
+                    onRetry = onRetry,
+                    onBackup = onBackup
+                ).collect { event ->
+                    when (event) {
+                        is com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Chunk -> {
+                            accumulatedText += event.text
+                            val parsed = parser(accumulatedText)
+                            emit(Pair(parsed, currentMetadata))
+                        }
+                        is com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Metadata -> {
+                            providerLabel = event.provider
+                            modelLabel = event.modelName
+                            currentMetadata = event.usage
+                            val parsed = parser(accumulatedText)
+                            emit(Pair(parsed, currentMetadata))
+                        }
+                    }
                 }
-            } catch (e: TimeoutCancellationException) {
-                val elapsedMs = System.currentTimeMillis() - stepStartMs
-                val message = "Step timed out after ${timeoutMs / 1000}s"
-                AppLogger.apiEvent(
-                    apiTypeLabel = apiTypeLabel,
-                    provider = providerLabel,
-                    model = modelLabel,
-                    status = "TIMEOUT",
-                    hasImage = imageBase64 != null,
-                    userPrompt = userPrompt,
-                    systemPrompt = systemPrompt,
-                    message = message,
-                    recordId = recordId,
-                    stepName = stepName,
-                    elapsedMs = elapsedMs
-                )
-                throw Exception(message, e)
-            }
-            val clean = cleanMarkdownJson(result.text)
-            val parsed = try {
-                gson.fromJson(clean, clazz)
-            } catch (e: Exception) {
-                AppLogger.apiError(
-                    apiTypeLabel = apiTypeLabel,
-                    provider = providerLabel,
-                    model = modelLabel,
-                    hasImage = imageBase64 != null,
-                    userPrompt = userPrompt,
-                    systemPrompt = systemPrompt,
-                    message = "JSON parse failed: ${e.localizedMessage}",
-                    throwable = e,
-                    rawResponse = result.text,
-                    recordId = recordId,
-                    stepName = stepName,
-                    elapsedMs = System.currentTimeMillis() - stepStartMs
-                )
-                throw e
             }
             AppLogger.apiSuccess(
                 apiTypeLabel = apiTypeLabel,
-                provider = result.provider ?: providerLabel,
-                model = result.modelName ?: modelLabel,
+                provider = providerLabel,
+                model = modelLabel,
                 hasImage = imageBase64 != null,
                 userPrompt = userPrompt,
                 systemPrompt = systemPrompt,
-                rawResponse = result.text,
-                parsedPreview = clean,
-                consumedTokens = result.consumedTokens,
-                inputTokens = result.inputTokens,
-                outputTokens = result.outputTokens,
+                rawResponse = accumulatedText,
+                parsedPreview = accumulatedText.take(100).replace("\n", " "),
+                consumedTokens = currentMetadata.consumedTokens,
+                inputTokens = currentMetadata.inputTokens,
+                outputTokens = currentMetadata.outputTokens,
                 recordId = recordId,
                 stepName = stepName,
                 elapsedMs = System.currentTimeMillis() - stepStartMs
             )
-            return Pair(parsed, LlmResultMetadata(result.consumedTokens, result.inputTokens, result.outputTokens))
+        } catch (e: TimeoutCancellationException) {
+            val elapsedMs = System.currentTimeMillis() - System.currentTimeMillis() // just 0 for timeout 
+            val message = "Step timed out after ${timeoutMs / 1000}s"
+            AppLogger.apiEvent(
+                apiTypeLabel = apiTypeLabel,
+                provider = providerLabel,
+                model = modelLabel,
+                status = "TIMEOUT",
+                hasImage = imageBase64 != null,
+                userPrompt = userPrompt,
+                systemPrompt = systemPrompt,
+                message = message,
+                recordId = recordId,
+                stepName = stepName,
+                elapsedMs = elapsedMs
+            )
+            throw Exception(message, e)
         } catch (e: retrofit2.HttpException) {
             val body = e.response()?.errorBody()?.string() ?: ""
             val safeBody = if (body.length > 200) body.take(200) + "..." else body
@@ -374,22 +431,6 @@ class LlmAnalysisServiceImpl @Inject constructor(
             )
             throw e
         }
-    }
-
-    private fun cleanMarkdownJson(rawJson: String): String {
-        var cleanJson = rawJson.trim()
-        if (cleanJson.startsWith("```")) {
-            val firstNewLine = cleanJson.indexOf('\n')
-            cleanJson = if (firstNewLine != -1) {
-                cleanJson.substring(firstNewLine).trim()
-            } else {
-                cleanJson.removePrefix("```").trim()
-            }
-        }
-        if (cleanJson.endsWith("```")) {
-            cleanJson = cleanJson.removeSuffix("```").trim()
-        }
-        return cleanJson
     }
 
     private fun isJapaneseChar(c: Char): Boolean {

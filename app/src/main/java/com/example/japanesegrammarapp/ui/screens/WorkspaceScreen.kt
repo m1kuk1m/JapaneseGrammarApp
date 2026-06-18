@@ -25,6 +25,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -51,7 +56,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun WorkspaceScreen(
     navController: NavController, 
@@ -418,12 +423,11 @@ fun WorkspaceScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(horizontal = 16.dp)
                         ) {
                              Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
+                                    .padding(vertical = 8.dp, horizontal = 16.dp),
                                 color = MaterialTheme.colorScheme.surface,
                                 shape = RoundedCornerShape(24.dp),
                                 shadowElevation = 3.dp,
@@ -611,7 +615,7 @@ fun WorkspaceScreen(
                                                 Card(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .padding(top = 16.dp),
+                                                        .padding(horizontal = 16.dp).padding(top = 16.dp),
                                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                                     border = BorderStroke(1.dp, Color(0xFFF3D8D8)),
                                                     shape = RoundedCornerShape(8.dp)
@@ -734,11 +738,18 @@ fun WorkspaceScreen(
             },
             title = { Text(stringResource(R.string.input_dialog_title), fontWeight = FontWeight.Bold, color = SumiInk) },
             text = {
+                val focusManager = LocalFocusManager.current
+                val keyboardController = LocalSoftwareKeyboardController.current
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
                     placeholder = { Text(stringResource(R.string.input_dialog_placeholder)) },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                    }),
                     colors = TextFieldDefaults.outlinedTextFieldColors(
                         focusedBorderColor = PrimaryColor,
                         unfocusedBorderColor = SumiInk.copy(alpha = 0.2f)

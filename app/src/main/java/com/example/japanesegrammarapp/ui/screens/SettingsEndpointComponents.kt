@@ -14,6 +14,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -52,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun EndpointPoolSection(
     endpoints: List<LlmEndpoint>,
@@ -229,6 +234,7 @@ fun EndpointPoolSection(
     }
 }
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun EndpointEditorDialog(
     provider: String,
@@ -259,6 +265,12 @@ fun EndpointEditorDialog(
             )
         },
         text = {
+            val focusManager = LocalFocusManager.current
+            val keyboardController = LocalSoftwareKeyboardController.current
+            val defaultKeyboardActions = KeyboardActions(onDone = {
+                keyboardController?.hide()
+                focusManager.clearFocus()
+            })
             Column {
                 Text(provider, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                 Spacer(modifier = Modifier.height(10.dp))
@@ -267,7 +279,9 @@ fun EndpointEditorDialog(
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.endpoint_name)) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = defaultKeyboardActions
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
@@ -275,7 +289,9 @@ fun EndpointEditorDialog(
                     onValueChange = { baseUrl = it },
                     label = { Text(stringResource(R.string.base_url)) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = defaultKeyboardActions
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
@@ -292,7 +308,9 @@ fun EndpointEditorDialog(
                                 contentDescription = null
                             )
                         }
-                    }
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = defaultKeyboardActions
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -302,7 +320,8 @@ fun EndpointEditorDialog(
                         label = { Text(stringResource(R.string.endpoint_priority)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                        keyboardActions = defaultKeyboardActions
                     )
                     OutlinedTextField(
                         value = weightText,
@@ -310,7 +329,8 @@ fun EndpointEditorDialog(
                         label = { Text(stringResource(R.string.endpoint_weight)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                        keyboardActions = defaultKeyboardActions
                     )
                 }
             }

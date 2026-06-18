@@ -13,7 +13,9 @@ data class OpenAiRequest(
     val model: String,
     val messages: List<OpenAiMessage>,
     val temperature: Double? = null,
-    val response_format: OpenAiResponseFormat? = null
+    val response_format: OpenAiResponseFormat? = null,
+    val stream: Boolean? = null,
+    val stream_options: Map<String, Boolean>? = null
 )
 data class OpenAiMessage(val role: String, val content: Any) // content can be String or List<OpenAiContentPart>
 data class OpenAiContentPart(
@@ -26,8 +28,8 @@ data class OpenAiImageUrl(
 )
 data class OpenAiResponse(val choices: List<OpenAiChoice>, val usage: OpenAiUsage? = null)
 data class OpenAiUsage(val total_tokens: Int? = null, val prompt_tokens: Int? = null, val completion_tokens: Int? = null)
-data class OpenAiChoice(val message: OpenAiResponseMessage)
-data class OpenAiResponseMessage(val role: String, val content: String) // Responses are always textual content
+data class OpenAiChoice(val message: OpenAiResponseMessage?, val delta: OpenAiResponseMessage? = null)
+data class OpenAiResponseMessage(val role: String? = null, val content: String? = null) // Responses are always textual content
 data class OpenAiModelListResponse(val data: List<OpenAiModel>)
 data class OpenAiModel(val id: String)
 

@@ -16,7 +16,7 @@ interface LlmAnalysisService {
         onBackup: (backupProvider: String) -> Unit = {},
         recordId: Int? = null,
         stepName: String? = null
-    ): Pair<TokenizationResult?, LlmResultMetadata>
+    ): kotlinx.coroutines.flow.Flow<Pair<TokenizationResult?, LlmResultMetadata>>
 
     suspend fun executeTranslation(
         text: String,
@@ -28,7 +28,7 @@ interface LlmAnalysisService {
         onBackup: (backupProvider: String) -> Unit = {},
         recordId: Int? = null,
         stepName: String? = null
-    ): Pair<DetailedAnalysisResult?, LlmResultMetadata>
+    ): kotlinx.coroutines.flow.Flow<Pair<DetailedAnalysisResult?, LlmResultMetadata>>
 
     suspend fun executeClauses(
         text: String,
@@ -40,7 +40,7 @@ interface LlmAnalysisService {
         onBackup: (backupProvider: String) -> Unit = {},
         recordId: Int? = null,
         stepName: String? = null
-    ): Pair<DetailedAnalysisResult?, LlmResultMetadata>
+    ): kotlinx.coroutines.flow.Flow<Pair<DetailedAnalysisResult?, LlmResultMetadata>>
 
     suspend fun executeGrammar(
         text: String,
@@ -52,7 +52,7 @@ interface LlmAnalysisService {
         onBackup: (backupProvider: String) -> Unit = {},
         recordId: Int? = null,
         stepName: String? = null
-    ): Pair<DetailedAnalysisResult?, LlmResultMetadata>
+    ): kotlinx.coroutines.flow.Flow<Pair<DetailedAnalysisResult?, LlmResultMetadata>>
 
     suspend fun executeSegments(
         text: String,
@@ -65,7 +65,7 @@ interface LlmAnalysisService {
         onBackup: (backupProvider: String) -> Unit = {},
         recordId: Int? = null,
         stepName: String? = null
-    ): Pair<DetailedAnalysisResult?, LlmResultMetadata>
+    ): kotlinx.coroutines.flow.Flow<Pair<DetailedAnalysisResult?, LlmResultMetadata>>
 
 }
 

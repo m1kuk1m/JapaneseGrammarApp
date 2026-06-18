@@ -40,6 +40,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -67,8 +72,16 @@ import com.example.japanesegrammarapp.utils.ApiDebugLog
 import com.example.japanesegrammarapp.utils.AppLogger
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.filled.DateRange
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun ApiLogsDialog(
     apiLogs: List<ApiDebugLog>,
@@ -77,15 +90,23 @@ fun ApiLogsDialog(
     onDismiss: () -> Unit,
     onShareAll: () -> Unit,
     onCopyLogs: (List<ApiDebugLog>) -> Unit,
-    onSelectLog: (ApiDebugLog) -> Unit
+    onSelectLog: (ApiDebugLog) -> Unit,
+    selectedDateOverride: String? = null,
+    onSelectedDateChange: ((String?) -> Unit)? = null
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var filterStatus by remember { mutableStateOf("ALL") }
+    var internalSelectedDate by remember { mutableStateOf<String?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    val selectedDate = selectedDateOverride ?: internalSelectedDate
+    val setSelectedDate = onSelectedDateChange ?: { internalSelectedDate = it }
+
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val primaryColor = MaterialTheme.colorScheme.primary
     val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
 
-    val filteredApiLogs = remember(apiLogs, searchQuery, filterStatus) {
+    val filteredApiLogs = remember(apiLogs, searchQuery, filterStatus, selectedDate) {
         apiLogs.filter { log ->
             val matchesQuery = searchQuery.isBlank() ||
                 log.provider.contains(searchQuery, ignoreCase = true) ||
@@ -95,8 +116,38 @@ fun ApiLogsDialog(
                 (log.rawResponse?.contains(searchQuery, ignoreCase = true) ?: false)
 
             val matchesStatus = filterStatus == "ALL" || log.status == filterStatus
-            matchesQuery && matchesStatus
+            val matchesDate = if (selectedDate != null) {
+                val sdf = SimpleDateFormat("MM-dd", Locale.getDefault())
+                sdf.format(Date(log.id)) == selectedDate
+            } else true
+            
+            matchesQuery && matchesStatus && matchesDate
         }.reversed()
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val sdf = SimpleDateFormat("MM-dd", Locale.getDefault())
+                        setSelectedDate(sdf.format(Date(millis)))
+                    }
+                    showDatePicker = false
+                }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
     }
 
     Dialog(
@@ -154,6 +205,9 @@ fun ApiLogsDialog(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    val focusManager = LocalFocusManager.current
+                    val keyboardController = LocalSoftwareKeyboardController.current
+
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
@@ -168,14 +222,46 @@ fun ApiLogsDialog(
                                 }
                             }
                         },
-                        textStyle = TextStyle(fontSize = 12.sp)
+                        textStyle = TextStyle(fontSize = 12.sp),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = {
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
+                        })
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        FilterChip(
+                            selected = selectedDate != null,
+                            onClick = {
+                                if (selectedDate != null) {
+                                    setSelectedDate(null)
+                                } else {
+                                    showDatePicker = true
+                                }
+                            },
+                            label = { Text(selectedDate ?: "Date", fontSize = 11.sp) },
+                            leadingIcon = {
+                                Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
+                            },
+                            trailingIcon = {
+                                if (selectedDate != null) {
+                                    Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
+                                }
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = primaryColor,
+                                selectedLabelColor = onPrimaryColor,
+                                selectedLeadingIconColor = onPrimaryColor,
+                                selectedTrailingIconColor = onPrimaryColor
+                            )
+                        )
+
                         val statuses = listOf("ALL", "START", "SUCCESS", "RETRY", "BACKUP", "TIMEOUT", "ERROR")
                         statuses.forEach { stat ->
                             FilterChip(
@@ -268,7 +354,14 @@ fun ApiLogsDialog(
                                 Text(stringResource(R.string.clear_api_debug_logs), color = Color.Red, fontSize = 12.sp)
                             }
                             TextButton(
-                                onClick = { onCopyLogs(filteredApiLogs) },
+                                onClick = { 
+                                    val copyTarget = if (selectedDate != null || searchQuery.isNotBlank() || filterStatus != "ALL") {
+                                        filteredApiLogs
+                                    } else {
+                                        filteredApiLogs.filter { it.id >= AppLogger.sessionStartTimeMs }
+                                    }
+                                    onCopyLogs(copyTarget)
+                                },
                                 enabled = filteredApiLogs.isNotEmpty()
                             ) {
                                 Text(stringResource(R.string.copy_logs), fontSize = 12.sp)
@@ -402,47 +495,75 @@ fun ApiLogDetailDialog(
         }
     }
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        title = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.94f),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp
             ) {
-                Text(
-                    stringResource(R.string.api_details_title),
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp, vertical = 20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            stringResource(R.string.api_details_title),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    SelectionContainer {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            ApiLogMetadataCard(log = log, sumiInk = sumiInk)
+                            ApiLogPromptSection(log = log, context = context, sumiInk = sumiInk)
+                            if (log.status == "SUCCESS") {
+                                ApiLogResponseSection(
+                                    formattedResponse = formattedResponse,
+                                    context = context,
+                                    sumiInk = sumiInk
+                                )
+                            }
+                            if (log.status == "ERROR" || log.status == "TIMEOUT") {
+                                ApiLogErrorSection(log = log, context = context)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
+                    }
                 }
             }
-        },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                ApiLogMetadataCard(log = log, sumiInk = sumiInk)
-                ApiLogPromptSection(log = log, context = context, sumiInk = sumiInk)
-                if (log.status == "SUCCESS") {
-                    ApiLogResponseSection(
-                        formattedResponse = formattedResponse,
-                        context = context,
-                        sumiInk = sumiInk
-                    )
-                }
-                if (log.status == "ERROR" || log.status == "TIMEOUT") {
-                    ApiLogErrorSection(log = log, context = context)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
         }
-    )
+    }
 }
 
 @Composable

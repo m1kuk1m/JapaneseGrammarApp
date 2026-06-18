@@ -1,5 +1,6 @@
 package com.example.japanesegrammarapp.domain.usecase
 
+import com.example.japanesegrammarapp.domain.model.WordSegment
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +16,10 @@ class AnalysisProgressStore {
 
     fun finish(recordId: Int) {
         _progressFlow.update { it - recordId }
+    }
+
+    fun updatePartialSegments(recordId: Int, segments: List<WordSegment>) {
+        update(recordId) { it.copy(partialSegments = segments) }
     }
 
     fun markTokenizerCompleted(recordId: Int) {

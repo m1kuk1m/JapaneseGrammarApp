@@ -16,5 +16,16 @@ class JapaneseGrammarApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         AppLogger.init(this, applicationScope)
+
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            try {
+                AppLogger.logCrashSync(throwable)
+            } catch (e: Exception) {
+                // Ignore exception to prevent infinite loop
+            } finally {
+                defaultHandler?.uncaughtException(thread, throwable)
+            }
+        }
     }
 }

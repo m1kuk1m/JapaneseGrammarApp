@@ -442,21 +442,26 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun shareAppLogs() {
+    fun shareAppLogs(logs: List<String>) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val uri = AppLogger.getLogFileUri(application, isApiLog = false)
-                if (uri != null) {
-                    _uiEvent.emit(
-                        UiEvent.ShareFileEvent(
-                            uri = uri,
-                            mimeType = "text/plain",
-                            chooserTitleResId = R.string.share_logs
-                        )
+                val tempFile = File(application.cacheDir, "exports/app_logs_export.txt")
+                tempFile.parentFile?.mkdirs()
+                tempFile.writeText(logs.joinToString("\n"))
+                
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    application,
+                    "${application.packageName}.fileprovider",
+                    tempFile
+                )
+                
+                _uiEvent.emit(
+                    UiEvent.ShareFileEvent(
+                        uri = uri,
+                        mimeType = "text/plain",
+                        chooserTitleResId = R.string.share_logs
                     )
-                } else {
-                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.unknown_error))
-                }
+                )
             } catch (e: Exception) {
                 AppLogger.e("SETTINGS", "Failed to prepare app logs for sharing", e)
                 _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.unknown_error))
@@ -465,11 +470,23 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun shareApiLogs(logs: List<ApiDebugLog>, includeFull: Boolean) {
-        viewModelScope.launch(Dispatchers.Default) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
+                val formattedLogs = ApiLogExportFormatter.format(logs, includeFull)
+                val tempFile = File(application.cacheDir, "exports/api_logs_export.txt")
+                tempFile.parentFile?.mkdirs()
+                tempFile.writeText(formattedLogs)
+
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    application,
+                    "${application.packageName}.fileprovider",
+                    tempFile
+                )
+
                 _uiEvent.emit(
-                    UiEvent.ShareTextEvent(
-                        text = ApiLogExportFormatter.format(logs, includeFull),
+                    UiEvent.ShareFileEvent(
+                        uri = uri,
+                        mimeType = "text/plain",
                         chooserTitleResId = R.string.api_log_share_all
                     )
                 )
