@@ -49,6 +49,12 @@ interface SettingsRepository {
     val wallpaperUri: kotlinx.coroutines.flow.StateFlow<String>
 
     // Prompt Customization Settings
+    fun getPromptPresets(): List<com.example.japanesegrammarapp.domain.model.PromptPreset>
+    fun getActivePromptPresetId(): String
+    fun setActivePromptPresetId(id: String)
+    fun savePromptPreset(preset: com.example.japanesegrammarapp.domain.model.PromptPreset)
+    fun deletePromptPreset(id: String)
+    
     fun getCustomPrompt(promptKey: String): String
     fun saveCustomPrompt(promptKey: String, prompt: String)
     fun resetCustomPrompt(promptKey: String)

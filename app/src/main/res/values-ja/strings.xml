@@ -65,7 +65,7 @@
     <string name="local_ocr">ローカルOCRでテキスト抽出</string>
     <string name="local_ocr_desc">オフにすると、画像を直接AIに送信して分析します。</string>
     <string name="auto_navigate_result">分析結果へ自動ジャンプ</string>
-    <string name="auto_navigate_result_desc">フローティングボタンからアップロード後、自動で結果画面に移動します。オフの場合はバックグラウンドで分析し、履歴から確認できます。</string>
+    <string name="auto_navigate_result_desc">アップロード後、自動で結果画面に移動します。オフ時はバックグラウンドで分析し、履歴から確認できます。</string>
     <string name="token_usage">APIトークン消費量（累計）</string>
     <string name="token_usage_desc">すべての分析で消費されたトークンの合計です。</string>
     <string name="input_tokens">入力トークン</string>
@@ -201,7 +201,7 @@
     <string name="camera_permission_required_desc">文法分析する日本語をカメラで撮影するために、カメラの権限を許可してください。</string>
     <string name="camera_request_permission_btn">許可を求める</string>
     <string name="camera_permission_denied_permanently_title">カメラ権限が拒否されました</string>
-    <string name="camera_permission_denied_permanently_desc">カメラのアクセス許可が永久に拒否されています。カメラ機能を利用するには、端末の設定から権限を有効にしてください。</string>
+    <string name="camera_permission_denied_permanently_desc">カメラへのアクセスが拒否されています。端末の設定から権限を許可してください。</string>
     <string name="camera_go_to_settings_btn">設定へ移動</string>
     <string name="camera_back_desc">戻る</string>
     <string name="camera_flash_on_desc">常時発光</string>
@@ -216,14 +216,14 @@
     <string name="camera_crop_title">文字範囲を選択</string>
     <string name="camera_crop_hint">角をドラッグして調整</string>
     <string name="camera_cancel_desc">キャンセル</string>
-    <string name="camera_recapture_btn">再撮影/戻る</string>
+    <string name="camera_recapture_btn">再撮影</string>
     <string name="camera_confirm_desc">確定</string>
-    <string name="camera_confirm_btn">範囲決定</string>
+    <string name="camera_confirm_btn">確定</string>
     <string name="input_dialog_title">テキスト入力</string>
     <string name="input_dialog_placeholder">分析するテキストを入力...</string>
     <string name="start_analysis_btn">分析開始</string>
     <string name="floating_camera_permission_title">カメラ権限が必要です</string>
-    <string name="floating_camera_permission_desc">先にアプリのカメラ画面で権限を許可すると、ここで浮遊カメラを使えます。</string>
+    <string name="floating_camera_permission_desc">先にアプリのカメラ画面で権限を許可すると、ここでフローティングカメラを使えます。</string>
     <string name="floating_camera_capturing">撮影中...</string>
     <string name="floating_camera_unavailable">カメラの準備がまだ完了していません。</string>
     <string name="floating_camera_capture_failed">撮影に失敗しました。</string>
@@ -238,7 +238,7 @@
     <string name="api_debug_logs_title">APIデバッグ応答</string>
     <string name="api_debug_filter_all">すべて</string>
     <string name="clear_api_debug_logs">APIデバッグログを消去</string>
-    <string name="api_debug_empty">まだ記録がありません。分析を実行すると、各API役割のリクエスト概要、原文応答、エラー詳細が表示されます。</string>
+    <string name="api_debug_empty">記録がありません。分析を実行すると、APIの応答やエラー詳細が表示されます。</string>
     <string name="api_debug_no_filter_results">現在の検索条件またはフィルターに一致するAPIログはありません。</string>
     <string name="api_debug_meta">image=%1$s, tokens=%2$d (in=%3$d, out=%4$d)</string>
     <string name="api_debug_user_prompt">ユーザープロンプト</string>
@@ -289,7 +289,7 @@
 
     <!-- Errors -->
     <string name="error_both_api_failed">メインAPIおよび予備APIの呼び出しに失敗しました。メインAPIエラー: %1$s。予備APIエラー: %2$s</string>
-    <string name="error_main_api_failed_no_backup">メインAPI（%1$s）の再試行に失败し、予備APIが設定されていないか有効ではありません。メインAPIエラー: %2$s</string>
+    <string name="error_main_api_failed_no_backup">メインAPI（%1$s）の再試行に失敗し、予備APIが設定されていないか有効ではありません。メインAPIエラー: %2$s</string>
 
     <!-- Enhanced Developer Logs -->
     <string name="log_search_hint">ログを検索...</string>
@@ -475,7 +475,7 @@
     <string name="prompt_reset_success">プロンプトをデフォルトに戻しました</string>
     <string name="prompt_reset_all_success">すべてのプロンプトをデフォルトに戻しました</string>
     <string name="prompt_reset_confirm">このプロンプトをデフォルト設定に戻してもよろしいですか？</string>
-    <string name="prompt_reset_all_confirm">すべてのプロンプトをデフォルト設定に戻してもよろしいですか？カスタマイズした変更はすべて消去されます。</string>
+    <string name="prompt_reset_all_confirm">すべてのプロンプトを初期化しますか？カスタマイズ内容はすべて消去されます。</string>
     <string name="save_prompt">プロンプトを保存</string>
     <string name="reset_prompt">デフォルトに戻す</string>
     <string name="reset_all_prompts">すべてデフォルトに戻す</string>
@@ -489,6 +489,17 @@
     <string name="prompt_type_tokenizer_image">画像文字認識分かち書き</string>
     <string name="prompt_type_tokenizer_image_repair">不鮮明画像スマート補正分かち書き</string>
 
+    <string name="prompt_presets">プロンプトプリセット</string>
+    <string name="preset_name">プリセット名</string>
+    <string name="new_preset">新規作成</string>
+    <string name="rename_preset">プリセット名の変更</string>
+    <string name="delete_preset">削除</string>
+    <string name="delete_preset_confirm">このプリセットを削除してもよろしいですか？</string>
+    <string name="delete_preset_error_default">デフォルトのプリセットは削除できません。</string>
+    <string name="preset_default">デフォルト</string>
+    <string name="copy_from_current">現在のプリセットからコピー</string>
+    <string name="create">作成</string>
+    <string name="rename">名前の変更</string>
     <string name="add">追加</string>
     <string name="tab_words">単語</string>
     <string name="tab_sentences">文</string>

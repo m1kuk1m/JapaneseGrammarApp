@@ -46,11 +46,17 @@ object AppLogger {
     private lateinit var logScope: CoroutineScope
 
     val sessionStartTimeMs: Long = System.currentTimeMillis()
+    var previousSessionStartTimeMs: Long = 0L
 
     fun init(context: Context, scope: CoroutineScope) {
         val app = context.applicationContext
         appContext = app
         logScope = scope
+        
+        val prefs = app.getSharedPreferences("app_logger_prefs", Context.MODE_PRIVATE)
+        previousSessionStartTimeMs = prefs.getLong("last_session_start", 0L)
+        prefs.edit().putLong("last_session_start", sessionStartTimeMs).apply()
+        
         launchLog {
             synchronized(fileLock) {
                 // Load general logs

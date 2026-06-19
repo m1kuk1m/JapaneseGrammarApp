@@ -13,6 +13,7 @@ import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectorEngine
+import com.example.japanesegrammarapp.domain.model.PromptPreset
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.utils.ApiDebugLog
 import com.example.japanesegrammarapp.utils.ApiLogExportFormatter
@@ -79,6 +80,9 @@ class SettingsViewModel @Inject constructor(
             val pKeys = allProviders.associateWith { settingsRepository.getApiKey(it) }
             val pEndpoints = allProviders.associateWith { settingsRepository.getEndpoints(it) }
 
+            val promptPresets = settingsRepository.getPromptPresets()
+            val activePromptPresetId = settingsRepository.getActivePromptPresetId()
+
             _uiState.update {
                 it.copy(
                     activeProvider = activeProvider,
@@ -101,6 +105,8 @@ class SettingsViewModel @Inject constructor(
                     providerUrls = pUrls,
                     providerKeys = pKeys,
                     providerEndpoints = pEndpoints,
+                    promptPresets = promptPresets,
+                    activePromptPresetId = activePromptPresetId,
                     isSettingsLoaded = true
                 )
             }
@@ -528,6 +534,50 @@ class SettingsViewModel @Inject constructor(
     fun saveCustomPrompt(promptKey: String, prompt: String) = settingsRepository.saveCustomPrompt(promptKey, prompt)
     fun resetCustomPrompt(promptKey: String) = settingsRepository.resetCustomPrompt(promptKey)
     fun resetAllCustomPrompts() = settingsRepository.resetAllCustomPrompts()
+
+    fun setActivePromptPreset(id: String) {
+        settingsRepository.setActivePromptPresetId(id)
+        _uiState.update { it.copy(activePromptPresetId = id) }
+    }
+
+    fun createPromptPreset(name: String, copyFromCurrent: Boolean) {
+        val newId = UUID.randomUUID().toString()
+        val currentPreset = if (copyFromCurrent) {
+            _uiState.value.promptPresets.find { it.id == _uiState.value.activePromptPresetId }
+        } else null
+
+        val newPreset = PromptPreset(
+            id = newId,
+            name = name,
+            prompts = currentPreset?.prompts ?: emptyMap()
+        )
+        settingsRepository.savePromptPreset(newPreset)
+        settingsRepository.setActivePromptPresetId(newId)
+        
+        _uiState.update { 
+            it.copy(
+                promptPresets = settingsRepository.getPromptPresets(),
+                activePromptPresetId = newId
+            )
+        }
+    }
+
+    fun renamePromptPreset(id: String, newName: String) {
+        val preset = _uiState.value.promptPresets.find { it.id == id } ?: return
+        settingsRepository.savePromptPreset(preset.copy(name = newName))
+        _uiState.update { it.copy(promptPresets = settingsRepository.getPromptPresets()) }
+    }
+
+    fun deletePromptPreset(id: String) {
+        if (id == PromptPreset.DEFAULT_PRESET_ID) return
+        settingsRepository.deletePromptPreset(id)
+        _uiState.update {
+            it.copy(
+                promptPresets = settingsRepository.getPromptPresets(),
+                activePromptPresetId = settingsRepository.getActivePromptPresetId()
+            )
+        }
+    }
 
     private companion object {
         const val WALLPAPER_FILE_NAME = "custom_wallpaper.jpg"

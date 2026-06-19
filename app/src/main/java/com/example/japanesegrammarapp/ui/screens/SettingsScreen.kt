@@ -491,6 +491,8 @@ fun SettingsScreen(
         visible = showPromptEditor,
         selectedPromptKey = selectedPromptKey,
         promptText = promptText,
+        promptPresets = uiState.promptPresets,
+        activePromptPresetId = uiState.activePromptPresetId,
         onDismiss = { showPromptEditor = false },
         onPromptKeyChange = { selectedPromptKey = it },
         onPromptTextChange = { promptText = it },
@@ -513,6 +515,21 @@ fun SettingsScreen(
             coroutineScope.launch {
                 snackbarHostState.showSnackbar(ctx.getString(R.string.prompt_reset_all_success))
             }
+        },
+        onCreatePreset = { name, copyCurrent ->
+            viewModel.createPromptPreset(name, copyCurrent)
+            promptText = viewModel.getCustomPrompt(selectedPromptKey)
+        },
+        onRenamePreset = { id, newName ->
+            viewModel.renamePromptPreset(id, newName)
+        },
+        onDeletePreset = { id ->
+            viewModel.deletePromptPreset(id)
+            promptText = viewModel.getCustomPrompt(selectedPromptKey)
+        },
+        onSelectPreset = { id ->
+            viewModel.setActivePromptPreset(id)
+            promptText = viewModel.getCustomPrompt(selectedPromptKey)
         }
     )
 

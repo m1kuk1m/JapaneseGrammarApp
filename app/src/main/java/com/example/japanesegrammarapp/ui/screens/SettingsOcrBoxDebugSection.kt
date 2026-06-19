@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,6 +55,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -190,19 +192,19 @@ fun OcrBoxDebugDialog(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Button(
                                 onClick = { sampleImageLauncher.launch("image/*") },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
                                 colors = ButtonDefaults.buttonColors(containerColor = primary)
                             ) {
-                                Text(stringResource(R.string.ocr_debug_pick_sample))
+                                Text(stringResource(R.string.ocr_debug_pick_sample), textAlign = TextAlign.Center)
                             }
-                            OutlinedButton(onClick = onResetDefaults) {
-                                Text(stringResource(R.string.ocr_debug_reset_defaults))
+                            OutlinedButton(onClick = onResetDefaults, modifier = Modifier.fillMaxHeight()) {
+                                Text(stringResource(R.string.ocr_debug_reset_defaults), textAlign = TextAlign.Center)
                             }
                         }
 
@@ -428,7 +430,7 @@ private fun <T> OcrOptionRow(
         Text(label, color = sumiInk, fontSize = 13.sp)
         Spacer(modifier = Modifier.height(6.dp))
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             options.forEach { (value, text) ->
@@ -436,13 +438,13 @@ private fun <T> OcrOptionRow(
                 val contentColor = if (isSelected) Color.White else sumiInk
                 TextButton(
                     onClick = { onSelected(value) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                     colors = ButtonDefaults.textButtonColors(
                         containerColor = if (isSelected) primary else sumiInk.copy(alpha = 0.06f),
                         contentColor = contentColor
                     )
                 ) {
-                    Text(text = text, fontSize = 12.sp, maxLines = 1)
+                    Text(text = text, fontSize = 12.sp, maxLines = 1, textAlign = TextAlign.Center)
                 }
             }
         }

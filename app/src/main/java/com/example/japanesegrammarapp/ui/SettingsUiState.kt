@@ -2,6 +2,7 @@ package com.example.japanesegrammarapp.ui
 
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
+import com.example.japanesegrammarapp.domain.model.PromptPreset
 
 data class SettingsUiState(
     val activeProvider: String = "Gemini",
@@ -29,5 +30,7 @@ data class SettingsUiState(
     val providerUrls: Map<String, String> = emptyMap(),
     val providerKeys: Map<String, String> = emptyMap(),
     val providerEndpoints: Map<String, List<LlmEndpoint>> = emptyMap(),
-    val fetchingEndpointId: String? = null
+    val fetchingEndpointId: String? = null,
+    val promptPresets: List<PromptPreset> = emptyList(),
+    val activePromptPresetId: String = PromptPreset.DEFAULT_PRESET_ID
 )

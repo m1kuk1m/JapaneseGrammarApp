@@ -79,33 +79,41 @@ fun SegmentedControl(
 ) {
     Row(
         modifier = modifier
-            .fillMaxWidth()
-            .height(40.dp)
-            .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-            .padding(2.dp)
+            .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(24.dp))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.Center
     ) {
-        val areaBg = if (selected == CropInteraction.AREA_CROP) Color.White.copy(alpha = 0.2f) else Color.Transparent
-        val textBg = if (selected == CropInteraction.TEXT_SELECT) Color.White.copy(alpha = 0.2f) else Color.Transparent
+        val areaBg by androidx.compose.animation.animateColorAsState(if (selected == CropInteraction.AREA_CROP) Color.White.copy(alpha = 0.25f) else Color.Transparent)
+        val textBg by androidx.compose.animation.animateColorAsState(if (selected == CropInteraction.TEXT_SELECT) Color.White.copy(alpha = 0.25f) else Color.Transparent)
         
+        val areaTextColor by androidx.compose.animation.animateColorAsState(if (selected == CropInteraction.AREA_CROP) Color.White else Color.White.copy(alpha = 0.6f))
+        val textTextColor by androidx.compose.animation.animateColorAsState(if (selected == CropInteraction.TEXT_SELECT) Color.White else Color.White.copy(alpha = 0.6f))
+
         Box(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .background(areaBg, RoundedCornerShape(6.dp))
-                .clickable { onSelected(CropInteraction.AREA_CROP) },
+                .background(areaBg, RoundedCornerShape(20.dp))
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null,
+                    onClick = { onSelected(CropInteraction.AREA_CROP) }
+                )
+                .padding(horizontal = 20.dp, vertical = 10.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(stringResource(R.string.crop_interaction_area), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.crop_interaction_area), color = areaTextColor, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         }
         Box(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .background(textBg, RoundedCornerShape(6.dp))
-                .clickable { onSelected(CropInteraction.TEXT_SELECT) },
+                .background(textBg, RoundedCornerShape(20.dp))
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null,
+                    onClick = { onSelected(CropInteraction.TEXT_SELECT) }
+                )
+                .padding(horizontal = 20.dp, vertical = 10.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(stringResource(R.string.crop_interaction_text_select), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.crop_interaction_text_select), color = textTextColor, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -134,6 +142,7 @@ fun ImageCropReviewLayout(
     var textSelectStart by remember { mutableStateOf<TextHandleState?>(null) }
     var textSelectEnd by remember { mutableStateOf<TextHandleState?>(null) }
     var magnifierCenter by remember { mutableStateOf<Offset?>(null) }
+    var isDragging by remember { mutableStateOf(false) }
 
     // When the screen orientation changes, the container size changes too.
     // Reset isInitialized so the crop box is recalculated for the new layout.
@@ -232,6 +241,10 @@ fun ImageCropReviewLayout(
                 }
                 
                 val minSizePx = with(density) { 16.dp.toPx() }
+                val gridAlpha by androidx.compose.animation.core.animateFloatAsState(
+                    targetValue = if (isDragging) 0.35f else 0f,
+                    label = "gridAlpha"
+                )
                 
                 Canvas(
                     modifier = Modifier
@@ -404,6 +417,7 @@ fun ImageCropReviewLayout(
 
                                         if (changes.all { !it.pressed }) {
                                             magnifierCenter = null
+                                            isDragging = false
                                             if (isEditing) {
                                                 if (interactionMode == CropInteraction.AREA_CROP) {
                                                     cropState.stopDrag()
@@ -507,6 +521,7 @@ fun ImageCropReviewLayout(
                                                     currentFinger.consume()
                                                     cropState.onDrag(currentFinger.position - currentFinger.previousPosition, minSizePx)
                                                     isEditing = true
+                                                    isDragging = true
                                                 }
                                             } else if (isEditing) {
                                                 currentFinger.consume()
@@ -568,16 +583,19 @@ fun ImageCropReviewLayout(
                                     val displayRight = cropState.imgOffsetX + box.right * cropState.scaleFactor
                                     val displayBottom = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
                                     
-                                    drawRect(
-                                        color = KuriAmber.copy(alpha = 0.35f),
-                                        topLeft = Offset(displayLeft, displayTop),
-                                        size = Size(displayRight - displayLeft, displayBottom - displayTop)
-                                    )
-                                    drawRect(
-                                        color = KuriAmber,
+                                    val radius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                                    drawRoundRect(
+                                        color = KuriAmber.copy(alpha = 0.25f),
                                         topLeft = Offset(displayLeft, displayTop),
                                         size = Size(displayRight - displayLeft, displayBottom - displayTop),
-                                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                                        cornerRadius = radius
+                                    )
+                                    drawRoundRect(
+                                        color = KuriAmber.copy(alpha = 0.8f),
+                                        topLeft = Offset(displayLeft, displayTop),
+                                        size = Size(displayRight - displayLeft, displayBottom - displayTop),
+                                        cornerRadius = radius,
+                                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
                                     )
                                 }
                                 
@@ -682,33 +700,35 @@ fun ImageCropReviewLayout(
                         )
                         
                         // Auxiliary grid lines (Rule of Thirds style inside crop frame)
-                        val frameW = cropState.cropRight - cropState.cropLeft
-                        val frameH = cropState.cropBottom - cropState.cropTop
-                        
-                        drawLine(
-                            color = Color.White.copy(alpha = 0.35f),
-                            start = Offset(cropState.cropLeft + frameW / 3f, cropState.cropTop),
-                            end = Offset(cropState.cropLeft + frameW / 3f, cropState.cropBottom),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                        drawLine(
-                            color = Color.White.copy(alpha = 0.35f),
-                            start = Offset(cropState.cropLeft + (frameW * 2f) / 3f, cropState.cropTop),
-                            end = Offset(cropState.cropLeft + (frameW * 2f) / 3f, cropState.cropBottom),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                        drawLine(
-                            color = Color.White.copy(alpha = 0.35f),
-                            start = Offset(cropState.cropLeft, cropState.cropTop + frameH / 3f),
-                            end = Offset(cropState.cropRight, cropState.cropTop + frameH / 3f),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                        drawLine(
-                            color = Color.White.copy(alpha = 0.35f),
-                            start = Offset(cropState.cropLeft, cropState.cropTop + (frameH * 2f) / 3f),
-                            end = Offset(cropState.cropRight, cropState.cropTop + (frameH * 2f) / 3f),
-                            strokeWidth = 1.dp.toPx()
-                        )
+                        if (gridAlpha > 0f) {
+                            val frameW = cropState.cropRight - cropState.cropLeft
+                            val frameH = cropState.cropBottom - cropState.cropTop
+                            
+                            drawLine(
+                                color = Color.White.copy(alpha = gridAlpha),
+                                start = Offset(cropState.cropLeft + frameW / 3f, cropState.cropTop),
+                                end = Offset(cropState.cropLeft + frameW / 3f, cropState.cropBottom),
+                                strokeWidth = 1.dp.toPx()
+                            )
+                            drawLine(
+                                color = Color.White.copy(alpha = gridAlpha),
+                                start = Offset(cropState.cropLeft + (frameW * 2f) / 3f, cropState.cropTop),
+                                end = Offset(cropState.cropLeft + (frameW * 2f) / 3f, cropState.cropBottom),
+                                strokeWidth = 1.dp.toPx()
+                            )
+                            drawLine(
+                                color = Color.White.copy(alpha = gridAlpha),
+                                start = Offset(cropState.cropLeft, cropState.cropTop + frameH / 3f),
+                                end = Offset(cropState.cropRight, cropState.cropTop + frameH / 3f),
+                                strokeWidth = 1.dp.toPx()
+                            )
+                            drawLine(
+                                color = Color.White.copy(alpha = gridAlpha),
+                                start = Offset(cropState.cropLeft, cropState.cropTop + (frameH * 2f) / 3f),
+                                end = Offset(cropState.cropRight, cropState.cropTop + (frameH * 2f) / 3f),
+                                strokeWidth = 1.dp.toPx()
+                            )
+                        }
                         
                         // Draw 4 handles (Japanese-inspired accent circles)
                         val handleRadius = 7.dp.toPx()
@@ -848,53 +868,41 @@ fun ImageCropReviewLayout(
                     .fillMaxHeight()
             )
             
-            Surface(
-                color = SumiInk,
+            Box(
                 modifier = Modifier
                     .width(280.dp)
                     .fillMaxHeight()
-                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)))
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)))
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .navigationBarsPadding()
                         .statusBarsPadding()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.SpaceBetween,
+                        .padding(horizontal = 24.dp, vertical = 32.dp),
+                    verticalArrangement = Arrangement.Bottom,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        horizontalAlignment = Alignment.Start,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = stringResource(R.string.camera_crop_title),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
-                        )
-                        SegmentedControl(
-                            selected = interactionMode,
-                            onSelected = { interactionMode = it }
-                        )
-                    }
+                    SegmentedControl(
+                        selected = interactionMode,
+                        onSelected = { interactionMode = it },
+                        modifier = Modifier.padding(bottom = 32.dp)
+                    )
                     
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        OutlinedButton(
+                        androidx.compose.material3.TextButton(
                             onClick = { onCancel() },
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                            modifier = Modifier.fillMaxWidth().height(50.dp)
+                            shape = RoundedCornerShape(28.dp),
+                            colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+                            modifier = Modifier.fillMaxWidth().height(56.dp)
                         ) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.camera_cancel_desc), modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.camera_cancel_desc), modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.camera_recapture_btn), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(stringResource(R.string.camera_recapture_btn), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                         }
                         
                         Button(
@@ -945,135 +953,125 @@ fun ImageCropReviewLayout(
                                     }
                                 }
                             },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(28.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = KuriAmber,
                                 contentColor = SumiInk
                             ),
-                            modifier = Modifier.fillMaxWidth().height(50.dp)
+                            modifier = Modifier.fillMaxWidth().height(56.dp)
                         ) {
-                            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.camera_confirm_desc), modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.camera_confirm_desc), modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.camera_confirm_btn), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(stringResource(R.string.camera_confirm_btn), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         }
                     }
                 }
             }
         }
     } else {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(SumiInk)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.camera_crop_title),
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                SegmentedControl(
-                    selected = interactionMode,
-                    onSelected = { interactionMode = it },
-                    modifier = Modifier.weight(2f)
-                )
-            }
-            
             WorkspaceArea(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
+                modifier = Modifier.fillMaxSize()
             )
             
-            Surface(
-                color = SumiInk,
+            // Unified Bottom Control Panel
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f), Color.Black.copy(alpha = 0.9f)),
+                            startY = 0f
+                        )
+                    )
                     .navigationBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 24.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = { onCancel() },
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                        modifier = Modifier.weight(1f).height(54.dp)
-                    ) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.camera_cancel_desc), modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.camera_recapture_btn), fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    }
+                    SegmentedControl(
+                        selected = interactionMode,
+                        onSelected = { interactionMode = it }
+                    )
                     
-                    Button(
-                        onClick = {
-                            if (interactionMode == CropInteraction.TEXT_SELECT) {
-                                if (detectedBoxes.isNotEmpty()) {
-                                    val startHandle = textSelectStart ?: TextHandleState(0, 0f)
-                                    val endHandle = textSelectEnd ?: TextHandleState(detectedBoxes.lastIndex, 1f)
-                                    val (actualStart, actualEnd) = getOrderedHandles(startHandle, endHandle)
-                                    val slicedBoxes = calculateSubLineRects(detectedBoxes, actualStart, actualEnd)
-                                    try {
-                                        val masked = MaskedCropHelper.createMaskedBitmap(bitmap, slicedBoxes)
-                                        onConfirm(masked)
-                                    } catch (e: Exception) {
-                                        AppLogger.e("CAMERA", "Masked crop failed", e)
-                                        onConfirm(bitmap)
-                                    }
-                                } else {
-                                    onConfirm(bitmap)
-                                }
-                            } else {
-                                val bmpW = bitmap.width
-                                val bmpH = bitmap.height
-                                
-                                val x = ((cropState.cropLeft - cropState.imgOffsetX) / cropState.scaleFactor).toInt().coerceIn(0, bmpW)
-                                val y = ((cropState.cropTop - cropState.imgOffsetY) / cropState.scaleFactor).toInt().coerceIn(0, bmpH)
-                                
-                                var w = ((cropState.cropRight - cropState.cropLeft) / cropState.scaleFactor).toInt()
-                                var h = ((cropState.cropBottom - cropState.cropTop) / cropState.scaleFactor).toInt()
-                                
-                                if (x + w > bmpW) w = bmpW - x
-                                if (y + h > bmpH) h = bmpH - y
-                                
-                                if (w > 0 && h > 0) {
-                                    try {
-                                        val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
-                                        onConfirm(cropped)
-                                    } catch (e: Throwable) {
-                                        AppLogger.e("CAMERA", "Failed to crop manual selection", e)
-                                        onConfirm(bitmap)
-                                    }
-                                } else {
-                                    onConfirm(bitmap)
-                                }
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = KuriAmber,
-                            contentColor = SumiInk
-                        ),
-                        modifier = Modifier.weight(1f).height(54.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Check, contentDescription = stringResource(R.string.camera_confirm_desc), modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.camera_confirm_btn), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        androidx.compose.material3.TextButton(
+                            onClick = { onCancel() },
+                            shape = RoundedCornerShape(28.dp),
+                            colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+                            modifier = Modifier.weight(1f).height(56.dp)
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.camera_cancel_desc), modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.camera_recapture_btn), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        }
+                        
+                        Button(
+                            onClick = {
+                                if (interactionMode == CropInteraction.TEXT_SELECT) {
+                                    if (detectedBoxes.isNotEmpty()) {
+                                        val startHandle = textSelectStart ?: TextHandleState(0, 0f)
+                                        val endHandle = textSelectEnd ?: TextHandleState(detectedBoxes.lastIndex, 1f)
+                                        val (actualStart, actualEnd) = getOrderedHandles(startHandle, endHandle)
+                                        val slicedBoxes = calculateSubLineRects(detectedBoxes, actualStart, actualEnd)
+                                        try {
+                                            val masked = MaskedCropHelper.createMaskedBitmap(bitmap, slicedBoxes)
+                                            onConfirm(masked)
+                                        } catch (e: Exception) {
+                                            AppLogger.e("CAMERA", "Masked crop failed", e)
+                                            onConfirm(bitmap)
+                                        }
+                                    } else {
+                                        onConfirm(bitmap)
+                                    }
+                                } else {
+                                    val bmpW = bitmap.width
+                                    val bmpH = bitmap.height
+                                    
+                                    val x = ((cropState.cropLeft - cropState.imgOffsetX) / cropState.scaleFactor).toInt().coerceIn(0, bmpW)
+                                    val y = ((cropState.cropTop - cropState.imgOffsetY) / cropState.scaleFactor).toInt().coerceIn(0, bmpH)
+                                    
+                                    var w = ((cropState.cropRight - cropState.cropLeft) / cropState.scaleFactor).toInt()
+                                    var h = ((cropState.cropBottom - cropState.cropTop) / cropState.scaleFactor).toInt()
+                                    
+                                    if (x + w > bmpW) w = bmpW - x
+                                    if (y + h > bmpH) h = bmpH - y
+                                    
+                                    if (w > 0 && h > 0) {
+                                        try {
+                                            val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
+                                            onConfirm(cropped)
+                                        } catch (e: Throwable) {
+                                            AppLogger.e("CAMERA", "Failed to crop manual selection", e)
+                                            onConfirm(bitmap)
+                                        }
+                                    } else {
+                                        onConfirm(bitmap)
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(28.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = KuriAmber,
+                                contentColor = SumiInk
+                            ),
+                            modifier = Modifier.weight(1f).height(56.dp)
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.camera_confirm_desc), modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.camera_confirm_btn), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
                     }
                 }
             }

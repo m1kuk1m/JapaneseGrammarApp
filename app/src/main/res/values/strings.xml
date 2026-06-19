@@ -65,7 +65,7 @@
     <string name="local_ocr">Local OCR for Images</string>
     <string name="local_ocr_desc">If off, images are sent directly to AI for analysis.</string>
     <string name="auto_navigate_result">Auto Navigate to Result</string>
-    <string name="auto_navigate_result_desc">When using the floating ball, jump to the result page automatically. If off, it runs in the background.</string>
+    <string name="auto_navigate_result_desc">When using the floating button, jump to the result page automatically. If off, it runs in the background.</string>
     <string name="token_usage">API Token Usage</string>
     <string name="token_usage_desc">Total tokens consumed across all analyses.</string>
     <string name="input_tokens">Input Tokens</string>
@@ -148,7 +148,7 @@
     <string name="step_1_desc">Performing morpheme analysis of Japanese text</string>
     <string name="step_2_title">Syntactic Roles &amp; Clauses</string>
     <string name="step_2_desc">Classifying clause roles and relationships</string>
-    <string name="step_3_title">Context Translation &amp; 对译</string>
+    <string name="step_3_title">Context Translation &amp; Alignment</string>
     <string name="step_3_desc">Generating translation and counterpart data</string>
     <string name="step_4_title">Detailed Grammar Analysis</string>
     <string name="step_4_desc">Creating detailed explanation cards for grammar</string>
@@ -202,7 +202,7 @@
     <string name="camera_permission_required_desc">Please grant camera permission so that you can capture Japanese text for grammar analysis.</string>
     <string name="camera_request_permission_btn">Request Permission</string>
     <string name="camera_permission_denied_permanently_title">Camera Access Denied</string>
-    <string name="camera_permission_denied_permanently_desc">Camera permission is permanently denied. Please enable it in system settings to use camera features.</string>
+    <string name="camera_permission_denied_permanently_desc">Camera permission is denied. Please enable it in system settings.</string>
     <string name="camera_go_to_settings_btn">Go to Settings</string>
     <string name="camera_back_desc">Back</string>
     <string name="camera_flash_on_desc">Flash Always On</string>
@@ -217,19 +217,19 @@
     <string name="camera_crop_title">Select Text Area</string>
     <string name="camera_crop_hint">Drag corners to adjust</string>
     <string name="camera_cancel_desc">Cancel</string>
-    <string name="camera_recapture_btn">Recapture/Back</string>
+    <string name="camera_recapture_btn">Retake</string>
     <string name="camera_confirm_desc">Confirm</string>
-    <string name="camera_confirm_btn">Confirm Area</string>
+    <string name="camera_confirm_btn">Confirm</string>
     <string name="image_tokenizer_mode_title">Image tokenizer mode</string>
     <string name="image_tokenizer_mode_faithful">Faithful text mode</string>
-    <string name="image_tokenizer_mode_faithful_desc">No correction or guessing. Keep the text exactly as it appears.</string>
+    <string name="image_tokenizer_mode_faithful_desc">Keep the text exactly as it appears without correction.</string>
     <string name="image_tokenizer_mode_repair">Blurred image repair</string>
-    <string name="image_tokenizer_mode_repair_desc">For blurry images, allow context-based repair of clearly unreasonable dakuten or characters.</string>
+    <string name="image_tokenizer_mode_repair_desc">Allow context-based repair of unclear characters in blurry images.</string>
     <string name="view_api_debug_logs">View API Debug Responses</string>
     <string name="api_debug_logs_title">API Debug Responses</string>
     <string name="api_debug_filter_all">All</string>
     <string name="clear_api_debug_logs">Clear API Debug Logs</string>
-    <string name="api_debug_empty">No records yet. Run an analysis to show each API role\'s request summary, raw response, and error details.</string>
+    <string name="api_debug_empty">No records yet. Run an analysis to see API requests, responses, and errors.</string>
     <string name="api_debug_no_filter_results">No API logs match the current search or filter.</string>
     <string name="api_debug_meta">image=%1$s, tokens=%2$d (in=%3$d, out=%4$d)</string>
     <string name="api_debug_user_prompt">User Prompt</string>
@@ -267,11 +267,11 @@
     <string name="input_dialog_placeholder">Enter text to analyze...</string>
     <string name="start_analysis_btn">Start Analysis</string>
     <string name="floating_camera_permission_title">Camera permission required</string>
-    <string name="floating_camera_permission_desc">Grant camera permission from the app camera page, then use the floating camera here.</string>
+    <string name="floating_camera_permission_desc">Grant permission in the app camera page to use the floating camera.</string>
     <string name="floating_camera_capturing">Capturing...</string>
     <string name="floating_camera_unavailable">Camera is not ready yet.</string>
     <string name="floating_camera_capture_failed">Failed to capture photo.</string>
-    <string name="ocr_overlay_empty">No Japanese text areas were detected. Try a clearer screen or use camera/photo analysis.</string>
+    <string name="ocr_overlay_empty">No text detected. Try a clearer screen or capture a photo.</string>
     <string name="ocr_overlay_processing">Preparing selected area...</string>
 
     <!-- New UI Strings -->
@@ -489,7 +489,7 @@
     <string name="prompt_reset_success">Prompt reset to default</string>
     <string name="prompt_reset_all_success">All prompts reset to defaults</string>
     <string name="prompt_reset_confirm">Are you sure you want to reset this prompt to default?</string>
-    <string name="prompt_reset_all_confirm">Are you sure you want to reset ALL prompts to defaults? This will erase all your custom prompts.</string>
+    <string name="prompt_reset_all_confirm">Reset ALL prompts to defaults? This will erase all custom prompts.</string>
     <string name="save_prompt">Save Prompt</string>
     <string name="reset_prompt">Reset Default</string>
     <string name="reset_all_prompts">Reset All Defaults</string>
@@ -502,6 +502,18 @@
     <string name="prompt_type_tokenizer_ocr">OCR Tokenizer</string>
     <string name="prompt_type_tokenizer_image">Image Tokenizer</string>
     <string name="prompt_type_tokenizer_image_repair">Image Repair Tokenizer</string>
+
+    <string name="prompt_presets">Prompt Presets</string>
+    <string name="preset_name">Preset Name</string>
+    <string name="new_preset">New Preset</string>
+    <string name="rename_preset">Rename Preset</string>
+    <string name="delete_preset">Delete Preset</string>
+    <string name="delete_preset_confirm">Are you sure you want to delete this preset?</string>
+    <string name="delete_preset_error_default">Cannot delete the default preset.</string>
+    <string name="preset_default">Default</string>
+    <string name="copy_from_current">Copy from current preset</string>
+    <string name="create">Create</string>
+    <string name="rename">Rename</string>
 
     <!-- OCR Box Debug Settings -->
     <string name="ocr_debug_title">OCR Box Debug</string>

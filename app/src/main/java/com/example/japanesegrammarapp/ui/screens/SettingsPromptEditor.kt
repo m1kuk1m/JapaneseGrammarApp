@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -54,21 +56,29 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.japanesegrammarapp.R
+import com.example.japanesegrammarapp.domain.model.PromptPreset
 
 @Composable
 fun SettingsPromptEditor(
     visible: Boolean,
     selectedPromptKey: String,
     promptText: String,
+    promptPresets: List<PromptPreset>,
+    activePromptPresetId: String,
     onDismiss: () -> Unit,
     onPromptKeyChange: (String) -> Unit,
     onPromptTextChange: (String) -> Unit,
     onSave: () -> Unit,
     onResetCurrent: () -> Unit,
-    onResetAll: () -> Unit
+    onResetAll: () -> Unit,
+    onCreatePreset: (String, Boolean) -> Unit,
+    onRenamePreset: (String, String) -> Unit,
+    onDeletePreset: (String) -> Unit,
+    onSelectPreset: (String) -> Unit
 ) {
     var showResetConfirm by remember { mutableStateOf(false) }
     var showResetAllConfirm by remember { mutableStateOf(false) }
@@ -112,6 +122,20 @@ fun SettingsPromptEditor(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+                PromptPresetSelector(
+                    promptPresets = promptPresets,
+                    activePromptPresetId = activePromptPresetId,
+                    onSelectPreset = onSelectPreset,
+                    onCreatePreset = onCreatePreset,
+                    onRenamePreset = onRenamePreset,
+                    onDeletePreset = onDeletePreset,
+                    sumiInk = sumiInk,
+                    surfaceColor = surfaceColor,
+                    primaryColor = primaryColor,
+                    onPrimaryColor = onPrimaryColor
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
                 PromptTypeSelector(
                     selectedPromptKey = selectedPromptKey,
                     onPromptKeyChange = onPromptKeyChange,
@@ -142,28 +166,28 @@ fun SettingsPromptEditor(
 
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
                         onClick = { showResetConfirm = true },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.reset_prompt))
+                        Text(stringResource(R.string.reset_prompt), textAlign = TextAlign.Center)
                     }
 
                     Button(
                         onClick = onSave,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp), tint = onPrimaryColor)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.save_prompt), color = onPrimaryColor)
+                        Text(stringResource(R.string.save_prompt), color = onPrimaryColor, textAlign = TextAlign.Center)
                     }
                 }
             }
@@ -280,4 +304,205 @@ private fun PromptTypeSelector(
             }
         }
     }
+}
+
+@Composable
+private fun PromptPresetSelector(
+    promptPresets: List<PromptPreset>,
+    activePromptPresetId: String,
+    onSelectPreset: (String) -> Unit,
+    onCreatePreset: (String, Boolean) -> Unit,
+    onRenamePreset: (String, String) -> Unit,
+    onDeletePreset: (String) -> Unit,
+    sumiInk: Color,
+    surfaceColor: Color,
+    primaryColor: Color,
+    onPrimaryColor: Color
+) {
+    var dropdownExpanded by remember { mutableStateOf(false) }
+    var showCreateDialog by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+
+    val activePreset = promptPresets.find { it.id == activePromptPresetId } ?: promptPresets.firstOrNull()
+    val isDefaultPreset = activePreset?.id == PromptPreset.DEFAULT_PRESET_ID
+
+    Text(
+        text = stringResource(R.string.prompt_presets),
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        color = sumiInk.copy(alpha = 0.5f)
+    )
+    Spacer(modifier = Modifier.height(4.dp))
+    
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .background(surfaceColor, RoundedCornerShape(8.dp))
+                .border(BorderStroke(1.dp, sumiInk.copy(alpha = 0.1f)), RoundedCornerShape(8.dp))
+                .clickable { dropdownExpanded = true }
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isDefaultPreset) stringResource(R.string.preset_default) else activePreset?.name ?: stringResource(R.string.preset_default), 
+                    color = sumiInk, 
+                    fontWeight = FontWeight.Medium
+                )
+                Icon(Icons.Default.KeyboardArrowDown, null, tint = sumiInk.copy(alpha = 0.5f))
+            }
+            DropdownMenu(
+                expanded = dropdownExpanded,
+                onDismissRequest = { dropdownExpanded = false },
+                modifier = Modifier.fillMaxWidth(0.8f)
+            ) {
+                promptPresets.forEach { preset ->
+                    val displayName = if (preset.id == PromptPreset.DEFAULT_PRESET_ID) stringResource(R.string.preset_default) else preset.name
+                    DropdownMenuItem(
+                        text = { Text(displayName) },
+                        onClick = {
+                            onSelectPreset(preset.id)
+                            dropdownExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+    
+    Spacer(modifier = Modifier.height(8.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        OutlinedButton(
+            onClick = { showCreateDialog = true },
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text(stringResource(R.string.new_preset), fontSize = 12.sp, textAlign = TextAlign.Center)
+        }
+        OutlinedButton(
+            onClick = { showRenameDialog = true },
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            shape = RoundedCornerShape(8.dp),
+            enabled = !isDefaultPreset
+        ) {
+            Text(stringResource(R.string.rename), fontSize = 12.sp, textAlign = TextAlign.Center)
+        }
+        OutlinedButton(
+            onClick = { showDeleteConfirmDialog = true },
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            shape = RoundedCornerShape(8.dp),
+            enabled = !isDefaultPreset,
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)
+        ) {
+            Text(stringResource(R.string.delete_preset), fontSize = 12.sp, textAlign = TextAlign.Center)
+        }
+    }
+
+    if (showCreateDialog) {
+        PresetNameDialog(
+            title = stringResource(R.string.new_preset),
+            initialName = "",
+            sumiInk = sumiInk,
+            surfaceColor = surfaceColor,
+            primaryColor = primaryColor,
+            onPrimaryColor = onPrimaryColor,
+            onDismiss = { showCreateDialog = false },
+            onConfirm = { name -> 
+                onCreatePreset(name, true)
+                showCreateDialog = false
+            }
+        )
+    }
+
+    if (showRenameDialog && activePreset != null) {
+        PresetNameDialog(
+            title = stringResource(R.string.rename_preset),
+            initialName = activePreset.name,
+            sumiInk = sumiInk,
+            surfaceColor = surfaceColor,
+            primaryColor = primaryColor,
+            onPrimaryColor = onPrimaryColor,
+            onDismiss = { showRenameDialog = false },
+            onConfirm = { name -> 
+                onRenamePreset(activePreset.id, name)
+                showRenameDialog = false
+            }
+        )
+    }
+
+    if (showDeleteConfirmDialog && activePreset != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = { Text(stringResource(R.string.delete_preset), fontWeight = FontWeight.Bold, color = sumiInk) },
+            text = { Text(stringResource(R.string.delete_preset_confirm), color = sumiInk) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeletePreset(activePreset.id)
+                        showDeleteConfirmDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text(stringResource(R.string.delete_preset), fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text(stringResource(R.string.cancel), color = sumiInk)
+                }
+            },
+            containerColor = surfaceColor
+        )
+    }
+}
+
+@Composable
+private fun PresetNameDialog(
+    title: String,
+    initialName: String,
+    sumiInk: Color,
+    surfaceColor: Color,
+    primaryColor: Color,
+    onPrimaryColor: Color,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var name by remember { mutableStateOf(initialName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, fontWeight = FontWeight.Bold, color = sumiInk) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(stringResource(R.string.preset_name)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = { if (name.isNotBlank()) onConfirm(name) },
+                enabled = name.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+            ) {
+                Text(stringResource(R.string.save_prompt), color = onPrimaryColor)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel), color = sumiInk)
+            }
+        },
+        containerColor = surfaceColor
+    )
 }

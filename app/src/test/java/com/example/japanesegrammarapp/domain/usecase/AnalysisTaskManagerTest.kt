@@ -303,6 +303,11 @@ private class FakeSettingsRepository(
     override fun setTtsVoice(provider: String, voice: String) = Unit
     override fun getTtsRegion(provider: String): String = ""
     override fun setTtsRegion(provider: String, region: String) = Unit
+    override fun getPromptPresets(): List<com.example.japanesegrammarapp.domain.model.PromptPreset> = emptyList()
+    override fun getActivePromptPresetId(): String = ""
+    override fun setActivePromptPresetId(id: String) = Unit
+    override fun savePromptPreset(preset: com.example.japanesegrammarapp.domain.model.PromptPreset) = Unit
+    override fun deletePromptPreset(id: String) = Unit
 }
 
 private class FakeHistoryRepository(vararg initialRecords: AnalysisDomainRecord) : HistoryRepository {
