@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.magnifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect as ComposeRect
 import androidx.compose.ui.geometry.Size
@@ -63,6 +65,52 @@ import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
 import com.example.japanesegrammarapp.utils.AppLogger
+
+enum class CropInteraction {
+    AREA_CROP,
+    TEXT_SELECT
+}
+
+@Composable
+fun SegmentedControl(
+    selected: CropInteraction,
+    onSelected: (CropInteraction) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+            .padding(2.dp)
+    ) {
+        val areaBg = if (selected == CropInteraction.AREA_CROP) Color.White.copy(alpha = 0.2f) else Color.Transparent
+        val textBg = if (selected == CropInteraction.TEXT_SELECT) Color.White.copy(alpha = 0.2f) else Color.Transparent
+        
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .background(areaBg, RoundedCornerShape(6.dp))
+                .clickable { onSelected(CropInteraction.AREA_CROP) },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(stringResource(R.string.crop_interaction_area), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .background(textBg, RoundedCornerShape(6.dp))
+                .clickable { onSelected(CropInteraction.TEXT_SELECT) },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(stringResource(R.string.crop_interaction_text_select), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@androidx.compose.foundation.ExperimentalFoundationApi
 @Composable
 fun ImageCropReviewLayout(
     bitmap: Bitmap,
@@ -82,6 +130,11 @@ fun ImageCropReviewLayout(
         )
     }
 
+    var interactionMode by remember { mutableStateOf(CropInteraction.AREA_CROP) }
+    var textSelectStart by remember { mutableStateOf<TextHandleState?>(null) }
+    var textSelectEnd by remember { mutableStateOf<TextHandleState?>(null) }
+    var magnifierCenter by remember { mutableStateOf<Offset?>(null) }
+
     // When the screen orientation changes, the container size changes too.
     // Reset isInitialized so the crop box is recalculated for the new layout.
     LaunchedEffect(isLandscape) {
@@ -91,15 +144,27 @@ fun ImageCropReviewLayout(
     var detectedBoxes by remember(bitmap, ocrBoxDetectionSettings) { mutableStateOf<List<Rect>>(emptyList()) }
     var hideOcrBoxes by remember { mutableStateOf(false) }
 
-    LaunchedEffect(bitmap, ocrBoxDetectionSettings) {
+    LaunchedEffect(bitmap, ocrBoxDetectionSettings, interactionMode) {
         try {
-            val mergedBoxes = detectCameraOcrBoxes(
-                bitmap = bitmap,
-                settings = ocrBoxDetectionSettings,
-                context = context
-            )
-            detectedBoxes = mergedBoxes
-            hideOcrBoxes = mergedBoxes.isEmpty()
+            if (interactionMode == CropInteraction.AREA_CROP) {
+                val mergedBoxes = detectCameraOcrBoxes(
+                    bitmap = bitmap,
+                    settings = ocrBoxDetectionSettings,
+                    context = context
+                )
+                detectedBoxes = mergedBoxes
+                hideOcrBoxes = mergedBoxes.isEmpty()
+            } else {
+                val fineBoxes = detectFineGrainedCameraOcrBoxes(
+                    bitmap = bitmap,
+                    settings = ocrBoxDetectionSettings,
+                    context = context
+                )
+                detectedBoxes = fineBoxes
+                hideOcrBoxes = false
+                textSelectStart = null
+                textSelectEnd = null
+            }
         } catch (e: Exception) {
             AppLogger.e("CAMERA", "Failed to detect OCR text boxes", e)
         }
@@ -171,6 +236,22 @@ fun ImageCropReviewLayout(
                 Canvas(
                     modifier = Modifier
                         .fillMaxSize()
+                        .run {
+                            if (magnifierCenter != null) {
+                                this.magnifier(
+                                    sourceCenter = { magnifierCenter ?: androidx.compose.ui.geometry.Offset.Unspecified },
+                                    magnifierCenter = {
+                                        val center = magnifierCenter
+                                        if (center != null) {
+                                            androidx.compose.ui.geometry.Offset(center.x, center.y - 100.dp.toPx())
+                                        } else {
+                                            androidx.compose.ui.geometry.Offset.Unspecified
+                                        }
+                                    },
+                                    zoom = 1.5f
+                                )
+                            } else this
+                        }
                         .pointerInput(Unit) {
                             awaitPointerEventScope {
                                 while (true) {
@@ -185,11 +266,92 @@ fun ImageCropReviewLayout(
                                     var targetBox: Rect? = null
                                     var targetHandle = DragHandle.NONE
                                     var submitTarget: (() -> Unit)? = null
+                                    var activeTextHandle: String? = null
                                     cropState.activeHandle = DragHandle.NONE
                                     
-                                    // If OCR boxes are visible, a long-press drag on a box corner edits that box.
-                                    // Any other gesture submits the touched box, or the current crop if no box was touched.
-                                    if (!hideOcrBoxes) {
+                                    if (interactionMode == CropInteraction.TEXT_SELECT) {
+                                        if (detectedBoxes.isNotEmpty()) {
+                                            val getHandlePos = { handle: TextHandleState, isStart: Boolean -> 
+                                                val box = detectedBoxes.getOrNull(handle.index)
+                                                if (box != null) {
+                                                    val isVertical = box.height() > box.width()
+                                                    val R = 10.dp.toPx()
+                                                    val D = R * 1.414f
+                                                    if (isVertical) {
+                                                        val y = cropState.imgOffsetY + (box.top + box.height() * handle.offsetRatio) * cropState.scaleFactor
+                                                        if (isStart) {
+                                                            val x = cropState.imgOffsetX + box.left * cropState.scaleFactor
+                                                            Offset(x - D, y)
+                                                        } else {
+                                                            val x = cropState.imgOffsetX + box.right * cropState.scaleFactor
+                                                            Offset(x + D, y)
+                                                        }
+                                                    } else {
+                                                        val x = cropState.imgOffsetX + (box.left + box.width() * handle.offsetRatio) * cropState.scaleFactor
+                                                        val y = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
+                                                        Offset(x, y + D)
+                                                    }
+                                                } else {
+                                                    Offset.Zero
+                                                }
+                                            }
+
+                                            val touchTolerance = 64.dp.toPx()
+                                            val startCenter = textSelectStart?.let { getHandlePos(it, true) } ?: Offset.Zero
+                                            val endCenter = textSelectEnd?.let { getHandlePos(it, false) } ?: Offset.Zero
+                                            
+                                            val distStart = distance(startPos.x, startPos.y, startCenter.x, startCenter.y)
+                                            val distEnd = distance(startPos.x, startPos.y, endCenter.x, endCenter.y)
+                                            
+                                            var handleGrabbed = false
+                                            if (textSelectStart != null && textSelectEnd != null) {
+                                                if (distStart < distEnd && distStart < touchTolerance) {
+                                                    activeTextHandle = "START"
+                                                    handleGrabbed = true
+                                                } else if (distEnd < touchTolerance) {
+                                                    activeTextHandle = "END"
+                                                    handleGrabbed = true
+                                                }
+                                            }
+
+                                            if (!handleGrabbed) {
+                                                val hitTolerance = 16.dp.toPx()
+                                                val closestIdx = detectedBoxes.indices.minByOrNull { i ->
+                                                    val box = detectedBoxes[i]
+                                                    val displayLeft = cropState.imgOffsetX + box.left * cropState.scaleFactor
+                                                    val displayTop = cropState.imgOffsetY + box.top * cropState.scaleFactor
+                                                    val displayRight = cropState.imgOffsetX + box.right * cropState.scaleFactor
+                                                    val displayBottom = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
+                                                    
+                                                    val dx = maxOf(0f, maxOf(displayLeft - startPos.x, startPos.x - displayRight))
+                                                    val dy = maxOf(0f, maxOf(displayTop - startPos.y, startPos.y - displayBottom))
+                                                    dx * dx + dy * dy
+                                                }
+                                                val closestDistSq = closestIdx?.let { i ->
+                                                    val box = detectedBoxes[i]
+                                                    val displayLeft = cropState.imgOffsetX + box.left * cropState.scaleFactor
+                                                    val displayTop = cropState.imgOffsetY + box.top * cropState.scaleFactor
+                                                    val displayRight = cropState.imgOffsetX + box.right * cropState.scaleFactor
+                                                    val displayBottom = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
+                                                    
+                                                    val dx = maxOf(0f, maxOf(displayLeft - startPos.x, startPos.x - displayRight))
+                                                    val dy = maxOf(0f, maxOf(displayTop - startPos.y, startPos.y - displayBottom))
+                                                    dx * dx + dy * dy
+                                                } ?: Float.MAX_VALUE
+
+                                                if (closestIdx != null && closestDistSq <= hitTolerance * hitTolerance) {
+                                                    textSelectStart = TextHandleState(closestIdx, 0f)
+                                                    textSelectEnd = TextHandleState(closestIdx, 1f)
+                                                    activeTextHandle = "END"
+                                                } else {
+                                                    textSelectStart = null
+                                                    textSelectEnd = null
+                                                    activeTextHandle = null
+                                                }
+                                            }
+                                        }
+                                        submitTarget = { /* no op for text select tap */ }
+                                    } else if (!hideOcrBoxes) {
                                         var minDist = Float.MAX_VALUE
                                         
                                         for (box in detectedBoxes) {
@@ -234,18 +396,21 @@ fun ImageCropReviewLayout(
                                     }
 
                                     var isEditing = false
-                                    val canEdit = targetHandle != DragHandle.NONE
+                                    val canEdit = targetHandle != DragHandle.NONE || activeTextHandle != null
 
                                     while (true) {
                                         val event = awaitPointerEvent()
                                         val changes = event.changes
 
                                         if (changes.all { !it.pressed }) {
+                                            magnifierCenter = null
                                             if (isEditing) {
-                                                cropState.stopDrag()
+                                                if (interactionMode == CropInteraction.AREA_CROP) {
+                                                    cropState.stopDrag()
+                                                }
                                             } else {
                                                 downEvent.consume()
-                                                submitTarget()
+                                                submitTarget?.invoke()
                                             }
                                             break
                                         }
@@ -262,7 +427,63 @@ fun ImageCropReviewLayout(
                                         if (currentFinger != null) {
                                             activePointerId = currentFinger.id
 
-                                            if (!isEditing && canEdit) {
+                                            if (interactionMode == CropInteraction.TEXT_SELECT) {
+                                                if (activeTextHandle != null) {
+                                                    isEditing = true
+                                                    val currentPos = currentFinger.position
+                                                    magnifierCenter = currentPos
+                                                    
+                                                    val otherHandle = if (activeTextHandle == "START") textSelectEnd else textSelectStart
+                                                    val targetOrientationIsVertical = otherHandle?.let {
+                                                        val b = detectedBoxes.getOrNull(it.index)
+                                                        b != null && b.height() > b.width()
+                                                    }
+
+                                                    val allowedIndices = if (targetOrientationIsVertical != null) {
+                                                        detectedBoxes.indices.filter { i ->
+                                                            val b = detectedBoxes[i]
+                                                            (b.height() > b.width()) == targetOrientationIsVertical
+                                                        }
+                                                    } else detectedBoxes.indices
+
+                                                    val closestIdx = allowedIndices.minByOrNull { i ->
+                                                        val box = detectedBoxes[i]
+                                                        val displayLeft = cropState.imgOffsetX + box.left * cropState.scaleFactor
+                                                        val displayTop = cropState.imgOffsetY + box.top * cropState.scaleFactor
+                                                        val displayRight = cropState.imgOffsetX + box.right * cropState.scaleFactor
+                                                        val displayBottom = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
+                                                        
+                                                        val dx = maxOf(0f, maxOf(displayLeft - currentPos.x, currentPos.x - displayRight))
+                                                        val dy = maxOf(0f, maxOf(displayTop - currentPos.y, currentPos.y - displayBottom))
+                                                        val boundsDistSq = dx * dx + dy * dy
+                                                        
+                                                        val cx = (displayLeft + displayRight) / 2f
+                                                        val cy = (displayTop + displayBottom) / 2f
+                                                        val centerDist = distance(currentPos.x, currentPos.y, cx, cy)
+                                                        
+                                                        boundsDistSq + centerDist * 0.001f
+                                                    } ?: (otherHandle?.index ?: 0)
+                                                    
+                                                    val closestBox = detectedBoxes[closestIdx]
+                                                    val isVertical = closestBox.height() > closestBox.width()
+                                                    val offsetRatio = if (isVertical) {
+                                                        val displayTop = cropState.imgOffsetY + closestBox.top * cropState.scaleFactor
+                                                        val displayHeight = closestBox.height() * cropState.scaleFactor
+                                                        if (displayHeight > 0) ((currentPos.y - displayTop) / displayHeight).coerceIn(0f, 1f) else 0f
+                                                    } else {
+                                                        val displayLeft = cropState.imgOffsetX + closestBox.left * cropState.scaleFactor
+                                                        val displayWidth = closestBox.width() * cropState.scaleFactor
+                                                        if (displayWidth > 0) ((currentPos.x - displayLeft) / displayWidth).coerceIn(0f, 1f) else 0f
+                                                    }
+                                                    
+                                                    if (activeTextHandle == "START") {
+                                                        textSelectStart = TextHandleState(closestIdx, offsetRatio)
+                                                    } else {
+                                                        textSelectEnd = TextHandleState(closestIdx, offsetRatio)
+                                                    }
+                                                    currentFinger.consume()
+                                                }
+                                            } else if (!isEditing && canEdit) {
                                                 val currentPos = currentFinger.position
                                                 val totalDelta = currentPos - startPos
                                                 val dist = kotlin.math.sqrt(totalDelta.x * totalDelta.x + totalDelta.y * totalDelta.y)
@@ -297,7 +518,134 @@ fun ImageCropReviewLayout(
                             }
                         }
                 ) {
-                    if (hideOcrBoxes) {
+                    if (interactionMode == CropInteraction.TEXT_SELECT) {
+                        if (detectedBoxes.isNotEmpty()) {
+                            val imageLeft = cropState.imgOffsetX
+                            val imageTop = cropState.imgOffsetY
+                            val imageRight = cropState.imgOffsetX + cropState.imgDispWidth
+                            val imageBottom = cropState.imgOffsetY + cropState.imgDispHeight
+
+                            // Draw shadow with holes for all selectable text
+                            val highlightedRects = detectedBoxes.mapNotNull { box ->
+                                val displayLeft = (cropState.imgOffsetX + box.left * cropState.scaleFactor).coerceIn(imageLeft, imageRight)
+                                val displayTop = (cropState.imgOffsetY + box.top * cropState.scaleFactor).coerceIn(imageTop, imageBottom)
+                                val displayRight = (cropState.imgOffsetX + box.right * cropState.scaleFactor).coerceIn(imageLeft, imageRight)
+                                val displayBottom = (cropState.imgOffsetY + box.bottom * cropState.scaleFactor).coerceIn(imageTop, imageBottom)
+
+                                if (displayRight > displayLeft && displayBottom > displayTop) {
+                                    ComposeRect(displayLeft, displayTop, displayRight, displayBottom)
+                                } else {
+                                    null
+                                }
+                            }
+
+                            drawContext.canvas.saveLayer(ComposeRect(imageLeft, imageTop, imageRight, imageBottom), Paint())
+                            drawRect(
+                                color = Color.Black.copy(alpha = 0.6f),
+                                topLeft = Offset(imageLeft, imageTop),
+                                size = Size(imageRight - imageLeft, imageBottom - imageTop)
+                            )
+                            highlightedRects.forEach { rect ->
+                                drawRect(
+                                    color = Color.Transparent,
+                                    topLeft = Offset(rect.left, rect.top),
+                                    size = Size(rect.width, rect.height),
+                                    blendMode = BlendMode.Clear
+                                )
+                            }
+                            drawContext.canvas.restore()
+
+                            if (textSelectStart != null && textSelectEnd != null) {
+                                val startHandle = textSelectStart!!
+                                val endHandle = textSelectEnd!!
+                                
+                                val (actualStart, actualEnd) = getOrderedHandles(startHandle, endHandle)
+                                val slicedBoxes = calculateSubLineRects(detectedBoxes, actualStart, actualEnd)
+                                
+                                slicedBoxes.forEach { box ->
+                                    val displayLeft = cropState.imgOffsetX + box.left * cropState.scaleFactor
+                                    val displayTop = cropState.imgOffsetY + box.top * cropState.scaleFactor
+                                    val displayRight = cropState.imgOffsetX + box.right * cropState.scaleFactor
+                                    val displayBottom = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
+                                    
+                                    drawRect(
+                                        color = KuriAmber.copy(alpha = 0.35f),
+                                        topLeft = Offset(displayLeft, displayTop),
+                                        size = Size(displayRight - displayLeft, displayBottom - displayTop)
+                                    )
+                                    drawRect(
+                                        color = KuriAmber,
+                                        topLeft = Offset(displayLeft, displayTop),
+                                        size = Size(displayRight - displayLeft, displayBottom - displayTop),
+                                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                                    )
+                                }
+                                
+                                val drawTeardrop = { handle: TextHandleState, isStart: Boolean -> 
+                                    val box = detectedBoxes.getOrNull(handle.index)
+                                    if (box != null) {
+                                        val isVertical = box.height() > box.width()
+                                        val path = androidx.compose.ui.graphics.Path()
+                                        val R = 10.dp.toPx()
+                                        val D = R * 1.414f
+                                        var cx = 0f
+                                        var cy = 0f
+                                        
+                                        if (isVertical) {
+                                            val y = cropState.imgOffsetY + (box.top + box.height() * handle.offsetRatio) * cropState.scaleFactor
+                                            if (isStart) {
+                                                val x = cropState.imgOffsetX + box.left * cropState.scaleFactor
+                                                cx = x - D
+                                                cy = y
+                                                path.moveTo(x, y)
+                                                path.lineTo(cx + R * 0.707f, cy + R * 0.707f)
+                                                path.arcTo(
+                                                    rect = ComposeRect(cx - R, cy - R, cx + R, cy + R),
+                                                    startAngleDegrees = 45f,
+                                                    sweepAngleDegrees = 270f,
+                                                    forceMoveTo = false
+                                                )
+                                                path.close()
+                                            } else {
+                                                val x = cropState.imgOffsetX + box.right * cropState.scaleFactor
+                                                cx = x + D
+                                                cy = y
+                                                path.moveTo(x, y)
+                                                path.lineTo(cx - R * 0.707f, cy - R * 0.707f)
+                                                path.arcTo(
+                                                    rect = ComposeRect(cx - R, cy - R, cx + R, cy + R),
+                                                    startAngleDegrees = 225f,
+                                                    sweepAngleDegrees = 270f,
+                                                    forceMoveTo = false
+                                                )
+                                                path.close()
+                                            }
+                                        } else {
+                                            val x = cropState.imgOffsetX + (box.left + box.width() * handle.offsetRatio) * cropState.scaleFactor
+                                            val y = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
+                                            cx = x
+                                            cy = y + D
+                                            path.moveTo(x, y)
+                                            path.lineTo(cx + R * 0.707f, cy - R * 0.707f)
+                                            path.arcTo(
+                                                rect = ComposeRect(cx - R, cy - R, cx + R, cy + R),
+                                                startAngleDegrees = 315f,
+                                                sweepAngleDegrees = 270f,
+                                                forceMoveTo = false
+                                            )
+                                            path.close()
+                                        }
+                                        
+                                        drawPath(path, color = Color.White)
+                                        drawCircle(color = KuriAmber, radius = 6.dp.toPx(), center = Offset(cx, cy))
+                                    }
+                                }
+                                
+                                drawTeardrop(startHandle, true)
+                                drawTeardrop(endHandle, false)
+                            }
+                        }
+                    } else if (hideOcrBoxes) {
                         // Draw dimming mask outside crop box bounds
                         // Top mask
                         drawRect(
@@ -527,6 +875,10 @@ fun ImageCropReviewLayout(
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
+                        SegmentedControl(
+                            selected = interactionMode,
+                            onSelected = { interactionMode = it }
+                        )
                     }
                     
                     Column(
@@ -547,28 +899,50 @@ fun ImageCropReviewLayout(
                         
                         Button(
                             onClick = {
-                                val bmpW = bitmap.width
-                                val bmpH = bitmap.height
-                                
-                                val x = ((cropState.cropLeft - cropState.imgOffsetX) / cropState.scaleFactor).toInt().coerceIn(0, bmpW)
-                                val y = ((cropState.cropTop - cropState.imgOffsetY) / cropState.scaleFactor).toInt().coerceIn(0, bmpH)
-                                
-                                var w = ((cropState.cropRight - cropState.cropLeft) / cropState.scaleFactor).toInt()
-                                var h = ((cropState.cropBottom - cropState.cropTop) / cropState.scaleFactor).toInt()
-                                
-                                if (x + w > bmpW) w = bmpW - x
-                                if (y + h > bmpH) h = bmpH - y
-                                
-                                if (w > 0 && h > 0) {
-                                    try {
-                                        val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
-                                        onConfirm(cropped)
-                                    } catch (e: Throwable) {
-                                        AppLogger.e("CAMERA", "Failed to crop manual selection", e)
+                                if (interactionMode == CropInteraction.TEXT_SELECT) {
+                                    if (detectedBoxes.isNotEmpty()) {
+                                        val startHandle = textSelectStart
+                                        val endHandle = textSelectEnd
+                                        if (startHandle != null && endHandle != null) {
+                                            val (actualStart, actualEnd) = getOrderedHandles(startHandle, endHandle)
+                                            val slicedBoxes = calculateSubLineRects(detectedBoxes, actualStart, actualEnd)
+                                            try {
+                                                val masked = MaskedCropHelper.createMaskedBitmap(bitmap, slicedBoxes)
+                                                onConfirm(masked)
+                                            } catch (e: Exception) {
+                                                AppLogger.e("CAMERA", "Masked crop failed", e)
+                                                onConfirm(bitmap)
+                                            }
+                                        } else {
+                                            onConfirm(bitmap)
+                                        }
+                                    } else {
                                         onConfirm(bitmap)
                                     }
                                 } else {
-                                    onConfirm(bitmap)
+                                    val bmpW = bitmap.width
+                                    val bmpH = bitmap.height
+                                    
+                                    val x = ((cropState.cropLeft - cropState.imgOffsetX) / cropState.scaleFactor).toInt().coerceIn(0, bmpW)
+                                    val y = ((cropState.cropTop - cropState.imgOffsetY) / cropState.scaleFactor).toInt().coerceIn(0, bmpH)
+                                    
+                                    var w = ((cropState.cropRight - cropState.cropLeft) / cropState.scaleFactor).toInt()
+                                    var h = ((cropState.cropBottom - cropState.cropTop) / cropState.scaleFactor).toInt()
+                                    
+                                    if (x + w > bmpW) w = bmpW - x
+                                    if (y + h > bmpH) h = bmpH - y
+                                    
+                                    if (w > 0 && h > 0) {
+                                        try {
+                                            val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
+                                            onConfirm(cropped)
+                                        } catch (e: Throwable) {
+                                            AppLogger.e("CAMERA", "Failed to crop manual selection", e)
+                                            onConfirm(bitmap)
+                                        }
+                                    } else {
+                                        onConfirm(bitmap)
+                                    }
                                 }
                             },
                             shape = RoundedCornerShape(12.dp),
@@ -604,7 +978,14 @@ fun ImageCropReviewLayout(
                     text = stringResource(R.string.camera_crop_title),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    fontSize = 16.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                SegmentedControl(
+                    selected = interactionMode,
+                    onSelected = { interactionMode = it },
+                    modifier = Modifier.weight(2f)
                 )
             }
             
@@ -641,28 +1022,46 @@ fun ImageCropReviewLayout(
                     
                     Button(
                         onClick = {
-                            val bmpW = bitmap.width
-                            val bmpH = bitmap.height
-                            
-                            val x = ((cropState.cropLeft - cropState.imgOffsetX) / cropState.scaleFactor).toInt().coerceIn(0, bmpW)
-                            val y = ((cropState.cropTop - cropState.imgOffsetY) / cropState.scaleFactor).toInt().coerceIn(0, bmpH)
-                            
-                            var w = ((cropState.cropRight - cropState.cropLeft) / cropState.scaleFactor).toInt()
-                            var h = ((cropState.cropBottom - cropState.cropTop) / cropState.scaleFactor).toInt()
-                            
-                            if (x + w > bmpW) w = bmpW - x
-                            if (y + h > bmpH) h = bmpH - y
-                            
-                            if (w > 0 && h > 0) {
-                                try {
-                                    val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
-                                    onConfirm(cropped)
-                                } catch (e: Throwable) {
-                                    AppLogger.e("CAMERA", "Failed to crop manual selection", e)
+                            if (interactionMode == CropInteraction.TEXT_SELECT) {
+                                if (detectedBoxes.isNotEmpty()) {
+                                    val startHandle = textSelectStart ?: TextHandleState(0, 0f)
+                                    val endHandle = textSelectEnd ?: TextHandleState(detectedBoxes.lastIndex, 1f)
+                                    val (actualStart, actualEnd) = getOrderedHandles(startHandle, endHandle)
+                                    val slicedBoxes = calculateSubLineRects(detectedBoxes, actualStart, actualEnd)
+                                    try {
+                                        val masked = MaskedCropHelper.createMaskedBitmap(bitmap, slicedBoxes)
+                                        onConfirm(masked)
+                                    } catch (e: Exception) {
+                                        AppLogger.e("CAMERA", "Masked crop failed", e)
+                                        onConfirm(bitmap)
+                                    }
+                                } else {
                                     onConfirm(bitmap)
                                 }
                             } else {
-                                onConfirm(bitmap)
+                                val bmpW = bitmap.width
+                                val bmpH = bitmap.height
+                                
+                                val x = ((cropState.cropLeft - cropState.imgOffsetX) / cropState.scaleFactor).toInt().coerceIn(0, bmpW)
+                                val y = ((cropState.cropTop - cropState.imgOffsetY) / cropState.scaleFactor).toInt().coerceIn(0, bmpH)
+                                
+                                var w = ((cropState.cropRight - cropState.cropLeft) / cropState.scaleFactor).toInt()
+                                var h = ((cropState.cropBottom - cropState.cropTop) / cropState.scaleFactor).toInt()
+                                
+                                if (x + w > bmpW) w = bmpW - x
+                                if (y + h > bmpH) h = bmpH - y
+                                
+                                if (w > 0 && h > 0) {
+                                    try {
+                                        val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
+                                        onConfirm(cropped)
+                                    } catch (e: Throwable) {
+                                        AppLogger.e("CAMERA", "Failed to crop manual selection", e)
+                                        onConfirm(bitmap)
+                                    }
+                                } else {
+                                    onConfirm(bitmap)
+                                }
                             }
                         },
                         shape = RoundedCornerShape(12.dp),

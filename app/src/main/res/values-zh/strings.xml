@@ -548,4 +548,6 @@
     <string name="import_options_title">导入选项</string>
     <string name="option_words">单词</string>
     <string name="option_sentences">句子</string>
+    <string name="crop_interaction_area">区域裁剪</string>
+    <string name="crop_interaction_text_select">文字划选</string>
 </resources>
