@@ -31,7 +31,7 @@ import org.junit.Test
 
 class AnalysisTaskManagerTest {
     @Test
-    fun executeStartsNewAnalysisWhenCompletedDuplicateExists() = runBlocking {
+    fun executeReturnsExistingIdWhenCompletedDuplicateExists() = runBlocking {
         val history = FakeHistoryRepository(
             AnalysisDomainRecord(
                 id = 5,
@@ -52,9 +52,8 @@ class AnalysisTaskManagerTest {
             apiKey = "key"
         )
 
-        org.junit.Assert.assertNotEquals(5, id)
-        waitUntil { history.getRecordById(id)?.status == AnalysisStatus.COMPLETED }
-        assertEquals(1, llm.tokenizerCalls)
+        assertEquals(5, id)
+        assertEquals(0, llm.tokenizerCalls)
         assertTrue(manager.progressFlow.value.isEmpty())
     }
 
