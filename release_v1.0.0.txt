@@ -1,0 +1,1 @@
+Initial stable release featuring Japanese grammar analysis using Kuromoji tokenizer and custom LLM prompts.

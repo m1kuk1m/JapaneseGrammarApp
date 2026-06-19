@@ -1,0 +1,13 @@
+Major feature update focusing on UX, animations, bookmarks, and internationalization.
+- Features:
+  - Added real-time LLM streaming response support with typing animations.
+  - Introduced comprehensive Sentence and Word Bookmarking system (with TabRow switcher and flashcard practice).
+  - Added import/export capability for bookmark history.
+  - Multi-language localization (i18n) support implemented across the entire app.
+  - Added landscape camera support and improved cropping UX.
+  - Added custom TTS provider support.
+- Fixes & Optimizations:
+  - Decoupled database schema for better performance.
+  - Fixed loading animations, UI shimmers, and keyboard auto-popup bugs.
+  - Navigation stack and database repository optimizations.
+  - Various UI cleanups and bug fixes.
