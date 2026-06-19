@@ -553,4 +553,6 @@
     <string name="import_options_title">Import Options</string>
     <string name="option_words">Words</string>
     <string name="option_sentences">Sentences</string>
+    <string name="crop_interaction_area">Area Crop</string>
+    <string name="crop_interaction_text_select">Text Select</string>
 </resources>

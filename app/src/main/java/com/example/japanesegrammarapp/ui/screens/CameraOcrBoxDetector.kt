@@ -46,6 +46,114 @@ suspend fun detectCameraOcrBoxes(
     }
 }
 
+suspend fun detectFineGrainedCameraOcrBoxes(
+    bitmap: Bitmap,
+    settings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT,
+    context: Context? = null
+): List<Rect> = suspendCancellableCoroutine { continuation ->
+    val recognizer = TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
+    val image = InputImage.fromBitmap(bitmap, 0)
+
+    recognizer.process(image)
+        .addOnSuccessListener { visionText ->
+            if (continuation.isActive) {
+                val verticalRects = mutableListOf<Rect>()
+                val horizontalRects = mutableListOf<Rect>()
+
+                visionText.textBlocks.forEach { block ->
+                    val blockIsVertical = block.lines.mapNotNull { it.boundingBox }.let { rects ->
+                        if (rects.isEmpty()) false
+                        else {
+                            val verticalCount = rects.count { it.height() > it.width() * 1.2 }
+                            val horizontalCount = rects.count { it.width() > it.height() * 1.2 }
+                            if (verticalCount > horizontalCount) true
+                            else if (horizontalCount > verticalCount) false
+                            else block.boundingBox?.let { it.height() > it.width() } ?: false
+                        }
+                    }
+
+                    block.lines.forEach { line ->
+                        val isVertical = line.boundingBox?.let { rect ->
+                            if (rect.height() > rect.width() * 1.2) true
+                            else if (rect.width() > rect.height() * 1.2) false
+                            else blockIsVertical
+                        } ?: blockIsVertical
+
+                        line.elements.forEach { element ->
+                            element.boundingBox?.let { rect ->
+                                if (isVertical) {
+                                    verticalRects.add(rect)
+                                } else {
+                                    horizontalRects.add(rect)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Group and sort vertical text: right-to-left columns, top-to-bottom within column
+                val verticalColumns = mutableListOf<List<Rect>>()
+                val remainingVertical = verticalRects.sortedByDescending { it.right }.toMutableList()
+
+                while (remainingVertical.isNotEmpty()) {
+                    val current = remainingVertical.removeAt(0)
+                    val column = mutableListOf(current)
+
+                    val i = remainingVertical.iterator()
+                    while (i.hasNext()) {
+                        val next = i.next()
+                        val overlap = maxOf(0, minOf(current.right, next.right) - maxOf(current.left, next.left))
+                        val minWidth = minOf(current.width(), next.width())
+                        if (minWidth > 0 && overlap > minWidth / 2) {
+                            column.add(next)
+                            i.remove()
+                        }
+                    }
+                    verticalColumns.add(column.sortedBy { it.top })
+                }
+
+                val sortedVertical = verticalColumns.flatten()
+
+                // Group and sort horizontal text: top-to-bottom rows, left-to-right within row
+                val horizontalRows = mutableListOf<List<Rect>>()
+                val remainingHorizontal = horizontalRects.sortedBy { it.top }.toMutableList()
+
+                while (remainingHorizontal.isNotEmpty()) {
+                    val current = remainingHorizontal.removeAt(0)
+                    val row = mutableListOf(current)
+
+                    val i = remainingHorizontal.iterator()
+                    while (i.hasNext()) {
+                        val next = i.next()
+                        val overlap = maxOf(0, minOf(current.bottom, next.bottom) - maxOf(current.top, next.top))
+                        val minHeight = minOf(current.height(), next.height())
+                        if (minHeight > 0 && overlap > minHeight / 2) {
+                            row.add(next)
+                            i.remove()
+                        }
+                    }
+                    horizontalRows.add(row.sortedBy { it.left })
+                }
+
+                val sortedHorizontal = horizontalRows.flatten()
+
+                continuation.resume(sortedVertical + sortedHorizontal)
+            }
+        }
+        .addOnFailureListener { error ->
+            if (continuation.isActive) {
+                continuation.resumeWithException(error)
+            }
+        }
+        .addOnCompleteListener {
+            recognizer.close()
+        }
+
+    continuation.invokeOnCancellation {
+        recognizer.close()
+    }
+}
+
 private suspend fun detectHybridCameraOcrBoxes(
     context: Context,
     bitmap: Bitmap,

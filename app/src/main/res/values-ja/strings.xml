@@ -548,4 +548,6 @@
     <string name="import_options_title">インポートオプション</string>
     <string name="option_words">単語</string>
     <string name="option_sentences">文章</string>
+    <string name="crop_interaction_area">エリア切り抜き</string>
+    <string name="crop_interaction_text_select">テキスト選択</string>
 </resources>
