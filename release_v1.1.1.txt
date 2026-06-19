@@ -1,0 +1,8 @@
+Minor update focusing on OCR capabilities and gesture controls.
+- Features:
+  - Added floating action ball for quick text selection.
+  - Implemented smart OCR bounding box clustering with generous padding.
+  - Added invisible edge swipe interceptor for better Drawer gesture handling.
+- Fixes:
+  - Refactored layout to wrap Pager with Drawer to fix native gesture conflicts.
+  - Resolved OCR over-merging issues.

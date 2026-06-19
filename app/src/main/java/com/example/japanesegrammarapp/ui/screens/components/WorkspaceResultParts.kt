@@ -16,6 +16,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.SizeTransform
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -180,9 +181,16 @@ fun SegmentChip(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                val isPunctuation = segment.partOfSpeech?.contains("記号") == true || segment.posCategory == "symbol" || segment.text?.matches(Regex("^[\\p{Punct}、。！？「」『』（）]+$")) == true
+                val displayReading = if (isPunctuation) "" else (segment.reading ?: "")
+
                 AnimatedContent(
-                    targetState = segment.reading ?: "",
-                    transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(150)) },
+                    targetState = displayReading,
+                    transitionSpec = { 
+                        (fadeIn(tween(150)) togetherWith fadeOut(tween(150))).using(
+                            SizeTransform(clip = false)
+                        )
+                    },
                     label = "readingReveal"
                 ) { targetReading ->
                     Text(

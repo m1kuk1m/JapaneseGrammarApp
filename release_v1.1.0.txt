@@ -1,0 +1,10 @@
+Significant UI/UX redesign and core analysis engine overhaul.
+- Features:
+  - Complete redesign of the homepage, cards, and theme color decoupling for a minimalist zen aesthetic.
+  - Split monolithic LLM prompts into 4 specialized parallel API calls for faster and more accurate analysis.
+  - Auto-fetch supported models from API providers in Settings.
+  - Added camera aspect ratio matching and pinch-to-zoom in the crop selection box.
+  - Refactored Part-of-Speech (POS) coloring to use strictly typed enums.
+- Optimizations:
+  - Decoupled TTS settings from the Main Thread to fix scrolling stutter.
+  - Implemented safe image downsampling to prevent Out-Of-Memory crashes.

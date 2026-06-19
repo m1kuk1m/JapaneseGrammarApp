@@ -1,0 +1,3 @@
+Fix token card layout animation and missing punctuation display.
+Fix missing star icon for bookmarked words.
+Improve background analysis task handling.

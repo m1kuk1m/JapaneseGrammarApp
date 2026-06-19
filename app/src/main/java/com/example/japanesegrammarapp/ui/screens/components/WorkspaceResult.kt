@@ -202,7 +202,8 @@ fun WorkspaceResultContent(
                                                     segment = segment,
                                                     isSelected = index == selectedSegmentIndex,
                                                     isLoading = isThisSegmentLoading,
-                                                    isBookmarked = uiState.bookmarkedSegmentTexts.contains(segment.dictionaryQueryWord()),
+                                                    isBookmarked = uiState.bookmarkedSegmentTexts.contains(segment.text) || 
+                                                            uiState.bookmarkedSegmentTexts.contains(segment.dictionaryForm ?: ""),
                                                     onClick = {
                                                         if (!isThisSegmentLoading) {
                                                             selectedSegmentIndex = if (selectedSegmentIndex == index) -1 else index

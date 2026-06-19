@@ -78,6 +78,8 @@ class DefaultAnalysisTaskManager @Inject constructor(
                     // Zombie PENDING or FAILED record: restart background analysis
                     executeRetry(duplicate.id, text, duplicate.imageUri)
                     return duplicate.id
+                } else if (duplicate.status == AnalysisStatus.COMPLETED) {
+                    return duplicate.id
                 }
             }
         }
