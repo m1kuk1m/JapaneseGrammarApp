@@ -7,6 +7,7 @@ import com.example.japanesegrammarapp.domain.ApplicationScope
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
+import com.example.japanesegrammarapp.domain.model.PromptPreset
 import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.example.japanesegrammarapp.network.PromptManager
@@ -649,50 +650,153 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     // Prompt Customization Cache and Implementation
-    private val cachedPrompts = java.util.concurrent.ConcurrentHashMap<String, String>()
+    @Volatile private var cachedActivePromptPresetId: String? = null
+    private val cachedPromptPresets = mutableListOf<PromptPreset>()
+
+    private fun loadPresetsIfEmpty() {
+        if (cachedPromptPresets.isEmpty()) {
+            synchronized(this) {
+                if (cachedPromptPresets.isEmpty()) {
+                    val json = settingPrefs.getString("prompt_presets_json", null)
+                    if (json != null) {
+                        try {
+                            val loaded = gson.fromJson(json, Array<PromptPreset>::class.java).toList()
+                            cachedPromptPresets.addAll(loaded)
+                        } catch (e: Exception) {
+                            AppLogger.e("SETTINGS", "Failed to parse prompt presets", e)
+                        }
+                    }
+
+                    // Migration logic
+                    if (cachedPromptPresets.isEmpty()) {
+                        val legacyPrompts = mutableMapOf<String, String>()
+                        val promptKeys = listOf(
+                            "prompt_translation", "prompt_segments", "prompt_clauses",
+                            "prompt_grammar", "prompt_tokenizer", "prompt_tokenizer_ocr",
+                            "prompt_tokenizer_image", "prompt_tokenizer_image_repair"
+                        )
+                        var hasLegacy = false
+                        for (key in promptKeys) {
+                            if (settingPrefs.contains(key)) {
+                                legacyPrompts[key] = settingPrefs.getString(key, "") ?: ""
+                                hasLegacy = true
+                            }
+                        }
+                        
+                        val defaultPreset = PromptPreset(
+                            id = PromptPreset.DEFAULT_PRESET_ID,
+                            name = "Default",
+                            prompts = legacyPrompts
+                        )
+                        cachedPromptPresets.add(defaultPreset)
+                        settingPrefs.edit().putString("prompt_presets_json", gson.toJson(cachedPromptPresets)).apply()
+                        
+                        // Clean up legacy keys
+                        if (hasLegacy) {
+                            val editor = settingPrefs.edit()
+                            for (key in promptKeys) {
+                                editor.remove(key)
+                            }
+                            editor.apply()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    override fun getPromptPresets(): List<PromptPreset> {
+        loadPresetsIfEmpty()
+        return cachedPromptPresets.toList()
+    }
+
+    override fun getActivePromptPresetId(): String {
+        return cachedActivePromptPresetId ?: synchronized(this) {
+            val cached = cachedActivePromptPresetId
+            if (cached != null) cached else {
+                val value = settingPrefs.getString("active_prompt_preset_id", PromptPreset.DEFAULT_PRESET_ID) ?: PromptPreset.DEFAULT_PRESET_ID
+                cachedActivePromptPresetId = value
+                value
+            }
+        }
+    }
+
+    override fun setActivePromptPresetId(id: String) {
+        cachedActivePromptPresetId = id
+        settingPrefs.edit().putString("active_prompt_preset_id", id).apply()
+    }
+
+    override fun savePromptPreset(preset: PromptPreset) {
+        loadPresetsIfEmpty()
+        synchronized(this) {
+            val index = cachedPromptPresets.indexOfFirst { it.id == preset.id }
+            if (index != -1) {
+                cachedPromptPresets[index] = preset
+            } else {
+                cachedPromptPresets.add(preset)
+            }
+            settingPrefs.edit().putString("prompt_presets_json", gson.toJson(cachedPromptPresets)).apply()
+        }
+    }
+
+    override fun deletePromptPreset(id: String) {
+        if (id == PromptPreset.DEFAULT_PRESET_ID) return // Cannot delete default preset
+        loadPresetsIfEmpty()
+        synchronized(this) {
+            cachedPromptPresets.removeAll { it.id == id }
+            settingPrefs.edit().putString("prompt_presets_json", gson.toJson(cachedPromptPresets)).apply()
+            
+            if (getActivePromptPresetId() == id) {
+                setActivePromptPresetId(PromptPreset.DEFAULT_PRESET_ID)
+            }
+        }
+    }
+
+    private fun getActivePreset(): PromptPreset {
+        loadPresetsIfEmpty()
+        val activeId = getActivePromptPresetId()
+        return cachedPromptPresets.find { it.id == activeId } 
+            ?: cachedPromptPresets.find { it.id == PromptPreset.DEFAULT_PRESET_ID }
+            ?: PromptPreset(PromptPreset.DEFAULT_PRESET_ID, "Default")
+    }
 
     override fun getCustomPrompt(promptKey: String): String {
-        var cached = cachedPrompts[promptKey]
-        if (cached == null) {
-            val defaultVal = when (promptKey) {
-                "prompt_translation" -> PromptManager.SYSTEM_PROMPT_TRANSLATION
-                "prompt_segments" -> PromptManager.SYSTEM_PROMPT_SEGMENTS
-                "prompt_clauses" -> PromptManager.SYSTEM_PROMPT_CLAUSES
-                "prompt_grammar" -> PromptManager.SYSTEM_PROMPT_GRAMMAR
-                "prompt_tokenizer" -> PromptManager.SYSTEM_PROMPT_TOKENIZER
-                "prompt_tokenizer_ocr" -> PromptManager.SYSTEM_PROMPT_TOKENIZER_OCR
-                "prompt_tokenizer_image" -> PromptManager.SYSTEM_PROMPT_TOKENIZER_IMAGE
-                "prompt_tokenizer_image_repair" -> PromptManager.SYSTEM_PROMPT_TOKENIZER_IMAGE_REPAIR
-                else -> ""
-            }
-            cached = settingPrefs.getString(promptKey, defaultVal) ?: defaultVal
-            cachedPrompts[promptKey] = cached
+        val preset = getActivePreset()
+        val customVal = preset.prompts[promptKey]
+        if (customVal != null) {
+            return customVal
         }
-        return cached
+
+        return when (promptKey) {
+            "prompt_translation" -> PromptManager.SYSTEM_PROMPT_TRANSLATION
+            "prompt_segments" -> PromptManager.SYSTEM_PROMPT_SEGMENTS
+            "prompt_clauses" -> PromptManager.SYSTEM_PROMPT_CLAUSES
+            "prompt_grammar" -> PromptManager.SYSTEM_PROMPT_GRAMMAR
+            "prompt_tokenizer" -> PromptManager.SYSTEM_PROMPT_TOKENIZER
+            "prompt_tokenizer_ocr" -> PromptManager.SYSTEM_PROMPT_TOKENIZER_OCR
+            "prompt_tokenizer_image" -> PromptManager.SYSTEM_PROMPT_TOKENIZER_IMAGE
+            "prompt_tokenizer_image_repair" -> PromptManager.SYSTEM_PROMPT_TOKENIZER_IMAGE_REPAIR
+            else -> ""
+        }
     }
 
     override fun saveCustomPrompt(promptKey: String, prompt: String) {
-        cachedPrompts[promptKey] = prompt
-        settingPrefs.edit().putString(promptKey, prompt).apply()
+        val preset = getActivePreset()
+        val newPrompts = preset.prompts.toMutableMap()
+        newPrompts[promptKey] = prompt
+        savePromptPreset(preset.copy(prompts = newPrompts))
     }
 
     override fun resetCustomPrompt(promptKey: String) {
-        cachedPrompts.remove(promptKey)
-        settingPrefs.edit().remove(promptKey).apply()
+        val preset = getActivePreset()
+        val newPrompts = preset.prompts.toMutableMap()
+        newPrompts.remove(promptKey)
+        savePromptPreset(preset.copy(prompts = newPrompts))
     }
 
     override fun resetAllCustomPrompts() {
-        cachedPrompts.clear()
-        settingPrefs.edit().apply {
-            remove("prompt_translation")
-            remove("prompt_segments")
-            remove("prompt_clauses")
-            remove("prompt_grammar")
-            remove("prompt_tokenizer")
-            remove("prompt_tokenizer_ocr")
-            remove("prompt_tokenizer_image")
-            remove("prompt_tokenizer_image_repair")
-        }.apply()
+        val preset = getActivePreset()
+        savePromptPreset(preset.copy(prompts = emptyMap()))
     }
 
     private fun endpointPoolKey(provider: String): String = "llm_${provider}_endpoints_json"

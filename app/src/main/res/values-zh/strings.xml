@@ -65,7 +65,7 @@
     <string name="local_ocr">本地 OCR 提取文本</string>
     <string name="local_ocr_desc">关闭时，图片将直接发送给 AI 进行分析。</string>
     <string name="auto_navigate_result">自动跳转分析结果</string>
-    <string name="auto_navigate_result_desc">使用悬浮球上传或拍照后自动跳转。关闭时将在后台分析，可稍后在历史记录查看。</string>
+    <string name="auto_navigate_result_desc">开启后，拍照或使用悬浮球将自动跳转至结果页。关闭时则在后台静默分析。</string>
     <string name="token_usage">API Token 消耗量</string>
     <string name="token_usage_desc">所有分析消耗的 Token 总计</string>
     <string name="input_tokens">输入 Token</string>
@@ -201,7 +201,7 @@
     <string name="camera_permission_required_desc">请授予相机权限以拍摄日语进行语法分析。</string>
     <string name="camera_request_permission_btn">请求授权</string>
     <string name="camera_permission_denied_permanently_title">相机权限已被禁用</string>
-    <string name="camera_permission_denied_permanently_desc">已永久拒绝相机权限。请前往系统设置启用相机权限，以便使用拍摄分析功能。</string>
+    <string name="camera_permission_denied_permanently_desc">相机权限已被永久拒绝。请前往系统设置开启权限，以使用拍照分析功能。</string>
     <string name="camera_go_to_settings_btn">前往设置</string>
     <string name="camera_back_desc">返回</string>
     <string name="camera_flash_on_desc">闪光灯常亮</string>
@@ -216,29 +216,29 @@
     <string name="camera_crop_title">选择文字范围</string>
     <string name="camera_crop_hint">拖动角进行调整</string>
     <string name="camera_cancel_desc">取消</string>
-    <string name="camera_recapture_btn">重新拍摄/返回</string>
+    <string name="camera_recapture_btn">重拍</string>
     <string name="camera_confirm_desc">确定</string>
-    <string name="camera_confirm_btn">范围决定</string>
+    <string name="camera_confirm_btn">确定</string>
     <string name="input_dialog_title">文字输入</string>
     <string name="input_dialog_placeholder">输入要分析的日语文本...</string>
     <string name="start_analysis_btn">开始分析</string>
     <string name="floating_camera_permission_title">需要相机权限</string>
-    <string name="floating_camera_permission_desc">请先在应用相机页授予权限，然后即可在这里使用悬浮相机。</string>
+    <string name="floating_camera_permission_desc">请先在应用内授予相机权限，以便使用悬浮拍摄功能。</string>
     <string name="floating_camera_capturing">拍摄中...</string>
     <string name="floating_camera_unavailable">相机尚未准备好。</string>
     <string name="floating_camera_capture_failed">拍照失败。</string>
-    <string name="ocr_overlay_empty">未检测到日语文字区域。请尝试更清晰的画面，或使用拍照/图片分析。</string>
+    <string name="ocr_overlay_empty">未检测到日语文本。请尝试更清晰的画面，或改用拍照/图片分析。</string>
     <string name="ocr_overlay_processing">正在准备选中区域...</string>
     <string name="image_tokenizer_mode_title">图片分词识别模式</string>
     <string name="image_tokenizer_mode_faithful">清晰图片忠实原文</string>
-    <string name="image_tokenizer_mode_faithful_desc">不修正、不脑补，严格保持图片里看到的文字。</string>
+    <string name="image_tokenizer_mode_faithful_desc">不作任何智能修正，严格保留图片中的原始文字。</string>
     <string name="image_tokenizer_mode_repair">模糊图片智能修复</string>
     <string name="image_tokenizer_mode_repair_desc">图片模糊时允许按语境修复明显不合理的浊点/文字。</string>
     <string name="view_api_debug_logs">查看 API 调试返回</string>
     <string name="api_debug_logs_title">API 调试返回</string>
     <string name="api_debug_filter_all">全部</string>
     <string name="clear_api_debug_logs">清除 API 调试记录</string>
-    <string name="api_debug_empty">暂无记录。运行一次分析后，这里会显示各职责 API 的请求摘要、原始返回和错误详情。</string>
+    <string name="api_debug_empty">暂无记录。完成一次分析后，此处将展示 API 请求摘要、原始返回与错误详情。</string>
     <string name="api_debug_no_filter_results">没有符合当前搜索或筛选条件的 API 日志。</string>
     <string name="api_debug_meta">image=%1$s, tokens=%2$d (in=%3$d, out=%4$d)</string>
     <string name="api_debug_user_prompt">用户提示词</string>
@@ -483,7 +483,7 @@
     <string name="prompt_reset_success">提示词已恢复默认</string>
     <string name="prompt_reset_all_success">所有提示词已恢复默认</string>
     <string name="prompt_reset_confirm">确定要将该提示词恢复为默认设置吗？</string>
-    <string name="prompt_reset_all_confirm">确定要恢复所有提示词为默认设置吗？这将清除您所有的自定义修改且无法撤销。</string>
+    <string name="prompt_reset_all_confirm">确定要将所有提示词恢复为默认设置吗？此操作将清除所有自定义修改且无法撤销。</string>
     <string name="save_prompt">保存提示词</string>
     <string name="reset_prompt">恢复默认</string>
     <string name="reset_all_prompts">恢复全部默认</string>
@@ -496,6 +496,18 @@
     <string name="prompt_type_tokenizer_ocr">OCR文字纠错分词</string>
     <string name="prompt_type_tokenizer_image">图片分词识别</string>
     <string name="prompt_type_tokenizer_image_repair">模糊图片智能修复分词</string>
+
+    <string name="prompt_presets">提示词预设</string>
+    <string name="preset_name">预设名称</string>
+    <string name="new_preset">新建预设</string>
+    <string name="rename_preset">重命名预设</string>
+    <string name="delete_preset">删除</string>
+    <string name="delete_preset_confirm">确定要删除此预设吗？</string>
+    <string name="delete_preset_error_default">无法删除默认预设。</string>
+    <string name="preset_default">默认</string>
+    <string name="copy_from_current">复制当前预设的内容</string>
+    <string name="create">创建</string>
+    <string name="rename">重命名</string>
 
     <string name="add">添加</string>
     <string name="step_segments">分词解析</string>

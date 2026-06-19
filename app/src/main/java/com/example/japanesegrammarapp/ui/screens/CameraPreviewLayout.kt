@@ -3,6 +3,8 @@ package com.example.japanesegrammarapp.ui.screens
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.Preview
+import androidx.camera.core.UseCaseGroup
+import androidx.camera.core.ViewPort
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.LinearEasing
@@ -114,22 +116,40 @@ fun CameraPreviewLayout(
                 val previewView = PreviewView(ctx).apply {
                     scaleType = PreviewView.ScaleType.FILL_CENTER
                 }
-                val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                cameraProviderFuture.addListener({
-                    val cameraProvider = cameraProviderFuture.get()
-                    try {
-                        cameraProvider.unbindAll()
-                        cameraProvider.bindToLifecycle(
-                            lifecycleOwner,
-                            cameraSelector,
-                            preview,
-                            imageCapture
-                        )
-                        preview.setSurfaceProvider(previewView.surfaceProvider)
-                    } catch (e: Exception) {
-                        AppLogger.e("CAMERA", "Use case binding failed", e)
-                    }
-                }, ContextCompat.getMainExecutor(ctx))
+                previewView.post {
+                    val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                    cameraProviderFuture.addListener({
+                        val cameraProvider = cameraProviderFuture.get()
+                        try {
+                            cameraProvider.unbindAll()
+                            
+                            val viewPort = previewView.viewPort
+                            if (viewPort != null) {
+                                val useCaseGroup = UseCaseGroup.Builder()
+                                    .addUseCase(preview)
+                                    .addUseCase(imageCapture)
+                                    .setViewPort(viewPort)
+                                    .build()
+                                cameraProvider.bindToLifecycle(
+                                    lifecycleOwner,
+                                    cameraSelector,
+                                    useCaseGroup
+                                )
+                            } else {
+                                cameraProvider.bindToLifecycle(
+                                    lifecycleOwner,
+                                    cameraSelector,
+                                    preview,
+                                    imageCapture
+                                )
+                            }
+                            
+                            preview.setSurfaceProvider(previewView.surfaceProvider)
+                        } catch (e: Exception) {
+                            AppLogger.e("CAMERA", "Use case binding failed", e)
+                        }
+                    }, ContextCompat.getMainExecutor(ctx))
+                }
                 previewView
             },
             modifier = Modifier.fillMaxSize()

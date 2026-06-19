@@ -358,7 +358,8 @@ fun ApiLogsDialog(
                                     val copyTarget = if (selectedDate != null || searchQuery.isNotBlank() || filterStatus != "ALL") {
                                         filteredApiLogs
                                     } else {
-                                        filteredApiLogs.filter { it.id >= AppLogger.sessionStartTimeMs }
+                                        val startTime = if (AppLogger.previousSessionStartTimeMs > 0) AppLogger.previousSessionStartTimeMs else AppLogger.sessionStartTimeMs
+                                        filteredApiLogs.filter { it.id >= startTime }
                                     }
                                     onCopyLogs(copyTarget)
                                 },
