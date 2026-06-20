@@ -380,3 +380,50 @@ private fun getBookmarkPosDisplayName(category: String): String {
     val resId = bookmarkPosNameKeys[category] ?: R.string.pos_other
     return stringResource(resId)
 }
+
+@Composable
+fun ConflictResolutionDialog(
+    onDismiss: () -> Unit,
+    onSkip: () -> Unit,
+    onOverwrite: () -> Unit
+) {
+    val sumiInk = MaterialTheme.colorScheme.onBackground
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.conflict_resolution_title),
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = sumiInk
+            )
+        },
+        text = {
+            Text(
+                text = stringResource(R.string.conflict_resolution_msg),
+                fontSize = 15.sp,
+                color = sumiInk.copy(alpha = 0.8f)
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onOverwrite) {
+                Text(
+                    text = stringResource(R.string.conflict_strategy_overwrite),
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onSkip) {
+                Text(
+                    text = stringResource(R.string.conflict_strategy_skip),
+                    color = sumiInk
+                )
+            }
+        },
+        containerColor = surfaceColor,
+        tonalElevation = 6.dp
+    )
+}

@@ -561,6 +561,22 @@
     <string name="import_options_title">インポートオプション</string>
     <string name="option_words">単語</string>
     <string name="option_sentences">文章</string>
+    <string name="option_grammar">文法ポイント</string>
+    <string name="conflict_resolution_title">競合の解決</string>
+    <string name="conflict_resolution_msg">インポートされたファイルに重複するブックマークが検出されました。どのように処理しますか？</string>
+    <string name="conflict_strategy_skip">既存をスキップ</string>
+    <string name="conflict_strategy_overwrite">既存を上書き</string>
     <string name="crop_interaction_area">エリア切り抜き</string>
     <string name="crop_interaction_text_select">テキスト選択</string>
+    <string name="export_format_title">フォーマット</string>
+    <string name="format_json">JSON (バックアップ/復元)</string>
+    <string name="format_csv">CSV (スプレッドシート)</string>
+    <string name="format_anki_tsv">TSV (Ankiインポート)</string>
+    
+    <string name="import_summary_title">インポートの概要</string>
+    <string name="import_summary_success">インポート成功: %1$d</string>
+    <string name="import_summary_skipped">スキップ (重複または空): %1$d</string>
+    <string name="import_summary_failed">失敗: %1$d</string>
+    <string name="import_summary_failure_reasons">失敗の理由:</string>
+    <string name="ok">OK</string>
 </resources>

@@ -5,6 +5,9 @@ import com.example.japanesegrammarapp.domain.model.BookmarkedGrammarPointDomain
 import com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain
 import com.example.japanesegrammarapp.domain.model.BookmarkedSentenceDomain
 import com.example.japanesegrammarapp.domain.model.WordSegment
+import com.example.japanesegrammarapp.domain.model.ConflictStrategy
+import com.example.japanesegrammarapp.domain.model.ExportFormat
+import com.example.japanesegrammarapp.domain.model.ImportResult
 import kotlinx.coroutines.flow.Flow
 
 interface BookmarkRepository {
@@ -28,15 +31,27 @@ interface BookmarkRepository {
 
     suspend fun removeBookmarkById(id: Int)
 
-    /** Serialize bookmarks to a JSON string for export */
-    suspend fun exportToJson(includeWords: Boolean, includeSentences: Boolean): String
+    /** Serialize bookmarks to a string for export */
+    suspend fun exportData(format: ExportFormat, includeWords: Boolean, includeSentences: Boolean, includeGrammarPoints: Boolean): String
 
     /**
-     * Import bookmarks from a JSON string (produced by [exportToJson]).
-     * Duplicates are silently skipped.
-     * @return number of newly inserted bookmarks
+     * Pre-flight check before importing.
+     * @return true if there are duplicate bookmarks in the database, false otherwise.
      */
-    suspend fun importFromJson(json: String, includeWords: Boolean, includeSentences: Boolean): Int
+    suspend fun checkConflicts(data: String, format: ExportFormat, includeWords: Boolean, includeSentences: Boolean, includeGrammarPoints: Boolean): Boolean
+
+    /**
+     * Import bookmarks from a string.
+     * @return ImportResult containing counts and failure reasons
+     */
+    suspend fun importData(
+        data: String,
+        format: ExportFormat,
+        includeWords: Boolean,
+        includeSentences: Boolean,
+        includeGrammarPoints: Boolean,
+        conflictStrategy: ConflictStrategy = ConflictStrategy.SKIP
+    ): ImportResult
 
     suspend fun updateArchivedStatus(id: Int, isArchived: Boolean)
 

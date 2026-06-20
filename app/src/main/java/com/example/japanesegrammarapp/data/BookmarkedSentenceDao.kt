@@ -28,6 +28,9 @@ interface BookmarkedSentenceDao {
     @Query("SELECT EXISTS(SELECT 1 FROM bookmarked_sentences WHERE originalText = :originalText)")
     fun existsByOriginalText(originalText: String): Flow<Boolean>
 
+    @Query("SELECT EXISTS(SELECT 1 FROM bookmarked_sentences WHERE originalText = :originalText)")
+    suspend fun existsByOriginalTextDirect(originalText: String): Boolean
+
     @Query("DELETE FROM bookmarked_sentences WHERE recordId = :recordId")
     suspend fun deleteByRecordId(recordId: Int)
 

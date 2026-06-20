@@ -21,15 +21,19 @@ import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
 import com.example.japanesegrammarapp.ui.theme.ZenColors.WashiBg
 
+import com.example.japanesegrammarapp.domain.model.ExportFormat
+
 @Composable
 fun BookmarkSelectionDialog(
     titleResId: Int,
     confirmResId: Int,
     onDismiss: () -> Unit,
-    onConfirm: (includeWords: Boolean, includeSentences: Boolean) -> Unit
+    onConfirm: (includeWords: Boolean, includeSentences: Boolean, includeGrammarPoints: Boolean, format: ExportFormat) -> Unit
 ) {
     var includeWords by remember { mutableStateOf(true) }
     var includeSentences by remember { mutableStateOf(true) }
+    var includeGrammarPoints by remember { mutableStateOf(true) }
+    var selectedFormat by remember { mutableStateOf(ExportFormat.JSON) }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -121,6 +125,76 @@ fun BookmarkSelectionDialog(
                     )
                 }
 
+                // Grammar Points Option
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { includeGrammarPoints = !includeGrammarPoints }
+                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = includeGrammarPoints,
+                        onCheckedChange = null,
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = SumiInk,
+                            uncheckedColor = SumiInk.copy(alpha = 0.5f),
+                            checkmarkColor = WashiBg
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.option_grammar),
+                        fontSize = 15.sp,
+                        color = SumiInk
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = SumiInk.copy(alpha = 0.08f))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = stringResource(R.string.export_format_title),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = SumiInk.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(horizontal = 4.dp).padding(bottom = 8.dp)
+                )
+
+                val formats = listOf(
+                    ExportFormat.JSON to R.string.format_json,
+                    ExportFormat.CSV to R.string.format_csv,
+                    ExportFormat.ANKI_TSV to R.string.format_anki_tsv
+                )
+
+                formats.forEach { (format, labelResId) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { selectedFormat = format }
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedFormat == format,
+                            onClick = null,
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = SumiInk,
+                                unselectedColor = SumiInk.copy(alpha = 0.5f)
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(id = labelResId),
+                            fontSize = 15.sp,
+                            color = SumiInk
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Actions Panel
@@ -138,11 +212,11 @@ fun BookmarkSelectionDialog(
 
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    val canConfirm = includeWords || includeSentences
+                    val canConfirm = includeWords || includeSentences || includeGrammarPoints
 
                     Button(
                         onClick = {
-                            onConfirm(includeWords, includeSentences)
+                            onConfirm(includeWords, includeSentences, includeGrammarPoints, selectedFormat)
                         },
                         enabled = canConfirm,
                         shape = RoundedCornerShape(8.dp),

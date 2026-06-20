@@ -13,6 +13,9 @@ interface BookmarkedGrammarPointDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(point: BookmarkedGrammarPoint): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertReplace(point: BookmarkedGrammarPoint): Long
+
     @Query("SELECT * FROM bookmarked_grammar_points ORDER BY bookmarkedAt DESC")
     fun getAll(): Flow<List<BookmarkedGrammarPoint>>
 

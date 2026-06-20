@@ -13,6 +13,9 @@ interface BookmarkDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(bookmark: BookmarkedSegment): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertReplace(bookmark: BookmarkedSegment): Long
+
     @Query("SELECT * FROM bookmarked_segments ORDER BY bookmarkedAt DESC")
     fun getAll(): Flow<List<BookmarkedSegment>>
 
@@ -55,6 +58,9 @@ interface BookmarkDao {
 
     @Query("UPDATE bookmarked_segments SET isArchived = :isArchived WHERE id = :id")
     suspend fun updateArchivedStatus(id: Int, isArchived: Boolean)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM bookmarked_segments WHERE recordId = :recordId AND (surfaceForm = :surfaceForm OR (surfaceForm IS NULL AND segmentText = :surfaceForm)) AND (dictionaryForm = :dictionaryForm OR (dictionaryForm IS NULL AND segmentText = :dictionaryForm)))")
+    suspend fun existsForImport(recordId: Int, surfaceForm: String, dictionaryForm: String): Boolean
 
     @Query("UPDATE bookmarked_segments SET isArchived = 1 WHERE id IN (:ids)")
     suspend fun archiveMultiple(ids: List<Int>)
