@@ -342,6 +342,8 @@
     <string name="bookmarks_empty_hint">在分析页面长按分词卡片即可收藏</string>
     <string name="tab_words">单词</string>
     <string name="tab_sentences">句子</string>
+    <string name="tab_grammar">文法</string>
+    <string name="grammar_point">文法点</string>
     <string name="bookmarks_empty_sentences_title">暂无收藏的句子</string>
     <string name="bookmarks_empty_sentences_hint">在侧边栏长按历史记录或在分析页面点击星标即可收藏句子</string>
     <string name="delete_analysis_confirm_title">删除分析记录</string>

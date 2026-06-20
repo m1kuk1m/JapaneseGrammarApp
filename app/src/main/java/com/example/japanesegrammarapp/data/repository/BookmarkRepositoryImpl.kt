@@ -4,9 +4,11 @@ import com.example.japanesegrammarapp.data.BookmarkDao
 import com.example.japanesegrammarapp.data.BookmarkedSegment
 import com.example.japanesegrammarapp.data.BookmarkedSentence
 import com.example.japanesegrammarapp.data.BookmarkedSentenceDao
+import com.example.japanesegrammarapp.data.BookmarkedGrammarPointDao
 import com.example.japanesegrammarapp.data.mapper.toDomain
 import com.example.japanesegrammarapp.data.mapper.toEntity
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
+import com.example.japanesegrammarapp.domain.model.BookmarkedGrammarPointDomain
 import com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain
 import com.example.japanesegrammarapp.domain.model.BookmarkedSentenceDomain
 import com.example.japanesegrammarapp.domain.model.WordSegment
@@ -27,8 +29,36 @@ import javax.inject.Singleton
 @Singleton
 class BookmarkRepositoryImpl @Inject constructor(
     private val dao: BookmarkDao,
-    private val sentenceDao: BookmarkedSentenceDao
+    private val sentenceDao: BookmarkedSentenceDao,
+    private val grammarPointDao: BookmarkedGrammarPointDao
 ) : BookmarkRepository {
+
+    override fun getAllGrammarPoints(): Flow<List<BookmarkedGrammarPointDomain>> =
+        grammarPointDao.getAll().map { list -> list.map { it.toDomain() } }
+
+    override fun getGrammarPointsForRecord(recordId: Int): Flow<List<BookmarkedGrammarPointDomain>> =
+        grammarPointDao.getGrammarPointsForRecord(recordId).map { list -> list.map { it.toDomain() } }
+
+    override suspend fun toggleGrammarPointBookmark(
+        recordId: Int,
+        pattern: String,
+        explanation: String?,
+        sourceText: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        grammarPointDao.toggleGrammarPointBookmark(recordId, pattern, explanation, sourceText)
+    }
+
+    override suspend fun deleteGrammarPointById(id: Int) = withContext(Dispatchers.IO) {
+        grammarPointDao.deleteById(id)
+    }
+
+    override suspend fun setGrammarPointArchivedStatus(id: Int, isArchived: Boolean) = withContext(Dispatchers.IO) {
+        grammarPointDao.updateArchivedStatus(id, isArchived)
+    }
+
+    override suspend fun archiveMultipleGrammarPoints(ids: List<Int>) = withContext(Dispatchers.IO) {
+        grammarPointDao.archiveMultiple(ids)
+    }
 
     override val allBookmarks: Flow<List<BookmarkedSegmentDomain>> =
         dao.getAll().map { list -> list.map { it.toDomain() } }

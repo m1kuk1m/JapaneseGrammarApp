@@ -98,9 +98,19 @@ class BookmarkViewModel @Inject constructor(
         bookmarkRepository.allBookmarkedSentences
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val grammarPoints: StateFlow<List<BookmarkedGrammarPointDomain>> =
+        bookmarkRepository.getAllGrammarPoints()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun removeSentenceBookmark(id: Int) {
         viewModelScope.launch {
             bookmarkRepository.deleteSentenceBookmark(id)
+        }
+    }
+
+    fun removeGrammarPointBookmark(id: Int) {
+        viewModelScope.launch {
+            bookmarkRepository.deleteGrammarPointById(id)
         }
     }
 

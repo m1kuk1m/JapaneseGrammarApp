@@ -36,4 +36,9 @@ object DatabaseModule {
     fun provideBookmarkedSentenceDao(database: AppDatabase): BookmarkedSentenceDao {
         return database.bookmarkedSentenceDao()
     }
+
+    @Provides
+    fun provideBookmarkedGrammarPointDao(database: AppDatabase): com.example.japanesegrammarapp.data.BookmarkedGrammarPointDao {
+        return database.bookmarkedGrammarPointDao()
+    }
 }

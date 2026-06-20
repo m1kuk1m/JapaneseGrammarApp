@@ -22,5 +22,6 @@ data class WorkspaceUiState(
     val isExternalQuery: Boolean = false,
     /** segmentText values bookmarked for the currently selected record */
     val bookmarkedSegmentTexts: Set<String> = emptySet(),
+    val bookmarkedGrammarPointPatterns: Set<String> = emptySet(),
     val isSentenceBookmarked: Boolean = false
 )

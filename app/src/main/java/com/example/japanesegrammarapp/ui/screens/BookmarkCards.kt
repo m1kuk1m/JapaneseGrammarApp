@@ -198,29 +198,29 @@ fun BookmarkCard(
                 }
             }
 
-            if (isExpanded && !bookmark.meaning.isNullOrBlank()) {
-                Spacer(Modifier.height(8.dp))
-                Surface(
-                    color = ZenColors.KuriAmber.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = bookmark.meaning,
-                        fontSize = 13.sp,
-                        color = sumiInk,
-                        lineHeight = 19.sp,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
-                    )
-                }
-            }
-
             AnimatedVisibility(
                 visible = isExpanded,
                 enter = expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)) + fadeIn(tween(300)),
                 exit = shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)) + fadeOut(tween(200))
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
+                    if (!bookmark.meaning.isNullOrBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Surface(
+                            color = ZenColors.KuriAmber.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = bookmark.meaning,
+                                fontSize = 13.sp,
+                                color = sumiInk,
+                                lineHeight = 19.sp,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
+                            )
+                        }
+                    }
+
                     Spacer(Modifier.height(10.dp))
                     Divider(color = sumiInk.copy(alpha = 0.08f))
                     Spacer(Modifier.height(10.dp))
@@ -485,4 +485,85 @@ private fun DetailRow(label: String, value: String?) {
 
 private fun Long.formatBookmarkDate(): String {
     return SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()).format(Date(this))
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun BookmarkGrammarCard(
+    grammarPoint: com.example.japanesegrammarapp.domain.model.BookmarkedGrammarPointDomain,
+    onNavigateToDetails: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val sumiInk = MaterialTheme.colorScheme.onBackground
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    Surface(
+        color = surfaceColor,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, if (showDeleteConfirm) Color(0xFFD32F2F).copy(alpha = 0.7f) else sumiInk.copy(alpha = 0.08f)),
+        modifier = Modifier.fillMaxWidth().combinedClickable(
+            onClick = onNavigateToDetails,
+            onLongClick = { showDeleteConfirm = true }
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    color = ZenThemeColors.getChipColor("SYMBOL", ZenThemeColors.isDark()),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.grammar_label),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = sumiInk,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                if (!showDeleteConfirm) {
+                    IconButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.unfavorite),
+                            tint = sumiInk.copy(alpha = 0.4f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = grammarPoint.pattern,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = sumiInk
+            )
+            if (!grammarPoint.explanation.isNullOrBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = grammarPoint.explanation,
+                    fontSize = 14.sp,
+                    color = sumiInk.copy(alpha = 0.8f),
+                    lineHeight = 20.sp
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = grammarPoint.bookmarkedAt.formatBookmarkDate(),
+                fontSize = 11.sp,
+                color = sumiInk.copy(alpha = 0.3f)
+            )
+
+            DeleteConfirmationRow(
+                visible = showDeleteConfirm,
+                onCancelDelete = { showDeleteConfirm = false },
+                onConfirmDelete = {
+                    onDelete()
+                    showDeleteConfirm = false
+                }
+            )
+        }
+    }
 }

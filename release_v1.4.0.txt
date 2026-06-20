@@ -1,0 +1,9 @@
+Introduce Grammar Point Bookmarking and smooth transition animations.
+- Features:
+  - Added Grammar Point Bookmarking system (with "Grammar" tab in Bookmarks screen and flashcard practice).
+  - Integrated Grammar Bookmarking toggle (star button) in Workspace sentence analysis cards.
+- Fixes & Animations:
+  - Added smooth fade-in/fade-out transitions for the sentence analysis loading indicators.
+  - Implemented animateContentSize() on sentence result cards to prevent jarring layout jumps.
+  - Added smooth Crossfade transition to the TTS play/stop button.
+  - Upgraded AppDatabase to version 10 with Migration 9->10.
