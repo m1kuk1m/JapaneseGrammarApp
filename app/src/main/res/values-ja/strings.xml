@@ -503,6 +503,8 @@
     <string name="add">追加</string>
     <string name="tab_words">単語</string>
     <string name="tab_sentences">文</string>
+    <string name="tab_grammar">文法</string>
+    <string name="grammar_point">文法ポイント</string>
     <string name="bookmarks_empty_sentences_title">お気に入りの文はまだありません</string>
     <string name="bookmarks_empty_sentences_hint">履歴項目を長押しするか、分析画面で星印をクリックしてお気に入りに追加します</string>
     <string name="delete_analysis_confirm_title">分析履歴の削除</string>

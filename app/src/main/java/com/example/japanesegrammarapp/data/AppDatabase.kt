@@ -5,11 +5,21 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [AnalysisRecord::class, BookmarkedSegment::class, BookmarkedSentence::class], version = 9, exportSchema = true)
+@Database(
+    entities = [
+        AnalysisRecord::class,
+        BookmarkedSegment::class,
+        BookmarkedSentence::class,
+        BookmarkedGrammarPoint::class
+    ],
+    version = 10,
+    exportSchema = true
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun analysisDao(): AnalysisDao
     abstract fun bookmarkDao(): BookmarkDao
     abstract fun bookmarkedSentenceDao(): BookmarkedSentenceDao
+    abstract fun bookmarkedGrammarPointDao(): BookmarkedGrammarPointDao
 
     companion object {
         @Volatile
@@ -166,10 +176,30 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_9_10 = object : androidx.room.migration.Migration(9, 10) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS bookmarked_grammar_points (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        recordId INTEGER NOT NULL,
+                        pattern TEXT NOT NULL,
+                        explanation TEXT,
+                        bookmarkedAt INTEGER NOT NULL,
+                        sourceText TEXT NOT NULL DEFAULT '',
+                        isArchived INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY(recordId) REFERENCES analysis_records(id) ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_bookmarked_grammar_points_recordId_pattern ON bookmarked_grammar_points (recordId, pattern)")
+            }
+        }
+
         val ALL_MIGRATIONS = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
             MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-            MIGRATION_7_8, MIGRATION_8_9
+            MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
         )
 
         fun getDatabase(context: Context): AppDatabase {

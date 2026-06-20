@@ -2,6 +2,7 @@ package com.example.japanesegrammarapp.ui.screens.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
@@ -61,6 +62,7 @@ fun WorkspaceResultContent(
     onPlayTts: () -> Unit = {},
     onStopTts: () -> Unit = {},
     onToggleBookmark: (WordSegment) -> Unit = {},
+    onToggleGrammarBookmark: (pattern: String, explanation: String?, sourceText: String) -> Unit = { _, _, _ -> },
     uiPreferencesRepository: UiPreferencesRepository
 ) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
@@ -139,13 +141,19 @@ fun WorkspaceResultContent(
                             color = SumiInk
                         )
                         Spacer(modifier = Modifier.weight(1f))
-                        if (isPlayingTts) {
-                            IconButton(onClick = onStopTts, modifier = Modifier.size(28.dp)) {
-                                Icon(Icons.Default.Stop, contentDescription = stringResource(R.string.stop_tts), tint = SumiInk.copy(alpha = 0.7f))
-                            }
-                        } else {
-                            IconButton(onClick = onPlayTts, modifier = Modifier.size(28.dp)) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.play_tts), tint = SumiInk.copy(alpha = 0.7f))
+                        Crossfade(
+                            targetState = isPlayingTts,
+                            animationSpec = tween(250),
+                            label = "ttsIcon"
+                        ) { playing ->
+                            if (playing) {
+                                IconButton(onClick = onStopTts, modifier = Modifier.size(28.dp)) {
+                                    Icon(Icons.Default.Stop, contentDescription = stringResource(R.string.stop_tts), tint = SumiInk.copy(alpha = 0.7f))
+                                }
+                            } else {
+                                IconButton(onClick = onPlayTts, modifier = Modifier.size(28.dp)) {
+                                    Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.play_tts), tint = SumiInk.copy(alpha = 0.7f))
+                                }
                             }
                         }
                     }
@@ -160,7 +168,11 @@ fun WorkspaceResultContent(
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                             val isLoadingExplain = isPending && progress?.segmentsCompleted != true && !data.segments.isNullOrEmpty()
                             
-                            if (isLoadingExplain) {
+                            AnimatedVisibility(
+                                visible = isLoadingExplain,
+                                enter = expandVertically() + fadeIn(),
+                                exit = shrinkVertically() + fadeOut()
+                            ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
                                     LinearProgressIndicator(
                                         modifier = Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp)),
@@ -239,7 +251,8 @@ fun WorkspaceResultContent(
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 6.dp),
+                                    .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 6.dp)
+                                    .animateContentSize(),
                                 color = SurfaceColor,
                                 shape = RoundedCornerShape(24.dp),
                                 shadowElevation = 3.dp,
@@ -653,6 +666,23 @@ fun WorkspaceResultContent(
                                                                         fontWeight = FontWeight.Bold,
                                                                         color = SumiInk
                                                                     )
+                                                                    Spacer(modifier = Modifier.weight(1f))
+                                                                    val isGrammarBookmarked = uiState.bookmarkedGrammarPointPatterns.contains(gp.pattern ?: "")
+                                                                    IconButton(
+                                                                        onClick = {
+                                                                            if (gp.pattern != null) {
+                                                                                onToggleGrammarBookmark(gp.pattern, gp.explanation, uiState.selectedRecord?.originalText ?: "")
+                                                                            }
+                                                                        },
+                                                                        modifier = Modifier.size(32.dp)
+                                                                    ) {
+                                                                        Icon(
+                                                                            imageVector = if (isGrammarBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
+                                                                            contentDescription = "Bookmark",
+                                                                            tint = if (isGrammarBookmarked) Color(0xFFD4A017) else SumiInk.copy(alpha = 0.4f),
+                                                                            modifier = Modifier.size(20.dp)
+                                                                        )
+                                                                    }
                                                                 }
                                                                 Spacer(modifier = Modifier.height(6.dp))
                                                                 StreamingText(

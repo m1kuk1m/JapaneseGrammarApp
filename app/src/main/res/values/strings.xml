@@ -348,6 +348,8 @@
     <string name="bookmarks_empty_hint">Long-press a word chip in analysis to add to favorites</string>
     <string name="tab_words">Words</string>
     <string name="tab_sentences">Sentences</string>
+    <string name="tab_grammar">Grammar</string>
+    <string name="grammar_point">Grammar Point</string>
     <string name="bookmarks_empty_sentences_title">No favorited sentences yet</string>
     <string name="bookmarks_empty_sentences_hint">Long-press a history item or click the star button in analysis to favorite</string>
     <string name="delete_analysis_confirm_title">Delete Analysis Record</string>

@@ -1,6 +1,7 @@
 package com.example.japanesegrammarapp.domain.repository
 
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
+import com.example.japanesegrammarapp.domain.model.BookmarkedGrammarPointDomain
 import com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain
 import com.example.japanesegrammarapp.domain.model.BookmarkedSentenceDomain
 import com.example.japanesegrammarapp.domain.model.WordSegment
@@ -48,4 +49,12 @@ interface BookmarkRepository {
     suspend fun deleteSentenceBookmark(id: Int)
     suspend fun deleteSentenceBookmarkByRecordId(recordId: Int)
     suspend fun detachSentenceBookmarkFromRecord(recordId: Int)
+
+    // ── Grammar Point Bookmarks ─────────────────────────────────────────────
+    fun getAllGrammarPoints(): Flow<List<BookmarkedGrammarPointDomain>>
+    fun getGrammarPointsForRecord(recordId: Int): Flow<List<BookmarkedGrammarPointDomain>>
+    suspend fun toggleGrammarPointBookmark(recordId: Int, pattern: String, explanation: String?, sourceText: String): Boolean
+    suspend fun deleteGrammarPointById(id: Int)
+    suspend fun setGrammarPointArchivedStatus(id: Int, isArchived: Boolean)
+    suspend fun archiveMultipleGrammarPoints(ids: List<Int>)
 }

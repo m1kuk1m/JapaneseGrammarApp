@@ -47,6 +47,11 @@ import com.example.japanesegrammarapp.ui.screens.components.ZenLoadingView
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
 import com.example.japanesegrammarapp.ui.theme.ZenColors.WashiBg
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.EaseInOutCubic
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -251,7 +256,11 @@ fun WorkspaceScreen(
             } 
         },
         topBar = {
-            if (uiState.selectedRecord != null) {
+            AnimatedVisibility(
+                visible = uiState.selectedRecord != null,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
                 TopAppBar(
                     title = {
                         Text(
@@ -300,7 +309,7 @@ fun WorkspaceScreen(
                             titleContentColor = PrimaryColor
                         )
                     )
-                }
+            }
             }
         ) { paddingValues ->
             Box(
@@ -607,6 +616,9 @@ fun WorkspaceScreen(
                                                     onStopTts = { viewModel.stopTts() },
                                                     onToggleBookmark = { segment ->
                                                         viewModel.toggleBookmark(segment)
+                                                    },
+                                                    onToggleGrammarBookmark = { pattern, explanation, sourceText ->
+                                                        viewModel.toggleGrammarPointBookmark(pattern, explanation, sourceText)
                                                     },
                                                     uiPreferencesRepository = viewModel.uiPreferencesRepository
                                                 )

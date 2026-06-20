@@ -91,6 +91,35 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migration9To10CreatesGrammarPointsTable() {
+        createDatabase(version = 9, onCreate = { db ->
+            createVersion9Schema(db)
+        }).close()
+
+        val db = openMigratedDatabase()
+        try {
+            val sqlDb = db.openHelper.writableDatabase
+            assertEquals(0L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_grammar_points"))
+            
+            // Insert a test grammar point to verify the schema is correct
+            sqlDb.execSQL("INSERT INTO analysis_records (id, originalText, imageUri, analysisResult, timestamp, modelUsed, status, consumedTokens, inputTokens, outputTokens) " +
+                    "VALUES (1, 'grammar test', NULL, '{}', 1000, 'Gemini: test', 'COMPLETED', 3, 1, 2)")
+            sqlDb.execSQL(
+                "INSERT INTO bookmarked_grammar_points (recordId, pattern, explanation, bookmarkedAt, sourceText, isArchived) " +
+                "VALUES (1, '~te iru', 'Ongoing action', 1000, 'tabete iru', 0)"
+            )
+            assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_grammar_points"))
+            
+            // Test foreign key constraint by deleting the record
+            sqlDb.execSQL("PRAGMA foreign_keys=ON")
+            sqlDb.execSQL("DELETE FROM analysis_records WHERE id = 1")
+            assertEquals(0L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_grammar_points"))
+        } finally {
+            db.close()
+        }
+    }
+
     private fun createDatabase(
         version: Int,
         onCreate: (SupportSQLiteDatabase) -> Unit
@@ -204,6 +233,66 @@ class AppDatabaseMigrationTest {
             """.trimIndent()
         )
         db.execSQL("CREATE INDEX index_bookmarked_sentences_recordId ON bookmarked_sentences (recordId)")
+    }
+
+    private fun createVersion9Schema(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE analysis_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                originalText TEXT NOT NULL,
+                imageUri TEXT,
+                analysisResult TEXT,
+                timestamp INTEGER NOT NULL,
+                modelUsed TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'COMPLETED',
+                errorMessage TEXT,
+                consumedTokens INTEGER NOT NULL DEFAULT 0,
+                inputTokens INTEGER NOT NULL DEFAULT 0,
+                outputTokens INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE bookmarked_segments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                recordId INTEGER NOT NULL,
+                segmentText TEXT NOT NULL,
+                surfaceForm TEXT,
+                reading TEXT,
+                partOfSpeech TEXT,
+                posCategory TEXT,
+                dictionaryForm TEXT,
+                dictionaryFormReading TEXT,
+                meaning TEXT,
+                inflection TEXT,
+                role TEXT,
+                bookmarkedAt INTEGER NOT NULL,
+                sourceText TEXT NOT NULL DEFAULT '',
+                isArchived INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY(recordId) REFERENCES analysis_records(id) ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_bookmarked_segments_recordId_surfaceForm_dictionaryForm " +
+                "ON bookmarked_segments (recordId, surfaceForm, dictionaryForm)"
+        )
+        db.execSQL(
+            """
+            CREATE TABLE bookmarked_sentences (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                recordId INTEGER NOT NULL,
+                originalText TEXT NOT NULL,
+                translation TEXT,
+                analysisResult TEXT,
+                modelUsed TEXT,
+                bookmarkedAt INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_bookmarked_sentences_recordId ON bookmarked_sentences (recordId)")
     }
 
     private fun seedVersion8Data(db: SupportSQLiteDatabase) {

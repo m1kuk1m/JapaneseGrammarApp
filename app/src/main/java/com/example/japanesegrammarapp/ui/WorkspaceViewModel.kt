@@ -199,6 +199,23 @@ class WorkspaceViewModel @Inject constructor(
                 }
         }
 
+        viewModelScope.launch {
+            _uiState
+                .map { it.selectedRecord?.id }
+                .distinctUntilChanged()
+                .flatMapLatest { recordId ->
+                    if (recordId != null) {
+                        bookmarkRepository.getGrammarPointsForRecord(recordId)
+                    } else {
+                        flowOf(emptyList())
+                    }
+                }
+                .collect { points ->
+                    val patterns = points.map { it.pattern }.toSet()
+                    _uiState.update { it.copy(bookmarkedGrammarPointPatterns = patterns) }
+                }
+        }
+
         // Observe whether the sentence itself is bookmarked reactively
         viewModelScope.launch {
             _uiState
@@ -830,6 +847,18 @@ class WorkspaceViewModel @Inject constructor(
                 segment = segment,
                 recordId = record.id,
                 sourceText = record.originalText
+            )
+        }
+    }
+
+    fun toggleGrammarPointBookmark(pattern: String, explanation: String?, sourceText: String) {
+        val record = _uiState.value.selectedRecord ?: return
+        viewModelScope.launch {
+            bookmarkRepository.toggleGrammarPointBookmark(
+                pattern = pattern,
+                explanation = explanation,
+                recordId = record.id,
+                sourceText = sourceText
             )
         }
     }

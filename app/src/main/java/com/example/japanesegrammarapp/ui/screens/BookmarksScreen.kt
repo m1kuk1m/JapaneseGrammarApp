@@ -63,7 +63,8 @@ fun BookmarksScreen(
     val bookmarks by viewModel.filteredBookmarks.collectAsState()
     val allBookmarks by viewModel.allBookmarks.collectAsState()
     val bookmarkedSentences by viewModel.bookmarkedSentences.collectAsState()
-    val pagerState = rememberPagerState(pageCount = { 2 })
+    val grammarPoints by viewModel.grammarPoints.collectAsState()
+    val pagerState = rememberPagerState(pageCount = { 3 })
     val filterMode by viewModel.filterMode.collectAsState()
     val posCategories by viewModel.posCategories.collectAsState()
     val selectedPosCategory by viewModel.selectedPosCategory.collectAsState()
@@ -179,6 +180,22 @@ fun BookmarksScreen(
                                             softWrap = false
                                         )
                                     }
+                                } else if (pagerState.currentPage == 2 && grammarPoints.isNotEmpty()) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.bookmarks_count_all, grammarPoints.size),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
                                 }
                             }
                         },
@@ -220,6 +237,11 @@ fun BookmarksScreen(
                             selected = pagerState.currentPage == 1,
                             onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
                             text = { Text(stringResource(R.string.tab_sentences), fontWeight = FontWeight.Bold) }
+                        )
+                        Tab(
+                            selected = pagerState.currentPage == 2,
+                            onClick = { coroutineScope.launch { pagerState.animateScrollToPage(2) } },
+                            text = { Text(stringResource(R.string.tab_grammar), fontWeight = FontWeight.Bold) }
                         )
                     }
                 }
@@ -350,7 +372,7 @@ fun BookmarksScreen(
                             }
                         }
                     }
-                } else {
+                } else if (page == 1) {
                     if (bookmarkedSentences.isEmpty()) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -398,6 +420,56 @@ fun BookmarksScreen(
                                     },
                                     onDelete = {
                                         viewModel.removeSentenceBookmark(sentence.id)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                } else if (page == 2) {
+                    if (grammarPoints.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = SumiInk.copy(alpha = 0.2f),
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Text(
+                                    text = stringResource(R.string.bookmarks_empty_sentences_title),
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = SumiInk.copy(alpha = 0.4f)
+                                )
+                                Text(
+                                    text = stringResource(R.string.bookmarks_empty_sentences_hint),
+                                    fontSize = 13.sp,
+                                    color = SumiInk.copy(alpha = 0.3f)
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(top = 12.dp, bottom = 96.dp)
+                        ) {
+                            items(grammarPoints, key = { it.id }) { gp ->
+                                BookmarkGrammarCard(
+                                    grammarPoint = gp,
+                                    onNavigateToDetails = {
+                                        onNavigateToRecord(gp.recordId, -1)
+                                    },
+                                    onDelete = {
+                                        viewModel.removeGrammarPointBookmark(gp.id)
                                     }
                                 )
                             }
