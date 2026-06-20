@@ -4,6 +4,7 @@ import com.example.japanesegrammarapp.data.BookmarkDao
 import com.example.japanesegrammarapp.data.BookmarkedSegment
 import com.example.japanesegrammarapp.data.BookmarkedSentence
 import com.example.japanesegrammarapp.data.BookmarkedSentenceDao
+import com.example.japanesegrammarapp.data.BookmarkedGrammarPoint
 import com.example.japanesegrammarapp.data.BookmarkedGrammarPointDao
 import com.example.japanesegrammarapp.data.mapper.toDomain
 import com.example.japanesegrammarapp.data.mapper.toEntity
@@ -12,6 +13,9 @@ import com.example.japanesegrammarapp.domain.model.BookmarkedGrammarPointDomain
 import com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain
 import com.example.japanesegrammarapp.domain.model.BookmarkedSentenceDomain
 import com.example.japanesegrammarapp.domain.model.WordSegment
+import com.example.japanesegrammarapp.domain.model.ConflictStrategy
+import com.example.japanesegrammarapp.domain.model.ImportResult
+import com.example.japanesegrammarapp.domain.model.ExportFormat
 import com.example.japanesegrammarapp.domain.repository.BookmarkRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -93,108 +97,166 @@ class BookmarkRepositoryImpl @Inject constructor(
         dao.deleteById(id)
     }
 
-    override suspend fun exportToJson(includeWords: Boolean, includeSentences: Boolean): String = withContext(Dispatchers.IO) {
-        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault())
-        val root = JSONObject().apply {
-            put("version", 2)
-            put("exported_at", sdf.format(Date()))
-            
-            if (includeWords) {
-                val bookmarks = dao.getAll().first()
-                put("bookmarks", JSONArray().also { arr ->
-                    bookmarks.forEach { b ->
-                        arr.put(JSONObject().apply {
-                            put("id", b.id)
-                            put("recordId", b.recordId)
-                            put("text", b.segmentText)
-                            putOpt("surfaceForm", b.surfaceForm)
-                            putOpt("reading", b.reading)
-                            putOpt("partOfSpeech", b.partOfSpeech)
-                            putOpt("posCategory", b.posCategory)
-                            putOpt("dictionaryForm", b.dictionaryForm)
-                            putOpt("dictionaryFormReading", b.dictionaryFormReading)
-                            putOpt("meaning", b.meaning)
-                            putOpt("inflection", b.inflection)
-                            putOpt("role", b.role)
-                            put("bookmarkedAt", b.bookmarkedAt)
-                            put("sourceText", b.sourceText)
-                            put("isArchived", b.isArchived)
-                        })
-                    }
-                })
-            }
-            
-            if (includeSentences) {
-                val sentences = sentenceDao.getAll().first()
-                put("sentences", JSONArray().also { arr ->
-                    sentences.forEach { s ->
-                        arr.put(JSONObject().apply {
-                            put("id", s.id)
-                            put("recordId", s.recordId)
-                            put("originalText", s.originalText)
-                            putOpt("translation", s.translation)
-                            putOpt("analysisResult", s.analysisResult)
-                            putOpt("modelUsed", s.modelUsed)
-                            put("bookmarkedAt", s.bookmarkedAt)
-                        })
-                    }
-                })
-            }
-        }
-        root.toString(2)
+    override suspend fun exportData(format: ExportFormat, includeWords: Boolean, includeSentences: Boolean, includeGrammarPoints: Boolean): String = withContext(Dispatchers.IO) {
+        val handler = com.example.japanesegrammarapp.data.format.BookmarkFormatHandlerImpl()
+        
+        val words = if (includeWords) dao.getAll().first().map { it.toDomain() } else emptyList()
+        val sentences = if (includeSentences) sentenceDao.getAll().first().map { it.toDomain() } else emptyList()
+        val grammarPoints = if (includeGrammarPoints) grammarPointDao.getAll().first().map { it.toDomain() } else emptyList()
+        
+        handler.exportData(format, words, sentences, grammarPoints)
     }
 
-    override suspend fun importFromJson(json: String, includeWords: Boolean, includeSentences: Boolean): Int = withContext(Dispatchers.IO) {
-        val root = JSONObject(json)
-        var inserted = 0
+    override suspend fun checkConflicts(
+        data: String,
+        format: ExportFormat,
+        includeWords: Boolean,
+        includeSentences: Boolean,
+        includeGrammarPoints: Boolean
+    ): Boolean = withContext(Dispatchers.IO) {
+        val handler = com.example.japanesegrammarapp.data.format.BookmarkFormatHandlerImpl()
+        val parsed = try {
+            handler.importData(data, format)
+        } catch (e: Exception) {
+            return@withContext false
+        }
         
-        if (includeWords && root.has("bookmarks")) {
-            val arr = root.getJSONArray("bookmarks")
-            for (i in 0 until arr.length()) {
-                val obj = arr.getJSONObject(i)
-                val entity = BookmarkedSegment(
-                    recordId = obj.optInt("recordId", -1),
-                    segmentText = obj.optString("text", ""),
-                    surfaceForm = obj.optStringOrNull("surfaceForm"),
-                    reading = obj.optStringOrNull("reading"),
-                    partOfSpeech = obj.optStringOrNull("partOfSpeech"),
-                    posCategory = obj.optStringOrNull("posCategory"),
-                    dictionaryForm = obj.optStringOrNull("dictionaryForm"),
-                    dictionaryFormReading = obj.optStringOrNull("dictionaryFormReading"),
-                    meaning = obj.optStringOrNull("meaning"),
-                    inflection = obj.optStringOrNull("inflection"),
-                    role = obj.optStringOrNull("role"),
-                    bookmarkedAt = obj.optLong("bookmarkedAt", System.currentTimeMillis()),
-                    sourceText = obj.optString("sourceText", ""),
-                    isArchived = obj.optBoolean("isArchived", false)
-                )
-                if (entity.recordId >= 0 && entity.segmentText.isNotBlank()) {
-                    val result = dao.insert(entity)
-                    if (result != -1L) inserted++
+        if (includeWords) {
+            for (w in parsed.words) {
+                if (dao.existsForImport(w.recordId, w.surfaceForm ?: w.segmentText, w.dictionaryForm ?: w.segmentText)) {
+                    return@withContext true
+                }
+            }
+        }
+        if (includeSentences) {
+            for (s in parsed.sentences) {
+                if (sentenceDao.existsByOriginalTextDirect(s.originalText)) {
+                    return@withContext true
+                }
+            }
+        }
+        if (includeGrammarPoints) {
+            for (gp in parsed.grammarPoints) {
+                if (grammarPointDao.existsByPatternDirect(gp.recordId, gp.pattern)) {
+                    return@withContext true
+                }
+            }
+        }
+        return@withContext false
+    }
+
+    override suspend fun importData(
+        data: String,
+        format: ExportFormat,
+        includeWords: Boolean,
+        includeSentences: Boolean,
+        includeGrammarPoints: Boolean,
+        conflictStrategy: com.example.japanesegrammarapp.domain.model.ConflictStrategy
+    ): ImportResult = withContext(Dispatchers.IO) {
+        val handler = com.example.japanesegrammarapp.data.format.BookmarkFormatHandlerImpl()
+        val parsed = handler.importData(data, format)
+        
+        var successCount = 0
+        var skippedCount = 0
+        var failedCount = 0
+        val failureReasons = parsed.failureReasons.toMutableList()
+        
+        if (includeWords) {
+            for (domain in parsed.words) {
+                try {
+                    val entity = BookmarkedSegment(
+                        recordId = domain.recordId,
+                        segmentText = domain.segmentText,
+                        surfaceForm = domain.surfaceForm,
+                        reading = domain.reading,
+                        partOfSpeech = domain.partOfSpeech,
+                        posCategory = domain.posCategory,
+                        dictionaryForm = domain.dictionaryForm,
+                        dictionaryFormReading = domain.dictionaryFormReading,
+                        meaning = domain.meaning,
+                        inflection = domain.inflection,
+                        role = domain.role,
+                        bookmarkedAt = domain.bookmarkedAt,
+                        sourceText = domain.sourceText,
+                        isArchived = domain.isArchived
+                    )
+                    if (entity.segmentText.isNotBlank()) {
+                        val result = if (conflictStrategy == com.example.japanesegrammarapp.domain.model.ConflictStrategy.OVERWRITE) {
+                            dao.insertReplace(entity)
+                        } else {
+                            dao.insert(entity)
+                        }
+                        if (result != -1L) successCount++ else skippedCount++
+                    } else {
+                        skippedCount++
+                    }
+                } catch (e: Exception) {
+                    failedCount++
+                    failureReasons.add("Word import failed: ${e.message}")
                 }
             }
         }
         
-        if (includeSentences && root.has("sentences")) {
-            val arr = root.getJSONArray("sentences")
-            for (i in 0 until arr.length()) {
-                val obj = arr.getJSONObject(i)
-                val entity = BookmarkedSentence(
-                    recordId = obj.optInt("recordId", -1),
-                    originalText = obj.optString("originalText", ""),
-                    translation = obj.optStringOrNull("translation"),
-                    analysisResult = obj.optStringOrNull("analysisResult"),
-                    modelUsed = obj.optStringOrNull("modelUsed"),
-                    bookmarkedAt = obj.optLong("bookmarkedAt", System.currentTimeMillis())
-                )
-                if (entity.originalText.isNotBlank()) {
-                    val result = sentenceDao.insert(entity)
-                    if (result != -1L) inserted++
+        if (includeSentences) {
+            for (domain in parsed.sentences) {
+                try {
+                    val entity = BookmarkedSentence(
+                        recordId = domain.recordId,
+                        originalText = domain.originalText,
+                        translation = domain.translation,
+                        analysisResult = domain.analysisResult,
+                        modelUsed = domain.modelUsed,
+                        bookmarkedAt = domain.bookmarkedAt
+                    )
+                    if (entity.originalText.isNotBlank()) {
+                        if (conflictStrategy == com.example.japanesegrammarapp.domain.model.ConflictStrategy.SKIP) {
+                            val exists = sentenceDao.existsByRecordIdDirect(entity.recordId)
+                            if (exists) {
+                                skippedCount++
+                                continue
+                            }
+                        }
+                        val result = sentenceDao.insert(entity)
+                        if (result != -1L) successCount++ else skippedCount++
+                    } else {
+                        skippedCount++
+                    }
+                } catch (e: Exception) {
+                    failedCount++
+                    failureReasons.add("Sentence import failed: ${e.message}")
                 }
             }
         }
         
-        inserted
+        if (includeGrammarPoints) {
+            for (domain in parsed.grammarPoints) {
+                try {
+                    val entity = BookmarkedGrammarPoint(
+                        recordId = domain.recordId,
+                        pattern = domain.pattern,
+                        explanation = domain.explanation,
+                        bookmarkedAt = domain.bookmarkedAt,
+                        sourceText = domain.sourceText,
+                        isArchived = domain.isArchived
+                    )
+                    if (entity.pattern.isNotBlank()) {
+                        val result = if (conflictStrategy == com.example.japanesegrammarapp.domain.model.ConflictStrategy.OVERWRITE) {
+                            grammarPointDao.insertReplace(entity)
+                        } else {
+                            grammarPointDao.insert(entity)
+                        }
+                        if (result != -1L) successCount++ else skippedCount++
+                    } else {
+                        skippedCount++
+                    }
+                } catch (e: Exception) {
+                    failedCount++
+                    failureReasons.add("Grammar point import failed: ${e.message}")
+                }
+            }
+        }
+        
+        ImportResult(successCount, skippedCount, failedCount, failureReasons)
     }
 
     override suspend fun updateArchivedStatus(id: Int, isArchived: Boolean) = withContext(Dispatchers.IO) {
@@ -236,7 +298,7 @@ class BookmarkRepositoryImpl @Inject constructor(
         try {
             if (!record.analysisResult.isNullOrBlank()) {
                 val obj = JSONObject(record.analysisResult)
-                translation = obj.optString("translation", null) ?: obj.optString("meaning", null)
+                translation = obj.optString("translation").takeIf { it.isNotEmpty() } ?: obj.optString("meaning").takeIf { it.isNotEmpty() }
             }
         } catch (e: Exception) {
             // Ignore parsing errors

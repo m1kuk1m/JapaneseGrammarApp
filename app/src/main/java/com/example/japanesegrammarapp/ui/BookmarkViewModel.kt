@@ -233,23 +233,33 @@ class BookmarkViewModel @Inject constructor(
     }
 
     /**
-     * Export bookmarks as a JSON file and share it via system share sheet.
+     * Export bookmarks to a file and share it via system share sheet.
      */
-    fun exportAndShare(context: Context, includeWords: Boolean, includeSentences: Boolean) {
+    fun exportAndShare(context: Context, format: ExportFormat, includeWords: Boolean, includeSentences: Boolean, includeGrammarPoints: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val json = bookmarkRepository.exportToJson(includeWords, includeSentences)
+                val data = bookmarkRepository.exportData(format, includeWords, includeSentences, includeGrammarPoints)
                 val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
-                val fileName = "bookmarks_${sdf.format(Date())}.json"
+                val extension = when (format) {
+                    ExportFormat.JSON -> "json"
+                    ExportFormat.CSV -> "csv"
+                    ExportFormat.ANKI_TSV -> "tsv"
+                }
+                val mimeType = when (format) {
+                    ExportFormat.JSON -> "application/json"
+                    ExportFormat.CSV -> "text/csv"
+                    ExportFormat.ANKI_TSV -> "text/tab-separated-values"
+                }
+                val fileName = "bookmarks_${sdf.format(Date())}.$extension"
                 val file = File(context.cacheDir, fileName)
-                file.writeText(json, Charsets.UTF_8)
+                file.writeText(data, Charsets.UTF_8)
                 val uri: Uri = FileProvider.getUriForFile(
                     context,
                     "${context.packageName}.fileprovider",
                     file
                 )
                 val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "application/json"
+                    type = mimeType
                     putExtra(Intent.EXTRA_STREAM, uri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
@@ -262,32 +272,63 @@ class BookmarkViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Import bookmarks from a JSON string (e.g. picked from file picker).
-     * @return number of newly imported bookmarks, or -1 on error
-     */
-    suspend fun importFromJson(json: String, includeWords: Boolean, includeSentences: Boolean): Int {
+    suspend fun importData(
+        data: String,
+        format: ExportFormat,
+        includeWords: Boolean,
+        includeSentences: Boolean,
+        includeGrammarPoints: Boolean,
+        conflictStrategy: ConflictStrategy = ConflictStrategy.SKIP
+    ): ImportResult? {
         return withContext(Dispatchers.IO) {
             try {
-                bookmarkRepository.importFromJson(json, includeWords, includeSentences)
+                bookmarkRepository.importData(data, format, includeWords, includeSentences, includeGrammarPoints, conflictStrategy)
             } catch (e: Exception) {
                 com.example.japanesegrammarapp.utils.AppLogger.e("BOOKMARK", "Failed to import bookmarks", e)
-                -1
+                null
             }
         }
     }
 
-    suspend fun importFromUri(uri: Uri, includeWords: Boolean, includeSentences: Boolean): Int {
+    suspend fun checkConflictsFromUri(
+        uri: Uri,
+        format: ExportFormat,
+        includeWords: Boolean,
+        includeSentences: Boolean,
+        includeGrammarPoints: Boolean
+    ): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                val json = application.contentResolver.openInputStream(uri)
+                val data = application.contentResolver.openInputStream(uri)
                     ?.bufferedReader()
                     ?.use { it.readText() }
-                    ?: return@withContext -1
-                bookmarkRepository.importFromJson(json, includeWords, includeSentences)
+                    ?: return@withContext false
+                bookmarkRepository.checkConflicts(data, format, includeWords, includeSentences, includeGrammarPoints)
+            } catch (e: Exception) {
+                com.example.japanesegrammarapp.utils.AppLogger.e("BOOKMARK", "Failed to check conflicts from URI", e)
+                false
+            }
+        }
+    }
+
+    suspend fun importFromUri(
+        uri: Uri,
+        format: ExportFormat,
+        includeWords: Boolean,
+        includeSentences: Boolean,
+        includeGrammarPoints: Boolean,
+        conflictStrategy: ConflictStrategy = ConflictStrategy.SKIP
+    ): ImportResult? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val data = application.contentResolver.openInputStream(uri)
+                    ?.bufferedReader()
+                    ?.use { it.readText() }
+                    ?: return@withContext null
+                bookmarkRepository.importData(data, format, includeWords, includeSentences, includeGrammarPoints, conflictStrategy)
             } catch (e: Exception) {
                 com.example.japanesegrammarapp.utils.AppLogger.e("BOOKMARK", "Failed to import bookmarks from URI", e)
-                -1
+                null
             }
         }
     }

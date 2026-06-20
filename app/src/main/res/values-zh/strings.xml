@@ -562,6 +562,22 @@
     <string name="import_options_title">导入选项</string>
     <string name="option_words">单词</string>
     <string name="option_sentences">句子</string>
+    <string name="option_grammar">语法点</string>
+    <string name="conflict_resolution_title">冲突解决</string>
+    <string name="conflict_resolution_msg">在导入的文件中检测到重复的收藏。您希望如何处理？</string>
+    <string name="conflict_strategy_skip">跳过已有</string>
+    <string name="conflict_strategy_overwrite">覆盖已有</string>
     <string name="crop_interaction_area">区域裁剪</string>
     <string name="crop_interaction_text_select">文字划选</string>
+    <string name="export_format_title">格式</string>
+    <string name="format_json">JSON (备份/还原)</string>
+    <string name="format_csv">CSV (表格)</string>
+    <string name="format_anki_tsv">TSV (Anki导入)</string>
+    
+    <string name="import_summary_title">导入摘要</string>
+    <string name="import_summary_success">成功导入：%1$d</string>
+    <string name="import_summary_skipped">跳过 (重复或空)：%1$d</string>
+    <string name="import_summary_failed">失败：%1$d</string>
+    <string name="import_summary_failure_reasons">失败原因：</string>
+    <string name="ok">确定</string>
 </resources>

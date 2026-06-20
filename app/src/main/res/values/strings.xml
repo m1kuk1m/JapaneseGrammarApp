@@ -567,6 +567,26 @@
     <string name="import_options_title">Import Options</string>
     <string name="option_words">Words</string>
     <string name="option_sentences">Sentences</string>
+    <string name="option_grammar">Grammar Points</string>
+    <string name="conflict_resolution_title">Conflict Resolution</string>
+    <string name="conflict_resolution_msg">Duplicate bookmarks detected in the imported file. How would you like to handle them?</string>
+    <string name="conflict_strategy_skip">Skip Existing</string>
+    <string name="conflict_strategy_overwrite">Overwrite Existing</string>
+    
+    <string name="export_format_title">Format</string>
+    <string name="format_json">JSON (Backup/Restore)</string>
+    <string name="format_csv">CSV (Spreadsheet)</string>
+    <string name="format_anki_tsv">TSV (Anki Import)</string>
+    
+    <string name="import_summary_title">Import Summary</string>
+    <string name="import_summary_success">Successfully imported: %1$d</string>
+    <string name="import_summary_skipped">Skipped (duplicates or empty): %1$d</string>
+    <string name="import_summary_failed">Failed: %1$d</string>
+    <string name="import_summary_failure_reasons">Failure Reasons:</string>
+    <string name="ok">OK</string>
     <string name="crop_interaction_area">Area Crop</string>
     <string name="crop_interaction_text_select">Text Select</string>
+
+    <string name="conflict_resolution_overwrite">Overwrite existing</string>
+    <string name="conflict_resolution_skip">Skip existing</string>
 </resources>

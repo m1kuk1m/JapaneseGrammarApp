@@ -1,0 +1,11 @@
+Add bookmark collection import/export functionality with multi-language support.
+
+- **Features**:
+  - **Multi-Format Export & Import**: Support JSON for complete backups (backup/restore), standard CSV for spreadsheet viewing/editing, and customized TSV specifically designed for Anki card deck importing.
+  - **Granular Data Selection**: Selectively import or export Word bookmarks, Sentence bookmarks, and Grammar Point bookmarks.
+  - **Conflict Resolution Strategies**: Handle duplicate items with choice of "Skip existing" (ignore duplicates to prevent clutter) or "Overwrite existing" (overwrite with imported metadata).
+  - **Comprehensive Import Summary**: Displays total count of successfully imported, skipped (duplicates/empty), and failed bookmarks, with a list of failure reasons for troubleshooting.
+
+- **UI & Localization**:
+  - Integrated dedicated "Import" and "Export" action buttons and confirmation dialogs in the Bookmarks Screen.
+  - Full Localization: All import/export dialogues, option menus, conflict strategies, and summary reports are fully translated into English, Japanese, and Simplified Chinese.

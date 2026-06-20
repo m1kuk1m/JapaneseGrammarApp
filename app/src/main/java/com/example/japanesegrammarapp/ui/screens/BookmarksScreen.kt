@@ -40,6 +40,9 @@ import com.example.japanesegrammarapp.domain.model.*
 import com.example.japanesegrammarapp.ui.BookmarkFilter
 import com.example.japanesegrammarapp.ui.ArchiveFilter
 import com.example.japanesegrammarapp.ui.BookmarkViewModel
+import com.example.japanesegrammarapp.domain.model.ConflictStrategy
+import com.example.japanesegrammarapp.domain.model.ImportResult
+import com.example.japanesegrammarapp.domain.model.ExportFormat
 import kotlinx.coroutines.launch
 
 import android.net.Uri
@@ -86,6 +89,10 @@ fun BookmarksScreen(
     var showExportDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
+    var showConflictDialog by remember { mutableStateOf(false) }
+    var pendingImportParams by remember { mutableStateOf<ImportParams?>(null) }
+    var showImportSummaryDialog by remember { mutableStateOf(false) }
+    var importSummaryResult by remember { mutableStateOf<ImportResult?>(null) }
 
     // File picker for import
     val importLauncher = rememberLauncherForActivityResult(
@@ -210,7 +217,7 @@ fun BookmarksScreen(
                         },
                         actions = {
                             IconButton(onClick = {
-                                importLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
+                                importLauncher.launch(arrayOf("application/json", "text/plain", "text/csv", "text/tab-separated-values", "*/*"))
                             }) {
                                 Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.import_bookmarks))
                             }
@@ -504,9 +511,9 @@ fun BookmarksScreen(
             titleResId = R.string.export_options_title,
             confirmResId = R.string.export,
             onDismiss = { showExportDialog = false },
-            onConfirm = { words, sentences ->
+            onConfirm = { words, sentences, grammarPoints, format ->
                 showExportDialog = false
-                viewModel.exportAndShare(context, words, sentences)
+                viewModel.exportAndShare(context, format, words, sentences, grammarPoints)
             }
         )
     }
@@ -519,28 +526,145 @@ fun BookmarksScreen(
                 showImportDialog = false
                 pendingImportUri = null
             },
-            onConfirm = { words, sentences ->
+            onConfirm = { words, sentences, grammarPoints, format ->
                 showImportDialog = false
                 val uri = pendingImportUri
                 if (uri != null) {
                     coroutineScope.launch {
                         try {
-                            val count = viewModel.importFromUri(uri, words, sentences)
-                            val msg = if (count >= 0) {
-                                context.getString(R.string.import_success_msg, count)
+                            val result = viewModel.importFromUri(uri, format, words, sentences, grammarPoints)
+                            if (result != null) {
+                                importSummaryResult = result
+                                showImportSummaryDialog = true
                             } else {
-                                context.getString(R.string.import_failed_msg)
+                                snackbarHostState.showSnackbar(context.getString(R.string.import_failed_msg))
                             }
-                            snackbarHostState.showSnackbar(msg)
                         } catch (e: Exception) {
-                            snackbarHostState.showSnackbar(
-                                context.getString(R.string.import_error_msg, e.localizedMessage ?: "")
-                            )
+                            if (e.message == "CONFLICT") {
+                                pendingImportParams = ImportParams(uri, format, words, sentences, grammarPoints)
+                                showConflictDialog = true
+                            } else {
+                                snackbarHostState.showSnackbar(
+                                    context.getString(R.string.import_error_msg, e.localizedMessage ?: "")
+                                )
+                            }
                         }
                     }
+                } else {
+                    pendingImportUri = null
                 }
+            }
+        )
+    }
+    
+    if (showConflictDialog) {
+        ConflictResolutionDialog(
+            onDismiss = {
+                showConflictDialog = false
+                pendingImportParams = null
+                pendingImportUri = null
+            },
+            onSkip = {
+                showConflictDialog = false
+                pendingImportParams?.let { params ->
+                    coroutineScope.launch {
+                        try {
+                            val result = viewModel.importFromUri(params.uri, params.format, params.includeWords, params.includeSentences, params.includeGrammarPoints, com.example.japanesegrammarapp.domain.model.ConflictStrategy.SKIP)
+                            if (result != null) {
+                                importSummaryResult = result
+                                showImportSummaryDialog = true
+                            } else {
+                                snackbarHostState.showSnackbar(context.getString(R.string.import_failed_msg))
+                            }
+                        } catch (e: Exception) {
+                            snackbarHostState.showSnackbar(context.getString(R.string.import_error_msg, e.localizedMessage ?: ""))
+                        }
+                        pendingImportUri = null
+                        pendingImportParams = null
+                    }
+                }
+            },
+            onOverwrite = {
+                showConflictDialog = false
+                pendingImportParams?.let { params ->
+                    coroutineScope.launch {
+                        try {
+                            val result = viewModel.importFromUri(params.uri, params.format, params.includeWords, params.includeSentences, params.includeGrammarPoints, com.example.japanesegrammarapp.domain.model.ConflictStrategy.OVERWRITE)
+                            if (result != null) {
+                                importSummaryResult = result
+                                showImportSummaryDialog = true
+                            } else {
+                                snackbarHostState.showSnackbar(context.getString(R.string.import_failed_msg))
+                            }
+                        } catch (e: Exception) {
+                            snackbarHostState.showSnackbar(context.getString(R.string.import_error_msg, e.localizedMessage ?: ""))
+                        }
+                        pendingImportUri = null
+                        pendingImportParams = null
+                    }
+                }
+            }
+        )
+    }
+
+    if (showImportSummaryDialog && importSummaryResult != null) {
+        ImportSummaryDialog(
+            result = importSummaryResult!!,
+            onDismiss = {
+                showImportSummaryDialog = false
+                importSummaryResult = null
                 pendingImportUri = null
             }
         )
     }
 }
+
+data class ImportParams(
+    val uri: android.net.Uri,
+    val format: com.example.japanesegrammarapp.domain.model.ExportFormat,
+    val includeWords: Boolean,
+    val includeSentences: Boolean,
+    val includeGrammarPoints: Boolean
+)
+
+@Composable
+fun ImportSummaryDialog(
+    result: com.example.japanesegrammarapp.domain.model.ImportResult,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            androidx.compose.material3.Text(
+                text = androidx.compose.ui.res.stringResource(com.example.japanesegrammarapp.R.string.import_summary_title),
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            )
+        },
+        text = {
+            androidx.compose.foundation.layout.Column {
+                androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.example.japanesegrammarapp.R.string.import_summary_success, result.successCount))
+                androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.example.japanesegrammarapp.R.string.import_summary_skipped, result.skippedCount))
+                androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.example.japanesegrammarapp.R.string.import_summary_failed, result.failedCount))
+                if (result.failureReasons.isNotEmpty()) {
+                    androidx.compose.foundation.layout.Spacer(modifier = androidx.compose.ui.Modifier.height(8.dp))
+                    androidx.compose.material3.Text(
+                        text = androidx.compose.ui.res.stringResource(com.example.japanesegrammarapp.R.string.import_summary_failure_reasons),
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    )
+                    androidx.compose.foundation.lazy.LazyColumn(modifier = androidx.compose.ui.Modifier.heightIn(max = 120.dp)) {
+                        items(result.failureReasons.size) { index ->
+                            androidx.compose.material3.Text("- ${result.failureReasons[index]}", fontSize = 12.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.example.japanesegrammarapp.R.string.ok))
+            }
+        }
+    )
+}
+
+
