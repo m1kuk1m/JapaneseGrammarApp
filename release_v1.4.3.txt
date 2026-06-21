@@ -1,0 +1,4 @@
+v1.4.3 Release Notes
+- Fixed magnifier positioning and offset bugs in landscape orientation for the image cropping and text selection.
+- Fixed text selection start handle alignment and offset issues.
+- Fixed bottom button overlap and layout bugs in the camera crop review screen.
