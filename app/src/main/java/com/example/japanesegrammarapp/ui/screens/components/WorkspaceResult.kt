@@ -251,8 +251,7 @@ fun WorkspaceResultContent(
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 6.dp)
-                                    .animateContentSize(),
+                                    .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 12.dp),
                                 color = SurfaceColor,
                                 shape = RoundedCornerShape(24.dp),
                                 shadowElevation = 3.dp,
@@ -261,6 +260,7 @@ fun WorkspaceResultContent(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .animateContentSize()
                                         .padding(16.dp)
                                 ) {
                                     Row(
