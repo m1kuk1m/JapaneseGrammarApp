@@ -37,6 +37,7 @@ class CropState(
     var imgOffsetY by mutableStateOf(0f)
 
     var activeHandle by mutableStateOf(DragHandle.NONE)
+    var visualRotationAngle by mutableStateOf(0f)
 
     fun initializeCropBox(width: Float, height: Float) {
         if (width <= 0f || height <= 0f || isInitialized) return

@@ -33,6 +33,14 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.filled.RotateRight
+import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material3.MaterialTheme
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -125,7 +133,7 @@ fun SegmentedControl(
 @androidx.compose.foundation.ExperimentalFoundationApi
 @Composable
 fun ImageCropReviewLayout(
-    bitmap: Bitmap,
+    originalBitmap: Bitmap,
     captureDeviceOrientation: DeviceOrientation,
     ocrBoxDetectionSettings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT,
     onCancel: () -> Unit,
@@ -134,6 +142,12 @@ fun ImageCropReviewLayout(
     val context = LocalContext.current
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
+    val coroutineScope = rememberCoroutineScope()
+    
+    val baseBitmap = remember(originalBitmap) { originalBitmap }
+    var bitmap by remember(originalBitmap) { mutableStateOf(originalBitmap) }
+    var accumulatedRotation by remember(originalBitmap) { mutableStateOf(0f) }
+
     val cropState = remember(bitmap) {
         CropState(
             bitmapWidth = bitmap.width.toFloat(),
@@ -141,10 +155,47 @@ fun ImageCropReviewLayout(
         )
     }
 
+    fun applyRotation(angleDelta: Float) {
+        if (angleDelta == 0f) {
+            cropState.visualRotationAngle = 0f
+            return
+        }
+        accumulatedRotation = (accumulatedRotation + angleDelta) % 360f
+        if (accumulatedRotation == 0f) {
+            bitmap = baseBitmap
+            cropState.visualRotationAngle = 0f
+            return
+        }
+        val matrix = android.graphics.Matrix().apply { postRotate(accumulatedRotation) }
+        try {
+            val rotatedBitmap = Bitmap.createBitmap(baseBitmap, 0, 0, baseBitmap.width, baseBitmap.height, matrix, true)
+            
+            // Crop back to original dimensions from the center to prevent visual "shrinking"
+            val cx = rotatedBitmap.width / 2
+            val cy = rotatedBitmap.height / 2
+            val targetWidth = baseBitmap.width
+            val targetHeight = baseBitmap.height
+            val x = (cx - targetWidth / 2).coerceAtLeast(0)
+            val y = (cy - targetHeight / 2).coerceAtLeast(0)
+            val finalWidth = minOf(targetWidth, rotatedBitmap.width - x)
+            val finalHeight = minOf(targetHeight, rotatedBitmap.height - y)
+            
+            bitmap = Bitmap.createBitmap(rotatedBitmap, x, y, finalWidth, finalHeight)
+            if (rotatedBitmap !== baseBitmap && rotatedBitmap !== bitmap) {
+                rotatedBitmap.recycle()
+            }
+            
+            cropState.visualRotationAngle = 0f
+        } catch (e: Exception) {
+            AppLogger.e("CAMERA", "Failed to rotate bitmap", e)
+        }
+    }
+
     var interactionMode by remember { mutableStateOf(CropInteraction.AREA_CROP) }
     var textSelectStart by remember { mutableStateOf<TextHandleState?>(null) }
     var textSelectEnd by remember { mutableStateOf<TextHandleState?>(null) }
-    var magnifierCenter by remember { mutableStateOf<Offset?>(null) }
+    var magnifierPosition by remember { mutableStateOf<Offset?>(null) }
+    var magnifierSource by remember { mutableStateOf<Offset?>(null) }
     var isDragging by remember { mutableStateOf(false) }
 
     // When the screen orientation changes, the container size changes too.
@@ -240,6 +291,7 @@ fun ImageCropReviewLayout(
                             cropState.imgOffsetX + cropState.imgDispWidth / 2f,
                             cropState.imgOffsetY + cropState.imgDispHeight / 2f
                         )
+                        rotate(cropState.visualRotationAngle)
                         translate(-cropState.imgDispWidth / 2f, -cropState.imgDispHeight / 2f)
                     }) {
                         drawImage(
@@ -260,13 +312,18 @@ fun ImageCropReviewLayout(
                     modifier = Modifier
                         .fillMaxSize()
                         .run {
-                            if (magnifierCenter != null) {
+                            if (magnifierPosition != null) {
                                 this.magnifier(
-                                    sourceCenter = { magnifierCenter ?: androidx.compose.ui.geometry.Offset.Unspecified },
+                                    sourceCenter = { magnifierSource ?: androidx.compose.ui.geometry.Offset.Unspecified },
                                     magnifierCenter = {
-                                        val center = magnifierCenter
+                                        val center = magnifierPosition
                                         if (center != null) {
                                             val offsetPx = 100.dp.toPx()
+                                            // Offset must be in LOCAL coordinate space, but visual "up" depends
+                                            // on the graphicsLayer rotation applied to the workspace.
+                                            // LANDSCAPE_LEFT (rotationZ=90° CW): visual up = local -X
+                                            // LANDSCAPE_RIGHT (rotationZ=-90° CCW): visual up = local +X
+                                            // PORTRAIT: visual up = local -Y
                                             when (captureDeviceOrientation) {
                                                 DeviceOrientation.LANDSCAPE_LEFT -> 
                                                     androidx.compose.ui.geometry.Offset(center.x - offsetPx, center.y)
@@ -290,6 +347,11 @@ fun ImageCropReviewLayout(
                                     val startPos = downEvent.position
                                     var activePointerId = downEvent.id
                                     
+                                    if (cropState.visualRotationAngle != 0f) {
+                                        // Ignore touches while visually rotating
+                                        continue
+                                    }
+
                                     val minTolerancePx = 32.dp.toPx() // Corner grab tolerance
                                     val dragSlopPx = 8.dp.toPx() // Drag vs tap threshold
                                     val longPressMs = 350L
@@ -445,7 +507,8 @@ fun ImageCropReviewLayout(
                                         val changes = event.changes
 
                                         if (changes.all { !it.pressed }) {
-                                            magnifierCenter = null
+                                            magnifierPosition = null
+                                            magnifierSource = null
                                             isDragging = false
                                             if (isEditing) {
                                                 if (interactionMode == CropInteraction.AREA_CROP) {
@@ -474,7 +537,7 @@ fun ImageCropReviewLayout(
                                                 if (activeTextHandle != null) {
                                                     isEditing = true
                                                     val currentPos = currentFinger.position
-                                                    magnifierCenter = currentPos
+                                                    magnifierPosition = currentPos
                                                     
                                                     val otherHandle = if (activeTextHandle == "START") textSelectEnd else textSelectStart
                                                     val targetOrientationIsVertical = otherHandle?.let {
@@ -519,11 +582,30 @@ fun ImageCropReviewLayout(
                                                         if (displayWidth > 0) ((currentPos.x - displayLeft) / displayWidth).coerceIn(0f, 1f) else 0f
                                                     }
                                                     
-                                                    if (activeTextHandle == "START") {
+                                                    val isStartHandle = activeTextHandle == "START"
+                                                    if (isStartHandle) {
                                                         textSelectStart = TextHandleState(closestIdx, offsetRatio)
                                                     } else {
                                                         textSelectEnd = TextHandleState(closestIdx, offsetRatio)
                                                     }
+                                                    
+                                                    val R = 10.dp.toPx()
+                                                    val D = R * 1.414f
+                                                    if (isVertical) {
+                                                        val handleY = cropState.imgOffsetY + (closestBox.top + closestBox.height() * offsetRatio) * cropState.scaleFactor
+                                                        if (isStartHandle) {
+                                                            val handleX = cropState.imgOffsetX + closestBox.left * cropState.scaleFactor
+                                                            magnifierSource = Offset(handleX - D, handleY)
+                                                        } else {
+                                                            val handleX = cropState.imgOffsetX + closestBox.right * cropState.scaleFactor
+                                                            magnifierSource = Offset(handleX + D, handleY)
+                                                        }
+                                                    } else {
+                                                        val handleX = cropState.imgOffsetX + (closestBox.left + closestBox.width() * offsetRatio) * cropState.scaleFactor
+                                                        val handleY = cropState.imgOffsetY + closestBox.bottom * cropState.scaleFactor
+                                                        magnifierSource = Offset(handleX, handleY + D)
+                                                    }
+                                                    
                                                     currentFinger.consume()
                                                 }
                                             } else if (!isEditing && canEdit) {
@@ -562,6 +644,11 @@ fun ImageCropReviewLayout(
                             }
                         }
                 ) {
+                    if (cropState.visualRotationAngle != 0f) {
+                        // Draw nothing, just let user see the rotating image
+                        return@Canvas
+                    }
+
                     if (interactionMode == CropInteraction.TEXT_SELECT) {
                         if (detectedBoxes.isNotEmpty()) {
                             val imageLeft = cropState.imgOffsetX
@@ -914,21 +1001,51 @@ fun ImageCropReviewLayout(
             )
         }
         
-        // Unified Bottom Control Panel
-        Box(
+        // Bottom Area: Floating Button + Control Panel
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .background(
-                    brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f), Color.Black.copy(alpha = 0.9f)),
-                        startY = 0f
-                    )
-                )
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp, vertical = 24.dp)
         ) {
+            // Floating Auto Deskew Button
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = 24.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            try {
+                                val skewAngle = detectImageSkewAngle(bitmap)
+                                if (kotlin.math.abs(skewAngle) > 0.5f) { // Only correct if skew is significant
+                                    applyRotation(-skewAngle)
+                                }
+                            } catch (e: Exception) {
+                                AppLogger.e("CAMERA", "Auto skew detection failed", e)
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.45f), androidx.compose.foundation.shape.CircleShape)
+                ) {
+                    Icon(Icons.Default.AutoFixHigh, contentDescription = "Auto Deskew", tint = Color.White)
+                }
+            }
+
+            // Unified Bottom Control Panel
             Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f), Color.Black.copy(alpha = 0.9f)),
+                            startY = 0f
+                        )
+                    )
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
@@ -936,7 +1053,7 @@ fun ImageCropReviewLayout(
                     selected = interactionMode,
                     onSelected = { interactionMode = it }
                 )
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
