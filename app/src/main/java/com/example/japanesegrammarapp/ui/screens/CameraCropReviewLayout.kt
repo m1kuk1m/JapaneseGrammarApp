@@ -311,35 +311,6 @@ fun ImageCropReviewLayout(
                 Canvas(
                     modifier = Modifier
                         .fillMaxSize()
-                        .run {
-                            if (magnifierPosition != null) {
-                                this.magnifier(
-                                    sourceCenter = { magnifierSource ?: androidx.compose.ui.geometry.Offset.Unspecified },
-                                    magnifierCenter = {
-                                        val center = magnifierPosition
-                                        if (center != null) {
-                                            val offsetPx = 100.dp.toPx()
-                                            // Offset must be in LOCAL coordinate space, but visual "up" depends
-                                            // on the graphicsLayer rotation applied to the workspace.
-                                            // LANDSCAPE_LEFT (rotationZ=90° CW): visual up = local -X
-                                            // LANDSCAPE_RIGHT (rotationZ=-90° CCW): visual up = local +X
-                                            // PORTRAIT: visual up = local -Y
-                                            when (captureDeviceOrientation) {
-                                                DeviceOrientation.LANDSCAPE_LEFT -> 
-                                                    androidx.compose.ui.geometry.Offset(center.x - offsetPx, center.y)
-                                                DeviceOrientation.LANDSCAPE_RIGHT -> 
-                                                    androidx.compose.ui.geometry.Offset(center.x + offsetPx, center.y)
-                                                else -> 
-                                                    androidx.compose.ui.geometry.Offset(center.x, center.y - offsetPx)
-                                            }
-                                        } else {
-                                            androidx.compose.ui.geometry.Offset.Unspecified
-                                        }
-                                    },
-                                    zoom = 1.5f
-                                )
-                            } else this
-                        }
                         .pointerInput(Unit) {
                             awaitPointerEventScope {
                                 while (true) {
@@ -595,15 +566,15 @@ fun ImageCropReviewLayout(
                                                         val handleY = cropState.imgOffsetY + (closestBox.top + closestBox.height() * offsetRatio) * cropState.scaleFactor
                                                         if (isStartHandle) {
                                                             val handleX = cropState.imgOffsetX + closestBox.left * cropState.scaleFactor
-                                                            magnifierSource = Offset(handleX - D, handleY)
+                                                            magnifierSource = Offset(handleX + D, handleY)
                                                         } else {
                                                             val handleX = cropState.imgOffsetX + closestBox.right * cropState.scaleFactor
-                                                            magnifierSource = Offset(handleX + D, handleY)
+                                                            magnifierSource = Offset(handleX - D, handleY)
                                                         }
                                                     } else {
                                                         val handleX = cropState.imgOffsetX + (closestBox.left + closestBox.width() * offsetRatio) * cropState.scaleFactor
                                                         val handleY = cropState.imgOffsetY + closestBox.bottom * cropState.scaleFactor
-                                                        magnifierSource = Offset(handleX, handleY + D)
+                                                        magnifierSource = Offset(handleX, handleY - D)
                                                     }
                                                     
                                                     currentFinger.consume()
@@ -995,7 +966,37 @@ fun ImageCropReviewLayout(
                 }
             }
             
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+        val offsetPx = with(androidx.compose.ui.platform.LocalDensity.current) { 100.dp.toPx() }
+        val parentWidth = constraints.maxWidth.toFloat()
+        val parentHeight = constraints.maxHeight.toFloat()
+
+        val toParent = { local: androidx.compose.ui.geometry.Offset ->
+            when (captureDeviceOrientation) {
+                DeviceOrientation.LANDSCAPE_LEFT -> androidx.compose.ui.geometry.Offset(parentWidth - local.y, local.x)
+                DeviceOrientation.LANDSCAPE_RIGHT -> androidx.compose.ui.geometry.Offset(local.y, parentHeight - local.x)
+                else -> local
+            }
+        }
+
+        Box(
+            contentAlignment = Alignment.Center, 
+            modifier = Modifier
+                .fillMaxSize()
+                .run {
+                    if (magnifierPosition != null) {
+                        val localPos = magnifierPosition
+                        val localSource = magnifierSource
+                        if (localPos != null) {
+                            val localCenter = androidx.compose.ui.geometry.Offset(localPos.x, localPos.y - offsetPx)
+                            this.magnifier(
+                                sourceCenter = { localSource?.let { toParent(it) } ?: androidx.compose.ui.geometry.Offset.Unspecified },
+                                magnifierCenter = { toParent(localCenter) },
+                                zoom = 1.5f
+                            )
+                        } else this
+                    } else this
+                }
+        ) {
             WorkspaceArea(
                 modifier = workspaceModifier
             )
