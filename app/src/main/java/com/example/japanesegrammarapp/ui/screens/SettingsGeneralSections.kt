@@ -153,6 +153,7 @@ fun SettingsGeneralSection(
     totalTokensConsumed: Int,
     onUseOcrChange: (Boolean) -> Unit,
     onOcrBoxDetectorEngineChange: (OcrBoxDetectorEngine) -> Unit,
+    onTextSelectEngineChange: (OcrBoxDetectorEngine) -> Unit,
     onAutoNavigateResultChange: (Boolean) -> Unit,
     onImageTokenizerModeChange: (String) -> Unit,
     onShowTokenDialog: () -> Unit,
@@ -263,6 +264,37 @@ fun SettingsGeneralSection(
                                 onClick = {
                                     onOcrBoxDetectorEngineChange(engine)
                                     detectorEngineDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        )
+
+        SettingsDivider()
+
+        var textSelectEngineDropdownExpanded by remember { mutableStateOf(false) }
+        val textSelectEngineLabel = ocrBoxDetectorEngineLabel(uiState.ocrBoxDetectionSettings.textSelectEngine)
+
+        SettingsItem(
+            icon = Icons.Default.Tune,
+            title = stringResource(R.string.ocr_text_select_engine_title),
+            subtitle = textSelectEngineLabel,
+            onClick = { textSelectEngineDropdownExpanded = true },
+            trailingContent = {
+                Box {
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = sumiInk.copy(alpha = 0.5f))
+                    DropdownMenu(
+                        expanded = textSelectEngineDropdownExpanded,
+                        onDismissRequest = { textSelectEngineDropdownExpanded = false }
+                    ) {
+                        listOf(OcrBoxDetectorEngine.ML_KIT, OcrBoxDetectorEngine.RAPID_OCR).forEach { engine ->
+                            DropdownMenuItem(
+                                text = { Text(ocrBoxDetectorEngineLabel(engine)) },
+                                onClick = {
+                                    onTextSelectEngineChange(engine)
+                                    textSelectEngineDropdownExpanded = false
                                 }
                             )
                         }

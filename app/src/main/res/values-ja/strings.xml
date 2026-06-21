@@ -543,6 +543,7 @@
     <string name="ocr_debug_vertical_padding_y">縦書き上下余白</string>
     <string name="ocr_debug_detector_engine">検出エンジン</string>
     <string name="ocr_detector_engine_title">OCR選択枠の検出方式</string>
+    <string name="ocr_text_select_engine_title">テキスト選択エンジン</string>
     <string name="ocr_debug_engine_mlkit">ML Kit</string>
     <string name="ocr_debug_engine_rapidocr">RapidOCR</string>
     <string name="ocr_debug_engine_hybrid">ハイブリッド</string>

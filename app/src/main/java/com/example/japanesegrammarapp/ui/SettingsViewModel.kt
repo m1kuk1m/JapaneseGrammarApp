@@ -266,6 +266,12 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(ocrBoxDetectionSettings = normalized) }
     }
 
+    fun setTextSelectEngine(engine: OcrBoxDetectorEngine) {
+        val normalized = _uiState.value.ocrBoxDetectionSettings.copy(textSelectEngine = engine).normalized()
+        settingsRepository.setOcrBoxDetectionSettings(normalized)
+        _uiState.update { it.copy(ocrBoxDetectionSettings = normalized) }
+    }
+
     fun resetOcrBoxDetectionSettings() {
         settingsRepository.resetOcrBoxDetectionSettings()
         _uiState.update { it.copy(ocrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT) }

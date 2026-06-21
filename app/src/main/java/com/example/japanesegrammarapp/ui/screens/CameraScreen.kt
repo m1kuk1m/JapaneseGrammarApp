@@ -96,6 +96,7 @@ fun CameraScreen(
     
     // Core states
     val deviceOrientation = rememberDeviceOrientation()
+    var captureDeviceOrientation by rememberSaveable { mutableStateOf(DeviceOrientation.PORTRAIT) }
     var screenMode by rememberSaveable { mutableStateOf(CameraScreenMode.CAPTURE) }
     var flashMode by rememberSaveable { mutableStateOf(ImageCapture.FLASH_MODE_OFF) }
     var tempFileUriString by rememberSaveable { mutableStateOf<String?>(null) }
@@ -106,7 +107,7 @@ fun CameraScreen(
     }
     
     var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    var wasImageRotatedToPortrait by rememberSaveable { mutableStateOf(false) }
+    var wasImageRotatedToPortrait by rememberSaveable { mutableStateOf(false) } // Keep for gallery fallback
     var isCapturing by remember { mutableStateOf(false) }
 
     fun replaceCapturedBitmap(bitmap: Bitmap?) {
@@ -227,7 +228,8 @@ fun CameraScreen(
                             },
                             isCapturing = isCapturing,
                             onCapture = {
-                            isCapturing = true
+                                captureDeviceOrientation = deviceOrientation
+                                isCapturing = true
                                 val file = createCameraCaptureFile(context)
                                 val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
                                 
@@ -290,6 +292,7 @@ fun CameraScreen(
                     capturedBitmap?.let { bitmap ->
                         ImageCropReviewLayout(
                             bitmap = bitmap,
+                            captureDeviceOrientation = captureDeviceOrientation,
                             ocrBoxDetectionSettings = ocrBoxDetectionSettings,
                             onCancel = {
                                 if (!galleryImageUriString.isNullOrBlank()) {
@@ -305,9 +308,8 @@ fun CameraScreen(
                             onConfirm = { croppedBitmap ->
                                 isCapturing = true
                                 val sourceBitmap = capturedBitmap
-                                val inverseRotate = wasImageRotatedToPortrait
                                 scope.launch(Dispatchers.IO) {
-                                    val outUri = saveConfirmedCrop(context, croppedBitmap, inverseRotate)
+                                    val outUri = saveConfirmedCrop(context, croppedBitmap, false)
                                     if (croppedBitmap !== sourceBitmap && !croppedBitmap.isRecycled) {
                                         croppedBitmap.recycle()
                                     }
