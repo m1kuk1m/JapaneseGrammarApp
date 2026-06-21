@@ -106,6 +106,7 @@ fun CameraScreen(
     }
     
     var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var wasImageRotatedToPortrait by rememberSaveable { mutableStateOf(false) }
     var isCapturing by remember { mutableStateOf(false) }
 
     fun replaceCapturedBitmap(bitmap: Bitmap?) {
@@ -140,9 +141,10 @@ fun CameraScreen(
         if (!galleryImageUriString.isNullOrBlank()) {
             isCapturing = true
             val uri = Uri.parse(galleryImageUriString)
-            val bitmap = loadCameraReviewBitmap(context, uri)
-            if (bitmap != null) {
-                replaceCapturedBitmap(bitmap)
+            val result = loadCameraReviewBitmap(context, uri)
+            if (result != null) {
+                replaceCapturedBitmap(result.bitmap)
+                wasImageRotatedToPortrait = result.wasRotatedToPortrait
                 screenMode = CameraScreenMode.CROP_REVIEW
             } else {
                 // Fail and navigate back
@@ -157,9 +159,10 @@ fun CameraScreen(
         if (!tempFileUriString.isNullOrBlank() && capturedBitmap == null) {
             isCapturing = true
             val uri = Uri.parse(tempFileUriString)
-            val bitmap = loadCameraReviewBitmap(context, uri)
-            if (bitmap != null) {
-                replaceCapturedBitmap(bitmap)
+            val result = loadCameraReviewBitmap(context, uri)
+            if (result != null) {
+                replaceCapturedBitmap(result.bitmap)
+                wasImageRotatedToPortrait = result.wasRotatedToPortrait
                 screenMode = CameraScreenMode.CROP_REVIEW
             }
             isCapturing = false
@@ -244,6 +247,7 @@ fun CameraScreen(
                                                 if (result != null) {
                                                     withContext(Dispatchers.Main) {
                                                         replaceCapturedBitmap(result.bitmap)
+                                                        wasImageRotatedToPortrait = result.wasRotatedToPortrait
                                                         tempFileUriString = result.savedUri?.toString()
                                                         screenMode = CameraScreenMode.CROP_REVIEW
                                                         isCapturing = false
@@ -301,8 +305,9 @@ fun CameraScreen(
                             onConfirm = { croppedBitmap ->
                                 isCapturing = true
                                 val sourceBitmap = capturedBitmap
+                                val inverseRotate = wasImageRotatedToPortrait
                                 scope.launch(Dispatchers.IO) {
-                                    val outUri = saveConfirmedCrop(context, croppedBitmap)
+                                    val outUri = saveConfirmedCrop(context, croppedBitmap, inverseRotate)
                                     if (croppedBitmap !== sourceBitmap && !croppedBitmap.isRecycled) {
                                         croppedBitmap.recycle()
                                     }

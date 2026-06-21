@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.magnifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect as ComposeRect
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
@@ -129,8 +130,6 @@ fun ImageCropReviewLayout(
     val context = LocalContext.current
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    
     val cropState = remember(bitmap) {
         CropState(
             bitmapWidth = bitmap.width.toFloat(),
@@ -146,7 +145,7 @@ fun ImageCropReviewLayout(
 
     // When the screen orientation changes, the container size changes too.
     // Reset isInitialized so the crop box is recalculated for the new layout.
-    LaunchedEffect(isLandscape) {
+    LaunchedEffect(configuration.orientation) {
         cropState.isInitialized = false
     }
 
@@ -232,12 +231,19 @@ fun ImageCropReviewLayout(
                 val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
                 
                 Canvas(modifier = Modifier.fillMaxSize()) {
-                    // Draw original scaled image
-                    drawImage(
-                        image = imageBitmap,
-                        dstOffset = IntOffset(cropState.imgOffsetX.toInt(), cropState.imgOffsetY.toInt()),
-                        dstSize = IntSize(cropState.imgDispWidth.toInt(), cropState.imgDispHeight.toInt())
-                    )
+                    withTransform({
+                        translate(
+                            cropState.imgOffsetX + cropState.imgDispWidth / 2f,
+                            cropState.imgOffsetY + cropState.imgDispHeight / 2f
+                        )
+                        translate(-cropState.imgDispWidth / 2f, -cropState.imgDispHeight / 2f)
+                    }) {
+                        drawImage(
+                            image = imageBitmap,
+                            dstOffset = IntOffset.Zero,
+                            dstSize = IntSize(cropState.imgDispWidth.toInt(), cropState.imgDispHeight.toInt())
+                        )
+                    }
                 }
                 
                 val minSizePx = with(density) { 16.dp.toPx() }
@@ -856,222 +862,108 @@ fun ImageCropReviewLayout(
         }
     }
 
-    if (isLandscape) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(SumiInk)
-        ) {
-            WorkspaceArea(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-            )
-            
-            Box(
-                modifier = Modifier
-                    .width(280.dp)
-                    .fillMaxHeight()
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .navigationBarsPadding()
-                        .statusBarsPadding()
-                        .padding(horizontal = 24.dp, vertical = 32.dp),
-                    verticalArrangement = Arrangement.Bottom,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    SegmentedControl(
-                        selected = interactionMode,
-                        onSelected = { interactionMode = it },
-                        modifier = Modifier.padding(bottom = 32.dp)
-                    )
-                    
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        androidx.compose.material3.TextButton(
-                            onClick = { onCancel() },
-                            shape = RoundedCornerShape(28.dp),
-                            colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
-                            modifier = Modifier.fillMaxWidth().height(56.dp)
-                        ) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.camera_cancel_desc), modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.camera_recapture_btn), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                        }
-                        
-                        Button(
-                            onClick = {
-                                if (interactionMode == CropInteraction.TEXT_SELECT) {
-                                    if (detectedBoxes.isNotEmpty()) {
-                                        val startHandle = textSelectStart
-                                        val endHandle = textSelectEnd
-                                        if (startHandle != null && endHandle != null) {
-                                            val (actualStart, actualEnd) = getOrderedHandles(startHandle, endHandle)
-                                            val slicedBoxes = calculateSubLineRects(detectedBoxes, actualStart, actualEnd)
-                                            try {
-                                                val masked = MaskedCropHelper.createMaskedBitmap(bitmap, slicedBoxes)
-                                                onConfirm(masked)
-                                            } catch (e: Exception) {
-                                                AppLogger.e("CAMERA", "Masked crop failed", e)
-                                                onConfirm(bitmap)
-                                            }
-                                        } else {
-                                            onConfirm(bitmap)
-                                        }
-                                    } else {
-                                        onConfirm(bitmap)
-                                    }
-                                } else {
-                                    val bmpW = bitmap.width
-                                    val bmpH = bitmap.height
-                                    
-                                    val x = ((cropState.cropLeft - cropState.imgOffsetX) / cropState.scaleFactor).toInt().coerceIn(0, bmpW)
-                                    val y = ((cropState.cropTop - cropState.imgOffsetY) / cropState.scaleFactor).toInt().coerceIn(0, bmpH)
-                                    
-                                    var w = ((cropState.cropRight - cropState.cropLeft) / cropState.scaleFactor).toInt()
-                                    var h = ((cropState.cropBottom - cropState.cropTop) / cropState.scaleFactor).toInt()
-                                    
-                                    if (x + w > bmpW) w = bmpW - x
-                                    if (y + h > bmpH) h = bmpH - y
-                                    
-                                    if (w > 0 && h > 0) {
-                                        try {
-                                            val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
-                                            onConfirm(cropped)
-                                        } catch (e: Throwable) {
-                                            AppLogger.e("CAMERA", "Failed to crop manual selection", e)
-                                            onConfirm(bitmap)
-                                        }
-                                    } else {
-                                        onConfirm(bitmap)
-                                    }
-                                }
-                            },
-                            shape = RoundedCornerShape(28.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = KuriAmber,
-                                contentColor = SumiInk
-                            ),
-                            modifier = Modifier.fillMaxWidth().height(56.dp)
-                        ) {
-                            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.camera_confirm_desc), modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.camera_confirm_btn), fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        }
-                    }
-                }
-            }
-        }
-    } else {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SumiInk)
+    ) {
+        WorkspaceArea(
+            modifier = Modifier.fillMaxSize()
+        )
+        
+        // Unified Bottom Control Panel
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(SumiInk)
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f), Color.Black.copy(alpha = 0.9f)),
+                        startY = 0f
+                    )
+                )
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 24.dp)
         ) {
-            WorkspaceArea(
-                modifier = Modifier.fillMaxSize()
-            )
-            
-            // Unified Bottom Control Panel
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .background(
-                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f), Color.Black.copy(alpha = 0.9f)),
-                            startY = 0f
-                        )
-                    )
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp, vertical = 24.dp)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                SegmentedControl(
+                    selected = interactionMode,
+                    onSelected = { interactionMode = it }
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    SegmentedControl(
-                        selected = interactionMode,
-                        onSelected = { interactionMode = it }
-                    )
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    androidx.compose.material3.TextButton(
+                        onClick = { onCancel() },
+                        shape = RoundedCornerShape(28.dp),
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+                        modifier = Modifier.weight(1f).height(56.dp)
                     ) {
-                        androidx.compose.material3.TextButton(
-                            onClick = { onCancel() },
-                            shape = RoundedCornerShape(28.dp),
-                            colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
-                            modifier = Modifier.weight(1f).height(56.dp)
-                        ) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.camera_cancel_desc), modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.camera_recapture_btn), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                        }
-                        
-                        Button(
-                            onClick = {
-                                if (interactionMode == CropInteraction.TEXT_SELECT) {
-                                    if (detectedBoxes.isNotEmpty()) {
-                                        val startHandle = textSelectStart ?: TextHandleState(0, 0f)
-                                        val endHandle = textSelectEnd ?: TextHandleState(detectedBoxes.lastIndex, 1f)
-                                        val (actualStart, actualEnd) = getOrderedHandles(startHandle, endHandle)
-                                        val slicedBoxes = calculateSubLineRects(detectedBoxes, actualStart, actualEnd)
-                                        try {
-                                            val masked = MaskedCropHelper.createMaskedBitmap(bitmap, slicedBoxes)
-                                            onConfirm(masked)
-                                        } catch (e: Exception) {
-                                            AppLogger.e("CAMERA", "Masked crop failed", e)
-                                            onConfirm(bitmap)
-                                        }
-                                    } else {
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.camera_cancel_desc), modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.camera_recapture_btn), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    }
+                    
+                    Button(
+                        onClick = {
+                            if (interactionMode == CropInteraction.TEXT_SELECT) {
+                                if (detectedBoxes.isNotEmpty()) {
+                                    val startHandle = textSelectStart ?: TextHandleState(0, 0f)
+                                    val endHandle = textSelectEnd ?: TextHandleState(detectedBoxes.lastIndex, 1f)
+                                    val (actualStart, actualEnd) = getOrderedHandles(startHandle, endHandle)
+                                    val slicedBoxes = calculateSubLineRects(detectedBoxes, actualStart, actualEnd)
+                                    try {
+                                        val masked = MaskedCropHelper.createMaskedBitmap(bitmap, slicedBoxes)
+                                        onConfirm(masked)
+                                    } catch (e: Exception) {
+                                        AppLogger.e("CAMERA", "Masked crop failed", e)
                                         onConfirm(bitmap)
                                     }
                                 } else {
-                                    val bmpW = bitmap.width
-                                    val bmpH = bitmap.height
-                                    
-                                    val x = ((cropState.cropLeft - cropState.imgOffsetX) / cropState.scaleFactor).toInt().coerceIn(0, bmpW)
-                                    val y = ((cropState.cropTop - cropState.imgOffsetY) / cropState.scaleFactor).toInt().coerceIn(0, bmpH)
-                                    
-                                    var w = ((cropState.cropRight - cropState.cropLeft) / cropState.scaleFactor).toInt()
-                                    var h = ((cropState.cropBottom - cropState.cropTop) / cropState.scaleFactor).toInt()
-                                    
-                                    if (x + w > bmpW) w = bmpW - x
-                                    if (y + h > bmpH) h = bmpH - y
-                                    
-                                    if (w > 0 && h > 0) {
-                                        try {
-                                            val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
-                                            onConfirm(cropped)
-                                        } catch (e: Throwable) {
-                                            AppLogger.e("CAMERA", "Failed to crop manual selection", e)
-                                            onConfirm(bitmap)
-                                        }
-                                    } else {
+                                    onConfirm(bitmap)
+                                }
+                            } else {
+                                val bmpW = bitmap.width
+                                val bmpH = bitmap.height
+                                
+                                val x = ((cropState.cropLeft - cropState.imgOffsetX) / cropState.scaleFactor).toInt().coerceIn(0, bmpW)
+                                val y = ((cropState.cropTop - cropState.imgOffsetY) / cropState.scaleFactor).toInt().coerceIn(0, bmpH)
+                                
+                                var w = ((cropState.cropRight - cropState.cropLeft) / cropState.scaleFactor).toInt()
+                                var h = ((cropState.cropBottom - cropState.cropTop) / cropState.scaleFactor).toInt()
+                                
+                                if (x + w > bmpW) w = bmpW - x
+                                if (y + h > bmpH) h = bmpH - y
+                                
+                                if (w > 0 && h > 0) {
+                                    try {
+                                        val cropped = Bitmap.createBitmap(bitmap, x, y, w, h)
+                                        onConfirm(cropped)
+                                    } catch (e: Throwable) {
+                                        AppLogger.e("CAMERA", "Failed to crop manual selection", e)
                                         onConfirm(bitmap)
                                     }
+                                } else {
+                                    onConfirm(bitmap)
                                 }
-                            },
-                            shape = RoundedCornerShape(28.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = KuriAmber,
-                                contentColor = SumiInk
-                            ),
-                            modifier = Modifier.weight(1f).height(56.dp)
-                        ) {
-                            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.camera_confirm_desc), modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.camera_confirm_btn), fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        }
+                            }
+                        },
+                        shape = RoundedCornerShape(28.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = KuriAmber,
+                            contentColor = SumiInk
+                        ),
+                        modifier = Modifier.weight(1f).height(56.dp)
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = stringResource(R.string.camera_confirm_desc), modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.camera_confirm_btn), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     }
                 }
             }
