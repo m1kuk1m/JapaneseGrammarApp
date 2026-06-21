@@ -1,0 +1,2 @@
+v1.4.2 Release Notes
+- Fixed a UI bug where the drop shadow of the expanded analysis card was clipped.
