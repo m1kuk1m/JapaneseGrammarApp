@@ -266,7 +266,15 @@ fun ImageCropReviewLayout(
                                     magnifierCenter = {
                                         val center = magnifierCenter
                                         if (center != null) {
-                                            androidx.compose.ui.geometry.Offset(center.x, center.y - 100.dp.toPx())
+                                            val offsetPx = 100.dp.toPx()
+                                            when (captureDeviceOrientation) {
+                                                DeviceOrientation.LANDSCAPE_LEFT -> 
+                                                    androidx.compose.ui.geometry.Offset(center.x - offsetPx, center.y)
+                                                DeviceOrientation.LANDSCAPE_RIGHT -> 
+                                                    androidx.compose.ui.geometry.Offset(center.x + offsetPx, center.y)
+                                                else -> 
+                                                    androidx.compose.ui.geometry.Offset(center.x, center.y - offsetPx)
+                                            }
                                         } else {
                                             androidx.compose.ui.geometry.Offset.Unspecified
                                         }

@@ -182,7 +182,6 @@ fun WorkspaceInputForm(
                     androidx.appcompat.widget.AppCompatEditText(ctx).apply {
                         // Multi-line configuration
                         inputType = android.text.InputType.TYPE_CLASS_TEXT or
-                                    android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or
                                     android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
                         imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEND or
                                      android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI
@@ -192,7 +191,7 @@ fun WorkspaceInputForm(
                         setPadding(0, 0, 0, 0)
                         
                         // Text styles matching Compose design
-                        textSize = 20f
+                        textSize = 16f
                         setTextColor(SumiInk.toArgb())
                         setHintTextColor(SumiInk.copy(alpha = 0.2f).toArgb())
                         hint = context.getString(R.string.input_hint_elegant)
