@@ -14,6 +14,7 @@ enum class OcrBoxPreviewMode {
 
 data class OcrBoxDetectionSettings(
     val detectorEngine: OcrBoxDetectorEngine = OcrBoxDetectorEngine.HYBRID,
+    val textSelectEngine: OcrBoxDetectorEngine = OcrBoxDetectorEngine.RAPID_OCR,
     val previewMode: OcrBoxPreviewMode = OcrBoxPreviewMode.FINAL,
     val horizontalRowGapMultiplier: Float = DEFAULT_HORIZONTAL_ROW_GAP_MULTIPLIER,
     val horizontalXOverlapThreshold: Float = DEFAULT_HORIZONTAL_X_OVERLAP_THRESHOLD,

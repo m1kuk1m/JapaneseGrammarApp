@@ -544,6 +544,7 @@
     <string name="ocr_debug_vertical_padding_y">竖排垂直留白</string>
     <string name="ocr_debug_detector_engine">检测引擎</string>
     <string name="ocr_detector_engine_title">OCR 选框检测方案</string>
+    <string name="ocr_text_select_engine_title">文字划选检测引擎</string>
     <string name="ocr_debug_engine_mlkit">ML Kit</string>
     <string name="ocr_debug_engine_rapidocr">RapidOCR</string>
     <string name="ocr_debug_engine_hybrid">混合模式</string>

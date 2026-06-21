@@ -540,6 +540,7 @@
     <string name="ocr_debug_vertical_padding_y">Vertical padding Y</string>
     <string name="ocr_debug_detector_engine">Detector engine</string>
     <string name="ocr_detector_engine_title">OCR box detector</string>
+    <string name="ocr_text_select_engine_title">Text Select Engine</string>
     <string name="ocr_debug_engine_mlkit">ML Kit</string>
     <string name="ocr_debug_engine_rapidocr">RapidOCR</string>
     <string name="ocr_debug_engine_hybrid">Hybrid</string>

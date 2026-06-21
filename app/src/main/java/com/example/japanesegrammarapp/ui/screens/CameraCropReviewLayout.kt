@@ -11,9 +11,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -123,6 +126,7 @@ fun SegmentedControl(
 @Composable
 fun ImageCropReviewLayout(
     bitmap: Bitmap,
+    captureDeviceOrientation: DeviceOrientation,
     ocrBoxDetectionSettings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT,
     onCancel: () -> Unit,
     onConfirm: (Bitmap) -> Unit
@@ -359,8 +363,19 @@ fun ImageCropReviewLayout(
                                                 } ?: Float.MAX_VALUE
 
                                                 if (closestIdx != null && closestDistSq <= hitTolerance * hitTolerance) {
-                                                    textSelectStart = TextHandleState(closestIdx, 0f)
-                                                    textSelectEnd = TextHandleState(closestIdx, 1f)
+                                                    val initialBox = detectedBoxes[closestIdx]
+                                                    val isVertical = initialBox.height() > initialBox.width()
+                                                    val initialOffsetRatio = if (isVertical) {
+                                                        val displayTop = cropState.imgOffsetY + initialBox.top * cropState.scaleFactor
+                                                        val displayHeight = initialBox.height() * cropState.scaleFactor
+                                                        if (displayHeight > 0) ((startPos.y - displayTop) / displayHeight).coerceIn(0f, 1f) else 0f
+                                                    } else {
+                                                        val displayLeft = cropState.imgOffsetX + initialBox.left * cropState.scaleFactor
+                                                        val displayWidth = initialBox.width() * cropState.scaleFactor
+                                                        if (displayWidth > 0) ((startPos.x - displayLeft) / displayWidth).coerceIn(0f, 1f) else 0f
+                                                    }
+                                                    textSelectStart = TextHandleState(closestIdx, initialOffsetRatio)
+                                                    textSelectEnd = TextHandleState(closestIdx, initialOffsetRatio)
                                                     activeTextHandle = "END"
                                                 } else {
                                                     textSelectStart = null
@@ -862,14 +877,34 @@ fun ImageCropReviewLayout(
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(SumiInk)
     ) {
-        WorkspaceArea(
-            modifier = Modifier.fillMaxSize()
-        )
+        val isLandscape = captureDeviceOrientation == DeviceOrientation.LANDSCAPE_LEFT || captureDeviceOrientation == DeviceOrientation.LANDSCAPE_RIGHT
+        
+        val workspaceModifier = Modifier
+            .run {
+                if (isLandscape) {
+                    requiredSize(width = maxHeight, height = maxWidth)
+                } else {
+                    fillMaxSize()
+                }
+            }
+            .graphicsLayer {
+                if (captureDeviceOrientation == DeviceOrientation.LANDSCAPE_LEFT) {
+                    rotationZ = 90f
+                } else if (captureDeviceOrientation == DeviceOrientation.LANDSCAPE_RIGHT) {
+                    rotationZ = -90f
+                }
+            }
+            
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+            WorkspaceArea(
+                modifier = workspaceModifier
+            )
+        }
         
         // Unified Bottom Control Panel
         Box(
