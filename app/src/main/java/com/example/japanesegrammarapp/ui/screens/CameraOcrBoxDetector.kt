@@ -14,6 +14,57 @@ import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.math.atan2
+
+suspend fun detectImageSkewAngle(bitmap: Bitmap): Float = suspendCancellableCoroutine { continuation ->
+    val recognizer = TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
+    val image = InputImage.fromBitmap(bitmap, 0)
+    
+    recognizer.process(image)
+        .addOnSuccessListener { visionText ->
+            if (continuation.isActive) {
+                val angles = mutableListOf<Float>()
+                for (block in visionText.textBlocks) {
+                    for (line in block.lines) {
+                        val points = line.cornerPoints
+                        if (points != null && points.size == 4) {
+                            val d1x = (points[1].x - points[0].x).toDouble()
+                            val d1y = (points[1].y - points[0].y).toDouble()
+                            val len1 = d1x * d1x + d1y * d1y
+                            
+                            val d2x = (points[2].x - points[1].x).toDouble()
+                            val d2y = (points[2].y - points[1].y).toDouble()
+                            val len2 = d2x * d2x + d2y * d2y
+                            
+                            val (mainDx, mainDy) = if (len1 > len2) Pair(d1x, d1y) else Pair(d2x, d2y)
+                            
+                            if (mainDx != 0.0 || mainDy != 0.0) {
+                                val rawAngle = Math.toDegrees(atan2(mainDy, mainDx)).toFloat()
+                                var skew = rawAngle % 90f
+                                if (skew > 45f) skew -= 90f
+                                else if (skew < -45f) skew += 90f
+                                angles.add(skew)
+                            }
+                        }
+                    }
+                }
+                
+                val finalAngle = if (angles.isNotEmpty()) {
+                    val sorted = angles.sorted()
+                    sorted[sorted.size / 2] // median
+                } else {
+                    0f
+                }
+                continuation.resume(finalAngle)
+            }
+        }
+        .addOnFailureListener {
+            if (continuation.isActive) continuation.resume(0f)
+        }
+        .addOnCompleteListener {
+            recognizer.close()
+        }
+}
 
 suspend fun detectCameraOcrBoxes(
     bitmap: Bitmap,

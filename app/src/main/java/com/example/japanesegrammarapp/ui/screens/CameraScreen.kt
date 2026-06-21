@@ -291,7 +291,7 @@ fun CameraScreen(
                     // Interactive review and crop state
                     capturedBitmap?.let { bitmap ->
                         ImageCropReviewLayout(
-                            bitmap = bitmap,
+                            originalBitmap = bitmap,
                             captureDeviceOrientation = captureDeviceOrientation,
                             ocrBoxDetectionSettings = ocrBoxDetectionSettings,
                             onCancel = {
