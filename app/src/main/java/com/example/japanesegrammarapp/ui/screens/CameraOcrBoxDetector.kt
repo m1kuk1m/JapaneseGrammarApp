@@ -50,6 +50,22 @@ suspend fun detectFineGrainedCameraOcrBoxes(
     bitmap: Bitmap,
     settings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT,
     context: Context? = null
+): List<Rect> {
+    val normalizedSettings = settings.normalized()
+    return when (normalizedSettings.detectorEngine) {
+        OcrBoxDetectorEngine.ML_KIT -> detectMlKitFineGrainedCameraOcrBoxes(bitmap)
+        else -> {
+            detectRapidOcrRawCameraBoxes(
+                context = context ?: error("RapidOCR detection requires Android context"),
+                bitmap = bitmap,
+                settings = normalizedSettings
+            )
+        }
+    }
+}
+
+private suspend fun detectMlKitFineGrainedCameraOcrBoxes(
+    bitmap: Bitmap
 ): List<Rect> = suspendCancellableCoroutine { continuation ->
     val recognizer = TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
     val image = InputImage.fromBitmap(bitmap, 0)
