@@ -664,9 +664,9 @@ fun WorkspaceResultContent(
                                                                         text = gp.pattern ?: "",
                                                                         fontSize = 15.sp,
                                                                         fontWeight = FontWeight.Bold,
-                                                                        color = SumiInk
+                                                                        color = SumiInk,
+                                                                        modifier = Modifier.weight(1f)
                                                                     )
-                                                                    Spacer(modifier = Modifier.weight(1f))
                                                                     val isGrammarBookmarked = uiState.bookmarkedGrammarPointPatterns.contains(gp.pattern ?: "")
                                                                     IconButton(
                                                                         onClick = {
