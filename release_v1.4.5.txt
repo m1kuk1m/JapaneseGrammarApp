@@ -1,0 +1,2 @@
+v1.4.5 Release Notes
+- Optimized Japanese tokenization prompts to improve particle separation accuracy, especially for consecutive particles and hiragana-only contexts.
