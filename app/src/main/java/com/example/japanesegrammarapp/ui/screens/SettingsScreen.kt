@@ -505,23 +505,17 @@ fun SettingsScreen(
         onPromptTextChange = { promptText = it },
         onSave = {
             viewModel.saveCustomPrompt(selectedPromptKey, promptText)
-            coroutineScope.launch {
-                snackbarHostState.showSnackbar(ctx.getString(R.string.prompt_save_success))
-            }
+            android.widget.Toast.makeText(ctx, ctx.getString(R.string.prompt_save_success), android.widget.Toast.LENGTH_SHORT).show()
         },
         onResetCurrent = {
             viewModel.resetCustomPrompt(selectedPromptKey)
             promptText = viewModel.getCustomPrompt(selectedPromptKey)
-            coroutineScope.launch {
-                snackbarHostState.showSnackbar(ctx.getString(R.string.prompt_reset_success))
-            }
+            android.widget.Toast.makeText(ctx, ctx.getString(R.string.prompt_reset_success), android.widget.Toast.LENGTH_SHORT).show()
         },
         onResetAll = {
             viewModel.resetAllCustomPrompts()
             promptText = viewModel.getCustomPrompt(selectedPromptKey)
-            coroutineScope.launch {
-                snackbarHostState.showSnackbar(ctx.getString(R.string.prompt_reset_all_success))
-            }
+            android.widget.Toast.makeText(ctx, ctx.getString(R.string.prompt_reset_all_success), android.widget.Toast.LENGTH_SHORT).show()
         },
         onCreatePreset = { name, copyCurrent ->
             viewModel.createPromptPreset(name, copyCurrent)
