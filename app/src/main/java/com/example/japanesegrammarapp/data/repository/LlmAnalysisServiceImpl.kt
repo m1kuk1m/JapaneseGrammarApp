@@ -273,12 +273,13 @@ class LlmAnalysisServiceImpl @Inject constructor(
                         role = parts.drop(7).joinToString("|").trim().takeIf { it.isNotBlank() && it != "null" }
                     )
                 } else if (parts.size >= 5) {
+                    val remainingParts = parts.drop(4).map { it.trim() }.filter { it.isNotBlank() && it != "null" }
                     WordSegment(
                         text = parts[0].trim(),
                         reading = parts[1].trim().takeIf { it.isNotBlank() && it != "null" },
                         meaning = parts[2].trim().takeIf { it.isNotBlank() && it != "null" },
                         partOfSpeech = parts[3].trim().takeIf { it.isNotBlank() && it != "null" },
-                        role = parts.drop(4).joinToString("|").trim().takeIf { it.isNotBlank() && it != "null" }
+                        role = remainingParts.joinToString(" | ").takeIf { it.isNotBlank() }
                     )
                 } else null
             }
