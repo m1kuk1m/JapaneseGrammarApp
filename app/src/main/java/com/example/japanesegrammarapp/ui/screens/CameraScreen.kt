@@ -64,7 +64,8 @@ import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 fun CameraScreen(
     navController: NavController,
     galleryImageUriString: String? = null,
-    ocrBoxDetectionSettings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT
+    ocrBoxDetectionSettings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT,
+    uiPreferencesRepository: com.example.japanesegrammarapp.domain.repository.UiPreferencesRepository
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -294,6 +295,7 @@ fun CameraScreen(
                             originalBitmap = bitmap,
                             captureDeviceOrientation = captureDeviceOrientation,
                             ocrBoxDetectionSettings = ocrBoxDetectionSettings,
+                            uiPreferencesRepository = uiPreferencesRepository,
                             onCancel = {
                                 if (!galleryImageUriString.isNullOrBlank()) {
                                     // If started from gallery selection, go back directly

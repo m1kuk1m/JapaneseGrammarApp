@@ -305,6 +305,7 @@ fun SettingsScreen(
             onDismiss = { endpointAddProvider = null },
             onSave = { name, baseUrl, apiKey, priority, weight ->
                 viewModel.createEndpoint(provider, name, baseUrl, apiKey, priority, weight)
+                android.widget.Toast.makeText(ctx, ctx.getString(R.string.save_success_toast), android.widget.Toast.LENGTH_SHORT).show()
                 endpointAddProvider = null
             }
         )
@@ -326,6 +327,7 @@ fun SettingsScreen(
                     ),
                     apiKey
                 )
+                android.widget.Toast.makeText(ctx, ctx.getString(R.string.save_success_toast), android.widget.Toast.LENGTH_SHORT).show()
                 endpointBeingEdited = null
             }
         )
@@ -340,6 +342,7 @@ fun SettingsScreen(
                 Button(
                     onClick = {
                         viewModel.deleteEndpoint(endpoint.provider, endpoint.id)
+                        android.widget.Toast.makeText(ctx, ctx.getString(R.string.delete_success_toast), android.widget.Toast.LENGTH_SHORT).show()
                         endpointDeleteTarget = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
@@ -399,7 +402,10 @@ fun SettingsScreen(
                 uiState = uiState,
                 onThemeModeChange = viewModel::setThemeMode,
                 onPickWallpaper = { wallpaperLauncher.launch("image/*") },
-                onClearWallpaper = viewModel::clearWallpaper
+                onClearWallpaper = {
+                    viewModel.clearWallpaper()
+                    android.widget.Toast.makeText(ctx, ctx.getString(R.string.clear_wallpaper_toast), android.widget.Toast.LENGTH_SHORT).show()
+                }
             )
 
             // General Section
@@ -520,13 +526,16 @@ fun SettingsScreen(
         onCreatePreset = { name, copyCurrent ->
             viewModel.createPromptPreset(name, copyCurrent)
             promptText = viewModel.getCustomPrompt(selectedPromptKey)
+            android.widget.Toast.makeText(ctx, ctx.getString(R.string.save_success_toast), android.widget.Toast.LENGTH_SHORT).show()
         },
         onRenamePreset = { id, newName ->
             viewModel.renamePromptPreset(id, newName)
+            android.widget.Toast.makeText(ctx, ctx.getString(R.string.save_success_toast), android.widget.Toast.LENGTH_SHORT).show()
         },
         onDeletePreset = { id ->
             viewModel.deletePromptPreset(id)
             promptText = viewModel.getCustomPrompt(selectedPromptKey)
+            android.widget.Toast.makeText(ctx, ctx.getString(R.string.delete_success_toast), android.widget.Toast.LENGTH_SHORT).show()
         },
         onSelectPreset = { id ->
             viewModel.setActivePromptPreset(id)

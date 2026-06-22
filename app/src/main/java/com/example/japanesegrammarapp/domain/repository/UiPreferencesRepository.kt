@@ -8,4 +8,6 @@ interface UiPreferencesRepository {
     fun saveFloatingActionBallMode(mode: String)
     fun getLastDictionary(defaultValue: String): String
     fun saveLastDictionary(dictionary: String)
+    fun getCropInteraction(defaultValue: String): String
+    fun saveCropInteraction(mode: String)
 }

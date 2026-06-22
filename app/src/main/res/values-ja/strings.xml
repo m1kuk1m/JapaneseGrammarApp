@@ -580,4 +580,8 @@
     <string name="import_summary_failed">失敗: %1$d</string>
     <string name="import_summary_failure_reasons">失敗の理由:</string>
     <string name="ok">OK</string>
+    <string name="save_success_toast">保存しました</string>
+    <string name="delete_success_toast">削除しました</string>
+    <string name="reset_success_toast">リセットしました</string>
+    <string name="clear_wallpaper_toast">壁紙をクリアしました</string>
 </resources>

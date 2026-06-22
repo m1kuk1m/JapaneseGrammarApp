@@ -36,11 +36,18 @@ class UiPreferencesRepositoryImpl @Inject constructor(
     override fun saveLastDictionary(dictionary: String) {
         prefs.edit().putString(KEY_LAST_DICTIONARY, dictionary).apply()
     }
+    override fun getCropInteraction(defaultValue: String): String =
+        prefs.getString(KEY_CROP_INTERACTION, defaultValue) ?: defaultValue
+
+    override fun saveCropInteraction(mode: String) {
+        prefs.edit().putString(KEY_CROP_INTERACTION, mode).apply()
+    }
 
     private companion object {
         const val KEY_FAB_X = "fab_x"
         const val KEY_FAB_Y = "fab_y"
         const val KEY_FAB_MODE = "fab_mode"
         const val KEY_LAST_DICTIONARY = "last_dict"
+        const val KEY_CROP_INTERACTION = "crop_interaction"
     }
 }
