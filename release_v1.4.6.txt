@@ -1,0 +1,2 @@
+v1.4.6 Release Notes
+- Fixed a bug where a separator line (vertical bar) appeared inside/after the "文中の役割" (Role in Sentence) field in word analysis details.
