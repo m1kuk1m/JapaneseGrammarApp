@@ -1,0 +1,4 @@
+v1.4.4 Release Notes
+- Fixed toast notification visibility issue: saved prompt success notifications are now immediately visible over the SettingsPromptEditor overlay.
+- Improved OCR text region bounding box height calculations: bounding boxes for short or thin text lines are now significantly taller and more accurate.
+- Hidden bottom control panel while dragging selection areas in the crop screen to prevent layout obstruction.
