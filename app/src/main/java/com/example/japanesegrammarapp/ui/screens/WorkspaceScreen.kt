@@ -664,6 +664,7 @@ fun WorkspaceScreen(
                                                          TextButton(
                                                              onClick = {
                                                                  clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(errorStr))
+                                                                 android.widget.Toast.makeText(context, context.getString(R.string.copy_success_toast), android.widget.Toast.LENGTH_SHORT).show()
                                                              },
                                                              contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                                                              colors = ButtonDefaults.textButtonColors(contentColor = SumiInk.copy(alpha = 0.8f))

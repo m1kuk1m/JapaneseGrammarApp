@@ -136,6 +136,7 @@ fun ImageCropReviewLayout(
     originalBitmap: Bitmap,
     captureDeviceOrientation: DeviceOrientation,
     ocrBoxDetectionSettings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT,
+    uiPreferencesRepository: com.example.japanesegrammarapp.domain.repository.UiPreferencesRepository,
     onCancel: () -> Unit,
     onConfirm: (Bitmap) -> Unit
 ) {
@@ -191,7 +192,11 @@ fun ImageCropReviewLayout(
         }
     }
 
-    var interactionMode by remember { mutableStateOf(CropInteraction.AREA_CROP) }
+    var interactionMode by remember { 
+        val defaultStr = uiPreferencesRepository.getCropInteraction(CropInteraction.AREA_CROP.name)
+        val defaultMode = try { CropInteraction.valueOf(defaultStr) } catch(e: Exception) { CropInteraction.AREA_CROP }
+        mutableStateOf(defaultMode) 
+    }
     var textSelectStart by remember { mutableStateOf<TextHandleState?>(null) }
     var textSelectEnd by remember { mutableStateOf<TextHandleState?>(null) }
     var magnifierPosition by remember { mutableStateOf<Offset?>(null) }
@@ -1052,7 +1057,10 @@ fun ImageCropReviewLayout(
             ) {
                 SegmentedControl(
                     selected = interactionMode,
-                    onSelected = { interactionMode = it }
+                    onSelected = { 
+                        interactionMode = it 
+                        uiPreferencesRepository.saveCropInteraction(it.name)
+                    }
                 )
 
                 Row(

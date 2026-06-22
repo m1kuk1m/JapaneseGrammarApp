@@ -590,4 +590,8 @@
 
     <string name="conflict_resolution_overwrite">Overwrite existing</string>
     <string name="conflict_resolution_skip">Skip existing</string>
+    <string name="save_success_toast">Saved successfully</string>
+    <string name="delete_success_toast">Deleted successfully</string>
+    <string name="reset_success_toast">Reset successfully</string>
+    <string name="clear_wallpaper_toast">Wallpaper cleared</string>
 </resources>

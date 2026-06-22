@@ -581,4 +581,8 @@
     <string name="import_summary_failed">失败：%1$d</string>
     <string name="import_summary_failure_reasons">失败原因：</string>
     <string name="ok">确定</string>
+    <string name="save_success_toast">保存成功</string>
+    <string name="delete_success_toast">删除成功</string>
+    <string name="reset_success_toast">重置成功</string>
+    <string name="clear_wallpaper_toast">壁纸已清除</string>
 </resources>

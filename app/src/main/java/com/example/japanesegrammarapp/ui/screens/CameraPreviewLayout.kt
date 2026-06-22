@@ -1,6 +1,7 @@
 package com.example.japanesegrammarapp.ui.screens
 
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCaseGroup
@@ -47,10 +48,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -67,6 +72,9 @@ import androidx.core.content.ContextCompat
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.utils.AppLogger
+import kotlinx.coroutines.delay
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 
 @Composable
 fun CameraPreviewLayout(
@@ -86,6 +94,10 @@ fun CameraPreviewLayout(
     }
     val cameraSelector = remember { CameraSelector.DEFAULT_BACK_CAMERA }
     val context = LocalContext.current
+    
+    var camera by remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
+    var focusPoint by remember { mutableStateOf<Offset?>(null) }
+    var previewViewRef by remember { mutableStateOf<PreviewView?>(null) }
 
     DisposableEffect(lifecycleOwner) {
         onDispose {
@@ -107,7 +119,22 @@ fun CameraPreviewLayout(
         }
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier
+        .fillMaxSize()
+        .pointerInput(Unit) {
+            detectTapGestures(
+                onTap = { offset ->
+                    previewViewRef?.let { previewView ->
+                        val factory = previewView.meteringPointFactory
+                        val point = factory.createPoint(offset.x, offset.y)
+                        val action = FocusMeteringAction.Builder(point).build()
+                        camera?.cameraControl?.startFocusAndMetering(action)
+                        focusPoint = offset
+                    }
+                }
+            )
+        }
+    ) {
         val maxWidth = maxWidth
         val maxHeight = maxHeight
 
@@ -116,6 +143,7 @@ fun CameraPreviewLayout(
                 val previewView = PreviewView(ctx).apply {
                     scaleType = PreviewView.ScaleType.FILL_CENTER
                 }
+                previewViewRef = previewView
                 previewView.post {
                     val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                     cameraProviderFuture.addListener({
@@ -124,7 +152,7 @@ fun CameraPreviewLayout(
                             cameraProvider.unbindAll()
                             
                             val viewPort = previewView.viewPort
-                            if (viewPort != null) {
+                            camera = if (viewPort != null) {
                                 val useCaseGroup = UseCaseGroup.Builder()
                                     .addUseCase(preview)
                                     .addUseCase(imageCapture)
@@ -322,6 +350,35 @@ fun CameraPreviewLayout(
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 11.sp,
                     textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        focusPoint?.let { point ->
+            var visible by remember(point) { mutableStateOf(true) }
+            LaunchedEffect(point) {
+                delay(1500)
+                visible = false
+            }
+            if (visible) {
+                val scale by animateFloatAsState(
+                    targetValue = if (visible) 1f else 1.3f,
+                    animationSpec = tween(400),
+                    label = "focusScale"
+                )
+                val alpha by animateFloatAsState(
+                    targetValue = if (visible) 1f else 0f,
+                    animationSpec = tween(400),
+                    label = "focusAlpha"
+                )
+                
+                Box(
+                    modifier = Modifier
+                        .absoluteOffset { IntOffset(point.x.toInt() - 30.dp.roundToPx(), point.y.toInt() - 30.dp.roundToPx()) }
+                        .size(60.dp)
+                        .scale(scale)
+                        .alpha(alpha)
+                        .border(1.5.dp, Color.White, CircleShape)
                 )
             }
         }
