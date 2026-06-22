@@ -512,6 +512,7 @@ fun ImageCropReviewLayout(
                                             if (interactionMode == CropInteraction.TEXT_SELECT) {
                                                 if (activeTextHandle != null) {
                                                     isEditing = true
+                                                    isDragging = true
                                                     val currentPos = currentFinger.position
                                                     magnifierPosition = currentPos
                                                     
@@ -590,7 +591,13 @@ fun ImageCropReviewLayout(
                                                 val dist = kotlin.math.sqrt(totalDelta.x * totalDelta.x + totalDelta.y * totalDelta.y)
                                                 val heldLongEnough = currentFinger.uptimeMillis - downEvent.uptimeMillis >= longPressMs
 
-                                                if (heldLongEnough && dist > dragSlopPx) {
+                                                val shouldStartDrag = if (targetBox != null) {
+                                                    heldLongEnough && dist > dragSlopPx
+                                                } else {
+                                                    dist > dragSlopPx
+                                                }
+
+                                                if (shouldStartDrag) {
                                                     targetBox?.let { box ->
                                                         val displayLeft = cropState.imgOffsetX + box.left * cropState.scaleFactor
                                                         val displayTop = cropState.imgOffsetY + box.top * cropState.scaleFactor
@@ -948,7 +955,7 @@ fun ImageCropReviewLayout(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(SumiInk)
@@ -956,8 +963,7 @@ fun ImageCropReviewLayout(
     ) {
         BoxWithConstraints(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
+                .fillMaxSize()
         ) {
             val isLandscape = captureDeviceOrientation == DeviceOrientation.LANDSCAPE_LEFT || captureDeviceOrientation == DeviceOrientation.LANDSCAPE_RIGHT
             
@@ -1012,48 +1018,54 @@ fun ImageCropReviewLayout(
                 modifier = workspaceModifier
             )
         }
-        
-            // Floating Auto Deskew Button
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(end = 24.dp, bottom = 16.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-                IconButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            try {
-                                val skewAngle = detectImageSkewAngle(bitmap)
-                                if (kotlin.math.abs(skewAngle) > 0.5f) { // Only correct if skew is significant
-                                    applyRotation(-skewAngle)
-                                }
-                            } catch (e: Exception) {
-                                AppLogger.e("CAMERA", "Auto skew detection failed", e)
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.45f), androidx.compose.foundation.shape.CircleShape)
-                ) {
-                    Icon(Icons.Default.AutoFixHigh, contentDescription = "Auto Deskew", tint = Color.White)
-                }
-            }
         }
 
-        // Unified Bottom Control Panel
-        Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f), Color.Black.copy(alpha = 0.9f)),
-                            startY = 0f
+        androidx.compose.animation.AnimatedVisibility(
+            visible = !isDragging,
+            enter = androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Floating Auto Deskew Button
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = 24.dp, bottom = 16.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                try {
+                                    val skewAngle = detectImageSkewAngle(bitmap)
+                                    if (kotlin.math.abs(skewAngle) > 0.5f) { // Only correct if skew is significant
+                                        applyRotation(-skewAngle)
+                                    }
+                                } catch (e: Exception) {
+                                    AppLogger.e("CAMERA", "Auto skew detection failed", e)
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.45f), androidx.compose.foundation.shape.CircleShape)
+                    ) {
+                        Icon(Icons.Default.AutoFixHigh, contentDescription = "Auto Deskew", tint = Color.White)
+                    }
+                }
+
+                // Unified Bottom Control Panel
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f), Color.Black.copy(alpha = 0.9f)),
+                                startY = 0f
+                            )
                         )
-                    )
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                        .navigationBarsPadding()
+                        .padding(horizontal = 24.dp, vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
@@ -1139,7 +1151,9 @@ fun ImageCropReviewLayout(
                 }
             }
         }
+        }
     }
+}
 
 
 
