@@ -38,8 +38,8 @@ android {
         applicationId = "com.example.japanesegrammarapp"
         minSdk = 26
         targetSdk = 34
-        versionCode = 12
-        versionName = "1.4.4"
+        versionCode = 13
+        versionName = "1.4.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
