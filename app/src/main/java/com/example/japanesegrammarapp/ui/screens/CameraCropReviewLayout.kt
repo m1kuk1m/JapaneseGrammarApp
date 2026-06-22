@@ -948,14 +948,20 @@ fun ImageCropReviewLayout(
         }
     }
 
-    BoxWithConstraints(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(SumiInk)
+            .statusBarsPadding()
     ) {
-        val isLandscape = captureDeviceOrientation == DeviceOrientation.LANDSCAPE_LEFT || captureDeviceOrientation == DeviceOrientation.LANDSCAPE_RIGHT
-        
-        val workspaceModifier = Modifier
+        BoxWithConstraints(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
+            val isLandscape = captureDeviceOrientation == DeviceOrientation.LANDSCAPE_LEFT || captureDeviceOrientation == DeviceOrientation.LANDSCAPE_RIGHT
+            
+            val workspaceModifier = Modifier
             .run {
                 if (isLandscape) {
                     requiredSize(width = maxHeight, height = maxWidth)
@@ -1007,16 +1013,11 @@ fun ImageCropReviewLayout(
             )
         }
         
-        // Bottom Area: Floating Button + Control Panel
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-        ) {
             // Floating Auto Deskew Button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
                     .padding(end = 24.dp, bottom = 16.dp),
                 horizontalArrangement = Arrangement.End
             ) {
@@ -1039,9 +1040,10 @@ fun ImageCropReviewLayout(
                     Icon(Icons.Default.AutoFixHigh, contentDescription = "Auto Deskew", tint = Color.White)
                 }
             }
+        }
 
-            // Unified Bottom Control Panel
-            Column(
+        // Unified Bottom Control Panel
+        Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
@@ -1138,7 +1140,6 @@ fun ImageCropReviewLayout(
             }
         }
     }
-}
 
 
 
