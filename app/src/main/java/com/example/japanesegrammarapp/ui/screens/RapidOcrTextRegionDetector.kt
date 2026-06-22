@@ -269,8 +269,10 @@ private fun rawRapidOcrBoxes(
             val scaleY = originalHeight.toFloat() / mapHeight
             val width = (right - left + 1).coerceAtLeast(1)
             val height = (bottom - top + 1).coerceAtLeast(1)
-            val inflateX = ((width * (unclipRatio - 1f)) / 2f).coerceAtLeast(1f)
-            val inflateY = ((height * (unclipRatio - 1f)) / 2f).coerceAtLeast(1f)
+            
+            val distance = (width * height * unclipRatio) / (2f * (width + height))
+            val inflateX = distance.coerceAtLeast(1f)
+            val inflateY = distance.coerceAtLeast(1f)
 
             val rect = Rect(
                 ((left - inflateX) * scaleX).toInt().coerceIn(0, originalWidth),
