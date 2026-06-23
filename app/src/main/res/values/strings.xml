@@ -108,6 +108,9 @@
     <string name="clear_api_key_confirm">This will remove the saved API Key for this provider.</string>
     <string name="api_key_save_success">API Key saved</string>
     <string name="api_key_save_failed">Failed to save API Key</string>
+
+    <string name="settings_auto_deskew">Auto Calibration</string>
+    <string name="settings_auto_deskew_desc">Automatically adjust image skew after capturing a photo.</string>
     <string name="fetching">Fetching...</string>
     <string name="fetch_models">Fetch Models</string>
     <string name="add_custom_model">Add Custom Model</string>

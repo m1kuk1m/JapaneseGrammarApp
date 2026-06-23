@@ -136,6 +136,7 @@ fun ImageCropReviewLayout(
     originalBitmap: Bitmap,
     captureDeviceOrientation: DeviceOrientation,
     ocrBoxDetectionSettings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT,
+    autoDeskewAfterCapture: Boolean = false,
     uiPreferencesRepository: com.example.japanesegrammarapp.domain.repository.UiPreferencesRepository,
     onCancel: () -> Unit,
     onConfirm: (Bitmap) -> Unit
@@ -189,6 +190,30 @@ fun ImageCropReviewLayout(
             cropState.visualRotationAngle = 0f
         } catch (e: Exception) {
             AppLogger.e("CAMERA", "Failed to rotate bitmap", e)
+        }
+    }
+
+    val deskewAnimatable = remember { androidx.compose.animation.core.Animatable(0f) }
+
+    suspend fun performAnimatedDeskew(skewAngle: Float) {
+        if (kotlin.math.abs(skewAngle) > 0.5f) {
+            try {
+                deskewAnimatable.snapTo(0f)
+                deskewAnimatable.animateTo(
+                    targetValue = -skewAngle,
+                    animationSpec = androidx.compose.animation.core.tween(
+                        durationMillis = 300,
+                        easing = androidx.compose.animation.core.EaseInOutCubic
+                    )
+                ) {
+                    cropState.visualRotationAngle = value
+                }
+                applyRotation(-skewAngle)
+                deskewAnimatable.snapTo(0f)
+                cropState.visualRotationAngle = 0f
+            } catch (e: Exception) {
+                AppLogger.e("CAMERA", "Deskew animation failed", e)
+            }
         }
     }
 
@@ -1028,29 +1053,29 @@ fun ImageCropReviewLayout(
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 // Floating Auto Deskew Button
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(end = 24.dp, bottom = 16.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    IconButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                try {
-                                    val skewAngle = detectImageSkewAngle(bitmap)
-                                    if (kotlin.math.abs(skewAngle) > 0.5f) { // Only correct if skew is significant
-                                        applyRotation(-skewAngle)
-                                    }
-                                } catch (e: Exception) {
-                                    AppLogger.e("CAMERA", "Auto skew detection failed", e)
-                                }
-                            }
-                        },
+                if (!autoDeskewAfterCapture) {
+                    Row(
                         modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.45f), androidx.compose.foundation.shape.CircleShape)
+                            .fillMaxWidth()
+                            .padding(end = 24.dp, bottom = 16.dp),
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        Icon(Icons.Default.AutoFixHigh, contentDescription = "Auto Deskew", tint = Color.White)
+                        IconButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    try {
+                                        val skewAngle = detectImageSkewAngle(bitmap)
+                                        performAnimatedDeskew(skewAngle)
+                                    } catch (e: Exception) {
+                                        AppLogger.e("CAMERA", "Auto skew detection failed", e)
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .background(Color.Black.copy(alpha = 0.45f), androidx.compose.foundation.shape.CircleShape)
+                        ) {
+                            Icon(Icons.Default.AutoFixHigh, contentDescription = "Auto Deskew", tint = Color.White)
+                        }
                     }
                 }
 

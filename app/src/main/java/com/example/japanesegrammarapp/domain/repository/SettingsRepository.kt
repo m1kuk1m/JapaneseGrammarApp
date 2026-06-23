@@ -33,6 +33,8 @@ interface SettingsRepository {
     fun resetOcrBoxDetectionSettings()
     fun getAutoNavigateResult(): Boolean
     fun setAutoNavigateResult(value: Boolean)
+    fun getAutoDeskewAfterCapture(): Boolean
+    fun setAutoDeskewAfterCapture(value: Boolean)
     fun getModelsForProvider(provider: String): List<String>
     fun saveModelsForProvider(provider: String, models: List<String>)
     fun getBackupProvider(): String
