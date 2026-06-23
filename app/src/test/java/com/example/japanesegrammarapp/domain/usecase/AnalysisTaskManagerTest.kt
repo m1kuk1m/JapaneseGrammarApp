@@ -275,6 +275,8 @@ private class FakeSettingsRepository(
     override fun resetOcrBoxDetectionSettings() = Unit
     override fun getAutoNavigateResult(): Boolean = true
     override fun setAutoNavigateResult(value: Boolean) = Unit
+    override fun getAutoDeskewAfterCapture(): Boolean = false
+    override fun setAutoDeskewAfterCapture(value: Boolean) = Unit
     override fun getModelsForProvider(provider: String): List<String> = emptyList()
     override fun saveModelsForProvider(provider: String, models: List<String>) = Unit
     override fun getBackupProvider(): String = ""
