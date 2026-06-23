@@ -1,0 +1,3 @@
+v1.4.7 Release Notes
+- Feature: Added auto-cropping with dynamic padding for image-based text selection.
+- Performance: Optimized LLM prompts for translation and token analysis, reducing redundant instructions and token consumption.
