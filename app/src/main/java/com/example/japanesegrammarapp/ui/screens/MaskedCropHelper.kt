@@ -26,6 +26,17 @@ object MaskedCropHelper {
             if (box.bottom > maxBottom) maxBottom = box.bottom
         }
 
+        // Calculate dynamic padding (5% of the largest dimension, bounded between 20 and 100 pixels)
+        val boxWidth = maxRight - minLeft
+        val boxHeight = maxBottom - minTop
+        val dynamicPadding = (maxOf(boxWidth, boxHeight) * 0.05).toInt().coerceIn(20, 100)
+
+        // Apply padding
+        minLeft -= dynamicPadding
+        minTop -= dynamicPadding
+        maxRight += dynamicPadding
+        maxBottom += dynamicPadding
+
         // Ensure bounds are within the original bitmap
         minLeft = minLeft.coerceAtLeast(0)
         minTop = minTop.coerceAtLeast(0)
