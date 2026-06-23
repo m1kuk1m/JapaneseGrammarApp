@@ -65,6 +65,7 @@ fun CameraScreen(
     navController: NavController,
     galleryImageUriString: String? = null,
     ocrBoxDetectionSettings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT,
+    autoDeskewAfterCapture: Boolean = false,
     uiPreferencesRepository: com.example.japanesegrammarapp.domain.repository.UiPreferencesRepository
 ) {
     val context = LocalContext.current
@@ -145,7 +146,8 @@ fun CameraScreen(
             val uri = Uri.parse(galleryImageUriString)
             val result = loadCameraReviewBitmap(context, uri)
             if (result != null) {
-                replaceCapturedBitmap(result.bitmap)
+                val processedBitmap = applyAutoDeskewIfEnabled(result.bitmap, autoDeskewAfterCapture)
+                replaceCapturedBitmap(processedBitmap)
                 wasImageRotatedToPortrait = result.wasRotatedToPortrait
                 screenMode = CameraScreenMode.CROP_REVIEW
             } else {
@@ -163,7 +165,8 @@ fun CameraScreen(
             val uri = Uri.parse(tempFileUriString)
             val result = loadCameraReviewBitmap(context, uri)
             if (result != null) {
-                replaceCapturedBitmap(result.bitmap)
+                val processedBitmap = applyAutoDeskewIfEnabled(result.bitmap, autoDeskewAfterCapture)
+                replaceCapturedBitmap(processedBitmap)
                 wasImageRotatedToPortrait = result.wasRotatedToPortrait
                 screenMode = CameraScreenMode.CROP_REVIEW
             }
@@ -248,8 +251,10 @@ fun CameraScreen(
                                                 // a landscape capture.
                                                 val result = processCapturedImageFile(context, file)
                                                 if (result != null) {
+                                                    val processedBitmap = applyAutoDeskewIfEnabled(result.bitmap, autoDeskewAfterCapture)
+                                                    
                                                     withContext(Dispatchers.Main) {
-                                                        replaceCapturedBitmap(result.bitmap)
+                                                        replaceCapturedBitmap(processedBitmap)
                                                         wasImageRotatedToPortrait = result.wasRotatedToPortrait
                                                         tempFileUriString = result.savedUri?.toString()
                                                         screenMode = CameraScreenMode.CROP_REVIEW
@@ -295,6 +300,7 @@ fun CameraScreen(
                             originalBitmap = bitmap,
                             captureDeviceOrientation = captureDeviceOrientation,
                             ocrBoxDetectionSettings = ocrBoxDetectionSettings,
+                            autoDeskewAfterCapture = autoDeskewAfterCapture,
                             uiPreferencesRepository = uiPreferencesRepository,
                             onCancel = {
                                 if (!galleryImageUriString.isNullOrBlank()) {
@@ -347,5 +353,34 @@ fun CameraScreen(
                 }
             }
         }
+    }
+}
+
+private suspend fun applyAutoDeskewIfEnabled(bitmap: android.graphics.Bitmap, enabled: Boolean): android.graphics.Bitmap {
+    if (!enabled) return bitmap
+    return try {
+        val skewAngle = detectImageSkewAngle(bitmap)
+        if (kotlin.math.abs(skewAngle) > 0.5f) {
+            val matrix = android.graphics.Matrix().apply { postRotate(-skewAngle) }
+            val rotatedBitmap = android.graphics.Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+            val cx = rotatedBitmap.width / 2
+            val cy = rotatedBitmap.height / 2
+            val targetWidth = bitmap.width
+            val targetHeight = bitmap.height
+            val x = (cx - targetWidth / 2).coerceAtLeast(0)
+            val y = (cy - targetHeight / 2).coerceAtLeast(0)
+            val finalWidth = minOf(targetWidth, rotatedBitmap.width - x)
+            val finalHeight = minOf(targetHeight, rotatedBitmap.height - y)
+            val deskewedBitmap = android.graphics.Bitmap.createBitmap(rotatedBitmap, x, y, finalWidth, finalHeight)
+            if (rotatedBitmap !== bitmap && rotatedBitmap !== deskewedBitmap) {
+                rotatedBitmap.recycle()
+            }
+            deskewedBitmap
+        } else {
+            bitmap
+        }
+    } catch (e: Exception) {
+        com.example.japanesegrammarapp.utils.AppLogger.e("CAMERA", "Auto skew pre-processing failed", e)
+        bitmap
     }
 }

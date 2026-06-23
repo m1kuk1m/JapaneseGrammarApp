@@ -1,3 +1,4 @@
 v1.4.7 Release Notes
 - Feature: Added auto-cropping with dynamic padding for image-based text selection.
+- Feature: Added camera auto-calibration setting to automatically adjust image skew after capturing.
 - Performance: Optimized LLM prompts for translation and token analysis, reducing redundant instructions and token consumption.

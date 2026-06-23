@@ -416,6 +416,7 @@ fun SettingsScreen(
                 onUseOcrChange = viewModel::setUseOcr,
                 onOcrBoxDetectorEngineChange = viewModel::setOcrBoxDetectorEngine,
                 onTextSelectEngineChange = viewModel::setTextSelectEngine,
+                onAutoDeskewAfterCaptureChange = viewModel::setAutoDeskewAfterCapture,
                 onAutoNavigateResultChange = viewModel::setAutoNavigateResult,
                 onImageTokenizerModeChange = viewModel::setImageTokenizerMode,
                 onShowTokenDialog = { showTokenDialog = true },

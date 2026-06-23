@@ -154,6 +154,7 @@ fun SettingsGeneralSection(
     onUseOcrChange: (Boolean) -> Unit,
     onOcrBoxDetectorEngineChange: (OcrBoxDetectorEngine) -> Unit,
     onTextSelectEngineChange: (OcrBoxDetectorEngine) -> Unit,
+    onAutoDeskewAfterCaptureChange: (Boolean) -> Unit,
     onAutoNavigateResultChange: (Boolean) -> Unit,
     onImageTokenizerModeChange: (String) -> Unit,
     onShowTokenDialog: () -> Unit,
@@ -236,6 +237,21 @@ fun SettingsGeneralSection(
                 Switch(
                     checked = uiState.useOcr,
                     onCheckedChange = onUseOcrChange,
+                    colors = SettingsSwitchColors(onPrimaryColor, primaryColor, sumiInk)
+                )
+            }
+        )
+
+        SettingsDivider()
+
+        SettingsItem(
+            icon = androidx.compose.material.icons.Icons.Default.AutoFixHigh,
+            title = stringResource(R.string.settings_auto_deskew),
+            subtitle = stringResource(R.string.settings_auto_deskew_desc),
+            trailingContent = {
+                Switch(
+                    checked = uiState.autoDeskewAfterCapture,
+                    onCheckedChange = onAutoDeskewAfterCaptureChange,
                     colors = SettingsSwitchColors(onPrimaryColor, primaryColor, sumiInk)
                 )
             }

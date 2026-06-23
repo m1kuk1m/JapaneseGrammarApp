@@ -77,6 +77,14 @@ class SettingsRepositoryImpl @Inject constructor(
         settingPrefs.edit().putBoolean("auto_navigate_result", value).apply()
     }
 
+    override fun getAutoDeskewAfterCapture(): Boolean {
+        return settingPrefs.getBoolean("auto_deskew_after_capture", false)
+    }
+
+    override fun setAutoDeskewAfterCapture(value: Boolean) {
+        settingPrefs.edit().putBoolean("auto_deskew_after_capture", value).apply()
+    }
+
     override fun getActiveProvider(): String {
         return cachedActiveProvider ?: synchronized(this) {
             val cached = cachedActiveProvider

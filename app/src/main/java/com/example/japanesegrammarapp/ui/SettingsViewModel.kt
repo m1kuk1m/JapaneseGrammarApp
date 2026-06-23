@@ -59,6 +59,7 @@ class SettingsViewModel @Inject constructor(
             val activeModel = settingsRepository.getActiveModel(activeProvider)
             val useOcr = settingsRepository.getUseOcr()
             val autoNavigateResult = settingsRepository.getAutoNavigateResult()
+            val autoDeskewAfterCapture = settingsRepository.getAutoDeskewAfterCapture()
             val imageTokenizerMode = settingsRepository.getImageTokenizerMode()
             val ocrBoxDetectionSettings = settingsRepository.getOcrBoxDetectionSettings()
             val backupProvider = settingsRepository.getBackupProvider()
@@ -89,6 +90,7 @@ class SettingsViewModel @Inject constructor(
                     activeModel = finalActiveModel,
                     useOcr = useOcr,
                     autoNavigateResult = autoNavigateResult,
+                    autoDeskewAfterCapture = autoDeskewAfterCapture,
                     imageTokenizerMode = imageTokenizerMode,
                     ocrBoxDetectionSettings = ocrBoxDetectionSettings,
                     providerModels = providerModels,
@@ -247,6 +249,11 @@ class SettingsViewModel @Inject constructor(
     fun setAutoNavigateResult(value: Boolean) {
         settingsRepository.setAutoNavigateResult(value)
         _uiState.update { it.copy(autoNavigateResult = value) }
+    }
+
+    fun setAutoDeskewAfterCapture(value: Boolean) {
+        settingsRepository.setAutoDeskewAfterCapture(value)
+        _uiState.update { it.copy(autoDeskewAfterCapture = value) }
     }
 
     fun setImageTokenizerMode(mode: String) {
