@@ -321,7 +321,7 @@ fun ImageCropReviewLayout(
                             cropState.imgOffsetX + cropState.imgDispWidth / 2f,
                             cropState.imgOffsetY + cropState.imgDispHeight / 2f
                         )
-                        rotate(cropState.visualRotationAngle)
+                        rotate(cropState.visualRotationAngle, pivot = Offset.Zero)
                         translate(-cropState.imgDispWidth / 2f, -cropState.imgDispHeight / 2f)
                     }) {
                         drawImage(

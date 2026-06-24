@@ -1,0 +1,5 @@
+v1.4.9 Release Notes
+- Fix: Fixed the image rotation canvas rendering issue where rotating the cropped image caused incorrect visual offsets.
+- UI: Optimized the part-of-speech coloring scheme (including new tags/colors for Affixes and Phrases, and mapping for Pronouns/Interjections).
+- UI: Improved visual representation of selected and bookmarked word segment chips with enhanced borders.
+- LLM: Refined and simplified prompt segmentation rules in PromptManager to improve accuracy of token boundaries.

@@ -109,6 +109,7 @@ fun SegmentChip(
     val goldColor = Color(0xFFD4A017)
     val borderColor by animateColorAsState(
         targetValue = when {
+            isSelected && isBookmarked -> goldColor
             isSelected -> sumiInk
             isBookmarked -> goldColor
             isLoading -> Color.Transparent
@@ -118,7 +119,11 @@ fun SegmentChip(
         label = "borderColor"
     )
     val borderWidth by animateDpAsState(
-        targetValue = if (isBookmarked && !isSelected) 2.dp else 1.5.dp,
+        targetValue = when {
+            isSelected && isBookmarked -> 2.5.dp
+            isBookmarked -> 2.dp
+            else -> 1.5.dp
+        },
         label = "borderWidth"
     )
     val infiniteTransition = rememberInfiniteTransition(label = "chipShimmer")
@@ -268,17 +273,19 @@ private fun getChipColorForPos(segment: WordSegment): Color {
         val pos = segment.partOfSpeech ?: ""
         val primaryPos = pos.split("-").firstOrNull() ?: ""
         when {
-            primaryPos.contains("助動詞") -> "AUXILIARY"
-            primaryPos.contains("形容") || primaryPos.contains("形状") -> "ADJECTIVE"
-            primaryPos.contains("名詞") -> "NOUN"
-            primaryPos.contains("動詞") -> "VERB"
-            primaryPos.contains("助詞") -> "PARTICLE"
-            primaryPos.contains("副詞") -> "ADVERB"
-            primaryPos.contains("接続詞") -> "CONJUNCTION"
             primaryPos.contains("代名詞") -> "PRONOUN"
             primaryPos.contains("感動詞") -> "INTERJECTION"
+            primaryPos.contains("助動詞") -> "AUXILIARY"
+            primaryPos.contains("形容") || primaryPos.contains("形状") -> "ADJECTIVE"
+            primaryPos.contains("名詞") || primaryPos.contains("数詞") -> "NOUN"
+            primaryPos.contains("動詞") -> "VERB"
+            primaryPos.contains("助詞") -> "PARTICLE"
+            primaryPos.contains("副詞") || primaryPos.contains("擬態語") -> "ADVERB"
+            primaryPos.contains("接続詞") -> "CONJUNCTION"
             primaryPos.contains("連体詞") -> "PRE_NOUN_ADJECTIVAL"
-            primaryPos.contains("記号") || primaryPos.contains("補助記号") -> "SYMBOL"
+            primaryPos.contains("記号") -> "SYMBOL"
+            primaryPos.contains("接尾辞") || primaryPos.contains("接頭辞") -> "AFFIX"
+            primaryPos.contains("連語") || primaryPos.contains("慣用句") -> "PHRASE"
             else -> "OTHER"
         }
     }
