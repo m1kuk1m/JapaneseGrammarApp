@@ -30,7 +30,9 @@ object ZenThemeColors {
         "PRONOUN" to Color(0xFFE1E0F5),
         "PRE_NOUN_ADJECTIVAL" to Color(0xFFECEFC9),
         "INTERJECTION" to Color(0xFFFCE1D4),
-        "SYMBOL" to Color(0xFFEAEAEA)
+        "SYMBOL" to Color(0xFFEAEAEA),
+        "AFFIX" to Color(0xFFE5E4E2),
+        "PHRASE" to Color(0xFFECCEB1)
     )
 
     val PosColorsDark = mapOf(
@@ -44,7 +46,9 @@ object ZenThemeColors {
         "PRONOUN" to Color(0xFF24223D),
         "PRE_NOUN_ADJECTIVAL" to Color(0xFF323D1E),
         "INTERJECTION" to Color(0xFF3D2A22),
-        "SYMBOL" to Color(0xFF232323)
+        "SYMBOL" to Color(0xFF232323),
+        "AFFIX" to Color(0xFF2F3131),
+        "PHRASE" to Color(0xFF3D2A1E)
     )
 
     @Composable
