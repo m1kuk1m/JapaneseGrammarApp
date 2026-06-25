@@ -1,0 +1,2 @@
+v1.4.10 Release Notes
+- LLM: Standardized and refined prompt instructions for Japanese tokenizer and OCR image repair tokenizer to ensure consistent, high-accuracy text segmentation boundaries.
