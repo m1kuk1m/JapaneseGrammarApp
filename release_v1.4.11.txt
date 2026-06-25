@@ -1,0 +1,2 @@
+v1.4.11 Release Notes
+- LLM: Optimized Japanese tokenizer and OCR image repair tokenizer prompts to prevent token splitting during line breaks, ensuring consistent text segmentation boundaries.
