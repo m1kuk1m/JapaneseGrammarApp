@@ -70,6 +70,7 @@ fun BookmarksScreen(
     val pagerState = rememberPagerState(pageCount = { 3 })
     val filterMode by viewModel.filterMode.collectAsState()
     val posCategories by viewModel.posCategories.collectAsState()
+    val dateCategories by viewModel.dateCategories.collectAsState()
     val selectedPosCategory by viewModel.selectedPosCategory.collectAsState()
     val selectedDateFilter by viewModel.selectedDateFilter.collectAsState()
     val archiveFilter by viewModel.archiveFilter.collectAsState()
@@ -314,6 +315,7 @@ fun BookmarksScreen(
                                     filterMode = filterMode,
                                     archiveFilter = archiveFilter,
                                     posCategories = posCategories,
+                                    dateCategories = dateCategories,
                                     selectedPosCategory = selectedPosCategory,
                                     selectedDateFilter = selectedDateFilter,
                                     onFilterModeChange = { viewModel.setFilterMode(it) },
