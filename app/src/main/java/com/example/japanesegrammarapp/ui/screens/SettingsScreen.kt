@@ -293,8 +293,16 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.saveTtsApiKey(provider, "")
                         ttsKeys[provider] = ""
+                        viewModel.saveTtsSettings(
+                            selectedProvider = selectedTtsProvider,
+                            urls = ttsUrls.toMap(),
+                            keyProvider = provider,
+                            key = "",
+                            models = ttsModels.toMap(),
+                            voices = ttsVoices.toMap(),
+                            regions = ttsRegions.toMap()
+                        )
                         pendingTtsKeyClearProvider = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
@@ -517,7 +525,17 @@ fun SettingsScreen(
                             onTtsVoiceChange = { provider, value -> ttsVoices[provider] = value },
                             ttsRegions = ttsRegions,
                             onTtsRegionChange = { provider, value -> ttsRegions[provider] = value },
-                            onSaveTtsApiKey = viewModel::saveTtsApiKey,
+                            onSaveTtsSettings = {
+                                viewModel.saveTtsSettings(
+                                    selectedProvider = selectedTtsProvider,
+                                    urls = ttsUrls.toMap(),
+                                    keyProvider = selectedTtsProvider,
+                                    key = ttsKeys[selectedTtsProvider].orEmpty(),
+                                    models = ttsModels.toMap(),
+                                    voices = ttsVoices.toMap(),
+                                    regions = ttsRegions.toMap()
+                                )
+                            },
                             onRequestClearTtsKey = { pendingTtsKeyClearProvider = it }
                         )
                     }

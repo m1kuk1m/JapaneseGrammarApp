@@ -111,6 +111,8 @@
     <string name="clear_api_key_confirm">This will remove the saved API Key for this provider.</string>
     <string name="api_key_save_success">API Key saved</string>
     <string name="api_key_save_failed">Failed to save API Key</string>
+    <string name="save_tts_settings">Save TTS Settings</string>
+    <string name="tts_settings_save_success">TTS settings saved</string>
 
     <string name="settings_auto_deskew">Auto Calibration</string>
     <string name="settings_auto_deskew_desc">Automatically adjust image skew after capturing a photo.</string>
@@ -267,6 +269,8 @@
     <string name="endpoint_save">Save</string>
     <string name="endpoint_save_success">Endpoint saved</string>
     <string name="endpoint_delete_success">Endpoint deleted</string>
+    <string name="endpoint_missing_key_hint">API Key is not configured. This endpoint will not be used.</string>
+    <string name="endpoint_invalid_url_hint">Enter a valid http:// or https:// URL.</string>
     <string name="add" translatable="false">Add</string>
 
     <string name="input_dialog_title">Text Input</string>

@@ -323,6 +323,9 @@ class SettingsRepositoryImpl @Inject constructor(
             val normalized = endpoints
                 .ifEmpty { listOf(getDefaultEndpoint(provider)) }
                 .distinctBy { it.id }
+                .map { endpoint ->
+                    endpoint.copy(enabled = endpoint.enabled && getApiKeyForEndpoint(endpoint.id).isNotBlank())
+                }
                 .sortedWith(compareBy<LlmEndpoint> { it.priority }.thenBy { it.lastUsedAtMs }.thenBy { it.name })
             cachedEndpoints[provider] = normalized
             if (loaded.isEmpty()) {
@@ -347,9 +350,11 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     override fun saveEndpoint(endpoint: LlmEndpoint, apiKey: String?): Boolean {
+        val nextApiKey = apiKey ?: getApiKeyForEndpoint(endpoint.id)
         val cleanEndpoint = endpoint.copy(
             name = endpoint.name.ifBlank { "Default" },
             baseUrl = endpoint.baseUrl.ifBlank { LlmConfig.defaultUrls[endpoint.provider] ?: "" },
+            enabled = endpoint.enabled && nextApiKey.isNotBlank(),
             priority = endpoint.priority.coerceAtLeast(0),
             weight = endpoint.weight.coerceAtLeast(1)
         )
@@ -854,6 +859,7 @@ class SettingsRepositoryImpl @Inject constructor(
                 endpoint.copy(
                     name = endpoint.name.ifBlank { "Default" },
                     baseUrl = endpoint.baseUrl.ifBlank { LlmConfig.defaultUrls[provider] ?: "" },
+                    enabled = endpoint.enabled && getApiKeyForEndpoint(endpoint.id).isNotBlank(),
                     priority = endpoint.priority.coerceAtLeast(0),
                     weight = endpoint.weight.coerceAtLeast(1)
                 )
