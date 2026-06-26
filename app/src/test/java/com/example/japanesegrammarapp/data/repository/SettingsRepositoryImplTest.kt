@@ -1,8 +1,10 @@
 package com.example.japanesegrammarapp.data.repository
 
 import android.content.SharedPreferences
+import com.example.japanesegrammarapp.domain.model.EndpointUrlValidator
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
+import com.example.japanesegrammarapp.ui.SettingsUiState
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,6 +14,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SettingsRepositoryImplTest {
+    @Test
+    fun settingsUiStateDefaultsMatchAiDirectMode() {
+        val state = SettingsUiState()
+
+        assertFalse(state.useOcr)
+        assertEquals("faithful", state.imageTokenizerMode)
+    }
+
     @Test
     fun legacyProviderKeyAndUrlAreMigratedToDefaultEndpoint() {
         val standardPrefs = TestSharedPreferences().apply {
@@ -33,6 +43,60 @@ class SettingsRepositoryImplTest {
         assertEquals("https://legacy.example/v1", endpoints.single().baseUrl)
         assertEquals("legacy-secret", repository.getApiKeyForEndpoint("default_gemini"))
         assertEquals("legacy-secret", repository.getApiKey("Gemini"))
+    }
+
+    @Test
+    fun saveEndpointWithoutApiKeyStoresDraftAsDisabled() {
+        val repository = newRepository()
+
+        assertTrue(
+            repository.saveEndpoint(
+                LlmEndpoint(
+                    id = "draft",
+                    provider = "DeepSeek",
+                    name = "Draft",
+                    baseUrl = "https://draft.example",
+                    enabled = true
+                ),
+                ""
+            )
+        )
+
+        val saved = repository.getEndpoints("DeepSeek").first { it.id == "draft" }
+        assertFalse(saved.enabled)
+        assertEquals("", repository.getApiKeyForEndpoint("draft"))
+    }
+
+    @Test
+    fun clearingEndpointApiKeyDisablesEndpointAndRemovesItFromApiConfigs() {
+        val repository = newRepository()
+        val endpoint = LlmEndpoint(
+            id = "clear-key",
+            provider = "Qwen",
+            name = "Clear Key",
+            baseUrl = "https://qwen.example",
+            enabled = true
+        )
+        assertTrue(repository.saveEndpoint(endpoint, "secret"))
+        assertEquals(1, repository.buildLlmApiConfigs("Qwen", "qwen-test").size)
+
+        assertTrue(repository.saveEndpoint(endpoint, ""))
+
+        val saved = repository.getEndpoints("Qwen").first { it.id == "clear-key" }
+        assertFalse(saved.enabled)
+        assertEquals("", repository.getApiKeyForEndpoint("clear-key"))
+        assertTrue(repository.buildLlmApiConfigs("Qwen", "qwen-test").isEmpty())
+    }
+
+    @Test
+    fun endpointUrlValidatorAcceptsOnlyHttpAndHttpsUrls() {
+        assertTrue(EndpointUrlValidator.isValidHttpUrl("https://api.example.com/v1"))
+        assertTrue(EndpointUrlValidator.isValidHttpUrl(" http://localhost:8080 "))
+
+        assertFalse(EndpointUrlValidator.isValidHttpUrl(""))
+        assertFalse(EndpointUrlValidator.isValidHttpUrl("api.example.com/v1"))
+        assertFalse(EndpointUrlValidator.isValidHttpUrl("ftp://api.example.com"))
+        assertFalse(EndpointUrlValidator.isValidHttpUrl("https://"))
     }
 
     @Test

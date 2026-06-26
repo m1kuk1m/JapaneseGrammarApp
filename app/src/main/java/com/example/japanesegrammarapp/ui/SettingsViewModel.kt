@@ -9,6 +9,7 @@ import com.example.japanesegrammarapp.domain.repository.LlmRepository
 import com.example.japanesegrammarapp.domain.repository.HistoryRepository
 import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
 import com.example.japanesegrammarapp.domain.model.DailyTokenUsage
+import com.example.japanesegrammarapp.domain.model.EndpointUrlValidator
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
@@ -80,6 +81,9 @@ class SettingsViewModel @Inject constructor(
             val pUrls = allProviders.associateWith { settingsRepository.getApiUrl(it) }
             val pKeys = allProviders.associateWith { settingsRepository.getApiKey(it) }
             val pEndpoints = allProviders.associateWith { settingsRepository.getEndpoints(it) }
+            val endpointHasKeys = pEndpoints.values
+                .flatten()
+                .associate { endpoint -> endpoint.id to settingsRepository.getApiKeyForEndpoint(endpoint.id).isNotBlank() }
 
             val promptPresets = settingsRepository.getPromptPresets()
             val activePromptPresetId = settingsRepository.getActivePromptPresetId()
@@ -107,6 +111,7 @@ class SettingsViewModel @Inject constructor(
                     providerUrls = pUrls,
                     providerKeys = pKeys,
                     providerEndpoints = pEndpoints,
+                    endpointHasKeys = endpointHasKeys,
                     promptPresets = promptPresets,
                     activePromptPresetId = activePromptPresetId,
                     isSettingsLoaded = true
@@ -172,7 +177,7 @@ class SettingsViewModel @Inject constructor(
             provider = provider,
             name = name.ifBlank { "Endpoint ${(uiState.value.providerEndpoints[provider]?.size ?: 0) + 1}" },
             baseUrl = baseUrl.ifBlank { LlmConfig.defaultUrls[provider] ?: "" },
-            enabled = true,
+            enabled = apiKey.isNotBlank(),
             priority = priority.coerceAtLeast(0),
             weight = weight.coerceAtLeast(1)
         )
@@ -194,6 +199,11 @@ class SettingsViewModel @Inject constructor(
     fun toggleEndpoint(provider: String, endpointId: String, enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             val endpoint = settingsRepository.getEndpoints(provider).firstOrNull { it.id == endpointId } ?: return@launch
+            if (enabled && settingsRepository.getApiKeyForEndpoint(endpointId).isBlank()) {
+                refreshEndpointPool(provider)
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.endpoint_missing_key_hint))
+                return@launch
+            }
             val ok = settingsRepository.saveEndpoint(endpoint.copy(enabled = enabled), null)
             if (ok) {
                 refreshEndpointPool(provider)
@@ -216,11 +226,15 @@ class SettingsViewModel @Inject constructor(
         val endpoints = settingsRepository.getEndpoints(provider)
         val url = settingsRepository.getApiUrl(provider)
         val key = settingsRepository.getApiKey(provider)
+        val endpointHasKeys = endpoints.associate { endpoint ->
+            endpoint.id to settingsRepository.getApiKeyForEndpoint(endpoint.id).isNotBlank()
+        }
         _uiState.update { state ->
             state.copy(
                 providerEndpoints = state.providerEndpoints.toMutableMap().apply { put(provider, endpoints) },
                 providerUrls = state.providerUrls.toMutableMap().apply { put(provider, url) },
-                providerKeys = state.providerKeys.toMutableMap().apply { put(provider, key) }
+                providerKeys = state.providerKeys.toMutableMap().apply { put(provider, key) },
+                endpointHasKeys = state.endpointHasKeys.toMutableMap().apply { putAll(endpointHasKeys) }
             )
         }
     }
@@ -230,12 +244,16 @@ class SettingsViewModel @Inject constructor(
             val allProviders = settingsRepository.getAllProviders()
             val providerModels = allProviders.associateWith { settingsRepository.getModelsForProvider(it) }
             val providerEndpoints = allProviders.associateWith { settingsRepository.getEndpoints(it) }
+            val endpointHasKeys = providerEndpoints.values
+                .flatten()
+                .associate { endpoint -> endpoint.id to settingsRepository.getApiKeyForEndpoint(endpoint.id).isNotBlank() }
 
             _uiState.update {
                 it.copy(
                     allProviders = allProviders,
                     providerModels = providerModels,
-                    providerEndpoints = providerEndpoints
+                    providerEndpoints = providerEndpoints,
+                    endpointHasKeys = endpointHasKeys
                 )
             }
         }
@@ -397,6 +415,12 @@ class SettingsViewModel @Inject constructor(
                 val endpoint = settingsRepository.getEndpoints(provider).firstOrNull { it.id == endpointId }
                     ?: throw IllegalArgumentException("Endpoint not found")
                 val apiKey = settingsRepository.getApiKeyForEndpoint(endpointId)
+                if (apiKey.isBlank()) {
+                    throw IllegalArgumentException(application.getString(R.string.endpoint_missing_key_hint))
+                }
+                if (!EndpointUrlValidator.isValidHttpUrl(endpoint.baseUrl)) {
+                    throw IllegalArgumentException(application.getString(R.string.endpoint_invalid_url_hint))
+                }
                 val fetchedModels = llmRepository.fetchModels(provider, endpoint.baseUrl, apiKey)
                 saveModelsForProvider(provider, fetchedModels)
             } catch (e: IllegalArgumentException) {
@@ -530,6 +554,40 @@ class SettingsViewModel @Inject constructor(
                     state.copy(ttsKeys = state.ttsKeys.toMutableMap().apply { put(provider, key) })
                 }
                 _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.api_key_save_success))
+            } else {
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.api_key_save_failed))
+            }
+        }
+    }
+    fun saveTtsSettings(
+        selectedProvider: String,
+        urls: Map<String, String>,
+        keyProvider: String,
+        key: String,
+        models: Map<String, String>,
+        voices: Map<String, String>,
+        regions: Map<String, String>
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            settingsRepository.setTtsProvider(selectedProvider)
+            urls.forEach { (provider, url) -> settingsRepository.setTtsApiUrl(provider, url) }
+            models.forEach { (provider, model) -> settingsRepository.setTtsModel(provider, model) }
+            voices.forEach { (provider, voice) -> settingsRepository.setTtsVoice(provider, voice) }
+            regions.forEach { (provider, region) -> settingsRepository.setTtsRegion(provider, region) }
+
+            val ok = settingsRepository.setTtsApiKey(keyProvider, key)
+            if (ok) {
+                _uiState.update { state ->
+                    state.copy(
+                        selectedTtsProvider = selectedProvider,
+                        ttsUrls = urls.toMap(),
+                        ttsKeys = state.ttsKeys.toMutableMap().apply { put(keyProvider, key) },
+                        ttsModels = models.toMap(),
+                        ttsVoices = voices.toMap(),
+                        ttsRegions = regions.toMap()
+                    )
+                }
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.tts_settings_save_success))
             } else {
                 _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.api_key_save_failed))
             }

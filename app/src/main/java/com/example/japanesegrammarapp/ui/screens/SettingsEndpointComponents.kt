@@ -54,12 +54,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.japanesegrammarapp.R
+import com.example.japanesegrammarapp.domain.model.EndpointUrlValidator
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun EndpointPoolSection(
     endpoints: List<LlmEndpoint>,
+    endpointHasKeys: Map<String, Boolean>,
     fetchingEndpointId: String?,
     onAddEndpoint: () -> Unit,
     onEditEndpoint: (LlmEndpoint) -> Unit,
@@ -100,6 +102,10 @@ fun EndpointPoolSection(
         endpoints.forEach { endpoint ->
             val isCoolingDown = endpoint.cooldownUntilMs > now
             val isFetching = fetchingEndpointId == endpoint.id
+            val hasApiKey = endpointHasKeys[endpoint.id] == true
+            val hasValidUrl = EndpointUrlValidator.isValidHttpUrl(endpoint.baseUrl)
+            val canEnable = hasApiKey
+            val canFetchModels = !isFetching && endpoint.enabled && hasApiKey && hasValidUrl
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -131,7 +137,8 @@ fun EndpointPoolSection(
                     }
                     Switch(
                         checked = endpoint.enabled,
-                        onCheckedChange = { onToggleEndpoint(endpoint, it) }
+                        onCheckedChange = { onToggleEndpoint(endpoint, it) },
+                        enabled = endpoint.enabled || canEnable
                     )
                 }
 
@@ -152,6 +159,20 @@ fun EndpointPoolSection(
                             color = if (endpoint.enabled) primaryColor else sumiInk.copy(alpha = 0.45f),
                             fontSize = 12.sp
                         )
+                        if (!hasApiKey) {
+                            Text(
+                                text = stringResource(R.string.endpoint_missing_key_hint),
+                                color = Color(0xFFE65100),
+                                fontSize = 11.sp
+                            )
+                        }
+                        if (!hasValidUrl) {
+                            Text(
+                                text = stringResource(R.string.endpoint_invalid_url_hint),
+                                color = Color(0xFFC62828),
+                                fontSize = 11.sp
+                            )
+                        }
                         Text(
                             text = stringResource(
                                 R.string.endpoint_priority_weight,
@@ -192,7 +213,7 @@ fun EndpointPoolSection(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
                             onClick = { onFetchModels(endpoint) },
-                            enabled = !isFetching && endpoint.enabled
+                            enabled = canFetchModels
                         ) {
                             if (isFetching) {
                                 CircularProgressIndicator(
@@ -251,6 +272,8 @@ fun EndpointEditorDialog(
     var keyVisible by remember { mutableStateOf(false) }
     val parsedPriority = priorityText.toIntOrNull()?.coerceAtLeast(0)
     val parsedWeight = weightText.toIntOrNull()?.coerceAtLeast(1)
+    val trimmedBaseUrl = baseUrl.trim()
+    val isBaseUrlValid = EndpointUrlValidator.isValidHttpUrl(trimmedBaseUrl)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -290,6 +313,12 @@ fun EndpointEditorDialog(
                     label = { Text(stringResource(R.string.base_url)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    isError = baseUrl.isNotBlank() && !isBaseUrlValid,
+                    supportingText = {
+                        if (baseUrl.isNotBlank() && !isBaseUrlValid) {
+                            Text(stringResource(R.string.endpoint_invalid_url_hint))
+                        }
+                    },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = defaultKeyboardActions
                 )
@@ -347,7 +376,7 @@ fun EndpointEditorDialog(
                     )
                 },
                 enabled = name.isNotBlank() &&
-                    (baseUrl.isNotBlank() || endpoint != null) &&
+                    isBaseUrlValid &&
                     parsedPriority != null &&
                     parsedWeight != null
             ) {

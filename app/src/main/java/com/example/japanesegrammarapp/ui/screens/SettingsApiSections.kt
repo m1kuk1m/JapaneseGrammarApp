@@ -254,6 +254,7 @@ fun SettingsCredentialsSection(
                     Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
                         EndpointPoolSection(
                             endpoints = uiState.providerEndpoints[provider].orEmpty(),
+                            endpointHasKeys = uiState.endpointHasKeys,
                             fetchingEndpointId = uiState.fetchingEndpointId,
                             onAddEndpoint = { onAddEndpoint(provider) },
                             onEditEndpoint = onEditEndpoint,

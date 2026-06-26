@@ -63,7 +63,7 @@ fun SettingsTtsSection(
     onTtsVoiceChange: (String, String) -> Unit,
     ttsRegions: Map<String, String>,
     onTtsRegionChange: (String, String) -> Unit,
-    onSaveTtsApiKey: (String, String) -> Unit,
+    onSaveTtsSettings: () -> Unit,
     onRequestClearTtsKey: (String) -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
@@ -181,17 +181,15 @@ fun SettingsTtsSection(
                     if (key.isBlank() && savedTtsKeys[selectedTtsProvider]?.isNotBlank() == true) {
                         onRequestClearTtsKey(selectedTtsProvider)
                     } else {
-                        onSaveTtsApiKey(selectedTtsProvider, key)
+                        onSaveTtsSettings()
                     }
                 },
-                enabled = (ttsKeys[selectedTtsProvider]?.isNotBlank() == true) ||
-                    (savedTtsKeys[selectedTtsProvider]?.isNotBlank() == true),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Icon(Icons.Default.Save, null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.save_api_key))
+                Text(stringResource(R.string.save_tts_settings))
             }
             Spacer(modifier = Modifier.height(8.dp))
 
