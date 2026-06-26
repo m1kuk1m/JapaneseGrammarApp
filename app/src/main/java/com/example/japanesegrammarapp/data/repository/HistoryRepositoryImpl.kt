@@ -62,4 +62,8 @@ class HistoryRepositoryImpl @Inject constructor(
     override suspend fun deleteRecord(record: AnalysisDomainRecord) {
         analysisDao.delete(record.toEntity())
     }
+
+    override suspend fun markRecordAsRead(id: Int) {
+        analysisDao.markAsRead(id)
+    }
 }

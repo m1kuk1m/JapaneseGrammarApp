@@ -25,7 +25,8 @@ fun AnalysisRecord.toDomain(): AnalysisDomainRecord {
         errorMessage = errorMessage,
         consumedTokens = consumedTokens,
         inputTokens = inputTokens,
-        outputTokens = outputTokens
+        outputTokens = outputTokens,
+        isRead = isRead
     )
 }
 
@@ -41,7 +42,8 @@ fun AnalysisDomainRecord.toEntity(): AnalysisRecord {
         errorMessage = errorMessage,
         consumedTokens = consumedTokens,
         inputTokens = inputTokens,
-        outputTokens = outputTokens
+        outputTokens = outputTokens,
+        isRead = isRead
     )
 }
 

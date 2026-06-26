@@ -343,6 +343,24 @@ private class FakeHistoryRepository(vararg initialRecords: AnalysisDomainRecord)
         synchronized(records) { records.remove(record.id) }
     }
 
+    override suspend fun getNewerRecord(timestamp: Long): AnalysisDomainRecord? {
+        return synchronized(records) {
+            records.values.filter { it.timestamp > timestamp }.minByOrNull { it.timestamp }
+        }
+    }
+
+    override suspend fun getOlderRecord(timestamp: Long): AnalysisDomainRecord? {
+        return synchronized(records) {
+            records.values.filter { it.timestamp < timestamp }.maxByOrNull { it.timestamp }
+        }
+    }
+
+    override suspend fun markRecordAsRead(id: Int) {
+        synchronized(records) {
+            records[id] = records[id]?.copy(isRead = true) ?: return
+        }
+    }
+
     override val totalTokensConsumed: Flow<Int?> = MutableStateFlow(0)
     override val tokenUsageByModel: Flow<List<ModelTokenUsage>> = MutableStateFlow(emptyList())
     override val dailyTokenUsage: Flow<List<DailyTokenUsage>> = MutableStateFlow(emptyList())

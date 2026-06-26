@@ -11,5 +11,6 @@ data class AnalysisDomainRecord(
     val errorMessage: String? = null,
     val consumedTokens: Int = 0,
     val inputTokens: Int = 0,
-    val outputTokens: Int = 0
+    val outputTokens: Int = 0,
+    val isRead: Boolean = false
 )
