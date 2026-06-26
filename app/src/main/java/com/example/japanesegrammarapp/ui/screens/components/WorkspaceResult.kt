@@ -24,6 +24,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.animation.core.Animatable
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
@@ -63,6 +72,8 @@ fun WorkspaceResultContent(
     onStopTts: () -> Unit = {},
     onToggleBookmark: (WordSegment) -> Unit = {},
     onToggleGrammarBookmark: (pattern: String, explanation: String?, sourceText: String) -> Unit = { _, _, _ -> },
+    onLoadNewer: () -> Unit = {},
+    onLoadOlder: () -> Unit = {},
     uiPreferencesRepository: UiPreferencesRepository
 ) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
@@ -115,11 +126,61 @@ fun WorkspaceResultContent(
     } else {
         var selectedSegmentIndex by remember(uiState.selectedRecord?.id) { mutableStateOf(-1) }
 
+        val overscrollTop = remember { Animatable(0f) }
+        val overscrollBottom = remember { Animatable(0f) }
+        val coroutineScope = rememberCoroutineScope()
+        
+        val nestedScrollConnection = remember(scrollState) {
+            object : NestedScrollConnection {
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource
+                ): Offset {
+                    if (source == NestedScrollSource.Drag) {
+                        if (available.y > 0 && scrollState.value == 0) {
+                            coroutineScope.launch { overscrollTop.snapTo((overscrollTop.value + available.y * 0.5f).coerceAtMost(300f)) }
+                        } else if (available.y < 0 && scrollState.value == scrollState.maxValue) {
+                            coroutineScope.launch { overscrollBottom.snapTo((overscrollBottom.value - available.y * 0.5f).coerceAtMost(300f)) }
+                        }
+                    }
+                    return Offset.Zero
+                }
+
+                override suspend fun onPreFling(available: Velocity): Velocity {
+                    if (overscrollTop.value > 150f) {
+                        onLoadNewer()
+                    }
+                    if (overscrollBottom.value > 150f) {
+                        onLoadOlder()
+                    }
+                    coroutineScope.launch { overscrollTop.animateTo(0f) }
+                    coroutineScope.launch { overscrollBottom.animateTo(0f) }
+                    return Velocity.Zero
+                }
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .nestedScroll(nestedScrollConnection)
                 .testTag("workspace-result-content")
         ) {
+            Box(
+                modifier = Modifier.fillMaxWidth().height(0.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                if (overscrollTop.value > 0f) {
+                    Text(
+                        text = stringResource(if (overscrollTop.value > 150f) R.string.release_to_load_newer else R.string.loading_newer),
+                        modifier = Modifier.graphicsLayer { translationY = overscrollTop.value / 2f + 20f },
+                        color = SumiInk.copy(alpha = 0.6f),
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -717,6 +778,19 @@ fun WorkspaceResultContent(
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                 }
+            Box(
+                modifier = Modifier.fillMaxWidth().height(0.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                if (overscrollBottom.value > 0f) {
+                    Text(
+                        text = stringResource(if (overscrollBottom.value > 150f) R.string.release_to_load_older else R.string.loading_older),
+                        modifier = Modifier.graphicsLayer { translationY = -overscrollBottom.value / 2f - 20f },
+                        color = SumiInk.copy(alpha = 0.6f),
+                        fontSize = 12.sp
+                    )
+                }
+            }
         }
     }
 }

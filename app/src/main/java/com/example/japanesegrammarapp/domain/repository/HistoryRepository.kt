@@ -10,6 +10,8 @@ interface HistoryRepository {
     suspend fun getRecordById(id: Int): AnalysisDomainRecord?
     fun observeRecordById(id: Int): Flow<AnalysisDomainRecord?>
     suspend fun getRecordByOriginalText(originalText: String): AnalysisDomainRecord?
+    suspend fun getNewerRecord(timestamp: Long): AnalysisDomainRecord?
+    suspend fun getOlderRecord(timestamp: Long): AnalysisDomainRecord?
     suspend fun insertRecord(record: AnalysisDomainRecord): Long
     suspend fun updateRecord(record: AnalysisDomainRecord)
     suspend fun deleteRecord(record: AnalysisDomainRecord)

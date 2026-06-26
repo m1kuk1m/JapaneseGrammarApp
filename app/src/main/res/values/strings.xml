@@ -597,4 +597,10 @@
     <string name="delete_success_toast">Deleted successfully</string>
     <string name="reset_success_toast">Reset successfully</string>
     <string name="clear_wallpaper_toast">Wallpaper cleared</string>
+    <string name="no_newer_record">Already at the newest record</string>
+    <string name="no_older_record">Already at the oldest record</string>
+    <string name="release_to_load_newer">Release to view newer record</string>
+    <string name="release_to_load_older">Release to view older record</string>
+    <string name="loading_newer">Loading newer record...</string>
+    <string name="loading_older">Loading older record...</string>
 </resources>

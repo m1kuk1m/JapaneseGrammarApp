@@ -620,6 +620,8 @@ fun WorkspaceScreen(
                                                     onToggleGrammarBookmark = { pattern, explanation, sourceText ->
                                                         viewModel.toggleGrammarPointBookmark(pattern, explanation, sourceText)
                                                     },
+                                                    onLoadNewer = { viewModel.loadNewerRecord() },
+                                                    onLoadOlder = { viewModel.loadOlderRecord() },
                                                     uiPreferencesRepository = viewModel.uiPreferencesRepository
                                                 )
                                             }

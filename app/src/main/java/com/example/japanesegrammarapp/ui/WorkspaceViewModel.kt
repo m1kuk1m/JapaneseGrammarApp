@@ -440,6 +440,34 @@ class WorkspaceViewModel @Inject constructor(
         }
     }
 
+    fun loadNewerRecord() {
+        val currentTimestamp = _uiState.value.selectedRecord?.timestamp ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            val nextRecord = historyRepository.getNewerRecord(currentTimestamp)
+            if (nextRecord != null) {
+                withContext(Dispatchers.Main) {
+                    selectRecord(nextRecord)
+                }
+            } else {
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.no_newer_record))
+            }
+        }
+    }
+
+    fun loadOlderRecord() {
+        val currentTimestamp = _uiState.value.selectedRecord?.timestamp ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            val prevRecord = historyRepository.getOlderRecord(currentTimestamp)
+            if (prevRecord != null) {
+                withContext(Dispatchers.Main) {
+                    selectRecord(prevRecord)
+                }
+            } else {
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.no_older_record))
+            }
+        }
+    }
+
     private suspend fun refreshSelectedRecordFromRepository(recordId: Int, clearProgress: Boolean = false) {
         try {
             val updated = withContext(Dispatchers.IO) { historyRepository.getRecordById(recordId) } ?: return

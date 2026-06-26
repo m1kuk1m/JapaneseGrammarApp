@@ -587,4 +587,10 @@
     <string name="delete_success_toast">削除しました</string>
     <string name="reset_success_toast">リセットしました</string>
     <string name="clear_wallpaper_toast">壁紙をクリアしました</string>
+    <string name="no_newer_record">これより新しい履歴はありません</string>
+    <string name="no_older_record">これより古い履歴はありません</string>
+    <string name="release_to_load_newer">指を離して新しい履歴を表示</string>
+    <string name="release_to_load_older">指を離して古い履歴を表示</string>
+    <string name="loading_newer">新しい履歴を読み込み中...</string>
+    <string name="loading_older">古い履歴を読み込み中...</string>
 </resources>
