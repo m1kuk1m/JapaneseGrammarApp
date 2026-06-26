@@ -1,0 +1,8 @@
+v1.5.0 Release Notes
+- UI & Gesture: Added vertical drag navigation (up/down/next/prev) to history records and automatic scroll-to-top on selection.
+- UI & History: Reversed the history sidebar order, added unread indicators for new records, and optimized the history drawer export range/filters.
+- Bookmarks: Added Full-Text Search (FTS) and indices to Room database for high-performance record lookups.
+- Bookmarks: Applied year/month tag filters and archiving filters to sentences and grammar bookmarks.
+- Bookmarks: Added full edit capabilities for custom word segments and bookmarked words.
+- Settings: Redesigned settings page into a clean two-level directory structure and unified root menu styling.
+- LLM: Refined tokenizer prompts by removing particle splitting rules to improve token boundary accuracy.
