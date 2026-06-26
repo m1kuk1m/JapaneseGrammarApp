@@ -138,7 +138,14 @@ fun BookmarkFilterChipsBar(
                     val label = when (dateCat) {
                         "today" -> stringResource(R.string.filter_today)
                         "week" -> stringResource(R.string.filter_week)
-                        else -> dateCat.replace("/", "年") + "月"
+                        else -> {
+                            val parts = dateCat.split("/")
+                            if (parts.size == 2) {
+                                stringResource(R.string.year_month_format, parts[0], parts[1])
+                            } else {
+                                dateCat
+                            }
+                        }
                     }
                     BookmarkFilterChip(
                         label = label,

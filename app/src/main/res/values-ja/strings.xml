@@ -593,4 +593,5 @@
     <string name="release_to_load_older">指を離して古い履歴を表示</string>
     <string name="loading_newer">新しい履歴を読み込み中...</string>
     <string name="loading_older">古い履歴を読み込み中...</string>
+    <string name="year_month_format">%1$s年%2$s月</string>
 </resources>
