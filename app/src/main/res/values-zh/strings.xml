@@ -24,6 +24,10 @@
     <string name="sentence_clauses">句子结构与解释</string>
     <string name="grammar_points">语法要点</string>
 
+    <string name="edit">编辑</string>
+    <string name="save">保存</string>
+    <string name="reading">读音</string>
+
     <!-- Input Form -->
     <string name="input_hint">在此输入日语...</string>
     <string name="settings">设置</string>

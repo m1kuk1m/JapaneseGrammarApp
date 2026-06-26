@@ -24,6 +24,10 @@
     <string name="sentence_clauses">文の構造と解釈</string>
     <string name="grammar_points">文法ポイント</string>
 
+    <string name="edit">編集</string>
+    <string name="save">保存</string>
+    <string name="reading">読み</string>
+
     <!-- Input Form -->
     <string name="input_hint">ここに日本語を入力してください...</string>
     <string name="settings">設定</string>

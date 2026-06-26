@@ -416,6 +416,9 @@ fun SettingsScreen(
         }
     ) { padding ->
         val scrollState = rememberScrollState()
+        LaunchedEffect(currentCategory) {
+            scrollState.scrollTo(0)
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -425,139 +428,174 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             Spacer(modifier = Modifier.height(8.dp))
-            
-            if (currentCategory == null) {
-                SettingsGroup(title = stringResource(R.string.settings_title)) {
-                    SettingsCategory.entries.forEachIndexed { index, category ->
-                        SettingsItem(
-                            icon = category.icon,
-                            title = stringResource(category.titleRes),
-                            onClick = { currentCategory = category },
-                            trailingContent = {
-                                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = SumiInk.copy(alpha = 0.4f))
-                            }
-                        )
-                        if (index < SettingsCategory.entries.lastIndex) {
-                            SettingsRootDivider()
-                        }
-                    }
-                }
 
-                SettingsGroup(title = stringResource(R.string.app_logs_title)) {
-                    SettingsItem(
-                        icon = Icons.Default.Code,
-                        title = stringResource(R.string.view_dev_logs),
-                        onClick = { showLogsDialog = true },
-                        trailingContent = {
-                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = SumiInk.copy(alpha = 0.4f))
+            AnimatedContent(
+                targetState = currentCategory,
+                transitionSpec = {
+                    when {
+                        initialState == null && targetState != null -> {
+                            (slideInHorizontally(
+                                animationSpec = tween(260),
+                                initialOffsetX = { it / 4 }
+                            ) + fadeIn(animationSpec = tween(220))) togetherWith
+                                    (slideOutHorizontally(
+                                        animationSpec = tween(220),
+                                        targetOffsetX = { -it / 4 }
+                                    ) + fadeOut(animationSpec = tween(180)))
                         }
-                    )
-                }
-            } else {
-                when (currentCategory) {
-                    SettingsCategory.APPEARANCE -> {
-                        SettingsAppearanceSection(
-                            uiState = uiState,
-                            onThemeModeChange = viewModel::setThemeMode,
-                            onPickWallpaper = { wallpaperLauncher.launch("image/*") },
-                            onClearWallpaper = {
-                                viewModel.clearWallpaper()
-                                android.widget.Toast.makeText(ctx, ctx.getString(R.string.clear_wallpaper_toast), android.widget.Toast.LENGTH_SHORT).show()
-                            }
-                        )
-                    }
-                    SettingsCategory.GENERAL -> {
-                        SettingsGeneralSection(
-                            uiState = uiState,
-                            currentLangLabel = currentLangLabel,
-                            totalTokensConsumed = totalTokensConsumed,
-                            onUseOcrChange = viewModel::setUseOcr,
-                            onOcrBoxDetectorEngineChange = viewModel::setOcrBoxDetectorEngine,
-                            onTextSelectEngineChange = viewModel::setTextSelectEngine,
-                            onAutoDeskewAfterCaptureChange = viewModel::setAutoDeskewAfterCapture,
-                            onAutoNavigateResultChange = viewModel::setAutoNavigateResult,
-                            onImageTokenizerModeChange = viewModel::setImageTokenizerMode,
-                            onShowTokenDialog = { showTokenDialog = true },
-                            onShowApiLogs = { showApiLogsDialog = true },
-                            onShowOcrDebug = { showOcrDebugDialog = true },
-                            onShowPromptEditor = { showPromptEditor = true }
-                        )
-                    }
-                    SettingsCategory.LLM_API -> {
-                        SettingsApiPrioritySection(
-                            uiState = uiState,
-                            providers = providers,
-                            providerModels = providerModels,
-                            onActiveProviderChange = viewModel::setActiveProvider,
-                            onActiveModelChange = viewModel::setActiveModel,
-                            onBackupProviderChange = viewModel::setBackupProvider,
-                            onBackupModelChange = viewModel::setBackupModel
-                        )
-
-                        SettingsCredentialsSection(
-                            uiState = uiState,
-                            providers = providers,
-                            providerModels = providerModels,
-                            expandedProvider = expandedProvider,
-                            customModelInputs = customModelInputs,
-                            onExpandedProviderChange = { expandedProvider = it },
-                            onAddEndpoint = { endpointAddProvider = it },
-                            onEditEndpoint = { endpointBeingEdited = it },
-                            onDeleteEndpoint = { endpointDeleteTarget = it },
-                            onToggleEndpoint = { provider, endpoint, enabled ->
-                                viewModel.toggleEndpoint(provider, endpoint.id, enabled)
-                            },
-                            onFetchModels = { provider, endpoint ->
-                                viewModel.fetchModelsForEndpoint(provider, endpoint.id)
-                            },
-                            onCustomModelInputChange = { provider, value ->
-                                customModelInputs = customModelInputs.toMutableMap().apply { put(provider, value) }
-                            },
-                            onAddCustomModel = viewModel::saveModelsForProvider
-                        )
-                    }
-                    SettingsCategory.TTS -> {
-                        Text(
-                            text = stringResource(R.string.tts_settings_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = SumiInk,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 16.dp)
-                        )
-                        SettingsTtsSection(
-                            selectedTtsProvider = selectedTtsProvider,
-                            onSelectedTtsProviderChange = { selectedTtsProvider = it },
-                            ttsUrls = ttsUrls,
-                            onTtsUrlChange = { provider, value -> ttsUrls[provider] = value },
-                            ttsKeys = ttsKeys,
-                            savedTtsKeys = uiState.ttsKeys,
-                            onTtsKeyChange = { provider, value -> ttsKeys[provider] = value },
-                            ttsModels = ttsModels,
-                            onTtsModelChange = { provider, value -> ttsModels[provider] = value },
-                            ttsVoices = ttsVoices,
-                            onTtsVoiceChange = { provider, value -> ttsVoices[provider] = value },
-                            ttsRegions = ttsRegions,
-                            onTtsRegionChange = { provider, value -> ttsRegions[provider] = value },
-                            onSaveTtsSettings = {
-                                viewModel.saveTtsSettings(
-                                    selectedProvider = selectedTtsProvider,
-                                    urls = ttsUrls.toMap(),
-                                    keyProvider = selectedTtsProvider,
-                                    key = ttsKeys[selectedTtsProvider].orEmpty(),
-                                    models = ttsModels.toMap(),
-                                    voices = ttsVoices.toMap(),
-                                    regions = ttsRegions.toMap()
+                        initialState != null && targetState == null -> {
+                            (slideInHorizontally(
+                                animationSpec = tween(260),
+                                initialOffsetX = { -it / 4 }
+                            ) + fadeIn(animationSpec = tween(220))) togetherWith
+                                    (slideOutHorizontally(
+                                        animationSpec = tween(220),
+                                        targetOffsetX = { it / 4 }
+                                    ) + fadeOut(animationSpec = tween(180)))
+                        }
+                        else -> {
+                            fadeIn(animationSpec = tween(180)) togetherWith
+                                    fadeOut(animationSpec = tween(160))
+                        }
+                    }.using(SizeTransform(clip = false))
+                },
+                label = "SettingsCategoryTransition",
+                modifier = Modifier.fillMaxWidth()
+            ) { targetCategory ->
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    if (targetCategory == null) {
+                        SettingsGroup(title = stringResource(R.string.settings_title)) {
+                            SettingsCategory.entries.forEachIndexed { index, category ->
+                                SettingsItem(
+                                    icon = category.icon,
+                                    title = stringResource(category.titleRes),
+                                    onClick = { currentCategory = category },
+                                    trailingContent = {
+                                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = SumiInk.copy(alpha = 0.4f))
+                                    }
                                 )
-                            },
-                            onRequestClearTtsKey = { pendingTtsKeyClearProvider = it }
-                        )
-                    }
-                    null -> {}
-                }
-            }
+                                if (index < SettingsCategory.entries.lastIndex) {
+                                    SettingsRootDivider()
+                                }
+                            }
+                        }
 
-            if (currentCategory == null) {
-                Spacer(modifier = Modifier.height(40.dp))
+                        SettingsGroup(title = stringResource(R.string.app_logs_title)) {
+                            SettingsItem(
+                                icon = Icons.Default.Code,
+                                title = stringResource(R.string.view_dev_logs),
+                                onClick = { showLogsDialog = true },
+                                trailingContent = {
+                                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = SumiInk.copy(alpha = 0.4f))
+                                }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(40.dp))
+                    } else {
+                        when (targetCategory) {
+                            SettingsCategory.APPEARANCE -> {
+                                SettingsAppearanceSection(
+                                    uiState = uiState,
+                                    onThemeModeChange = viewModel::setThemeMode,
+                                    onPickWallpaper = { wallpaperLauncher.launch("image/*") },
+                                    onClearWallpaper = {
+                                        viewModel.clearWallpaper()
+                                        android.widget.Toast.makeText(ctx, ctx.getString(R.string.clear_wallpaper_toast), android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            }
+                            SettingsCategory.GENERAL -> {
+                                SettingsGeneralSection(
+                                    uiState = uiState,
+                                    currentLangLabel = currentLangLabel,
+                                    totalTokensConsumed = totalTokensConsumed,
+                                    onUseOcrChange = viewModel::setUseOcr,
+                                    onOcrBoxDetectorEngineChange = viewModel::setOcrBoxDetectorEngine,
+                                    onTextSelectEngineChange = viewModel::setTextSelectEngine,
+                                    onAutoDeskewAfterCaptureChange = viewModel::setAutoDeskewAfterCapture,
+                                    onAutoNavigateResultChange = viewModel::setAutoNavigateResult,
+                                    onImageTokenizerModeChange = viewModel::setImageTokenizerMode,
+                                    onShowTokenDialog = { showTokenDialog = true },
+                                    onShowApiLogs = { showApiLogsDialog = true },
+                                    onShowOcrDebug = { showOcrDebugDialog = true },
+                                    onShowPromptEditor = { showPromptEditor = true }
+                                )
+                            }
+                            SettingsCategory.LLM_API -> {
+                                SettingsApiPrioritySection(
+                                    uiState = uiState,
+                                    providers = providers,
+                                    providerModels = providerModels,
+                                    onActiveProviderChange = viewModel::setActiveProvider,
+                                    onActiveModelChange = viewModel::setActiveModel,
+                                    onBackupProviderChange = viewModel::setBackupProvider,
+                                    onBackupModelChange = viewModel::setBackupModel
+                                )
+
+                                SettingsCredentialsSection(
+                                    uiState = uiState,
+                                    providers = providers,
+                                    providerModels = providerModels,
+                                    expandedProvider = expandedProvider,
+                                    customModelInputs = customModelInputs,
+                                    onExpandedProviderChange = { expandedProvider = it },
+                                    onAddEndpoint = { endpointAddProvider = it },
+                                    onEditEndpoint = { endpointBeingEdited = it },
+                                    onDeleteEndpoint = { endpointDeleteTarget = it },
+                                    onToggleEndpoint = { provider, endpoint, enabled ->
+                                        viewModel.toggleEndpoint(provider, endpoint.id, enabled)
+                                    },
+                                    onFetchModels = { provider, endpoint ->
+                                        viewModel.fetchModelsForEndpoint(provider, endpoint.id)
+                                    },
+                                    onCustomModelInputChange = { provider, value ->
+                                        customModelInputs = customModelInputs.toMutableMap().apply { put(provider, value) }
+                                    },
+                                    onAddCustomModel = viewModel::saveModelsForProvider
+                                )
+                            }
+                            SettingsCategory.TTS -> {
+                                Text(
+                                    text = stringResource(R.string.tts_settings_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = SumiInk,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 16.dp)
+                                )
+                                SettingsTtsSection(
+                                    selectedTtsProvider = selectedTtsProvider,
+                                    onSelectedTtsProviderChange = { selectedTtsProvider = it },
+                                    ttsUrls = ttsUrls,
+                                    onTtsUrlChange = { provider, value -> ttsUrls[provider] = value },
+                                    ttsKeys = ttsKeys,
+                                    savedTtsKeys = uiState.ttsKeys,
+                                    onTtsKeyChange = { provider, value -> ttsKeys[provider] = value },
+                                    ttsModels = ttsModels,
+                                    onTtsModelChange = { provider, value -> ttsModels[provider] = value },
+                                    ttsVoices = ttsVoices,
+                                    onTtsVoiceChange = { provider, value -> ttsVoices[provider] = value },
+                                    ttsRegions = ttsRegions,
+                                    onTtsRegionChange = { provider, value -> ttsRegions[provider] = value },
+                                    onSaveTtsSettings = {
+                                        viewModel.saveTtsSettings(
+                                            selectedProvider = selectedTtsProvider,
+                                            urls = ttsUrls.toMap(),
+                                            keyProvider = selectedTtsProvider,
+                                            key = ttsKeys[selectedTtsProvider].orEmpty(),
+                                            models = ttsModels.toMap(),
+                                            voices = ttsVoices.toMap(),
+                                            regions = ttsRegions.toMap()
+                                        )
+                                    },
+                                    onRequestClearTtsKey = { pendingTtsKeyClearProvider = it }
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
