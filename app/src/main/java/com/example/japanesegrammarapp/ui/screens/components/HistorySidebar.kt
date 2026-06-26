@@ -59,6 +59,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.testTag
 
 @Composable
 fun HistorySidebar(
@@ -118,6 +119,7 @@ fun HistorySidebar(
     Column(
         modifier = Modifier
             .fillMaxHeight()
+            .testTag("history-sidebar")
             .background(WashiBg)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
@@ -339,13 +341,13 @@ fun HistorySidebar(
                     if (uiRecord != null) {
                         val record = uiRecord.record
                         val isSelected = selectedRecord?.id == record.id
-                        val onSelect = remember(record.id) { {
+                        val onSelect = {
                             onSelectRecord(record)
                             onCloseDrawer()
-                        } }
-                        val onDelete = remember(record.id) { { onDeleteRecord(record) } }
-                        val onExport = remember(record.id) { { onExportRecord(record) } }
-                        val onToggleBookmark = remember(record.id) { { onToggleBookmarkSentence(record) } }
+                        }
+                        val onDelete = { onDeleteRecord(record) }
+                        val onExport = { onExportRecord(record) }
+                        val onToggleBookmark = { onToggleBookmarkSentence(record) }
     
                         val isBookmarked = bookmarkedSentenceIds.contains(record.id)
                         HistorySidebarItem(

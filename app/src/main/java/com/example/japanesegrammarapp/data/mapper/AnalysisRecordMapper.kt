@@ -2,10 +2,12 @@ package com.example.japanesegrammarapp.data.mapper
 
 import com.example.japanesegrammarapp.data.AnalysisRecord
 import com.example.japanesegrammarapp.data.DailyTokenUsageEntity
+import com.example.japanesegrammarapp.data.HistoryExportPreviewEntity
 import com.example.japanesegrammarapp.data.ModelTokenUsageEntity
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import com.example.japanesegrammarapp.domain.model.DailyTokenUsage
+import com.example.japanesegrammarapp.domain.model.HistoryExportPreview
 import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
 
 fun AnalysisRecord.toDomain(): AnalysisDomainRecord {
@@ -44,6 +46,21 @@ fun AnalysisDomainRecord.toEntity(): AnalysisRecord {
         inputTokens = inputTokens,
         outputTokens = outputTokens,
         isRead = isRead
+    )
+}
+
+fun HistoryExportPreviewEntity.toDomain(): HistoryExportPreview {
+    val domainStatus = when (status) {
+        "PENDING" -> AnalysisStatus.PENDING
+        "FAILED" -> AnalysisStatus.FAILED
+        else -> AnalysisStatus.COMPLETED
+    }
+    return HistoryExportPreview(
+        id = id,
+        originalText = originalText,
+        timestamp = timestamp,
+        modelUsed = modelUsed,
+        status = domainStatus
     )
 }
 

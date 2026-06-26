@@ -24,13 +24,26 @@ class PagedHistoryRepositoryImpl @Inject constructor(
             if (trimmedQuery.isEmpty()) {
                 analysisDao.getAllRecords()
             } else {
-                // FTS match syntax: append * for prefix search
-                val ftsQuery = trimmedQuery.split("\\s+".toRegex())
-                    .joinToString(" ") { "$it*" }
-                analysisDao.searchRecords(ftsQuery)
+                val ftsQuery = buildSafeFtsPrefixQuery(trimmedQuery)
+                if (ftsQuery.isEmpty()) {
+                    analysisDao.getNoRecords()
+                } else {
+                    analysisDao.searchRecords(ftsQuery)
+                }
             }
         }
     ).flow.map { pagingData ->
         pagingData.map { it.toDomain() }
+    }
+
+    private fun buildSafeFtsPrefixQuery(query: String): String {
+        return query
+            .map { char -> if (char.isLetterOrDigit() || char == '_') char else ' ' }
+            .joinToString("")
+            .split(Regex("\\s+"))
+            .mapNotNull { rawToken ->
+                rawToken.takeIf { it.isNotEmpty() }?.let { "$it*" }
+            }
+            .joinToString(" ")
     }
 }

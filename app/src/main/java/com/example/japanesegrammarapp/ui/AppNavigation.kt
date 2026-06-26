@@ -4,11 +4,14 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseInOutQuart
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
@@ -31,6 +34,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
@@ -42,10 +46,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Button
@@ -53,6 +53,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import com.example.japanesegrammarapp.R
@@ -61,6 +62,7 @@ import com.example.japanesegrammarapp.ui.screens.components.HistorySidebar
 import com.example.japanesegrammarapp.ui.screens.components.ExportSelectionDialog
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @androidx.compose.foundation.ExperimentalFoundationApi
@@ -147,7 +149,11 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             val workspaceViewModel: WorkspaceViewModel = hiltViewModel()
             val settingsViewModel: SettingsViewModel = hiltViewModel()
             
-            val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+            val drawerWidth = 310.dp
+            val drawerAnimation = remember { Animatable(0f) }
+            var drawerOffsetPx by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+            var drawerAnimationRunning by remember { mutableStateOf(false) }
+            var drawerAnimationJob by remember { mutableStateOf<Job?>(null) }
             
             val history = workspaceViewModel.history.collectAsLazyPagingItems()
             val historySearchQuery by workspaceViewModel.historySearchQuery.collectAsState()
@@ -211,47 +217,70 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             val configuration = androidx.compose.ui.platform.LocalConfiguration.current
             
             val ballSizePx = with(density) { 56.dp.toPx() }
+            val drawerWidthPx = with(density) { drawerWidth.toPx() }
             val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
             val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
             
             val defaultFabX = screenWidthPx - ballSizePx - with(density) { 16.dp.toPx() }
             val defaultFabY = screenHeightPx - ballSizePx - with(density) { 120.dp.toPx() }
 
-            ModalNavigationDrawer(
-                drawerState = drawerState,
-                gesturesEnabled = drawerState.isOpen,
-                drawerContent = {
-                    ModalDrawerSheet(
-                        drawerContainerColor = if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg,
-                        modifier = Modifier.width(310.dp).fillMaxHeight()
-                    ) {
-                        HistorySidebar(
-                            historyList = history,
-                            searchQuery = historySearchQuery,
-                            selectedRecord = uiState.selectedRecord,
-                            bookmarkedSentenceIds = bookmarkedSentenceIds,
-                            onSearchQueryChange = workspaceViewModel::setHistorySearchQuery,
-                            onSelectRecord = { record -> workspaceViewModel.selectRecord(record) },
-                            onClearSelection = { workspaceViewModel.clearSelectedRecord() },
-                            onDeleteRecord = { record -> recordToDelete = record },
-                            onExportAll = {
-                                coroutineScope.launch { drawerState.close() }
-                                workspaceViewModel.loadAllHistoryForExport()
-                                showExportDialog = true
-                            },
-                            onExportRecord = { record -> workspaceViewModel.exportRecord(record) },
-                            onCloseDrawer = { coroutineScope.launch { drawerState.close() } },
-                            onImportHistory = { uri -> workspaceViewModel.importHistoryFromUri(uri) },
-                            onToggleBookmarkSentence = { record -> workspaceViewModel.toggleSentenceBookmark(record) }
-                        )
+            LaunchedEffect(drawerWidthPx) {
+                if (drawerOffsetPx > drawerWidthPx) {
+                    drawerOffsetPx = drawerWidthPx
+                }
+            }
+
+            fun animateDrawerTo(targetOffset: Float, durationMillis: Int) {
+                drawerAnimationJob?.cancel()
+                drawerAnimationJob = coroutineScope.launch {
+                    drawerAnimationRunning = true
+                    try {
+                        drawerAnimation.snapTo(drawerOffsetPx)
+                        drawerAnimation.animateTo(
+                            targetValue = targetOffset.coerceIn(0f, drawerWidthPx),
+                            animationSpec = tween(durationMillis = durationMillis, easing = FastOutSlowInEasing)
+                        ) {
+                            drawerOffsetPx = value
+                        }
+                        drawerOffsetPx = targetOffset.coerceIn(0f, drawerWidthPx)
+                    } finally {
+                        drawerAnimationRunning = false
                     }
                 }
+            }
+
+            fun settleDrawer(velocityX: Float) {
+                val shouldOpen = when {
+                    velocityX > 700f -> true
+                    velocityX < -700f -> false
+                    else -> drawerOffsetPx >= drawerWidthPx * 0.35f
+                }
+                animateDrawerTo(if (shouldOpen) drawerWidthPx else 0f, 220)
+            }
+
+            fun openDrawer() {
+                animateDrawerTo(drawerWidthPx, 220)
+            }
+
+            fun closeDrawer() {
+                animateDrawerTo(0f, 200)
+            }
+
+            val drawerProgress = if (drawerWidthPx > 0f) {
+                (drawerOffsetPx / drawerWidthPx).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+            val drawerVisible = drawerProgress > 0.001f || drawerAnimationRunning
+
+            Box(
+                modifier = Modifier.fillMaxSize()
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(pagerState.currentPage, drawerState.isClosed) {
-                            if (pagerState.currentPage == 0 && drawerState.isClosed) {
+                        .pointerInput(pagerState.currentPage, fromBookmarks, drawerWidthPx) {
+                            if (pagerState.currentPage == 0) {
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
                                     
@@ -281,6 +310,8 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                                     var totalDy = 0f
                                     var isDecided = false
                                     var isRightSwipe = false
+                                    var startTime = down.uptimeMillis
+                                    var lastTime = down.uptimeMillis
 
                                     do {
                                         val event = awaitPointerEvent(PointerEventPass.Initial)
@@ -288,6 +319,8 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                                         
                                         if (change != null) {
                                             val timeElapsed = change.uptimeMillis - down.uptimeMillis
+                                            val positionChange = change.positionChange()
+                                            lastTime = change.uptimeMillis
                                             if (!isDecided) {
                                                 if (timeElapsed > 300L || textToolbar.status == TextToolbarStatus.Shown) {
                                                     // Cancel swipe detection if held for >300ms (long-press text selection)
@@ -295,20 +328,31 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                                                     isDecided = true
                                                     isRightSwipe = false
                                                 } else {
-                                                    totalDx += change.positionChange().x
-                                                    totalDy += change.positionChange().y
+                                                    totalDx += positionChange.x
+                                                    totalDy += positionChange.y
                                                     
                                                     if (kotlin.math.abs(totalDx) > 20f || kotlin.math.abs(totalDy) > 20f) {
                                                         isDecided = true
                                                         if (totalDx > 0 && kotlin.math.abs(totalDx) > kotlin.math.abs(totalDy)) {
                                                             isRightSwipe = true
+                                                            startTime = change.uptimeMillis
+                                                            drawerAnimationJob?.cancel()
+                                                            drawerAnimationRunning = false
                                                         }
                                                     }
                                                 }
+                                            } else if (isRightSwipe) {
+                                                totalDx += positionChange.x
+                                                totalDy += positionChange.y
                                             }
 
                                             if (isDecided && isRightSwipe) {
-                                                change.consume()
+                                                if (fromBookmarks && uiState.selectedRecord != null) {
+                                                    change.consume()
+                                                } else {
+                                                    drawerOffsetPx = totalDx.coerceIn(0f, drawerWidthPx)
+                                                    change.consume()
+                                                }
                                             }
                                         }
                                     } while (event.changes.any { it.pressed })
@@ -317,7 +361,9 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                                         if (fromBookmarks && uiState.selectedRecord != null) {
                                             navController.popBackStack()
                                         } else {
-                                            coroutineScope.launch { drawerState.open() }
+                                            val elapsedMs = (lastTime - startTime).coerceAtLeast(1L)
+                                            val velocityX = totalDx / elapsedMs * 1000f
+                                            settleDrawer(velocityX)
                                         }
                                     }
                                 }
@@ -327,7 +373,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
-                        userScrollEnabled = drawerState.currentValue == DrawerValue.Closed
+                        userScrollEnabled = !drawerVisible
                     ) { page ->
                         when (page) {
                             0 -> {
@@ -336,7 +382,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                                     viewModel = workspaceViewModel,
                                     fromBookmarks = fromBookmarks,
                                     onOpenDrawer = {
-                                        coroutineScope.launch { drawerState.open() }
+                                        openDrawer()
                                     },
                                     onNavigateToSettings = {
                                         coroutineScope.launch {
@@ -362,12 +408,141 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                     
                     // Replaced Edge Swipe Interceptor with global interceptor
                 }
+
+                if (drawerVisible) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.32f * drawerProgress))
+                            .pointerInput(drawerWidthPx) {
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    drawerAnimationJob?.cancel()
+                                    drawerAnimationRunning = false
+
+                                    var totalDx = 0f
+                                    var totalDy = 0f
+                                    var isDecided = false
+                                    var isHorizontalDrag = false
+                                    val startOffset = drawerOffsetPx
+                                    val startTime = down.uptimeMillis
+                                    var lastTime = down.uptimeMillis
+
+                                    do {
+                                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                                        val change = event.changes.firstOrNull()
+
+                                        if (change != null) {
+                                            val positionChange = change.positionChange()
+                                            totalDx += positionChange.x
+                                            totalDy += positionChange.y
+                                            lastTime = change.uptimeMillis
+
+                                            if (!isDecided && (kotlin.math.abs(totalDx) > 20f || kotlin.math.abs(totalDy) > 20f)) {
+                                                isDecided = true
+                                                isHorizontalDrag = kotlin.math.abs(totalDx) > kotlin.math.abs(totalDy)
+                                            }
+
+                                            if (isDecided && isHorizontalDrag) {
+                                                drawerOffsetPx = (startOffset + totalDx).coerceIn(0f, drawerWidthPx)
+                                                change.consume()
+                                            }
+                                        }
+                                    } while (event.changes.any { it.pressed })
+
+                                    if (isDecided && isHorizontalDrag) {
+                                        val elapsedMs = (lastTime - startTime).coerceAtLeast(1L)
+                                        val velocityX = totalDx / elapsedMs * 1000f
+                                        settleDrawer(velocityX)
+                                    }
+                                }
+                            }
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { closeDrawer() }
+                            )
+                    )
+                }
+
+                if (drawerVisible) {
+                    Box(
+                        modifier = Modifier
+                            .width(drawerWidth)
+                            .fillMaxHeight()
+                            .graphicsLayer {
+                                translationX = drawerOffsetPx - drawerWidthPx
+                            }
+                            .background(if (uiState.wallpaperUri.isNotBlank()) Color.Transparent else WashiBg)
+                            .pointerInput(drawerWidthPx) {
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    drawerAnimationJob?.cancel()
+                                    drawerAnimationRunning = false
+
+                                    var totalDx = 0f
+                                    var totalDy = 0f
+                                    var isDecided = false
+                                    var isHorizontalDrag = false
+                                    val startOffset = drawerOffsetPx
+                                    val startTime = down.uptimeMillis
+                                    var lastTime = down.uptimeMillis
+
+                                    do {
+                                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                                        val change = event.changes.firstOrNull()
+
+                                        if (change != null) {
+                                            val positionChange = change.positionChange()
+                                            totalDx += positionChange.x
+                                            totalDy += positionChange.y
+                                            lastTime = change.uptimeMillis
+
+                                            if (!isDecided && (kotlin.math.abs(totalDx) > 20f || kotlin.math.abs(totalDy) > 20f)) {
+                                                isDecided = true
+                                                isHorizontalDrag = kotlin.math.abs(totalDx) > kotlin.math.abs(totalDy)
+                                            }
+
+                                            if (isDecided && isHorizontalDrag) {
+                                                drawerOffsetPx = (startOffset + totalDx).coerceIn(0f, drawerWidthPx)
+                                                change.consume()
+                                            }
+                                        }
+                                    } while (event.changes.any { it.pressed })
+
+                                    if (isDecided && isHorizontalDrag) {
+                                        val elapsedMs = (lastTime - startTime).coerceAtLeast(1L)
+                                        val velocityX = totalDx / elapsedMs * 1000f
+                                        settleDrawer(velocityX)
+                                    }
+                                }
+                            }
+                    ) {
+                        HistorySidebar(
+                            historyList = history,
+                            searchQuery = historySearchQuery,
+                            selectedRecord = uiState.selectedRecord,
+                            bookmarkedSentenceIds = bookmarkedSentenceIds,
+                            onSearchQueryChange = workspaceViewModel::setHistorySearchQuery,
+                            onSelectRecord = { record -> workspaceViewModel.selectRecord(record) },
+                            onClearSelection = { workspaceViewModel.clearSelectedRecord() },
+                            onDeleteRecord = { record -> recordToDelete = record },
+                            onExportAll = {
+                                closeDrawer()
+                                workspaceViewModel.loadAllHistoryForExport()
+                                showExportDialog = true
+                            },
+                            onExportRecord = { record -> workspaceViewModel.exportRecord(record) },
+                            onCloseDrawer = { closeDrawer() },
+                            onImportHistory = { uri -> workspaceViewModel.importHistoryFromUri(uri) },
+                            onToggleBookmarkSentence = { record -> workspaceViewModel.toggleSentenceBookmark(record) }
+                        )
+                    }
+                }
             }
 
-            BackHandler(enabled = drawerState.isOpen || drawerState.targetValue == DrawerValue.Open) {
-                coroutineScope.launch {
-                    drawerState.close()
-                }
+            BackHandler(enabled = drawerVisible) {
+                closeDrawer()
             }
             
             // Deletion Confirmation Dialog
@@ -405,8 +580,8 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 ExportSelectionDialog(
                     historyList = allHistoryForExport,
                     onDismiss = { showExportDialog = false },
-                    onExportSelected = { selectedRecords ->
-                        workspaceViewModel.exportAllHistory(selectedRecords)
+                    onExportSelected = { selectedRecordIds ->
+                        workspaceViewModel.exportHistoryByIds(selectedRecordIds)
                         showExportDialog = false
                     }
                 )

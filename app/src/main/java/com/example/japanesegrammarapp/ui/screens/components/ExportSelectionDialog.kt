@@ -21,25 +21,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.japanesegrammarapp.R
-import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import com.example.japanesegrammarapp.domain.model.AnalysisStatus
+import com.example.japanesegrammarapp.ui.ExportHistoryUiRecord
 import androidx.compose.ui.res.stringResource
 import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.MatchaGreen
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
 import com.example.japanesegrammarapp.ui.theme.ZenColors.WashiBg
-import java.text.SimpleDateFormat
-import java.util.*
 
 @Composable
 fun ExportSelectionDialog(
-    historyList: List<AnalysisDomainRecord>,
+    historyList: List<ExportHistoryUiRecord>,
     onDismiss: () -> Unit,
-    onExportSelected: (List<AnalysisDomainRecord>) -> Unit
+    onExportSelected: (List<Int>) -> Unit
 ) {
     // Keep track of selected item IDs in a map
     // We pre-select all records by default for a better user experience
-    val selectedMap = remember {
+    val selectedMap = remember(historyList) {
         mutableStateMapOf<Int, Boolean>().apply {
             historyList.forEach { put(it.id, true) }
         }
@@ -130,8 +128,6 @@ fun ExportSelectionDialog(
                 ) {
                     items(historyList, key = { it.id }) { record ->
                         val isSelected = selectedMap[record.id] == true
-                        val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault())
-                        val dateStr = sdf.format(Date(record.timestamp))
 
                         Card(
                             modifier = Modifier
@@ -196,14 +192,14 @@ fun ExportSelectionDialog(
                                                 text = when (record.status) {
                                                     AnalysisStatus.PENDING -> stringResource(R.string.history_status_pending)
                                                     AnalysisStatus.FAILED -> stringResource(R.string.history_status_error)
-                                                    else -> record.modelUsed.substringAfter(": ").take(15)
+                                                    else -> record.modelText
                                                 },
                                                 fontSize = 10.sp,
                                                 color = SumiInk.copy(alpha = 0.5f)
                                             )
                                         }
                                         Text(
-                                            text = dateStr,
+                                            text = record.dateStr,
                                             fontSize = 10.sp,
                                             color = SumiInk.copy(alpha = 0.5f)
                                         )
@@ -233,8 +229,8 @@ fun ExportSelectionDialog(
 
                     Button(
                         onClick = {
-                            val selectedRecords = historyList.filter { selectedMap[it.id] == true }
-                            onExportSelected(selectedRecords)
+                            val selectedRecordIds = historyList.filter { selectedMap[it.id] == true }.map { it.id }
+                            onExportSelected(selectedRecordIds)
                         },
                         enabled = selectedCount > 0,
                         shape = RoundedCornerShape(8.dp),

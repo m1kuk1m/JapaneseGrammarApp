@@ -324,6 +324,18 @@ private class FakeHistoryRepository(vararg initialRecords: AnalysisDomainRecord)
     }
 
     override suspend fun getAllRecordsList(): List<AnalysisDomainRecord> = records.values.toList()
+    override suspend fun getAllExportPreviews(): List<com.example.japanesegrammarapp.domain.model.HistoryExportPreview> =
+        records.values.map {
+            com.example.japanesegrammarapp.domain.model.HistoryExportPreview(
+                id = it.id,
+                originalText = it.originalText,
+                timestamp = it.timestamp,
+                modelUsed = it.modelUsed,
+                status = it.status
+            )
+        }
+    override suspend fun getRecordsByIds(ids: List<Int>): List<AnalysisDomainRecord> =
+        records.values.filter { it.id in ids }
     override suspend fun getRecordById(id: Int): AnalysisDomainRecord? = synchronized(records) { records[id] }
     override fun observeRecordById(id: Int): Flow<AnalysisDomainRecord?> = MutableStateFlow(records[id])
     override suspend fun getRecordByOriginalText(originalText: String): AnalysisDomainRecord? =

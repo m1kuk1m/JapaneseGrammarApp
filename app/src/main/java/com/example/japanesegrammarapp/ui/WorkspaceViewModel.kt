@@ -58,6 +58,14 @@ data class HistoryUiRecord(
     val isRead: Boolean
 )
 
+data class ExportHistoryUiRecord(
+    val id: Int,
+    val originalText: String,
+    val dateStr: String,
+    val modelText: String,
+    val status: AnalysisStatus
+)
+
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class WorkspaceViewModel @Inject constructor(
@@ -140,8 +148,8 @@ class WorkspaceViewModel @Inject constructor(
         .map { list -> list.map { it.recordId }.filter { it > 0 }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
-    private val _allHistoryForExport = MutableStateFlow<List<AnalysisDomainRecord>>(emptyList())
-    val allHistoryForExport: StateFlow<List<AnalysisDomainRecord>> = _allHistoryForExport.asStateFlow()
+    private val _allHistoryForExport = MutableStateFlow<List<ExportHistoryUiRecord>>(emptyList())
+    val allHistoryForExport: StateFlow<List<ExportHistoryUiRecord>> = _allHistoryForExport.asStateFlow()
 
     private val _uiEvent = MutableSharedFlow<UiEvent>(extraBufferCapacity = 10)
     val uiEvent: SharedFlow<UiEvent> = _uiEvent.asSharedFlow()
@@ -358,15 +366,13 @@ class WorkspaceViewModel @Inject constructor(
 
         ttsRepository.stop()
         
-        val syncDetail = analyzeTextUseCase.parseDetailedResult(record.originalText, record.analysisResult)
-
         // Immediately update selectedRecord synchronously on the Main thread to avoid UI lag/flicker
         _uiState.update { it.copy(
             selectedRecord = record,
             currentOriginalText = record.originalText,
             analysisResult = record.analysisResult,
-            detailedResult = syncDetail,
-            isParsingDetailedResult = false,
+            detailedResult = null,
+            isParsingDetailedResult = record.analysisResult != null,
             isExternalQuery = if (clearExternalQuery) false else it.isExternalQuery,
             selectedRecordProgress = if (record.status != AnalysisStatus.COMPLETED) {
                 analyzeTextUseCase.progressFlow.value[record.id]
@@ -448,8 +454,11 @@ class WorkspaceViewModel @Inject constructor(
             viewModelScope.launch {
                 historyRepository.markRecordAsRead(currentRecord.id)
                 _uiState.update { state ->
-                    val updatedRecord = state.selectedRecord?.copy(isRead = true)
-                    state.copy(selectedRecord = updatedRecord)
+                    if (state.selectedRecord?.id == currentRecord.id) {
+                        state.copy(selectedRecord = state.selectedRecord.copy(isRead = true))
+                    } else {
+                        state
+                    }
                 }
             }
         }
@@ -740,6 +749,12 @@ class WorkspaceViewModel @Inject constructor(
 
     fun exportAllHistory(records: List<AnalysisDomainRecord>) {
         viewModelScope.launch(Dispatchers.IO) {
+            exportAllHistoryInternal(records)
+        }
+    }
+
+    private suspend fun exportAllHistoryInternal(records: List<AnalysisDomainRecord>) {
+        withContext(Dispatchers.IO) {
             try {
                 val filename = "history_export_${System.currentTimeMillis()}.txt"
                 val uri = RecordExporter.exportAllHistoryToFile(application, records, filename)
@@ -776,7 +791,28 @@ class WorkspaceViewModel @Inject constructor(
 
     fun loadAllHistoryForExport() {
         viewModelScope.launch(Dispatchers.IO) {
-            _allHistoryForExport.value = historyRepository.getAllRecordsList()
+            val previews = historyRepository.getAllExportPreviews().map { preview ->
+                ExportHistoryUiRecord(
+                    id = preview.id,
+                    originalText = preview.originalText,
+                    dateStr = historyDateFormatter.format(Instant.ofEpochMilli(preview.timestamp)),
+                    modelText = preview.modelUsed.substringAfter(": ").take(15),
+                    status = preview.status
+                )
+            }
+            _allHistoryForExport.value = previews
+        }
+    }
+
+    fun exportHistoryByIds(recordIds: List<Int>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val records = historyRepository.getRecordsByIds(recordIds)
+                exportAllHistoryInternal(records)
+            } catch (e: Exception) {
+                AppLogger.e("WORKSPACE", "Failed to export selected history", e)
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.unknown_error))
+            }
         }
     }
 

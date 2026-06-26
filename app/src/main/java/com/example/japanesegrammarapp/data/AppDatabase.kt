@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         BookmarkedSentence::class,
         BookmarkedGrammarPoint::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -212,6 +212,7 @@ abstract class AppDatabase : RoomDatabase() {
                 
                 // Create FTS table
                 db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS `analysis_records_fts` USING FTS4(`originalText`, `analysisResult`, content=`analysis_records`, tokenize=unicode61)")
+                createAnalysisRecordsFtsTriggers(db)
                 
                 // Rebuild FTS content
                 db.execSQL("INSERT INTO analysis_records_fts(analysis_records_fts) VALUES('rebuild')")
@@ -280,11 +281,59 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_13_14 = object : androidx.room.migration.Migration(13, 14) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                createAnalysisRecordsFtsTriggers(db)
+                db.execSQL("INSERT INTO analysis_records_fts(analysis_records_fts) VALUES('rebuild')")
+            }
+        }
+
+        private fun createAnalysisRecordsFtsTriggers(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_analysis_records_fts_BEFORE_UPDATE
+                BEFORE UPDATE ON `analysis_records`
+                BEGIN
+                    DELETE FROM `analysis_records_fts` WHERE `docid`=OLD.`rowid`;
+                END
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_analysis_records_fts_BEFORE_DELETE
+                BEFORE DELETE ON `analysis_records`
+                BEGIN
+                    DELETE FROM `analysis_records_fts` WHERE `docid`=OLD.`rowid`;
+                END
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_analysis_records_fts_AFTER_UPDATE
+                AFTER UPDATE ON `analysis_records`
+                BEGIN
+                    INSERT INTO `analysis_records_fts`(`docid`, `originalText`, `analysisResult`)
+                    VALUES (NEW.`rowid`, NEW.`originalText`, NEW.`analysisResult`);
+                END
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_analysis_records_fts_AFTER_INSERT
+                AFTER INSERT ON `analysis_records`
+                BEGIN
+                    INSERT INTO `analysis_records_fts`(`docid`, `originalText`, `analysisResult`)
+                    VALUES (NEW.`rowid`, NEW.`originalText`, NEW.`analysisResult`);
+                END
+                """.trimIndent()
+            )
+        }
+
         val ALL_MIGRATIONS = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
             MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
             MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
-            MIGRATION_12_13
+            MIGRATION_12_13, MIGRATION_13_14
         )
 
         fun getDatabase(context: Context): AppDatabase {
