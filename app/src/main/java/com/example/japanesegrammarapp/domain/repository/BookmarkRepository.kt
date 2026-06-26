@@ -65,6 +65,7 @@ interface BookmarkRepository {
     suspend fun toggleSentenceBookmark(record: AnalysisDomainRecord): Boolean
     suspend fun deleteSentenceBookmark(id: Int)
     suspend fun deleteSentenceBookmarkByRecordId(recordId: Int)
+    suspend fun setSentenceArchivedStatus(id: Int, isArchived: Boolean)
     suspend fun detachSentenceBookmarkFromRecord(recordId: Int)
 
     // ── Grammar Point Bookmarks ─────────────────────────────────────────────

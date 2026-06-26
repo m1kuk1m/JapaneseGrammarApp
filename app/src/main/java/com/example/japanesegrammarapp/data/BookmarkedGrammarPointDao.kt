@@ -31,6 +31,9 @@ interface BookmarkedGrammarPointDao {
     @Query("DELETE FROM bookmarked_grammar_points WHERE recordId = :recordId AND pattern = :pattern")
     suspend fun deleteByPattern(recordId: Int, pattern: String)
 
+    @Query("DELETE FROM bookmarked_grammar_points WHERE pattern = :pattern AND (recordId = :recordId OR (:recordId <= 0 AND recordId <= 0))")
+    suspend fun deleteForImport(recordId: Int, pattern: String)
+
     @Query("DELETE FROM bookmarked_grammar_points WHERE id = :id")
     suspend fun deleteById(id: Int)
 

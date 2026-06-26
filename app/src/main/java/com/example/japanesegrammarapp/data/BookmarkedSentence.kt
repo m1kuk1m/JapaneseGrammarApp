@@ -16,5 +16,6 @@ data class BookmarkedSentence(
     val translation: String?,
     val analysisResult: String?, // The full raw analysis result (JSON) so it can be parsed when viewed
     val modelUsed: String?,
-    val bookmarkedAt: Long = System.currentTimeMillis()
+    val bookmarkedAt: Long = System.currentTimeMillis(),
+    val isArchived: Boolean = false
 )

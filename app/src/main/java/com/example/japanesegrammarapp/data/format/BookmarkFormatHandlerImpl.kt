@@ -79,6 +79,7 @@ class BookmarkFormatHandlerImpl : BookmarkFormatHandler {
                             putOpt("analysisResult", s.analysisResult)
                             putOpt("modelUsed", s.modelUsed)
                             put("bookmarkedAt", s.bookmarkedAt)
+                            put("isArchived", s.isArchived)
                         })
                     }
                 })
@@ -150,7 +151,8 @@ class BookmarkFormatHandlerImpl : BookmarkFormatHandler {
                         translation = obj.optStringOrNull("translation"),
                         analysisResult = obj.optStringOrNull("analysisResult"),
                         modelUsed = obj.optStringOrNull("modelUsed"),
-                        bookmarkedAt = obj.optLong("bookmarkedAt", System.currentTimeMillis())
+                        bookmarkedAt = obj.optLong("bookmarkedAt", System.currentTimeMillis()),
+                        isArchived = obj.optBoolean("isArchived", false)
                     ))
                 } catch (e: Exception) {
                     failureReasons.add("Sentence import failed: ${e.message}")
@@ -226,37 +228,34 @@ class BookmarkFormatHandlerImpl : BookmarkFormatHandler {
         val sentences = mutableListOf<BookmarkedSentenceDomain>()
         val grammarPoints = mutableListOf<BookmarkedGrammarPointDomain>()
 
-        val lines = csv.lines()
-        if (lines.isEmpty()) return ParsedBookmarks(emptyList(), emptyList(), emptyList(), listOf("Empty CSV"))
+        val rows = parseCsvRows(csv)
+        if (rows.isEmpty()) return ParsedBookmarks(emptyList(), emptyList(), emptyList(), listOf("Empty CSV"))
         
         // Skip header if matches "Type,Front,Back..."
-        val startIdx = if (lines[0].startsWith("Type,")) 1 else 0
+        val startIdx = if (rows.firstOrNull()?.firstOrNull() == "Type") 1 else 0
 
-        for (i in startIdx until lines.size) {
-            val line = lines[i].trim()
-            if (line.isEmpty()) continue
+        for (i in startIdx until rows.size) {
+            val parts = rows[i]
+            if (parts.all { it.isBlank() }) continue
             try {
-                // A very basic CSV parser that might fail on complex multiline values,
-                // but good enough for this context as specified "CSV Format: Include a 'Type' column followed by relevant fields."
-                val parts = line.split(",") // Simplification, standard parser preferable if complex but let's stick to simple since no external library
                 if (parts.isNotEmpty()) {
                     val type = parts[0]
                     when (type) {
                         "Word" -> {
                             words.add(BookmarkedSegmentDomain(
                                 id = 0, recordId = -1,
-                                segmentText = parts.getOrNull(1)?.removeSurrounding("\"") ?: "",
-                                meaning = parts.getOrNull(2)?.removeSurrounding("\""),
-                                reading = parts.getOrNull(3)?.removeSurrounding("\""),
-                                sourceText = parts.getOrNull(4)?.removeSurrounding("\"") ?: "",
+                                segmentText = parts.getOrNull(1) ?: "",
+                                meaning = parts.getOrNull(2),
+                                reading = parts.getOrNull(3),
+                                sourceText = parts.getOrNull(4) ?: "",
                                 bookmarkedAt = System.currentTimeMillis()
                             ))
                         }
                         "Sentence" -> {
                             sentences.add(BookmarkedSentenceDomain(
                                 id = 0, recordId = -1,
-                                originalText = parts.getOrNull(1)?.removeSurrounding("\"") ?: "",
-                                translation = parts.getOrNull(2)?.removeSurrounding("\""),
+                                originalText = parts.getOrNull(1) ?: "",
+                                translation = parts.getOrNull(2),
                                 analysisResult = null,
                                 modelUsed = null,
                                 bookmarkedAt = System.currentTimeMillis()
@@ -265,9 +264,9 @@ class BookmarkFormatHandlerImpl : BookmarkFormatHandler {
                         "Grammar" -> {
                             grammarPoints.add(BookmarkedGrammarPointDomain(
                                 id = 0, recordId = -1,
-                                pattern = parts.getOrNull(1)?.removeSurrounding("\"") ?: "",
-                                explanation = parts.getOrNull(2)?.removeSurrounding("\""),
-                                sourceText = parts.getOrNull(3)?.removeSurrounding("\"") ?: "",
+                                pattern = parts.getOrNull(1) ?: "",
+                                explanation = parts.getOrNull(2),
+                                sourceText = parts.getOrNull(3) ?: "",
                                 bookmarkedAt = System.currentTimeMillis()
                             ))
                         }
@@ -281,6 +280,48 @@ class BookmarkFormatHandlerImpl : BookmarkFormatHandler {
             }
         }
         return ParsedBookmarks(words, sentences, grammarPoints, failureReasons)
+    }
+
+    private fun parseCsvRows(csv: String): List<List<String>> {
+        val rows = mutableListOf<List<String>>()
+        val row = mutableListOf<String>()
+        val cell = StringBuilder()
+        var inQuotes = false
+        var i = 0
+
+        fun endCell() {
+            row.add(cell.toString())
+            cell.clear()
+        }
+
+        fun endRow() {
+            endCell()
+            rows.add(row.toList())
+            row.clear()
+        }
+
+        while (i < csv.length) {
+            val ch = csv[i]
+            when {
+                ch == '"' && inQuotes && i + 1 < csv.length && csv[i + 1] == '"' -> {
+                    cell.append('"')
+                    i++
+                }
+                ch == '"' -> inQuotes = !inQuotes
+                ch == ',' && !inQuotes -> endCell()
+                (ch == '\n' || ch == '\r') && !inQuotes -> {
+                    if (ch == '\r' && i + 1 < csv.length && csv[i + 1] == '\n') i++
+                    endRow()
+                }
+                else -> cell.append(ch)
+            }
+            i++
+        }
+
+        if (cell.isNotEmpty() || row.isNotEmpty()) {
+            endRow()
+        }
+        return rows
     }
 
     private fun exportAnkiTsv(

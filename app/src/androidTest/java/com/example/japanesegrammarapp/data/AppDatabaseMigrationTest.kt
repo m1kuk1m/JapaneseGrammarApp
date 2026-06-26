@@ -70,7 +70,7 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
-    fun migration8To9KeepsValidBookmarksAndDropsOrphans() {
+    fun migration8To13KeepsValidBookmarksAndPreservesFavoritesAfterHistoryDelete() {
         createDatabase(version = 8, onCreate = { db ->
             createVersion8Schema(db)
             seedVersion8Data(db)
@@ -84,7 +84,7 @@ class AppDatabaseMigrationTest {
             assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_sentences WHERE recordId = 1"))
 
             sqlDb.execSQL("DELETE FROM analysis_records WHERE id = 1")
-            assertEquals(0L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_segments"))
+            assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_segments"))
             assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_sentences"))
         } finally {
             db.close()
@@ -92,7 +92,7 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
-    fun migration9To10CreatesGrammarPointsTable() {
+    fun migration9To13CreatesGrammarPointsTableAndPreservesAfterHistoryDelete() {
         createDatabase(version = 9, onCreate = { db ->
             createVersion9Schema(db)
         }).close()
@@ -111,10 +111,40 @@ class AppDatabaseMigrationTest {
             )
             assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_grammar_points"))
             
-            // Test foreign key constraint by deleting the record
+            // Favorites are snapshots and should survive history deletion.
             sqlDb.execSQL("PRAGMA foreign_keys=ON")
             sqlDb.execSQL("DELETE FROM analysis_records WHERE id = 1")
-            assertEquals(0L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_grammar_points"))
+            assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_grammar_points"))
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun migration12To13AllowsImportedOrphanWordSentenceAndGrammarFavorites() {
+        createDatabase(version = 12, onCreate = { db ->
+            createVersion12Schema(db)
+        }).close()
+
+        val db = openMigratedDatabase()
+        try {
+            val sqlDb = db.openHelper.writableDatabase
+            sqlDb.execSQL(
+                "INSERT INTO bookmarked_segments (recordId, segmentText, surfaceForm, reading, partOfSpeech, posCategory, dictionaryForm, dictionaryFormReading, meaning, inflection, role, bookmarkedAt, sourceText, isArchived) " +
+                    "VALUES (-1, 'taberu', 'taberu', 'たべる', 'verb', 'VERB', 'taberu', 'たべる', 'eat', NULL, NULL, 1000, 'source', 0)"
+            )
+            sqlDb.execSQL(
+                "INSERT INTO bookmarked_sentences (recordId, originalText, translation, analysisResult, modelUsed, bookmarkedAt, isArchived) " +
+                    "VALUES (-1, '食べる', 'eat', NULL, NULL, 1000, 1)"
+            )
+            sqlDb.execSQL(
+                "INSERT INTO bookmarked_grammar_points (recordId, pattern, explanation, bookmarkedAt, sourceText, isArchived) " +
+                    "VALUES (-1, '〜ている', 'ongoing', 1000, 'source', 0)"
+            )
+
+            assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_segments WHERE recordId = -1"))
+            assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_sentences WHERE isArchived = 1"))
+            assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM bookmarked_grammar_points WHERE recordId = -1"))
         } finally {
             db.close()
         }
@@ -293,6 +323,30 @@ class AppDatabaseMigrationTest {
             """.trimIndent()
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS index_bookmarked_sentences_recordId ON bookmarked_sentences (recordId)")
+    }
+
+    private fun createVersion12Schema(db: SupportSQLiteDatabase) {
+        createVersion9Schema(db)
+        db.execSQL(
+            """
+            CREATE TABLE bookmarked_grammar_points (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                recordId INTEGER NOT NULL,
+                pattern TEXT NOT NULL,
+                explanation TEXT,
+                bookmarkedAt INTEGER NOT NULL,
+                sourceText TEXT NOT NULL DEFAULT '',
+                isArchived INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY(recordId) REFERENCES analysis_records(id) ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_bookmarked_grammar_points_recordId_pattern ON bookmarked_grammar_points (recordId, pattern)")
+        db.execSQL("ALTER TABLE analysis_records ADD COLUMN isRead INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_analysis_records_timestamp ON analysis_records (timestamp)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_analysis_records_consumedTokens ON analysis_records (consumedTokens)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_analysis_records_modelUsed ON analysis_records (modelUsed)")
+        db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS analysis_records_fts USING FTS4(originalText, analysisResult, content=analysis_records, tokenize=unicode61)")
     }
 
     private fun seedVersion8Data(db: SupportSQLiteDatabase) {

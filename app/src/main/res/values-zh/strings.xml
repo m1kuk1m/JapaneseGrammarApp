@@ -343,12 +343,15 @@
     <string name="bookmarks_title">收藏夹</string>
     <string name="bookmarks_empty_title">暂无收藏的单词</string>
     <string name="bookmarks_empty_hint">在分析页面长按分词卡片即可收藏</string>
+    <string name="bookmarks_search_hint">搜索收藏</string>
     <string name="tab_words">单词</string>
     <string name="tab_sentences">句子</string>
     <string name="tab_grammar">文法</string>
     <string name="grammar_point">文法点</string>
     <string name="bookmarks_empty_sentences_title">暂无收藏的句子</string>
     <string name="bookmarks_empty_sentences_hint">在侧边栏长按历史记录或在分析页面点击星标即可收藏句子</string>
+    <string name="bookmarks_empty_grammar_title">暂无收藏的语法点</string>
+    <string name="bookmarks_empty_grammar_hint">在分析结果的语法卡片中点击星标即可收藏</string>
     <string name="delete_analysis_confirm_title">删除分析记录</string>
     <string name="delete_analysis_confirm_message">确定要删除这条分析记录吗？已收藏的句子将不会被删除。</string>
     <string name="bookmark_sentence_added">已加入句子收藏</string>
@@ -374,6 +377,8 @@
     <string name="filter_all">全部</string>
     <string name="filter_by_pos">词性</string>
     <string name="filter_by_date">日期</string>
+    <string name="sort_newest_first">最新优先</string>
+    <string name="sort_oldest_first">最早优先</string>
     <string name="filter_today">今天</string>
     <string name="filter_week">本周</string>
     <string name="filter_older">更早</string>

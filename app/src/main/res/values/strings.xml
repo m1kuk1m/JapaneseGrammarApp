@@ -352,12 +352,15 @@
     <string name="bookmarks_title">Favorites</string>
     <string name="bookmarks_empty_title">No favorited words yet</string>
     <string name="bookmarks_empty_hint">Long-press a word chip in analysis to add to favorites</string>
+    <string name="bookmarks_search_hint">Search favorites</string>
     <string name="tab_words">Words</string>
     <string name="tab_sentences">Sentences</string>
     <string name="tab_grammar">Grammar</string>
     <string name="grammar_point">Grammar Point</string>
     <string name="bookmarks_empty_sentences_title">No favorited sentences yet</string>
     <string name="bookmarks_empty_sentences_hint">Long-press a history item or click the star button in analysis to favorite</string>
+    <string name="bookmarks_empty_grammar_title">No favorited grammar points yet</string>
+    <string name="bookmarks_empty_grammar_hint">Use the star button on grammar cards in analysis to favorite</string>
     <string name="delete_analysis_confirm_title">Delete Analysis Record</string>
     <string name="delete_analysis_confirm_message">Are you sure you want to delete this analysis record? Any favorites for this sentence will not be deleted.</string>
     <string name="bookmark_sentence_added">Sentence added to favorites</string>
@@ -383,6 +386,8 @@
     <string name="filter_all">All</string>
     <string name="filter_by_pos">By POS</string>
     <string name="filter_by_date">By Date</string>
+    <string name="sort_newest_first">Newest first</string>
+    <string name="sort_oldest_first">Oldest first</string>
     <string name="filter_today">Today</string>
     <string name="filter_week">This Week</string>
     <string name="filter_older">Older</string>

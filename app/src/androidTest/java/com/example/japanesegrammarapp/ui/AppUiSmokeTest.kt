@@ -129,6 +129,7 @@ private class InMemoryUiPreferencesRepository : UiPreferencesRepository {
     private var y: Float = 0f
     private var mode: String = "compact"
     private var dictionary: String = "Weblio"
+    private var cropInteraction: String = "drag"
 
     override fun getFloatingActionBallX(defaultValue: Float): Float = x.takeIf { it != 0f } ?: defaultValue
 
@@ -149,5 +150,11 @@ private class InMemoryUiPreferencesRepository : UiPreferencesRepository {
 
     override fun saveLastDictionary(dictionary: String) {
         this.dictionary = dictionary
+    }
+
+    override fun getCropInteraction(defaultValue: String): String = cropInteraction.ifBlank { defaultValue }
+
+    override fun saveCropInteraction(mode: String) {
+        cropInteraction = mode
     }
 }
