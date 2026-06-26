@@ -55,9 +55,9 @@ interface AnalysisDao {
     fun getAllRecords(): androidx.paging.PagingSource<Int, AnalysisRecord>
 
     @Query("""
-        SELECT * FROM analysis_records
-        WHERE originalText LIKE :pattern ESCAPE '\'
-           OR analysisResult LIKE :pattern ESCAPE '\'
+        SELECT analysis_records.* FROM analysis_records
+        JOIN analysis_records_fts ON analysis_records.id = analysis_records_fts.rowid
+        WHERE analysis_records_fts MATCH :pattern
         ORDER BY timestamp ASC
     """)
     fun searchRecords(pattern: String): androidx.paging.PagingSource<Int, AnalysisRecord>

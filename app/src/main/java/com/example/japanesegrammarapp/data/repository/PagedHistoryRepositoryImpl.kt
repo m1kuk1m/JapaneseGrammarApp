@@ -24,16 +24,13 @@ class PagedHistoryRepositoryImpl @Inject constructor(
             if (trimmedQuery.isEmpty()) {
                 analysisDao.getAllRecords()
             } else {
-                analysisDao.searchRecords("%${trimmedQuery.escapeLikePattern()}%")
+                // FTS match syntax: append * for prefix search
+                val ftsQuery = trimmedQuery.split("\\s+".toRegex())
+                    .joinToString(" ") { "$it*" }
+                analysisDao.searchRecords(ftsQuery)
             }
         }
     ).flow.map { pagingData ->
         pagingData.map { it.toDomain() }
-    }
-
-    private fun String.escapeLikePattern(): String {
-        return replace("\\", "\\\\")
-            .replace("%", "\\%")
-            .replace("_", "\\_")
     }
 }
