@@ -600,18 +600,42 @@ fun WorkspaceScreen(
                                         .fillMaxWidth()
                                 ) {
                                     AnimatedContent(
-                                        targetState = resultState,
+                                        targetState = record,
                                         transitionSpec = {
-                                            fadeIn(animationSpec = tween(400, easing = EaseInOutCubic))
-                                                .togetherWith(fadeOut(animationSpec = tween(400, easing = EaseInOutCubic)))
+                                            val oldRecord = initialState
+                                            val newRecord = targetState
+                                            if (oldRecord.id != newRecord.id) {
+                                                if (newRecord.timestamp < oldRecord.timestamp) {
+                                                    // Sliding to an older record (which is "above")
+                                                    androidx.compose.animation.slideInVertically(initialOffsetY = { -it }, animationSpec = tween(400, easing = EaseInOutCubic)) togetherWith
+                                                            androidx.compose.animation.slideOutVertically(targetOffsetY = { it }, animationSpec = tween(400, easing = EaseInOutCubic))
+                                                } else {
+                                                    // Sliding to a newer record (which is "below")
+                                                    androidx.compose.animation.slideInVertically(initialOffsetY = { it }, animationSpec = tween(400, easing = EaseInOutCubic)) togetherWith
+                                                            androidx.compose.animation.slideOutVertically(targetOffsetY = { -it }, animationSpec = tween(400, easing = EaseInOutCubic))
+                                                }
+                                            } else {
+                                                fadeIn(animationSpec = tween(400, easing = EaseInOutCubic)) togetherWith fadeOut(animationSpec = tween(400, easing = EaseInOutCubic))
+                                            }
                                         },
                                         label = "ResultStateTransition",
                                         modifier = Modifier.fillMaxSize()
-                                    ) { state ->
-                                        when (state) {
+                                    ) { currentRecord ->
+                                        var snapshotUiState by remember(currentRecord.id) { mutableStateOf(uiState) }
+                                        if (currentRecord.id == uiState.selectedRecord?.id) {
+                                            snapshotUiState = uiState
+                                        }
+                                        val displayUiState = snapshotUiState
+
+                                        val resultState = when {
+                                            currentRecord.status == AnalysisStatus.FAILED -> "FAILED"
+                                            else -> "CONTENT"
+                                        }
+
+                                        when (resultState) {
                                             "CONTENT" -> {
                                                 WorkspaceResultContent(
-                                                    uiState = uiState,
+                                                    uiState = displayUiState,
                                                     isPlayingTts = isPlayingTts,
                                                     onPlayTts = { viewModel.playTtsForCurrentRecord() },
                                                     onStopTts = { viewModel.stopTts() },

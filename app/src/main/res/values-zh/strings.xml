@@ -594,4 +594,5 @@
     <string name="release_to_load_older">松开滑入上一条</string>
     <string name="loading_newer">正在加载下一条...</string>
     <string name="loading_older">正在加载上一条...</string>
+    <string name="year_month_format">%1$s年%2$s月</string>
 </resources>

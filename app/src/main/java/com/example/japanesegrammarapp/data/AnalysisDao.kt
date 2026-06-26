@@ -51,14 +51,14 @@ interface AnalysisDao {
     @Query("SELECT * FROM analysis_records WHERE timestamp < :currentTimestamp ORDER BY timestamp DESC LIMIT 1")
     suspend fun getOlderRecord(currentTimestamp: Long): AnalysisRecord?
 
-    @Query("SELECT * FROM analysis_records ORDER BY timestamp ASC")
+    @Query("SELECT * FROM analysis_records ORDER BY timestamp DESC")
     fun getAllRecords(): androidx.paging.PagingSource<Int, AnalysisRecord>
 
     @Query("""
         SELECT analysis_records.* FROM analysis_records
         JOIN analysis_records_fts ON analysis_records.id = analysis_records_fts.rowid
         WHERE analysis_records_fts MATCH :pattern
-        ORDER BY timestamp ASC
+        ORDER BY timestamp DESC
     """)
     fun searchRecords(pattern: String): androidx.paging.PagingSource<Int, AnalysisRecord>
 

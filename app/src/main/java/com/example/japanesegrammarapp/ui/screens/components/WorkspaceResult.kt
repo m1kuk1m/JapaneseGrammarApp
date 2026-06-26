@@ -24,9 +24,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.animation.core.Animatable
@@ -139,41 +141,55 @@ fun WorkspaceResultContent(
         val overscrollBottom = remember { Animatable(0f) }
         val coroutineScope = rememberCoroutineScope()
         
-        val nestedScrollConnection = remember(scrollState) {
-            object : NestedScrollConnection {
-                override fun onPostScroll(
-                    consumed: Offset,
-                    available: Offset,
-                    source: NestedScrollSource
-                ): Offset {
-                    if (source == NestedScrollSource.Drag) {
-                        if (available.y > 0 && scrollState.value == 0) {
-                            coroutineScope.launch { overscrollTop.snapTo((overscrollTop.value + available.y * 0.5f).coerceAtMost(300f)) }
-                        } else if (available.y < 0 && scrollState.value == scrollState.maxValue) {
-                            coroutineScope.launch { overscrollBottom.snapTo((overscrollBottom.value - available.y * 0.5f).coerceAtMost(300f)) }
-                        }
-                    }
-                    return Offset.Zero
-                }
-
-                override suspend fun onPreFling(available: Velocity): Velocity {
-                    if (overscrollTop.value > 150f) {
-                        onLoadNewer()
-                    }
-                    if (overscrollBottom.value > 150f) {
-                        onLoadOlder()
-                    }
-                    coroutineScope.launch { overscrollTop.animateTo(0f) }
-                    coroutineScope.launch { overscrollBottom.animateTo(0f) }
-                    return Velocity.Zero
-                }
-            }
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .nestedScroll(nestedScrollConnection)
+                .pointerInput(scrollState) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        var isDragging = false
+                        do {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val change = event.changes.firstOrNull()
+                            if (change != null) {
+                                val dragY = change.positionChange().y
+                                val atTop = scrollState.value == 0
+                                val atBottom = scrollState.value == scrollState.maxValue
+
+                                val shouldIntercept = (atTop && dragY > 0) || (atBottom && dragY < 0) || overscrollTop.value > 0f || overscrollBottom.value > 0f
+
+                                if (shouldIntercept && kotlin.math.abs(dragY) > 0f) {
+                                    isDragging = true
+                                    
+                                    if (overscrollTop.value > 0f && dragY < 0) {
+                                        coroutineScope.launch { overscrollTop.snapTo((overscrollTop.value + dragY * 0.5f).coerceAtLeast(0f)) }
+                                        change.consume()
+                                    } else if (overscrollBottom.value > 0f && dragY > 0) {
+                                        coroutineScope.launch { overscrollBottom.snapTo((overscrollBottom.value - dragY * 0.5f).coerceAtLeast(0f)) }
+                                        change.consume()
+                                    } else if (atTop && dragY > 0) {
+                                        coroutineScope.launch { overscrollTop.snapTo((overscrollTop.value + dragY * 0.5f).coerceIn(0f, 300f)) }
+                                        change.consume()
+                                    } else if (atBottom && dragY < 0) {
+                                        coroutineScope.launch { overscrollBottom.snapTo((overscrollBottom.value - dragY * 0.5f).coerceIn(0f, 300f)) }
+                                        change.consume()
+                                    }
+                                }
+                            }
+                        } while (event.changes.any { it.pressed })
+
+                        if (isDragging) {
+                            if (overscrollTop.value > 150f) {
+                                onLoadOlder()
+                            }
+                            if (overscrollBottom.value > 150f) {
+                                onLoadNewer()
+                            }
+                            coroutineScope.launch { overscrollTop.animateTo(0f) }
+                            coroutineScope.launch { overscrollBottom.animateTo(0f) }
+                        }
+                    }
+                }
                 .testTag("workspace-result-content")
         ) {
             Box(
@@ -182,7 +198,7 @@ fun WorkspaceResultContent(
             ) {
                 if (overscrollTop.value > 0f) {
                     Text(
-                        text = stringResource(if (overscrollTop.value > 150f) R.string.release_to_load_newer else R.string.loading_newer),
+                        text = stringResource(if (overscrollTop.value > 150f) R.string.release_to_load_older else R.string.loading_older),
                         modifier = Modifier.graphicsLayer { translationY = overscrollTop.value / 2f + 20f },
                         color = SumiInk.copy(alpha = 0.6f),
                         fontSize = 12.sp
@@ -193,6 +209,7 @@ fun WorkspaceResultContent(
             Column(
                 modifier = Modifier
                     .weight(1f)
+                    .graphicsLayer { translationY = overscrollTop.value / 2f - overscrollBottom.value / 2f }
                     .verticalScroll(scrollState)
                     .padding(vertical = 8.dp)
             ) {
@@ -805,7 +822,7 @@ fun WorkspaceResultContent(
             ) {
                 if (overscrollBottom.value > 0f) {
                     Text(
-                        text = stringResource(if (overscrollBottom.value > 150f) R.string.release_to_load_older else R.string.loading_older),
+                        text = stringResource(if (overscrollBottom.value > 150f) R.string.release_to_load_newer else R.string.loading_newer),
                         modifier = Modifier.graphicsLayer { translationY = -overscrollBottom.value / 2f - 20f },
                         color = SumiInk.copy(alpha = 0.6f),
                         fontSize = 12.sp

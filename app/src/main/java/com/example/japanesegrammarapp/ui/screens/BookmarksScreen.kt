@@ -341,7 +341,7 @@ fun BookmarksScreen(
                                     verticalArrangement = Arrangement.spacedBy(10.dp),
                                     contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp)
                                 ) {
-                                    items(bookmarks, key = { it.id }) { bookmark ->
+                                    items(bookmarks, key = { "word_${it.id}" }) { bookmark ->
                                         val isExpanded = expandedId == bookmark.id
                                         BookmarkCard(
                                             bookmark = bookmark,
@@ -447,7 +447,7 @@ fun BookmarksScreen(
                                     verticalArrangement = Arrangement.spacedBy(10.dp),
                                     contentPadding = PaddingValues(top = 12.dp, bottom = 96.dp)
                                 ) {
-                                    items(filteredSentences, key = { it.id }) { sentence ->
+                                    items(filteredSentences, key = { "sentence_${it.id}" }) { sentence ->
                                         SentenceBookmarkCard(
                                             sentence = sentence,
                                             onNavigateToDetails = {
@@ -519,7 +519,7 @@ fun BookmarksScreen(
                                     verticalArrangement = Arrangement.spacedBy(10.dp),
                                     contentPadding = PaddingValues(top = 12.dp, bottom = 96.dp)
                                 ) {
-                                    items(filteredGrammarPoints, key = { it.id }) { gp ->
+                                    items(filteredGrammarPoints, key = { "grammar_${it.id}" }) { gp ->
                                         BookmarkGrammarCard(
                                             grammarPoint = gp,
                                             onNavigateToDetails = {
