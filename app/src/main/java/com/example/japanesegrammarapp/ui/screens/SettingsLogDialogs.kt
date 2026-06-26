@@ -12,6 +12,7 @@ import androidx.compose.ui.text.AnnotatedString
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.utils.ApiDebugLog
 import com.example.japanesegrammarapp.utils.ApiLogExportFormatter
+import com.example.japanesegrammarapp.utils.AppLogger
 
 @Composable
 fun SettingsLogDialogs(
@@ -41,7 +42,7 @@ fun SettingsLogDialogs(
         AppLogsDialog(
             logs = logs,
             onDismiss = onDismissLogs,
-            onShare = { onPendingShareAppLogsChange(logs) }
+            onShare = { onPendingShareAppLogsChange(AppLogger.getAppLogsForCurrentReport(context)) }
         )
     }
 
