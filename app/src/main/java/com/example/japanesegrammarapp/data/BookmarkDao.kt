@@ -50,6 +50,17 @@ interface BookmarkDao {
     @Query("DELETE FROM bookmarked_segments WHERE recordId = :recordId AND (surfaceForm = :surfaceForm OR (surfaceForm IS NULL AND segmentText = :surfaceForm)) AND segmentText = :dictForm")
     suspend fun deleteByKey(recordId: Int, surfaceForm: String, dictForm: String)
 
+    @Query("""
+        DELETE FROM bookmarked_segments
+        WHERE (recordId = :recordId OR (:recordId <= 0 AND recordId <= 0))
+          AND (
+              surfaceForm = :surfaceForm
+              OR segmentText = :surfaceForm
+              OR dictionaryForm = :dictionaryForm
+          )
+    """)
+    suspend fun deleteForImport(recordId: Int, surfaceForm: String, dictionaryForm: String)
+
     @Query("DELETE FROM bookmarked_segments WHERE recordId = :recordId AND segmentText = :dictForm")
     suspend fun deleteByDictForm(recordId: Int, dictForm: String)
 

@@ -11,7 +11,8 @@ fun BookmarkedSentence.toDomain(): BookmarkedSentenceDomain {
         translation = translation,
         analysisResult = analysisResult,
         modelUsed = modelUsed,
-        bookmarkedAt = bookmarkedAt
+        bookmarkedAt = bookmarkedAt,
+        isArchived = isArchived
     )
 }
 
@@ -23,6 +24,7 @@ fun BookmarkedSentenceDomain.toEntity(): BookmarkedSentence {
         translation = translation,
         analysisResult = analysisResult,
         modelUsed = modelUsed,
-        bookmarkedAt = bookmarkedAt
+        bookmarkedAt = bookmarkedAt,
+        isArchived = isArchived
     )
 }

@@ -1,4 +1,7 @@
 # Protect domain models used by Gson from being obfuscated
+-dontobfuscate
+-keepattributes SourceFile,LineNumberTable
+
 -keep class com.example.japanesegrammarapp.domain.model.** { *; }
 
 # Protect network models (OpenAiResponse, GeminiResponse, etc.)

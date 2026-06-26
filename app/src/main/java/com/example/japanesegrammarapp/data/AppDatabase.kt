@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         BookmarkedSentence::class,
         BookmarkedGrammarPoint::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -218,10 +218,73 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_12_13 = object : androidx.room.migration.Migration(12, 13) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS bookmarked_segments_temp (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        recordId INTEGER NOT NULL,
+                        segmentText TEXT NOT NULL,
+                        surfaceForm TEXT,
+                        reading TEXT,
+                        partOfSpeech TEXT,
+                        posCategory TEXT,
+                        dictionaryForm TEXT,
+                        dictionaryFormReading TEXT,
+                        meaning TEXT,
+                        inflection TEXT,
+                        role TEXT,
+                        bookmarkedAt INTEGER NOT NULL,
+                        sourceText TEXT NOT NULL DEFAULT '',
+                        isArchived INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO bookmarked_segments_temp (id, recordId, segmentText, surfaceForm, reading, partOfSpeech, posCategory, dictionaryForm, dictionaryFormReading, meaning, inflection, role, bookmarkedAt, sourceText, isArchived)
+                    SELECT id, recordId, segmentText, surfaceForm, reading, partOfSpeech, posCategory, dictionaryForm, dictionaryFormReading, meaning, inflection, role, bookmarkedAt, sourceText, isArchived
+                    FROM bookmarked_segments
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE bookmarked_segments")
+                db.execSQL("ALTER TABLE bookmarked_segments_temp RENAME TO bookmarked_segments")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_bookmarked_segments_recordId_surfaceForm_dictionaryForm ON bookmarked_segments (recordId, surfaceForm, dictionaryForm)")
+
+                db.execSQL("ALTER TABLE bookmarked_sentences ADD COLUMN isArchived INTEGER NOT NULL DEFAULT 0")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS bookmarked_grammar_points_temp (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        recordId INTEGER NOT NULL,
+                        pattern TEXT NOT NULL,
+                        explanation TEXT,
+                        bookmarkedAt INTEGER NOT NULL,
+                        sourceText TEXT NOT NULL DEFAULT '',
+                        isArchived INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO bookmarked_grammar_points_temp (id, recordId, pattern, explanation, bookmarkedAt, sourceText, isArchived)
+                    SELECT id, recordId, pattern, explanation, bookmarkedAt, sourceText, isArchived
+                    FROM bookmarked_grammar_points
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE bookmarked_grammar_points")
+                db.execSQL("ALTER TABLE bookmarked_grammar_points_temp RENAME TO bookmarked_grammar_points")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_bookmarked_grammar_points_recordId_pattern ON bookmarked_grammar_points (recordId, pattern)")
+            }
+        }
+
         val ALL_MIGRATIONS = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
             MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-            MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12
+            MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
+            MIGRATION_12_13
         )
 
         fun getDatabase(context: Context): AppDatabase {

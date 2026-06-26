@@ -31,11 +31,17 @@ interface BookmarkedSentenceDao {
     @Query("SELECT EXISTS(SELECT 1 FROM bookmarked_sentences WHERE originalText = :originalText)")
     suspend fun existsByOriginalTextDirect(originalText: String): Boolean
 
+    @Query("DELETE FROM bookmarked_sentences WHERE originalText = :originalText")
+    suspend fun deleteByOriginalText(originalText: String)
+
     @Query("DELETE FROM bookmarked_sentences WHERE recordId = :recordId")
     suspend fun deleteByRecordId(recordId: Int)
 
     @Query("DELETE FROM bookmarked_sentences WHERE id = :id")
     suspend fun deleteById(id: Int)
+
+    @Query("UPDATE bookmarked_sentences SET isArchived = :isArchived WHERE id = :id")
+    suspend fun updateArchivedStatus(id: Int, isArchived: Boolean)
 
     @Query("UPDATE bookmarked_sentences SET recordId = -1 WHERE recordId = :recordId")
     suspend fun detachFromRecord(recordId: Int)

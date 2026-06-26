@@ -188,11 +188,11 @@ class BookmarkRepositoryImpl @Inject constructor(
                     val entity = BookmarkedSegment(
                         recordId = domain.recordId,
                         segmentText = domain.segmentText,
-                        surfaceForm = domain.surfaceForm,
+                        surfaceForm = domain.surfaceForm ?: domain.segmentText,
                         reading = domain.reading,
                         partOfSpeech = domain.partOfSpeech,
                         posCategory = domain.posCategory,
-                        dictionaryForm = domain.dictionaryForm,
+                        dictionaryForm = domain.dictionaryForm ?: domain.segmentText,
                         dictionaryFormReading = domain.dictionaryFormReading,
                         meaning = domain.meaning,
                         inflection = domain.inflection,
@@ -202,11 +202,14 @@ class BookmarkRepositoryImpl @Inject constructor(
                         isArchived = domain.isArchived
                     )
                     if (entity.segmentText.isNotBlank()) {
-                        val result = if (conflictStrategy == com.example.japanesegrammarapp.domain.model.ConflictStrategy.OVERWRITE) {
-                            dao.insertReplace(entity)
-                        } else {
-                            dao.insert(entity)
+                        if (conflictStrategy == com.example.japanesegrammarapp.domain.model.ConflictStrategy.OVERWRITE) {
+                            dao.deleteForImport(
+                                entity.recordId,
+                                entity.surfaceForm ?: entity.segmentText,
+                                entity.dictionaryForm ?: entity.segmentText
+                            )
                         }
+                        val result = dao.insert(entity)
                         if (result != -1L) successCount++ else skippedCount++
                     } else {
                         skippedCount++
@@ -227,15 +230,18 @@ class BookmarkRepositoryImpl @Inject constructor(
                         translation = domain.translation,
                         analysisResult = domain.analysisResult,
                         modelUsed = domain.modelUsed,
-                        bookmarkedAt = domain.bookmarkedAt
+                        bookmarkedAt = domain.bookmarkedAt,
+                        isArchived = domain.isArchived
                     )
                     if (entity.originalText.isNotBlank()) {
                         if (conflictStrategy == com.example.japanesegrammarapp.domain.model.ConflictStrategy.SKIP) {
-                            val exists = sentenceDao.existsByRecordIdDirect(entity.recordId)
+                            val exists = sentenceDao.existsByOriginalTextDirect(entity.originalText)
                             if (exists) {
                                 skippedCount++
                                 continue
                             }
+                        } else {
+                            sentenceDao.deleteByOriginalText(entity.originalText)
                         }
                         val result = sentenceDao.insert(entity)
                         if (result != -1L) successCount++ else skippedCount++
@@ -261,11 +267,10 @@ class BookmarkRepositoryImpl @Inject constructor(
                         isArchived = domain.isArchived
                     )
                     if (entity.pattern.isNotBlank()) {
-                        val result = if (conflictStrategy == com.example.japanesegrammarapp.domain.model.ConflictStrategy.OVERWRITE) {
-                            grammarPointDao.insertReplace(entity)
-                        } else {
-                            grammarPointDao.insert(entity)
+                        if (conflictStrategy == com.example.japanesegrammarapp.domain.model.ConflictStrategy.OVERWRITE) {
+                            grammarPointDao.deleteForImport(entity.recordId, entity.pattern)
                         }
+                        val result = grammarPointDao.insert(entity)
                         if (result != -1L) successCount++ else skippedCount++
                     } else {
                         skippedCount++
@@ -339,6 +344,10 @@ class BookmarkRepositoryImpl @Inject constructor(
 
     override suspend fun deleteSentenceBookmarkByRecordId(recordId: Int) = withContext(Dispatchers.IO) {
         sentenceDao.deleteByRecordId(recordId)
+    }
+
+    override suspend fun setSentenceArchivedStatus(id: Int, isArchived: Boolean) = withContext(Dispatchers.IO) {
+        sentenceDao.updateArchivedStatus(id, isArchived)
     }
 
     override suspend fun detachSentenceBookmarkFromRecord(recordId: Int) = withContext(Dispatchers.IO) {

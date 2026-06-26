@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -39,6 +41,7 @@ import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.*
 import com.example.japanesegrammarapp.ui.BookmarkFilter
 import com.example.japanesegrammarapp.ui.ArchiveFilter
+import com.example.japanesegrammarapp.ui.BookmarkSortOrder
 import com.example.japanesegrammarapp.ui.BookmarkViewModel
 import com.example.japanesegrammarapp.domain.model.ConflictStrategy
 import com.example.japanesegrammarapp.domain.model.ImportResult
@@ -76,10 +79,12 @@ fun BookmarksScreen(
     val selectedPosCategory by viewModel.selectedPosCategory.collectAsState()
     val selectedDateFilter by viewModel.selectedDateFilter.collectAsState()
     val archiveFilter by viewModel.archiveFilter.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val sortOrder by viewModel.sortOrder.collectAsState()
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
 
-    LaunchedEffect(pagerState.currentPage) {
-        if (pagerState.currentPage != 0 && filterMode == BookmarkFilter.BY_POS) {
+    LaunchedEffect(pagerState.settledPage) {
+        if (pagerState.settledPage != 0 && filterMode == BookmarkFilter.BY_POS) {
             viewModel.setFilterMode(BookmarkFilter.ALL)
         }
     }
@@ -277,6 +282,7 @@ fun BookmarksScreen(
         ) { paddingValues ->
             HorizontalPager(
                 state = pagerState,
+                key = { page -> "bookmarks_page_$page" },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
@@ -321,12 +327,16 @@ fun BookmarksScreen(
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 BookmarkFilterChipsBar(
+                                    searchQuery = searchQuery,
+                                    sortOrder = sortOrder,
                                     filterMode = filterMode,
                                     archiveFilter = archiveFilter,
                                     posCategories = posCategories,
                                     dateCategories = dateCategories,
                                     selectedPosCategory = selectedPosCategory,
                                     selectedDateFilter = selectedDateFilter,
+                                    onSearchQueryChange = { viewModel.setSearchQuery(it) },
+                                    onSortOrderChange = { viewModel.setSortOrder(it) },
                                     onFilterModeChange = { viewModel.setFilterMode(it) },
                                     onArchiveFilterChange = { viewModel.setArchiveFilter(it) },
                                     onPosCategoryChange = { viewModel.setPosCategory(it) },
@@ -334,60 +344,68 @@ fun BookmarksScreen(
                                     isDark = isDark
                                 )
 
-                                LazyColumn(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                                    contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp)
-                                ) {
-                                    items(bookmarks, key = { "word_${it.id}" }) { bookmark ->
-                                        val isExpanded = expandedId == bookmark.id
-                                        BookmarkCard(
-                                            bookmark = bookmark,
-                                            isExpanded = isExpanded,
-                                            isPendingDelete = pendingDeleteId == bookmark.id,
-                                            isDark = isDark,
-                                            uiPreferencesRepository = viewModel.uiPreferencesRepository,
-                                            onClick = {
-                                                if (pendingDeleteId == bookmark.id) {
+                                if (bookmarks.isEmpty()) {
+                                    BookmarkNoFilteredResults()
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                                        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp)
+                                    ) {
+                                        items(bookmarks, key = { "word_${it.id}" }) { bookmark ->
+                                            val isExpanded = expandedId == bookmark.id
+                                            BookmarkCard(
+                                                bookmark = bookmark,
+                                                isExpanded = isExpanded,
+                                                isPendingDelete = pendingDeleteId == bookmark.id,
+                                                isDark = isDark,
+                                                uiPreferencesRepository = viewModel.uiPreferencesRepository,
+                                                onClick = {
+                                                    if (pendingDeleteId == bookmark.id) {
+                                                        pendingDeleteId = null
+                                                    } else {
+                                                        expandedId = if (isExpanded) null else bookmark.id
+                                                    }
+                                                },
+                                                onLongPress = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    pendingDeleteId = bookmark.id
+                                                },
+                                                onConfirmDelete = {
+                                                    viewModel.removeBookmark(bookmark.id)
                                                     pendingDeleteId = null
-                                                } else {
-                                                    expandedId = if (isExpanded) null else bookmark.id
+                                                    expandedId = null
+                                                },
+                                                onCancelDelete = {
+                                                    pendingDeleteId = null
+                                                },
+                                                onNavigateToSource = {
+                                                    pendingDeleteId = null
+                                                    expandedId = null
+                                                    if (bookmark.recordId > 0) {
+                                                        onNavigateToRecord(bookmark.recordId, -1)
+                                                    } else {
+                                                        sourceDialogBookmark = bookmark
+                                                    }
+                                                },
+                                                onToggleArchive = {
+                                                    val nextArchived = !bookmark.isArchived
+                                                    viewModel.toggleArchiveBookmark(bookmark.id, nextArchived)
+                                                    coroutineScope.launch {
+                                                        val msgId = if (nextArchived) R.string.bookmark_archived_toast else R.string.bookmark_restored_toast
+                                                        snackbarHostState.showSnackbar(context.getString(msgId))
+                                                    }
+                                                },
+                                                onPlayTts = {
+                                                    viewModel.playTts(bookmark.segmentText)
+                                                },
+                                                onEdit = {
+                                                    editingBookmark = bookmark
                                                 }
-                                            },
-                                            onLongPress = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                pendingDeleteId = bookmark.id
-                                            },
-                                            onConfirmDelete = {
-                                                viewModel.removeBookmark(bookmark.id)
-                                                pendingDeleteId = null
-                                                expandedId = null
-                                            },
-                                            onCancelDelete = {
-                                                pendingDeleteId = null
-                                            },
-                                            onNavigateToSource = {
-                                                pendingDeleteId = null
-                                                expandedId = null
-                                                onNavigateToRecord(bookmark.recordId, -1)
-                                            },
-                                            onToggleArchive = {
-                                                val nextArchived = !bookmark.isArchived
-                                                viewModel.toggleArchiveBookmark(bookmark.id, nextArchived)
-                                                coroutineScope.launch {
-                                                    val msgId = if (nextArchived) R.string.bookmark_archived_toast else R.string.bookmark_restored_toast
-                                                    snackbarHostState.showSnackbar(context.getString(msgId))
-                                                }
-                                            },
-                                            onPlayTts = {
-                                                viewModel.playTts(bookmark.segmentText)
-                                            },
-                                            onEdit = {
-                                                editingBookmark = bookmark
-                                            }
-                                        )
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -426,40 +444,56 @@ fun BookmarksScreen(
                         } else {
                             Column(modifier = Modifier.fillMaxSize()) {
                                 BookmarkFilterChipsBar(
+                                    searchQuery = searchQuery,
+                                    sortOrder = sortOrder,
                                     filterMode = filterMode,
                                     archiveFilter = archiveFilter,
                                     posCategories = posCategories,
                                     dateCategories = dateCategories,
                                     selectedPosCategory = selectedPosCategory,
                                     selectedDateFilter = selectedDateFilter,
+                                    onSearchQueryChange = { viewModel.setSearchQuery(it) },
+                                    onSortOrderChange = { viewModel.setSortOrder(it) },
                                     onFilterModeChange = { viewModel.setFilterMode(it) },
                                     onArchiveFilterChange = { viewModel.setArchiveFilter(it) },
                                     onPosCategoryChange = { viewModel.setPosCategory(it) },
                                     onDateFilterChange = { viewModel.setDateFilter(it) },
                                     isDark = isDark,
                                     showPosFilter = false,
-                                    showArchiveFilter = false
+                                    showArchiveFilter = true
                                 )
-                                LazyColumn(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                                    contentPadding = PaddingValues(top = 12.dp, bottom = 96.dp)
-                                ) {
-                                    items(filteredSentences, key = { "sentence_${it.id}" }) { sentence ->
-                                        SentenceBookmarkCard(
-                                            sentence = sentence,
-                                            onNavigateToDetails = {
-                                                onNavigateToRecord(sentence.recordId, sentence.id)
-                                            },
-                                            onPlayTts = {
-                                                viewModel.playSentenceTts(sentence.analysisResult, sentence.originalText)
-                                            },
-                                            onDelete = {
-                                                viewModel.removeSentenceBookmark(sentence.id)
-                                            }
-                                        )
+                                if (filteredSentences.isEmpty()) {
+                                    BookmarkNoFilteredResults()
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                                        contentPadding = PaddingValues(top = 12.dp, bottom = 96.dp)
+                                    ) {
+                                        items(filteredSentences, key = { "sentence_${it.id}" }) { sentence ->
+                                            SentenceBookmarkCard(
+                                                sentence = sentence,
+                                                onNavigateToDetails = {
+                                                    onNavigateToRecord(sentence.recordId, sentence.id)
+                                                },
+                                                onPlayTts = {
+                                                    viewModel.playSentenceTts(sentence.analysisResult, sentence.originalText)
+                                                },
+                                                onDelete = {
+                                                    viewModel.removeSentenceBookmark(sentence.id)
+                                                },
+                                                onToggleArchive = {
+                                                    val nextArchived = !sentence.isArchived
+                                                    viewModel.toggleArchiveSentence(sentence.id, nextArchived)
+                                                    coroutineScope.launch {
+                                                        val msgId = if (nextArchived) R.string.bookmark_archived_toast else R.string.bookmark_restored_toast
+                                                        snackbarHostState.showSnackbar(context.getString(msgId))
+                                                    }
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -483,13 +517,13 @@ fun BookmarksScreen(
                                         modifier = Modifier.size(64.dp)
                                     )
                                     Text(
-                                        text = stringResource(R.string.bookmarks_empty_sentences_title),
+                                        text = stringResource(R.string.bookmarks_empty_grammar_title),
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.Medium,
                                         color = SumiInk.copy(alpha = 0.4f)
                                     )
                                     Text(
-                                        text = stringResource(R.string.bookmarks_empty_sentences_hint),
+                                        text = stringResource(R.string.bookmarks_empty_grammar_hint),
                                         fontSize = 13.sp,
                                         color = SumiInk.copy(alpha = 0.3f)
                                     )
@@ -498,12 +532,16 @@ fun BookmarksScreen(
                         } else {
                             Column(modifier = Modifier.fillMaxSize()) {
                                 BookmarkFilterChipsBar(
+                                    searchQuery = searchQuery,
+                                    sortOrder = sortOrder,
                                     filterMode = filterMode,
                                     archiveFilter = archiveFilter,
                                     posCategories = posCategories,
                                     dateCategories = dateCategories,
                                     selectedPosCategory = selectedPosCategory,
                                     selectedDateFilter = selectedDateFilter,
+                                    onSearchQueryChange = { viewModel.setSearchQuery(it) },
+                                    onSortOrderChange = { viewModel.setSortOrder(it) },
                                     onFilterModeChange = { viewModel.setFilterMode(it) },
                                     onArchiveFilterChange = { viewModel.setArchiveFilter(it) },
                                     onPosCategoryChange = { viewModel.setPosCategory(it) },
@@ -512,23 +550,37 @@ fun BookmarksScreen(
                                     showPosFilter = false,
                                     showArchiveFilter = true
                                 )
-                                LazyColumn(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                                    contentPadding = PaddingValues(top = 12.dp, bottom = 96.dp)
-                                ) {
-                                    items(filteredGrammarPoints, key = { "grammar_${it.id}" }) { gp ->
-                                        BookmarkGrammarCard(
-                                            grammarPoint = gp,
-                                            onNavigateToDetails = {
-                                                onNavigateToRecord(gp.recordId, -1)
-                                            },
-                                            onDelete = {
-                                                viewModel.removeGrammarPointBookmark(gp.id)
-                                            }
-                                        )
+                                if (filteredGrammarPoints.isEmpty()) {
+                                    BookmarkNoFilteredResults()
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                                        contentPadding = PaddingValues(top = 12.dp, bottom = 96.dp)
+                                    ) {
+                                        items(filteredGrammarPoints, key = { "grammar_${it.id}" }) { gp ->
+                                            BookmarkGrammarCard(
+                                                grammarPoint = gp,
+                                                onNavigateToDetails = {
+                                                    if (gp.recordId > 0) {
+                                                        onNavigateToRecord(gp.recordId, -1)
+                                                    }
+                                                },
+                                                onDelete = {
+                                                    viewModel.removeGrammarPointBookmark(gp.id)
+                                                },
+                                                onToggleArchive = {
+                                                    val nextArchived = !gp.isArchived
+                                                    viewModel.toggleArchiveGrammarPoint(gp.id, nextArchived)
+                                                    coroutineScope.launch {
+                                                        val msgId = if (nextArchived) R.string.bookmark_archived_toast else R.string.bookmark_restored_toast
+                                                        snackbarHostState.showSnackbar(context.getString(msgId))
+                                                    }
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -554,12 +606,15 @@ fun BookmarksScreen(
             initialPartOfSpeech = bm.partOfSpeech ?: "",
             onDismiss = { editingBookmark = null },
             onSave = { dictForm, reading, meaning, pos ->
+                val normalizedDictForm = dictForm.takeIf { it.isNotBlank() } ?: bm.segmentText
                 viewModel.updateWordBookmark(
                     bm.copy(
-                        dictionaryForm = dictForm,
+                        segmentText = normalizedDictForm,
+                        dictionaryForm = normalizedDictForm,
                         reading = reading,
                         meaning = meaning,
-                        partOfSpeech = pos
+                        partOfSpeech = pos,
+                        posCategory = bm.posCategory.takeIf { pos == bm.partOfSpeech } ?: "OTHER"
                     )
                 )
                 editingBookmark = null
@@ -584,9 +639,9 @@ fun BookmarksScreen(
             titleResId = R.string.export_options_title,
             confirmResId = R.string.export,
             onDismiss = { showExportDialog = false },
-            onConfirm = { words, sentences, grammarPoints, format ->
+            onConfirm = { words, sentences, includeGrammarPoints, format ->
                 showExportDialog = false
-                viewModel.exportAndShare(context, format, words, sentences, grammarPoints)
+                viewModel.exportAndShare(context, format, words, sentences, includeGrammarPoints)
             }
         )
     }
@@ -599,28 +654,29 @@ fun BookmarksScreen(
                 showImportDialog = false
                 pendingImportUri = null
             },
-            onConfirm = { words, sentences, grammarPoints, format ->
+            onConfirm = { words, sentences, includeGrammarPoints, format ->
                 showImportDialog = false
                 val uri = pendingImportUri
                 if (uri != null) {
                     coroutineScope.launch {
                         try {
-                            val result = viewModel.importFromUri(uri, format, words, sentences, grammarPoints)
-                            if (result != null) {
-                                importSummaryResult = result
-                                showImportSummaryDialog = true
-                            } else {
-                                snackbarHostState.showSnackbar(context.getString(R.string.import_failed_msg))
-                            }
-                        } catch (e: Exception) {
-                            if (e.message == "CONFLICT") {
-                                pendingImportParams = ImportParams(uri, format, words, sentences, grammarPoints)
+                            val hasConflicts = viewModel.checkConflictsFromUri(uri, format, words, sentences, includeGrammarPoints)
+                            if (hasConflicts) {
+                                pendingImportParams = ImportParams(uri, format, words, sentences, includeGrammarPoints)
                                 showConflictDialog = true
                             } else {
-                                snackbarHostState.showSnackbar(
-                                    context.getString(R.string.import_error_msg, e.localizedMessage ?: "")
-                                )
+                                val result = viewModel.importFromUri(uri, format, words, sentences, includeGrammarPoints)
+                                if (result != null) {
+                                    importSummaryResult = result
+                                    showImportSummaryDialog = true
+                                } else {
+                                    snackbarHostState.showSnackbar(context.getString(R.string.import_failed_msg))
+                                }
                             }
+                        } catch (e: Exception) {
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.import_error_msg, e.localizedMessage ?: "")
+                            )
                         }
                     }
                 } else {
@@ -688,6 +744,21 @@ fun BookmarksScreen(
                 importSummaryResult = null
                 pendingImportUri = null
             }
+        )
+    }
+}
+
+@Composable
+private fun BookmarkNoFilteredResults() {
+    val sumiInk = MaterialTheme.colorScheme.onBackground
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = stringResource(R.string.no_search_results),
+            fontSize = 13.sp,
+            color = sumiInk.copy(alpha = 0.4f)
         )
     }
 }

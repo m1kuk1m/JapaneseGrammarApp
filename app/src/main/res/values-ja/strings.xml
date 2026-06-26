@@ -343,6 +343,7 @@
     <string name="bookmarks_title">お気に入り</string>
     <string name="bookmarks_empty_title">まだお気に入りの単語がありません</string>
     <string name="bookmarks_empty_hint">分析ページで単語チップを長押ししてお気に入りに追加</string>
+    <string name="bookmarks_search_hint">お気に入りを検索</string>
     <string name="bookmarks_count">%1$d</string>
     <string name="bookmarks_count_all">%1$d件</string>
     <string name="bookmarks_count_filtered">%1$d / %2$d</string>
@@ -364,6 +365,8 @@
     <string name="filter_all">すべて</string>
     <string name="filter_by_pos">品詞別</string>
     <string name="filter_by_date">日付別</string>
+    <string name="sort_newest_first">新しい順</string>
+    <string name="sort_oldest_first">古い順</string>
     <string name="filter_today">今日</string>
     <string name="filter_week">今週</string>
     <string name="filter_older">以前</string>
@@ -510,6 +513,8 @@
     <string name="grammar_point">文法ポイント</string>
     <string name="bookmarks_empty_sentences_title">お気に入りの文はまだありません</string>
     <string name="bookmarks_empty_sentences_hint">履歴項目を長押しするか、分析画面で星印をクリックしてお気に入りに追加します</string>
+    <string name="bookmarks_empty_grammar_title">お気に入りの文法ポイントはまだありません</string>
+    <string name="bookmarks_empty_grammar_hint">分析結果の文法カードで星印をクリックしてお気に入りに追加します</string>
     <string name="delete_analysis_confirm_title">分析履歴の削除</string>
     <string name="delete_analysis_confirm_message">この分析履歴を削除してもよろしいですか？（この文のお気に入りは削除されません）</string>
     <string name="bookmark_sentence_added">文をお気に入りに追加しました</string>

@@ -7,5 +7,6 @@ data class BookmarkedSentenceDomain(
     val translation: String?,
     val analysisResult: String?,
     val modelUsed: String?,
-    val bookmarkedAt: Long
+    val bookmarkedAt: Long,
+    val isArchived: Boolean = false
 )

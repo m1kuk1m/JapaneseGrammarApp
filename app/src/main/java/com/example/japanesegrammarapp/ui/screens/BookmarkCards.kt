@@ -326,7 +326,8 @@ fun SentenceBookmarkCard(
     sentence: BookmarkedSentenceDomain,
     onNavigateToDetails: () -> Unit,
     onPlayTts: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onToggleArchive: () -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val surfaceColor = MaterialTheme.colorScheme.surface
@@ -407,11 +408,33 @@ fun SentenceBookmarkCard(
             }
 
             Spacer(Modifier.height(10.dp))
-            Text(
-                text = sentence.bookmarkedAt.formatBookmarkDate(),
-                fontSize = 11.sp,
-                color = sumiInk.copy(alpha = 0.3f)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = sentence.bookmarkedAt.formatBookmarkDate(),
+                    fontSize = 11.sp,
+                    color = sumiInk.copy(alpha = 0.3f)
+                )
+
+                TextButton(
+                    onClick = onToggleArchive,
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = if (sentence.isArchived) {
+                            stringResource(R.string.bookmark_restore)
+                        } else {
+                            stringResource(R.string.bookmark_archive)
+                        },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+            }
 
             DeleteConfirmationRow(
                 visible = showDeleteConfirm,
@@ -502,7 +525,8 @@ private fun Long.formatBookmarkDate(): String {
 fun BookmarkGrammarCard(
     grammarPoint: com.example.japanesegrammarapp.domain.model.BookmarkedGrammarPointDomain,
     onNavigateToDetails: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onToggleArchive: () -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val surfaceColor = MaterialTheme.colorScheme.surface
@@ -559,12 +583,50 @@ fun BookmarkGrammarCard(
                     lineHeight = 20.sp
                 )
             }
+            if (grammarPoint.sourceText.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Surface(
+                    color = sumiInk.copy(alpha = 0.04f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = stringResource(R.string.source_sentence_prefix, grammarPoint.sourceText),
+                        fontSize = 12.sp,
+                        color = sumiInk.copy(alpha = 0.5f),
+                        lineHeight = 18.sp,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                    )
+                }
+            }
             Spacer(Modifier.height(10.dp))
-            Text(
-                text = grammarPoint.bookmarkedAt.formatBookmarkDate(),
-                fontSize = 11.sp,
-                color = sumiInk.copy(alpha = 0.3f)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = grammarPoint.bookmarkedAt.formatBookmarkDate(),
+                    fontSize = 11.sp,
+                    color = sumiInk.copy(alpha = 0.3f)
+                )
+
+                TextButton(
+                    onClick = onToggleArchive,
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = if (grammarPoint.isArchived) {
+                            stringResource(R.string.bookmark_restore)
+                        } else {
+                            stringResource(R.string.bookmark_archive)
+                        },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+            }
 
             DeleteConfirmationRow(
                 visible = showDeleteConfirm,
