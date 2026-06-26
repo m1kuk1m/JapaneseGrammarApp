@@ -33,6 +33,9 @@ interface AnalysisDao {
     @Delete
     suspend fun delete(record: AnalysisRecord)
 
+    @Query("UPDATE analysis_records SET isRead = 1 WHERE id = :recordId")
+    suspend fun markAsRead(recordId: Int)
+
     @Query("SELECT * FROM analysis_records WHERE id = :id")
     suspend fun getRecordById(id: Int): AnalysisRecord?
 

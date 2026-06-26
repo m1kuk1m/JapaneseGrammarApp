@@ -15,6 +15,7 @@ interface HistoryRepository {
     suspend fun insertRecord(record: AnalysisDomainRecord): Long
     suspend fun updateRecord(record: AnalysisDomainRecord)
     suspend fun deleteRecord(record: AnalysisDomainRecord)
+    suspend fun markRecordAsRead(id: Int)
     val totalTokensConsumed: Flow<Int?>
     val tokenUsageByModel: Flow<List<ModelTokenUsage>>
     val dailyTokenUsage: Flow<List<DailyTokenUsage>>

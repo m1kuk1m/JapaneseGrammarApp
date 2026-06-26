@@ -74,7 +74,8 @@ fun WorkspaceResultContent(
     onToggleGrammarBookmark: (pattern: String, explanation: String?, sourceText: String) -> Unit = { _, _, _ -> },
     onLoadNewer: () -> Unit = {},
     onLoadOlder: () -> Unit = {},
-    uiPreferencesRepository: UiPreferencesRepository
+    uiPreferencesRepository: UiPreferencesRepository,
+    onUserInteracted: () -> Unit = {}
 ) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val SurfaceColor = MaterialTheme.colorScheme.surface
@@ -88,6 +89,12 @@ fun WorkspaceResultContent(
     val scrollState = rememberScrollState()
     LaunchedEffect(uiState.selectedRecord?.id) {
         scrollState.scrollTo(0)
+    }
+
+    LaunchedEffect(scrollState.isScrollInProgress) {
+        if (scrollState.isScrollInProgress) {
+            onUserInteracted()
+        }
     }
 
     if (detailedResult == null && !isPending && !rawResult.isNullOrBlank()) {
@@ -283,6 +290,7 @@ fun WorkspaceResultContent(
                                                     isBookmarked = uiState.bookmarkedSegmentTexts.contains(segment.text) || 
                                                             uiState.bookmarkedSegmentTexts.contains(segment.dictionaryForm ?: ""),
                                                     onClick = {
+                                                        onUserInteracted()
                                                         if (!isThisSegmentLoading) {
                                                             selectedSegmentIndex = if (selectedSegmentIndex == index) -1 else index
                                                         }

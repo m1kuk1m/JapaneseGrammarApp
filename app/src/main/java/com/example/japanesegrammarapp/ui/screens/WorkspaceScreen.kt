@@ -622,7 +622,8 @@ fun WorkspaceScreen(
                                                     },
                                                     onLoadNewer = { viewModel.loadNewerRecord() },
                                                     onLoadOlder = { viewModel.loadOlderRecord() },
-                                                    uiPreferencesRepository = viewModel.uiPreferencesRepository
+                                                    uiPreferencesRepository = viewModel.uiPreferencesRepository,
+                                                    onUserInteracted = { viewModel.markCurrentRecordAsRead() }
                                                 )
                                             }
                                             "FAILED" -> {

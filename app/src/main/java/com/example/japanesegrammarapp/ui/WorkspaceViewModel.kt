@@ -54,7 +54,8 @@ data class HistoryUiRecord(
     val record: AnalysisDomainRecord,
     val dateStr: String,
     val modelText: String,
-    val formattedTokens: String?
+    val formattedTokens: String?,
+    val isRead: Boolean
 )
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -113,7 +114,7 @@ class WorkspaceViewModel @Inject constructor(
                 val tokens = if (record.status == AnalysisStatus.COMPLETED && record.consumedTokens > 0) {
                     if (record.consumedTokens >= 1000) String.format(java.util.Locale.US, "%.1fk", record.consumedTokens / 1000.0) else record.consumedTokens.toString()
                 } else null
-                HistoryUiRecord(record, dateStr, modelText, tokens)
+                HistoryUiRecord(record, dateStr, modelText, tokens, record.isRead)
             }
         }
         .cachedIn(viewModelScope)
@@ -435,6 +436,19 @@ class WorkspaceViewModel @Inject constructor(
                 )
                 withContext(Dispatchers.Main) {
                     selectRecord(mockRecord, clearExternalQuery = false)
+                }
+            }
+        }
+    }
+
+    fun markCurrentRecordAsRead() {
+        val currentRecord = _uiState.value.selectedRecord ?: return
+        if (!currentRecord.isRead && currentRecord.id > 0) {
+            viewModelScope.launch {
+                historyRepository.markRecordAsRead(currentRecord.id)
+                _uiState.update { state ->
+                    val updatedRecord = state.selectedRecord?.copy(isRead = true)
+                    state.copy(selectedRecord = updatedRecord)
                 }
             }
         }
