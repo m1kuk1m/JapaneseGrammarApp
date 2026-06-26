@@ -427,18 +427,31 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(8.dp))
             
             if (currentCategory == null) {
-                // Root Level: List of Categories
-                SettingsCategory.entries.forEach { category ->
+                SettingsGroup(title = stringResource(R.string.settings_title)) {
+                    SettingsCategory.entries.forEachIndexed { index, category ->
+                        SettingsItem(
+                            icon = category.icon,
+                            title = stringResource(category.titleRes),
+                            onClick = { currentCategory = category },
+                            trailingContent = {
+                                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = SumiInk.copy(alpha = 0.4f))
+                            }
+                        )
+                        if (index < SettingsCategory.entries.lastIndex) {
+                            SettingsRootDivider()
+                        }
+                    }
+                }
+
+                SettingsGroup(title = stringResource(R.string.app_logs_title)) {
                     SettingsItem(
-                        icon = category.icon,
-                        title = stringResource(category.titleRes),
-                        subtitle = "",
-                        onClick = { currentCategory = category },
+                        icon = Icons.Default.Code,
+                        title = stringResource(R.string.view_dev_logs),
+                        onClick = { showLogsDialog = true },
                         trailingContent = {
                             Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = SumiInk.copy(alpha = 0.4f))
                         }
                     )
-                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
                 }
             } else {
                 when (currentCategory) {
@@ -544,13 +557,6 @@ fun SettingsScreen(
             }
 
             if (currentCategory == null) {
-                Spacer(modifier = Modifier.height(24.dp))
-                OutlinedButton(
-                    onClick = { showLogsDialog = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.view_dev_logs))
-                }
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }
@@ -857,4 +863,10 @@ fun SettingsScreen(
     }
 
     }
+}
+
+@Composable
+private fun SettingsRootDivider() {
+    val sumiInk = MaterialTheme.colorScheme.onBackground
+    Divider(color = sumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
 }
