@@ -41,6 +41,16 @@ class HistoryRepositoryImpl @Inject constructor(
         return entity?.toDomain()
     }
 
+    override suspend fun getNewerRecord(timestamp: Long): AnalysisDomainRecord? {
+        val entity = analysisDao.getNewerRecord(timestamp)
+        return entity?.toDomain()
+    }
+
+    override suspend fun getOlderRecord(timestamp: Long): AnalysisDomainRecord? {
+        val entity = analysisDao.getOlderRecord(timestamp)
+        return entity?.toDomain()
+    }
+
     override suspend fun insertRecord(record: AnalysisDomainRecord): Long {
         return analysisDao.insert(record.toEntity())
     }

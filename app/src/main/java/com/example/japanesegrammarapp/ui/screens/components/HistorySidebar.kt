@@ -409,6 +409,7 @@ fun HistorySidebarItem(
 
     val borderColor by animateColorAsState(
         targetValue = when {
+            isSelected && isBookmarked -> goldColor
             isSelected -> SumiInk
             isBookmarked -> goldColor
             else -> Color.Transparent
@@ -417,7 +418,12 @@ fun HistorySidebarItem(
         label = "itemBorderColor"
     )
     val borderWidth by animateDpAsState(
-        targetValue = if (isSelected) 1.5.dp else if (isBookmarked) 2.dp else 0.dp,
+        targetValue = when {
+            isSelected && isBookmarked -> 2.5.dp
+            isBookmarked -> 2.dp
+            isSelected -> 1.5.dp
+            else -> 0.dp
+        },
         label = "itemBorderWidth"
     )
 
