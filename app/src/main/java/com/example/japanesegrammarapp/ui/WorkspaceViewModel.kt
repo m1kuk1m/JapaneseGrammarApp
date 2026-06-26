@@ -71,6 +71,7 @@ class WorkspaceViewModel @Inject constructor(
     private val retryAnalysisUseCase: RetryAnalysisUseCase,
     private val eventBus: AnalysisEventBus,
     private val bookmarkRepository: BookmarkRepository,
+    private val detailedResultSerializer: DetailedResultSerializer,
     val uiPreferencesRepository: UiPreferencesRepository
 ) : ViewModel() {
 
@@ -909,6 +910,26 @@ class WorkspaceViewModel @Inject constructor(
         val record = _uiState.value.selectedRecord ?: return
         viewModelScope.launch {
             bookmarkRepository.toggleSentenceBookmark(record)
+        }
+    }
+
+    fun updateWordSegment(index: Int, updatedSegment: WordSegment) {
+        val record = _uiState.value.selectedRecord ?: return
+        val currentDetail = _uiState.value.detailedResult ?: return
+        val currentSegments = currentDetail.segments ?: return
+
+        if (index !in currentSegments.indices) return
+
+        val newSegments = currentSegments.toMutableList().apply {
+            set(index, updatedSegment)
+        }
+        val newDetail = currentDetail.copy(segments = newSegments)
+        val newAnalysisResult = detailedResultSerializer.toJson(newDetail)
+
+        val updatedRecord = record.copy(analysisResult = newAnalysisResult)
+
+        viewModelScope.launch(Dispatchers.IO) {
+            historyRepository.updateRecord(updatedRecord)
         }
     }
 

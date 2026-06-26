@@ -16,6 +16,9 @@ interface BookmarkDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertReplace(bookmark: BookmarkedSegment): Long
 
+    @androidx.room.Update
+    suspend fun update(bookmark: BookmarkedSegment)
+
     @Query("SELECT * FROM bookmarked_segments ORDER BY bookmarkedAt DESC")
     fun getAll(): Flow<List<BookmarkedSegment>>
 

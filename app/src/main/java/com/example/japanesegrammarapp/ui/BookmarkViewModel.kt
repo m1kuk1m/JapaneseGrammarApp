@@ -308,6 +308,12 @@ class BookmarkViewModel @Inject constructor(
         }
     }
 
+    fun updateWordBookmark(domain: BookmarkedSegmentDomain) {
+        viewModelScope.launch {
+            bookmarkRepository.updateWordBookmark(domain)
+        }
+    }
+
     fun toggleArchiveBookmark(id: Int, isArchived: Boolean) {
         viewModelScope.launch {
             bookmarkRepository.updateArchivedStatus(id, isArchived)

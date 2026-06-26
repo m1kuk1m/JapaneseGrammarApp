@@ -31,6 +31,8 @@ interface BookmarkRepository {
 
     suspend fun removeBookmarkById(id: Int)
 
+    suspend fun updateWordBookmark(domain: BookmarkedSegmentDomain)
+
     /** Serialize bookmarks to a string for export */
     suspend fun exportData(format: ExportFormat, includeWords: Boolean, includeSentences: Boolean, includeGrammarPoints: Boolean): String
 

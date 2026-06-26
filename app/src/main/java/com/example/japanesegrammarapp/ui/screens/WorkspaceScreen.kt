@@ -92,6 +92,7 @@ fun WorkspaceScreen(
     }
     var selectedImageUriState by remember { mutableStateOf<Uri?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var editingSegment by remember { mutableStateOf<com.example.japanesegrammarapp.domain.model.WordSegment?>(null) }
 
 
     // Clear image uri when returning to homepage (no active record)
@@ -617,6 +618,9 @@ fun WorkspaceScreen(
                                                     onToggleBookmark = { segment ->
                                                         viewModel.toggleBookmark(segment)
                                                     },
+                                                    onEditWordSegment = { segment ->
+                                                        editingSegment = segment
+                                                    },
                                                     onToggleGrammarBookmark = { pattern, explanation, sourceText ->
                                                         viewModel.toggleGrammarPointBookmark(pattern, explanation, sourceText)
                                                     },
@@ -727,17 +731,40 @@ fun WorkspaceScreen(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) {
-                        Text(stringResource(R.string.delete), fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(stringResource(R.string.delete), fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showDeleteConfirmDialog = false }) {
-                        Text(stringResource(R.string.cancel), color = SumiInk)
+                    OutlinedButton(onClick = { showDeleteConfirmDialog = false }) {
+                        Text(stringResource(R.string.cancel))
                     }
-                },
-                containerColor = Color.White
+                }
             )
         }
+    }
+
+    editingSegment?.let { segment ->
+        EditWordDialog(
+            initialDictionaryForm = segment.dictionaryForm ?: segment.text ?: "",
+            initialReading = segment.reading ?: "",
+            initialMeaning = segment.meaning ?: "",
+            initialPartOfSpeech = segment.partOfSpeech ?: "",
+            onDismiss = { editingSegment = null },
+            onSave = { updatedDict, updatedReading, updatedMeaning, updatedPos ->
+                val record = uiState.selectedRecord
+                val index = uiState.detailedResult?.segments?.indexOf(segment) ?: -1
+                if (record != null && index != -1) {
+                    val updatedSegment = segment.copy(
+                        dictionaryForm = updatedDict,
+                        reading = updatedReading,
+                        meaning = updatedMeaning,
+                        partOfSpeech = updatedPos
+                    )
+                    viewModel.updateWordSegment(index, updatedSegment)
+                }
+                editingSegment = null
+            }
+        )
     }
 
     // Input Dialog for Floating Action Ball

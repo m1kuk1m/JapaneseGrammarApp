@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -71,6 +72,7 @@ fun WorkspaceResultContent(
     onPlayTts: () -> Unit = {},
     onStopTts: () -> Unit = {},
     onToggleBookmark: (WordSegment) -> Unit = {},
+    onEditWordSegment: (WordSegment) -> Unit = {},
     onToggleGrammarBookmark: (pattern: String, explanation: String?, sourceText: String) -> Unit = { _, _, _ -> },
     onLoadNewer: () -> Unit = {},
     onLoadOlder: () -> Unit = {},
@@ -365,6 +367,17 @@ fun WorkspaceResultContent(
                                                         contentDescription = stringResource(if (isCurrentBookmarked) R.string.delete_bookmark else R.string.long_press_to_bookmark),
                                                         tint = if (isCurrentBookmarked) Color(0xFFD4A017) else SumiInk.copy(alpha = 0.35f),
                                                         modifier = Modifier.size(22.dp)
+                                                    )
+                                                }
+                                                IconButton(
+                                                    onClick = { onEditWordSegment(currentSegment) },
+                                                    modifier = Modifier.size(28.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Edit,
+                                                        contentDescription = stringResource(R.string.edit),
+                                                        tint = SumiInk.copy(alpha = 0.35f),
+                                                        modifier = Modifier.size(20.dp)
                                                     )
                                                 }
                                             }

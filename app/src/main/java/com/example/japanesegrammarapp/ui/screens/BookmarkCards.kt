@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Divider
@@ -82,7 +83,8 @@ fun BookmarkCard(
     onCancelDelete: () -> Unit,
     onNavigateToSource: () -> Unit,
     onToggleArchive: () -> Unit,
-    onPlayTts: () -> Unit
+    onPlayTts: () -> Unit,
+    onEdit: () -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val surfaceColor = MaterialTheme.colorScheme.surface
@@ -170,6 +172,14 @@ fun BookmarkCard(
                             imageVector = Icons.Default.VolumeUp,
                             contentDescription = stringResource(R.string.flashcard_speak),
                             tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = stringResource(R.string.edit),
+                            tint = sumiInk.copy(alpha = 0.4f),
                             modifier = Modifier.size(18.dp)
                         )
                     }

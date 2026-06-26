@@ -97,6 +97,27 @@ class BookmarkRepositoryImpl @Inject constructor(
         dao.deleteById(id)
     }
 
+    override suspend fun updateWordBookmark(domain: BookmarkedSegmentDomain) = withContext(Dispatchers.IO) {
+        val entity = BookmarkedSegment(
+            id = domain.id,
+            recordId = domain.recordId,
+            segmentText = domain.segmentText,
+            surfaceForm = domain.surfaceForm,
+            reading = domain.reading,
+            partOfSpeech = domain.partOfSpeech,
+            posCategory = domain.posCategory,
+            dictionaryForm = domain.dictionaryForm,
+            dictionaryFormReading = domain.dictionaryFormReading,
+            meaning = domain.meaning,
+            inflection = domain.inflection,
+            role = domain.role,
+            bookmarkedAt = domain.bookmarkedAt,
+            sourceText = domain.sourceText,
+            isArchived = domain.isArchived
+        )
+        dao.update(entity)
+    }
+
     override suspend fun exportData(format: ExportFormat, includeWords: Boolean, includeSentences: Boolean, includeGrammarPoints: Boolean): String = withContext(Dispatchers.IO) {
         val handler = com.example.japanesegrammarapp.data.format.BookmarkFormatHandlerImpl()
         
