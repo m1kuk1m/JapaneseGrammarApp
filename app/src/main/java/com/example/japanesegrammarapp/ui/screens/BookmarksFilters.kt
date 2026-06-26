@@ -31,6 +31,7 @@ fun BookmarkFilterChipsBar(
     filterMode: BookmarkFilter,
     archiveFilter: ArchiveFilter,
     posCategories: List<String>,
+    dateCategories: List<String>,
     selectedPosCategory: String?,
     selectedDateFilter: String?,
     onFilterModeChange: (BookmarkFilter) -> Unit,
@@ -127,25 +128,16 @@ fun BookmarkFilterChipsBar(
                         onClick = { onDateFilterChange(null) }
                     )
                 }
-                item {
+                items(dateCategories) { dateCat ->
+                    val label = when (dateCat) {
+                        "today" -> stringResource(R.string.filter_today)
+                        "week" -> stringResource(R.string.filter_week)
+                        else -> dateCat.replace("/", "年") + "月"
+                    }
                     BookmarkFilterChip(
-                        label = stringResource(R.string.filter_today),
-                        isSelected = selectedDateFilter == "today",
-                        onClick = { onDateFilterChange("today") }
-                    )
-                }
-                item {
-                    BookmarkFilterChip(
-                        label = stringResource(R.string.filter_week),
-                        isSelected = selectedDateFilter == "week",
-                        onClick = { onDateFilterChange("week") }
-                    )
-                }
-                item {
-                    BookmarkFilterChip(
-                        label = stringResource(R.string.filter_older),
-                        isSelected = selectedDateFilter == "older",
-                        onClick = { onDateFilterChange("older") }
+                        label = label,
+                        isSelected = selectedDateFilter == dateCat,
+                        onClick = { onDateFilterChange(dateCat) }
                     )
                 }
             }

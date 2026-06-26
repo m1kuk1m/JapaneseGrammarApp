@@ -134,6 +134,39 @@ class BookmarkViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** Available date categories derived from all bookmarks */
+    val dateCategories: StateFlow<List<String>> = allBookmarks
+        .map { bookmarks ->
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            val todayStart = cal.timeInMillis
+            cal.add(Calendar.DAY_OF_YEAR, -7)
+            val weekStart = cal.timeInMillis
+
+            val categories = mutableSetOf<String>()
+            val sdf = SimpleDateFormat("yyyy/MM", Locale.getDefault())
+            
+            bookmarks.forEach {
+                when {
+                    it.bookmarkedAt >= todayStart -> categories.add("today")
+                    it.bookmarkedAt >= weekStart -> categories.add("week")
+                    else -> categories.add(sdf.format(Date(it.bookmarkedAt)))
+                }
+            }
+            
+            val sorted = mutableListOf<String>()
+            if (categories.contains("today")) sorted.add("today")
+            if (categories.contains("week")) sorted.add("week")
+            val dates = categories.filter { it != "today" && it != "week" }.sortedDescending()
+            sorted.addAll(dates)
+            
+            sorted
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val isPlayingTts: StateFlow<Boolean> = ttsRepository.isPlaying
 
     private val _archiveFilter = MutableStateFlow(ArchiveFilter.ALL)
@@ -169,18 +202,18 @@ class BookmarkViewModel @Inject constructor(
                 val todayStart = cal.timeInMillis
                 cal.add(Calendar.DAY_OF_YEAR, -7)
                 val weekStart = cal.timeInMillis
+                val sdf = SimpleDateFormat("yyyy/MM", Locale.getDefault())
 
                 val grouped = archiveFilteredList.groupBy {
                     when {
                         it.bookmarkedAt >= todayStart -> "today"
                         it.bookmarkedAt >= weekStart -> "week"
-                        else -> "older"
+                        else -> sdf.format(Date(it.bookmarkedAt))
                     }
                 }
 
                 when (dateFilter) {
                     null -> archiveFilteredList.sortedByDescending { it.bookmarkedAt }
-                    "week" -> archiveFilteredList.filter { it.bookmarkedAt >= weekStart }.sortedByDescending { it.bookmarkedAt }
                     else -> (grouped[dateFilter] ?: emptyList()).sortedByDescending { it.bookmarkedAt }
                 }
             }
