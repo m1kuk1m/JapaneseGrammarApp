@@ -427,3 +427,76 @@ fun ConflictResolutionDialog(
         tonalElevation = 6.dp
     )
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditWordDialog(
+    initialDictionaryForm: String,
+    initialReading: String,
+    initialMeaning: String,
+    initialPartOfSpeech: String,
+    onDismiss: () -> Unit,
+    onSave: (dictionaryForm: String, reading: String, meaning: String, partOfSpeech: String) -> Unit
+) {
+    var dictForm by remember { mutableStateOf(initialDictionaryForm) }
+    var reading by remember { mutableStateOf(initialReading) }
+    var meaning by remember { mutableStateOf(initialMeaning) }
+    var pos by remember { mutableStateOf(initialPartOfSpeech) }
+
+    val sumiInk = MaterialTheme.colorScheme.onBackground
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.edit),
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = sumiInk
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                androidx.compose.material3.OutlinedTextField(
+                    value = dictForm,
+                    onValueChange = { dictForm = it },
+                    label = { Text(stringResource(R.string.dictionary_form)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = reading,
+                    onValueChange = { reading = it },
+                    label = { Text(stringResource(R.string.reading)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = meaning,
+                    onValueChange = { meaning = it },
+                    label = { Text(stringResource(R.string.meaning)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = pos,
+                    onValueChange = { pos = it },
+                    label = { Text(stringResource(R.string.pos)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(dictForm, reading, meaning, pos) },
+                colors = ButtonDefaults.buttonColors(containerColor = sumiInk, contentColor = surfaceColor)
+            ) {
+                Text(stringResource(R.string.save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel), color = sumiInk.copy(alpha = 0.6f))
+            }
+        },
+        containerColor = surfaceColor
+    )
+}

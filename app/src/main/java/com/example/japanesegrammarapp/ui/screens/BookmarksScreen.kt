@@ -92,6 +92,7 @@ fun BookmarksScreen(
 
     // Track bookmark for source sentence dialog
     var sourceDialogBookmark by remember { mutableStateOf<BookmarkedSegmentDomain?>(null) }
+    var editingBookmark by remember { mutableStateOf<BookmarkedSegmentDomain?>(null) }
 
     var showFlashcardSettings by remember { mutableStateOf(false) }
 
@@ -382,6 +383,9 @@ fun BookmarksScreen(
                                             },
                                             onPlayTts = {
                                                 viewModel.playTts(bookmark.segmentText)
+                                            },
+                                            onEdit = {
+                                                editingBookmark = bookmark
                                             }
                                         )
                                     }
@@ -539,6 +543,27 @@ fun BookmarksScreen(
         SourceSentenceDialog(
             bookmark = bm,
             onDismiss = { sourceDialogBookmark = null }
+        )
+    }
+
+    editingBookmark?.let { bm ->
+        EditWordDialog(
+            initialDictionaryForm = bm.dictionaryForm ?: "",
+            initialReading = bm.reading ?: "",
+            initialMeaning = bm.meaning ?: "",
+            initialPartOfSpeech = bm.partOfSpeech ?: "",
+            onDismiss = { editingBookmark = null },
+            onSave = { dictForm, reading, meaning, pos ->
+                viewModel.updateWordBookmark(
+                    bm.copy(
+                        dictionaryForm = dictForm,
+                        reading = reading,
+                        meaning = meaning,
+                        partOfSpeech = pos
+                    )
+                )
+                editingBookmark = null
+            }
         )
     }
 

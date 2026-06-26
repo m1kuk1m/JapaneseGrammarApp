@@ -23,6 +23,9 @@
     <string name="overall_translation">Overall Translation</string>
     <string name="sentence_clauses">Sentence Structure</string>
     <string name="grammar_points">Grammar Points</string>
+    <string name="edit">Edit</string>
+    <string name="save">Save</string>
+    <string name="reading">Reading</string>
 
     <!-- Input Form -->
     <string name="input_hint">Enter Japanese text here...</string>
