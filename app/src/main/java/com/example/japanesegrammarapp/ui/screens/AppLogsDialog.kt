@@ -283,21 +283,7 @@ fun AppLogsDialog(
                                 val copyTarget = if (selectedDate != null || searchQuery.isNotBlank() || selectedLevel != "ALL") {
                                     filteredLogs.reversed()
                                 } else {
-                                    val sessionStartIndices = filteredLogs.mapIndexedNotNull { index, s ->
-                                        if (s.contains("--- APP SESSION START ---")) index else null
-                                    }
-                                    val idx = if (sessionStartIndices.size >= 2) {
-                                        sessionStartIndices[sessionStartIndices.size - 2]
-                                    } else if (sessionStartIndices.isNotEmpty()) {
-                                        sessionStartIndices.last()
-                                    } else {
-                                        -1
-                                    }
-                                    if (idx != -1) {
-                                        filteredLogs.subList(idx, filteredLogs.size).reversed()
-                                    } else {
-                                        filteredLogs.reversed()
-                                    }
+                                    AppLogger.getAppLogsForCurrentReport(context).reversed()
                                 }
                                 clipboardManager.setText(AnnotatedString(copyTarget.joinToString("\n")))
                                 android.widget.Toast

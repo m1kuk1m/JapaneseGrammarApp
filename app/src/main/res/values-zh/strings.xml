@@ -382,6 +382,13 @@
     <string name="filter_today">今天</string>
     <string name="filter_week">本周</string>
     <string name="filter_older">更早</string>
+    <string name="bookmark_filter_open">筛选</string>
+    <string name="bookmark_filter_title">筛选</string>
+    <string name="bookmark_filter_reset">重置</string>
+    <string name="bookmark_filter_sort">排序</string>
+    <string name="bookmark_filter_scope">显示范围</string>
+    <string name="bookmark_filter_grouping">分类</string>
+    <string name="bookmark_filter_details">选项</string>
 
     <!-- Flashcard -->
     <string name="flashcard_title">闪卡练习</string>

@@ -370,6 +370,13 @@
     <string name="filter_today">今日</string>
     <string name="filter_week">今週</string>
     <string name="filter_older">以前</string>
+    <string name="bookmark_filter_open">絞り込み</string>
+    <string name="bookmark_filter_title">絞り込み</string>
+    <string name="bookmark_filter_reset">リセット</string>
+    <string name="bookmark_filter_sort">並び順</string>
+    <string name="bookmark_filter_scope">表示範囲</string>
+    <string name="bookmark_filter_grouping">分類</string>
+    <string name="bookmark_filter_details">詳細</string>
 
     <!-- Flashcard -->
     <string name="flashcard_title">フラッシュカード</string>

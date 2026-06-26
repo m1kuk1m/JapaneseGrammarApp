@@ -87,4 +87,35 @@ class AppLoggerTest {
         assertFalse(stored.contains("debug-secret"))
         assertTrue(stored.contains("Bearer <redacted>"))
     }
+
+    @Test
+    fun selectCurrentReportLogsStartsFromPreviousSessionMarker() {
+        val selected = AppLogger.selectCurrentReportLogs(
+            listOf(
+                "[01-01 10:00:00] D/SYSTEM: --- APP SESSION START ---",
+                "[01-01 10:00:01] D/OLD: old",
+                "[01-01 11:00:00] D/SYSTEM: --- APP SESSION START ---",
+                "[01-01 11:00:01] E/CRASH: crash",
+                "[01-01 12:00:00] D/SYSTEM: --- APP SESSION START ---",
+                "[01-01 12:00:01] D/NEW: new"
+            )
+        )
+
+        assertFalse(selected.any { it.contains("D/OLD") })
+        assertTrue(selected.first().contains("--- APP SESSION START ---"))
+        assertTrue(selected.any { it.contains("E/CRASH") })
+        assertTrue(selected.any { it.contains("D/NEW") })
+    }
+
+    @Test
+    fun selectCurrentReportLogsKeepsAllLogsWithoutSessionMarker() {
+        val logs = listOf(
+            "[01-01 11:00:01] E/CRASH: crash",
+            "[01-01 12:00:01] D/NEW: new"
+        )
+
+        val selected = AppLogger.selectCurrentReportLogs(logs)
+
+        assertTrue(selected == logs)
+    }
 }

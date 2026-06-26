@@ -391,6 +391,13 @@
     <string name="filter_today">Today</string>
     <string name="filter_week">This Week</string>
     <string name="filter_older">Older</string>
+    <string name="bookmark_filter_open">Filters</string>
+    <string name="bookmark_filter_title">Filters</string>
+    <string name="bookmark_filter_reset">Reset</string>
+    <string name="bookmark_filter_sort">Sort</string>
+    <string name="bookmark_filter_scope">Scope</string>
+    <string name="bookmark_filter_grouping">Group by</string>
+    <string name="bookmark_filter_details">Options</string>
 
     <!-- Flashcard -->
     <string name="flashcard_title">Flashcards</string>

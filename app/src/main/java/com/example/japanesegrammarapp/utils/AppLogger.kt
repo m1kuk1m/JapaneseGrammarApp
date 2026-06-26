@@ -35,6 +35,8 @@ data class ApiDebugLog(
 )
 
 object AppLogger {
+    private const val SESSION_START_MARKER = "--- APP SESSION START ---"
+
     private val _logs = MutableStateFlow<List<String>>(emptyList())
     val logs: StateFlow<List<String>> = _logs
 
@@ -90,7 +92,7 @@ object AppLogger {
                 
                 // Add session start marker after loading old logs
                 val time = now()
-                val marker = "[$time] D/SYSTEM: --- APP SESSION START ---"
+                val marker = "[$time] D/SYSTEM: $SESSION_START_MARKER"
                 _logs.update { current -> (current + marker).takeLast(300) }
                 writeAppLogToFile(marker)
             }
@@ -308,6 +310,38 @@ object AppLogger {
             android.util.Log.e("AppLogger", "Failed to get URI for sharing: $filename", e)
             null
         }
+    }
+
+    fun getAppLogsForCurrentReport(context: Context): List<String> {
+        val persistedLogs = synchronized(fileLock) {
+            try {
+                val exportsDir = File(context.cacheDir, "exports")
+                val backupLogFile = File(exportsDir, "app_logs.txt.bak")
+                val appLogFile = File(exportsDir, "app_logs.txt")
+                listOf(backupLogFile, appLogFile)
+                    .filter { it.exists() }
+                    .flatMap { it.readLines() }
+            } catch (e: Exception) {
+                android.util.Log.e("AppLogger", "Failed to read app logs for current report", e)
+                emptyList()
+            }
+        }
+
+        return selectCurrentReportLogs(
+            if (persistedLogs.isNotEmpty()) persistedLogs else _logs.value
+        )
+    }
+
+    internal fun selectCurrentReportLogs(allLogs: List<String>): List<String> {
+        val sessionStartIndices = allLogs.mapIndexedNotNull { index, log ->
+            if (log.contains(SESSION_START_MARKER)) index else null
+        }
+        val startIndex = when {
+            sessionStartIndices.size >= 2 -> sessionStartIndices[sessionStartIndices.size - 2]
+            sessionStartIndices.isNotEmpty() -> sessionStartIndices.last()
+            else -> 0
+        }
+        return allLogs.drop(startIndex)
     }
 
     private fun writeAppLogToFile(log: String) {
