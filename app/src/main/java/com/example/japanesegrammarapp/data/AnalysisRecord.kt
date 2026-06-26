@@ -1,9 +1,17 @@
 package com.example.japanesegrammarapp.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "analysis_records")
+@Entity(
+    tableName = "analysis_records",
+    indices = [
+        Index(value = ["timestamp"]),
+        Index(value = ["consumedTokens"]),
+        Index(value = ["modelUsed"])
+    ]
+)
 data class AnalysisRecord(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,

@@ -8,11 +8,12 @@ import androidx.room.RoomDatabase
 @Database(
     entities = [
         AnalysisRecord::class,
+        AnalysisRecordFts::class,
         BookmarkedSegment::class,
         BookmarkedSentence::class,
         BookmarkedGrammarPoint::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -202,10 +203,25 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_11_12 = object : androidx.room.migration.Migration(11, 12) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // Add indices to analysis_records
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_analysis_records_timestamp` ON `analysis_records` (`timestamp`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_analysis_records_consumedTokens` ON `analysis_records` (`consumedTokens`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_analysis_records_modelUsed` ON `analysis_records` (`modelUsed`)")
+                
+                // Create FTS table
+                db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS `analysis_records_fts` USING FTS4(`originalText`, `analysisResult`, content=`analysis_records`, tokenize=unicode61)")
+                
+                // Rebuild FTS content
+                db.execSQL("INSERT INTO analysis_records_fts(analysis_records_fts) VALUES('rebuild')")
+            }
+        }
+
         val ALL_MIGRATIONS = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
             MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-            MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11
+            MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12
         )
 
         fun getDatabase(context: Context): AppDatabase {
