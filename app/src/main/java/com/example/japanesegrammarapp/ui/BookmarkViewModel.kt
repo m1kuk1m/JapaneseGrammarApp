@@ -135,37 +135,43 @@ class BookmarkViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** Available date categories derived from all bookmarks */
-    val dateCategories: StateFlow<List<String>> = allBookmarks
-        .map { bookmarks ->
-            val cal = Calendar.getInstance()
-            cal.set(Calendar.HOUR_OF_DAY, 0)
-            cal.set(Calendar.MINUTE, 0)
-            cal.set(Calendar.SECOND, 0)
-            cal.set(Calendar.MILLISECOND, 0)
-            val todayStart = cal.timeInMillis
-            cal.add(Calendar.DAY_OF_YEAR, -7)
-            val weekStart = cal.timeInMillis
+    val dateCategories: StateFlow<List<String>> = combine(
+        allBookmarks,
+        bookmarkedSentences,
+        grammarPoints
+    ) { bookmarks, sentences, grammar ->
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val todayStart = cal.timeInMillis
+        cal.add(Calendar.DAY_OF_YEAR, -7)
+        val weekStart = cal.timeInMillis
 
-            val categories = mutableSetOf<String>()
-            val sdf = SimpleDateFormat("yyyy/MM", Locale.getDefault())
-            
-            bookmarks.forEach {
-                when {
-                    it.bookmarkedAt >= todayStart -> categories.add("today")
-                    it.bookmarkedAt >= weekStart -> categories.add("week")
-                    else -> categories.add(sdf.format(Date(it.bookmarkedAt)))
-                }
+        val categories = mutableSetOf<String>()
+        val sdf = SimpleDateFormat("yyyy/MM", Locale.getDefault())
+        
+        val allTimes = bookmarks.map { it.bookmarkedAt } + 
+                       sentences.map { it.bookmarkedAt } + 
+                       grammar.map { it.bookmarkedAt }
+
+        allTimes.forEach { time ->
+            when {
+                time >= todayStart -> categories.add("today")
+                time >= weekStart -> categories.add("week")
+                else -> categories.add(sdf.format(Date(time)))
             }
-            
-            val sorted = mutableListOf<String>()
-            if (categories.contains("today")) sorted.add("today")
-            if (categories.contains("week")) sorted.add("week")
-            val dates = categories.filter { it != "today" && it != "week" }.sortedDescending()
-            sorted.addAll(dates)
-            
-            sorted
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        
+        val sorted = mutableListOf<String>()
+        if (categories.contains("today")) sorted.add("today")
+        if (categories.contains("week")) sorted.add("week")
+        val dates = categories.filter { it != "today" && it != "week" }.sortedDescending()
+        sorted.addAll(dates)
+        
+        sorted
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val isPlayingTts: StateFlow<Boolean> = ttsRepository.isPlaying
 
@@ -218,6 +224,68 @@ class BookmarkViewModel @Inject constructor(
                 }
             }
         }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val filteredSentences: StateFlow<List<BookmarkedSentenceDomain>> = combine(
+        bookmarkedSentences,
+        _filterMode,
+        _selectedDateFilter
+    ) { sentences, mode, dateFilter ->
+        if (mode != BookmarkFilter.BY_DATE || dateFilter == null) return@combine sentences.sortedByDescending { it.bookmarkedAt }
+
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val todayStart = cal.timeInMillis
+        cal.add(Calendar.DAY_OF_YEAR, -7)
+        val weekStart = cal.timeInMillis
+        val sdf = SimpleDateFormat("yyyy/MM", Locale.getDefault())
+
+        val grouped = sentences.groupBy {
+            when {
+                it.bookmarkedAt >= todayStart -> "today"
+                it.bookmarkedAt >= weekStart -> "week"
+                else -> sdf.format(Date(it.bookmarkedAt))
+            }
+        }
+
+        (grouped[dateFilter] ?: emptyList()).sortedByDescending { it.bookmarkedAt }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val filteredGrammarPoints: StateFlow<List<BookmarkedGrammarPointDomain>> = combine(
+        grammarPoints,
+        _filterMode,
+        _selectedDateFilter,
+        _archiveFilter
+    ) { points, mode, dateFilter, archiveF ->
+        val archiveFilteredList = when (archiveF) {
+            ArchiveFilter.UNARCHIVED -> points.filter { !it.isArchived }
+            ArchiveFilter.ARCHIVED -> points.filter { it.isArchived }
+            ArchiveFilter.ALL -> points
+        }
+        if (mode != BookmarkFilter.BY_DATE || dateFilter == null) return@combine archiveFilteredList.sortedByDescending { it.bookmarkedAt }
+
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val todayStart = cal.timeInMillis
+        cal.add(Calendar.DAY_OF_YEAR, -7)
+        val weekStart = cal.timeInMillis
+        val sdf = SimpleDateFormat("yyyy/MM", Locale.getDefault())
+
+        val grouped = archiveFilteredList.groupBy {
+            when {
+                it.bookmarkedAt >= todayStart -> "today"
+                it.bookmarkedAt >= weekStart -> "week"
+                else -> sdf.format(Date(it.bookmarkedAt))
+            }
+        }
+
+        (grouped[dateFilter] ?: emptyList()).sortedByDescending { it.bookmarkedAt }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setFilterMode(mode: BookmarkFilter) {
