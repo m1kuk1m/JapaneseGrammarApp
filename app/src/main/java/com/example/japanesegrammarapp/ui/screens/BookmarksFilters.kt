@@ -38,7 +38,9 @@ fun BookmarkFilterChipsBar(
     onArchiveFilterChange: (ArchiveFilter) -> Unit,
     onPosCategoryChange: (String?) -> Unit,
     onDateFilterChange: (String?) -> Unit,
-    isDark: Boolean
+    isDark: Boolean,
+    showPosFilter: Boolean = true,
+    showArchiveFilter: Boolean = true
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -50,12 +52,14 @@ fun BookmarkFilterChipsBar(
                     onClick = { onFilterModeChange(BookmarkFilter.ALL) }
                 )
             }
-            item {
-                BookmarkFilterChip(
-                    label = stringResource(R.string.filter_by_pos),
-                    isSelected = filterMode == BookmarkFilter.BY_POS,
-                    onClick = { onFilterModeChange(BookmarkFilter.BY_POS) }
-                )
+            if (showPosFilter) {
+                item {
+                    BookmarkFilterChip(
+                        label = stringResource(R.string.filter_by_pos),
+                        isSelected = filterMode == BookmarkFilter.BY_POS,
+                        onClick = { onFilterModeChange(BookmarkFilter.BY_POS) }
+                    )
+                }
             }
             item {
                 BookmarkFilterChip(
@@ -66,32 +70,34 @@ fun BookmarkFilterChipsBar(
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            item {
-                BookmarkFilterChip(
-                    label = stringResource(R.string.filter_all),
-                    isSelected = archiveFilter == ArchiveFilter.ALL,
-                    onClick = { onArchiveFilterChange(ArchiveFilter.ALL) }
-                )
-            }
-            item {
-                BookmarkFilterChip(
-                    label = stringResource(R.string.archive_filter_unarchived),
-                    isSelected = archiveFilter == ArchiveFilter.UNARCHIVED,
-                    onClick = { onArchiveFilterChange(ArchiveFilter.UNARCHIVED) }
-                )
-            }
-            item {
-                BookmarkFilterChip(
-                    label = stringResource(R.string.archive_filter_archived),
-                    isSelected = archiveFilter == ArchiveFilter.ARCHIVED,
-                    onClick = { onArchiveFilterChange(ArchiveFilter.ARCHIVED) }
-                )
+        if (showArchiveFilter) {
+            Spacer(modifier = Modifier.height(4.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                item {
+                    BookmarkFilterChip(
+                        label = stringResource(R.string.filter_all),
+                        isSelected = archiveFilter == ArchiveFilter.ALL,
+                        onClick = { onArchiveFilterChange(ArchiveFilter.ALL) }
+                    )
+                }
+                item {
+                    BookmarkFilterChip(
+                        label = stringResource(R.string.archive_filter_unarchived),
+                        isSelected = archiveFilter == ArchiveFilter.UNARCHIVED,
+                        onClick = { onArchiveFilterChange(ArchiveFilter.UNARCHIVED) }
+                    )
+                }
+                item {
+                    BookmarkFilterChip(
+                        label = stringResource(R.string.archive_filter_archived),
+                        isSelected = archiveFilter == ArchiveFilter.ARCHIVED,
+                        onClick = { onArchiveFilterChange(ArchiveFilter.ARCHIVED) }
+                    )
+                }
             }
         }
 
-        AnimatedVisibility(visible = filterMode == BookmarkFilter.BY_POS && posCategories.isNotEmpty()) {
+        AnimatedVisibility(visible = filterMode == BookmarkFilter.BY_POS && posCategories.isNotEmpty() && showPosFilter) {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.padding(top = 6.dp)
