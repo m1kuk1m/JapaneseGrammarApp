@@ -22,6 +22,14 @@ data class DailyTokenUsageEntity(
     val totalTokens: Int
 )
 
+data class HistoryExportPreviewEntity(
+    val id: Int,
+    val originalText: String,
+    val timestamp: Long,
+    val modelUsed: String,
+    val status: String
+)
+
 @Dao
 interface AnalysisDao {
     @Insert
@@ -54,6 +62,9 @@ interface AnalysisDao {
     @Query("SELECT * FROM analysis_records ORDER BY timestamp DESC")
     fun getAllRecords(): androidx.paging.PagingSource<Int, AnalysisRecord>
 
+    @Query("SELECT * FROM analysis_records WHERE 0")
+    fun getNoRecords(): androidx.paging.PagingSource<Int, AnalysisRecord>
+
     @Query("""
         SELECT analysis_records.* FROM analysis_records
         JOIN analysis_records_fts ON analysis_records.id = analysis_records_fts.rowid
@@ -64,6 +75,12 @@ interface AnalysisDao {
 
     @Query("SELECT * FROM analysis_records ORDER BY timestamp ASC")
     suspend fun getAllRecordsList(): List<AnalysisRecord>
+
+    @Query("SELECT id, originalText, timestamp, modelUsed, status FROM analysis_records ORDER BY timestamp ASC")
+    suspend fun getAllExportPreviews(): List<HistoryExportPreviewEntity>
+
+    @Query("SELECT * FROM analysis_records WHERE id IN (:ids) ORDER BY timestamp ASC")
+    suspend fun getRecordsByIds(ids: List<Int>): List<AnalysisRecord>
 
     @Query("SELECT SUM(consumedTokens) FROM analysis_records")
     fun getTotalTokensConsumed(): Flow<Int?>

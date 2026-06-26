@@ -150,6 +150,39 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migration13To14KeepsFtsIndexSyncedAfterRecordChanges() {
+        createDatabase(version = 13, onCreate = { db ->
+            createVersion13Schema(db)
+            db.execSQL(
+                "INSERT INTO analysis_records (id, originalText, imageUri, analysisResult, timestamp, modelUsed, status, errorMessage, consumedTokens, inputTokens, outputTokens, isRead) " +
+                    "VALUES (1, 'before migration', NULL, '{}', 1000, 'Gemini: test', 'COMPLETED', NULL, 0, 0, 0, 1)"
+            )
+            db.execSQL("INSERT INTO analysis_records_fts(analysis_records_fts) VALUES('rebuild')")
+        }).close()
+
+        val db = openMigratedDatabase()
+        try {
+            val sqlDb = db.openHelper.writableDatabase
+            assertEquals(4L, sqlDb.longForQuery("SELECT COUNT(*) FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'room_fts_content_sync_analysis_records_fts_%'"))
+
+            sqlDb.execSQL(
+                "INSERT INTO analysis_records (id, originalText, imageUri, analysisResult, timestamp, modelUsed, status, errorMessage, consumedTokens, inputTokens, outputTokens, isRead) " +
+                    "VALUES (2, 'new searchable text', NULL, '{}', 2000, 'Gemini: test', 'COMPLETED', NULL, 0, 0, 0, 0)"
+            )
+            assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM analysis_records_fts WHERE analysis_records_fts MATCH 'searchable'"))
+
+            sqlDb.execSQL("UPDATE analysis_records SET originalText = 'updated searchable text' WHERE id = 2")
+            assertEquals(0L, sqlDb.longForQuery("SELECT COUNT(*) FROM analysis_records_fts WHERE analysis_records_fts MATCH 'new'"))
+            assertEquals(1L, sqlDb.longForQuery("SELECT COUNT(*) FROM analysis_records_fts WHERE analysis_records_fts MATCH 'updated'"))
+
+            sqlDb.execSQL("DELETE FROM analysis_records WHERE id = 2")
+            assertEquals(0L, sqlDb.longForQuery("SELECT COUNT(*) FROM analysis_records_fts WHERE analysis_records_fts MATCH 'updated'"))
+        } finally {
+            db.close()
+        }
+    }
+
     private fun createDatabase(
         version: Int,
         onCreate: (SupportSQLiteDatabase) -> Unit
@@ -347,6 +380,27 @@ class AppDatabaseMigrationTest {
         db.execSQL("CREATE INDEX IF NOT EXISTS index_analysis_records_consumedTokens ON analysis_records (consumedTokens)")
         db.execSQL("CREATE INDEX IF NOT EXISTS index_analysis_records_modelUsed ON analysis_records (modelUsed)")
         db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS analysis_records_fts USING FTS4(originalText, analysisResult, content=analysis_records, tokenize=unicode61)")
+    }
+
+    private fun createVersion13Schema(db: SupportSQLiteDatabase) {
+        createVersion12Schema(db)
+        db.execSQL("ALTER TABLE bookmarked_sentences ADD COLUMN isArchived INTEGER NOT NULL DEFAULT 0")
+        db.execSQL(
+            """
+            CREATE TABLE bookmarked_grammar_points_temp (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                recordId INTEGER NOT NULL,
+                pattern TEXT NOT NULL,
+                explanation TEXT,
+                bookmarkedAt INTEGER NOT NULL,
+                sourceText TEXT NOT NULL DEFAULT '',
+                isArchived INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent()
+        )
+        db.execSQL("DROP TABLE bookmarked_grammar_points")
+        db.execSQL("ALTER TABLE bookmarked_grammar_points_temp RENAME TO bookmarked_grammar_points")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_bookmarked_grammar_points_recordId_pattern ON bookmarked_grammar_points (recordId, pattern)")
     }
 
     private fun seedVersion8Data(db: SupportSQLiteDatabase) {

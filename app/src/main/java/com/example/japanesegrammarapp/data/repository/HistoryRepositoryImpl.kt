@@ -4,6 +4,7 @@ import com.example.japanesegrammarapp.data.AnalysisDao
 import com.example.japanesegrammarapp.data.mapper.toDomain
 import com.example.japanesegrammarapp.data.mapper.toEntity
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
+import com.example.japanesegrammarapp.domain.model.HistoryExportPreview
 import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
 import com.example.japanesegrammarapp.domain.model.DailyTokenUsage
 import com.example.japanesegrammarapp.domain.repository.HistoryRepository
@@ -19,6 +20,15 @@ class HistoryRepositoryImpl @Inject constructor(
 
     override suspend fun getAllRecordsList(): List<AnalysisDomainRecord> {
         return analysisDao.getAllRecordsList().map { it.toDomain() }
+    }
+
+    override suspend fun getAllExportPreviews(): List<HistoryExportPreview> {
+        return analysisDao.getAllExportPreviews().map { it.toDomain() }
+    }
+
+    override suspend fun getRecordsByIds(ids: List<Int>): List<AnalysisDomainRecord> {
+        if (ids.isEmpty()) return emptyList()
+        return analysisDao.getRecordsByIds(ids).map { it.toDomain() }
     }
     
     override val totalTokensConsumed: Flow<Int?> = analysisDao.getTotalTokensConsumed()

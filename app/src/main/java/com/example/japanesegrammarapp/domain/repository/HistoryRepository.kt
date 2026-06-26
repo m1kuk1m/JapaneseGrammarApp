@@ -3,10 +3,13 @@ package com.example.japanesegrammarapp.domain.repository
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import com.example.japanesegrammarapp.domain.model.ModelTokenUsage
 import com.example.japanesegrammarapp.domain.model.DailyTokenUsage
+import com.example.japanesegrammarapp.domain.model.HistoryExportPreview
 import kotlinx.coroutines.flow.Flow
 
 interface HistoryRepository {
     suspend fun getAllRecordsList(): List<AnalysisDomainRecord>
+    suspend fun getAllExportPreviews(): List<HistoryExportPreview>
+    suspend fun getRecordsByIds(ids: List<Int>): List<AnalysisDomainRecord>
     suspend fun getRecordById(id: Int): AnalysisDomainRecord?
     fun observeRecordById(id: Int): Flow<AnalysisDomainRecord?>
     suspend fun getRecordByOriginalText(originalText: String): AnalysisDomainRecord?
