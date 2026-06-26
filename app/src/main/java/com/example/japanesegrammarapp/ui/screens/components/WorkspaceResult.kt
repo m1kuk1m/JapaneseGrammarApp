@@ -74,6 +74,11 @@ fun WorkspaceResultContent(
     val progress = uiState.selectedRecordProgress
     val isPending = uiState.selectedRecord?.status == AnalysisStatus.PENDING
 
+    val scrollState = rememberScrollState()
+    LaunchedEffect(uiState.selectedRecord?.id) {
+        scrollState.scrollTo(0)
+    }
+
     if (detailedResult == null && !isPending && !rawResult.isNullOrBlank()) {
         // Robust Fallback: Show original plain text result if detailedResult is null (backward compatibility)
         Surface(
@@ -99,7 +104,7 @@ fun WorkspaceResultContent(
                         text = rawResult,
                         modifier = Modifier
                             .weight(1f)
-                            .verticalScroll(rememberScrollState()),
+                            .verticalScroll(scrollState),
                         style = MaterialTheme.typography.bodyMedium,
                         color = SumiInk,
                         lineHeight = 18.sp
@@ -118,7 +123,7 @@ fun WorkspaceResultContent(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .padding(vertical = 8.dp)
             ) {
                     Spacer(modifier = Modifier.height(10.dp))
