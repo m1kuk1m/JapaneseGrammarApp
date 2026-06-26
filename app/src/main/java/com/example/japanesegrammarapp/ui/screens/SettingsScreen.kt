@@ -48,6 +48,14 @@ import com.example.japanesegrammarapp.ui.UiEvent
 import com.example.japanesegrammarapp.ui.theme.ZenColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.vector.ImageVector
+
+enum class SettingsCategory(val titleRes: Int, val icon: ImageVector) {
+    APPEARANCE(R.string.appearance, Icons.Default.Palette),
+    GENERAL(R.string.general, Icons.Default.Settings),
+    LLM_API(R.string.api_config, Icons.Default.VpnKey),
+    TTS(R.string.tts_settings_title, Icons.Default.RecordVoiceOver)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +73,7 @@ fun SettingsScreen(
     val WashiBg = MaterialTheme.colorScheme.background
     val ctx = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    var currentCategory by remember { mutableStateOf<SettingsCategory?>(null) }
 
     val uiState by viewModel.uiState.collectAsState()
     val providerModels = uiState.providerModels
@@ -114,7 +123,11 @@ fun SettingsScreen(
 
     val currentSaveSettings by rememberUpdatedState(newValue = ::saveSettings)
 
-    BackHandler(enabled = isVisible && !showPromptEditor) {
+    BackHandler(enabled = isVisible && !showPromptEditor && currentCategory != null) {
+        currentCategory = null
+    }
+
+    BackHandler(enabled = isVisible && !showPromptEditor && currentCategory == null) {
         currentSaveSettings()
         onBack()
     }
@@ -368,12 +381,19 @@ fun SettingsScreen(
             containerColor = WashiBg,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Bold, color = SumiInk) },
+                title = { 
+                    val titleText = currentCategory?.let { stringResource(it.titleRes) } ?: stringResource(R.string.settings_title)
+                    Text(titleText, fontWeight = FontWeight.Bold, color = SumiInk) 
+                },
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            saveSettings()
-                            onBack()
+                            if (currentCategory != null) {
+                                currentCategory = null
+                            } else {
+                                saveSettings()
+                                onBack()
+                            }
                         },
                         modifier = Modifier.testTag("settings-back-button")
                     ) {
@@ -396,102 +416,125 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            // Appearance Section
             Spacer(modifier = Modifier.height(8.dp))
-            SettingsAppearanceSection(
-                uiState = uiState,
-                onThemeModeChange = viewModel::setThemeMode,
-                onPickWallpaper = { wallpaperLauncher.launch("image/*") },
-                onClearWallpaper = {
-                    viewModel.clearWallpaper()
-                    android.widget.Toast.makeText(ctx, ctx.getString(R.string.clear_wallpaper_toast), android.widget.Toast.LENGTH_SHORT).show()
+            
+            if (currentCategory == null) {
+                // Root Level: List of Categories
+                SettingsCategory.entries.forEach { category ->
+                    SettingsItem(
+                        icon = category.icon,
+                        title = stringResource(category.titleRes),
+                        subtitle = "",
+                        onClick = { currentCategory = category },
+                        trailingContent = {
+                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = SumiInk.copy(alpha = 0.4f))
+                        }
+                    )
+                    Divider(color = SumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
                 }
-            )
+            } else {
+                when (currentCategory) {
+                    SettingsCategory.APPEARANCE -> {
+                        SettingsAppearanceSection(
+                            uiState = uiState,
+                            onThemeModeChange = viewModel::setThemeMode,
+                            onPickWallpaper = { wallpaperLauncher.launch("image/*") },
+                            onClearWallpaper = {
+                                viewModel.clearWallpaper()
+                                android.widget.Toast.makeText(ctx, ctx.getString(R.string.clear_wallpaper_toast), android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                    SettingsCategory.GENERAL -> {
+                        SettingsGeneralSection(
+                            uiState = uiState,
+                            currentLangLabel = currentLangLabel,
+                            totalTokensConsumed = totalTokensConsumed,
+                            onUseOcrChange = viewModel::setUseOcr,
+                            onOcrBoxDetectorEngineChange = viewModel::setOcrBoxDetectorEngine,
+                            onTextSelectEngineChange = viewModel::setTextSelectEngine,
+                            onAutoDeskewAfterCaptureChange = viewModel::setAutoDeskewAfterCapture,
+                            onAutoNavigateResultChange = viewModel::setAutoNavigateResult,
+                            onImageTokenizerModeChange = viewModel::setImageTokenizerMode,
+                            onShowTokenDialog = { showTokenDialog = true },
+                            onShowApiLogs = { showApiLogsDialog = true },
+                            onShowOcrDebug = { showOcrDebugDialog = true },
+                            onShowPromptEditor = { showPromptEditor = true }
+                        )
+                    }
+                    SettingsCategory.LLM_API -> {
+                        SettingsApiPrioritySection(
+                            uiState = uiState,
+                            providers = providers,
+                            providerModels = providerModels,
+                            onActiveProviderChange = viewModel::setActiveProvider,
+                            onActiveModelChange = viewModel::setActiveModel,
+                            onBackupProviderChange = viewModel::setBackupProvider,
+                            onBackupModelChange = viewModel::setBackupModel
+                        )
 
-            // General Section
-            SettingsGeneralSection(
-                uiState = uiState,
-                currentLangLabel = currentLangLabel,
-                totalTokensConsumed = totalTokensConsumed,
-                onUseOcrChange = viewModel::setUseOcr,
-                onOcrBoxDetectorEngineChange = viewModel::setOcrBoxDetectorEngine,
-                onTextSelectEngineChange = viewModel::setTextSelectEngine,
-                onAutoDeskewAfterCaptureChange = viewModel::setAutoDeskewAfterCapture,
-                onAutoNavigateResultChange = viewModel::setAutoNavigateResult,
-                onImageTokenizerModeChange = viewModel::setImageTokenizerMode,
-                onShowTokenDialog = { showTokenDialog = true },
-                onShowApiLogs = { showApiLogsDialog = true },
-                onShowOcrDebug = { showOcrDebugDialog = true },
-                onShowPromptEditor = { showPromptEditor = true }
-            )
-
-            // API Priority Section
-            SettingsApiPrioritySection(
-                uiState = uiState,
-                providers = providers,
-                providerModels = providerModels,
-                onActiveProviderChange = viewModel::setActiveProvider,
-                onActiveModelChange = viewModel::setActiveModel,
-                onBackupProviderChange = viewModel::setBackupProvider,
-                onBackupModelChange = viewModel::setBackupModel
-            )
-
-            // Credentials Section
-            SettingsCredentialsSection(
-                uiState = uiState,
-                providers = providers,
-                providerModels = providerModels,
-                expandedProvider = expandedProvider,
-                customModelInputs = customModelInputs,
-                onExpandedProviderChange = { expandedProvider = it },
-                onAddEndpoint = { endpointAddProvider = it },
-                onEditEndpoint = { endpointBeingEdited = it },
-                onDeleteEndpoint = { endpointDeleteTarget = it },
-                onToggleEndpoint = { provider, endpoint, enabled ->
-                    viewModel.toggleEndpoint(provider, endpoint.id, enabled)
-                },
-                onFetchModels = { provider, endpoint ->
-                    viewModel.fetchModelsForEndpoint(provider, endpoint.id)
-                },
-                onCustomModelInputChange = { provider, value ->
-                    customModelInputs = customModelInputs.toMutableMap().apply { put(provider, value) }
-                },
-                onAddCustomModel = viewModel::saveModelsForProvider
-            )
-            // TTS Settings Section
-            Text(
-                text = stringResource(R.string.tts_settings_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = SumiInk,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 16.dp)
-            )
-            SettingsTtsSection(
-                selectedTtsProvider = selectedTtsProvider,
-                onSelectedTtsProviderChange = { selectedTtsProvider = it },
-                ttsUrls = ttsUrls,
-                onTtsUrlChange = { provider, value -> ttsUrls[provider] = value },
-                ttsKeys = ttsKeys,
-                savedTtsKeys = uiState.ttsKeys,
-                onTtsKeyChange = { provider, value -> ttsKeys[provider] = value },
-                ttsModels = ttsModels,
-                onTtsModelChange = { provider, value -> ttsModels[provider] = value },
-                ttsVoices = ttsVoices,
-                onTtsVoiceChange = { provider, value -> ttsVoices[provider] = value },
-                ttsRegions = ttsRegions,
-                onTtsRegionChange = { provider, value -> ttsRegions[provider] = value },
-                onSaveTtsApiKey = viewModel::saveTtsApiKey,
-                onRequestClearTtsKey = { pendingTtsKeyClearProvider = it }
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-            OutlinedButton(
-                onClick = { showLogsDialog = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.view_dev_logs))
+                        SettingsCredentialsSection(
+                            uiState = uiState,
+                            providers = providers,
+                            providerModels = providerModels,
+                            expandedProvider = expandedProvider,
+                            customModelInputs = customModelInputs,
+                            onExpandedProviderChange = { expandedProvider = it },
+                            onAddEndpoint = { endpointAddProvider = it },
+                            onEditEndpoint = { endpointBeingEdited = it },
+                            onDeleteEndpoint = { endpointDeleteTarget = it },
+                            onToggleEndpoint = { provider, endpoint, enabled ->
+                                viewModel.toggleEndpoint(provider, endpoint.id, enabled)
+                            },
+                            onFetchModels = { provider, endpoint ->
+                                viewModel.fetchModelsForEndpoint(provider, endpoint.id)
+                            },
+                            onCustomModelInputChange = { provider, value ->
+                                customModelInputs = customModelInputs.toMutableMap().apply { put(provider, value) }
+                            },
+                            onAddCustomModel = viewModel::saveModelsForProvider
+                        )
+                    }
+                    SettingsCategory.TTS -> {
+                        Text(
+                            text = stringResource(R.string.tts_settings_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = SumiInk,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 16.dp)
+                        )
+                        SettingsTtsSection(
+                            selectedTtsProvider = selectedTtsProvider,
+                            onSelectedTtsProviderChange = { selectedTtsProvider = it },
+                            ttsUrls = ttsUrls,
+                            onTtsUrlChange = { provider, value -> ttsUrls[provider] = value },
+                            ttsKeys = ttsKeys,
+                            savedTtsKeys = uiState.ttsKeys,
+                            onTtsKeyChange = { provider, value -> ttsKeys[provider] = value },
+                            ttsModels = ttsModels,
+                            onTtsModelChange = { provider, value -> ttsModels[provider] = value },
+                            ttsVoices = ttsVoices,
+                            onTtsVoiceChange = { provider, value -> ttsVoices[provider] = value },
+                            ttsRegions = ttsRegions,
+                            onTtsRegionChange = { provider, value -> ttsRegions[provider] = value },
+                            onSaveTtsApiKey = viewModel::saveTtsApiKey,
+                            onRequestClearTtsKey = { pendingTtsKeyClearProvider = it }
+                        )
+                    }
+                    null -> {}
+                }
             }
-            Spacer(modifier = Modifier.height(40.dp))
+
+            if (currentCategory == null) {
+                Spacer(modifier = Modifier.height(24.dp))
+                OutlinedButton(
+                    onClick = { showLogsDialog = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.view_dev_logs))
+                }
+                Spacer(modifier = Modifier.height(40.dp))
+            }
         }
     }
 
