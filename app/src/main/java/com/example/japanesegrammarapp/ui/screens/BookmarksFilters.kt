@@ -63,6 +63,7 @@ fun BookmarkFilterChipsBar(
     onArchiveFilterChange: (ArchiveFilter) -> Unit,
     onPosCategoryChange: (String?) -> Unit,
     onDateFilterChange: (String?) -> Unit,
+    onReset: () -> Unit,
     isDark: Boolean,
     showPosFilter: Boolean = true,
     showArchiveFilter: Boolean = true
@@ -70,10 +71,13 @@ fun BookmarkFilterChipsBar(
     val sumiInk = MaterialTheme.colorScheme.onBackground
     var showFilterSheet by rememberSaveable { mutableStateOf(false) }
     val activeFilterCount =
-        (if (filterMode != BookmarkFilter.ALL) 1 else 0) +
+        (if (searchQuery.isNotBlank()) 1 else 0) +
+            (if (filterMode != BookmarkFilter.ALL) 1 else 0) +
+            (if (showPosFilter && selectedPosCategory != null) 1 else 0) +
+            (if (selectedDateFilter != null) 1 else 0) +
             (if (showArchiveFilter && archiveFilter != ArchiveFilter.ALL) 1 else 0)
 
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+    Column(modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp)) {
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
@@ -198,13 +202,7 @@ fun BookmarkFilterChipsBar(
             onPosCategoryChange = onPosCategoryChange,
             onDateFilterChange = onDateFilterChange,
             onDismiss = { showFilterSheet = false },
-            onReset = {
-                onSortOrderChange(BookmarkSortOrder.NEWEST_FIRST)
-                onFilterModeChange(BookmarkFilter.ALL)
-                if (showArchiveFilter) {
-                    onArchiveFilterChange(ArchiveFilter.ALL)
-                }
-            },
+            onReset = onReset,
             isDark = isDark,
             showPosFilter = showPosFilter,
             showArchiveFilter = showArchiveFilter

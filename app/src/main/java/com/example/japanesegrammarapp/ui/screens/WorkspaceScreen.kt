@@ -43,7 +43,6 @@ import com.example.japanesegrammarapp.ui.UiEvent
 import com.example.japanesegrammarapp.ui.screens.components.FloatingActionBall
 import com.example.japanesegrammarapp.ui.screens.components.WorkspaceInputForm
 import com.example.japanesegrammarapp.ui.screens.components.WorkspaceResultContent
-import com.example.japanesegrammarapp.ui.screens.components.ZenLoadingView
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
 import com.example.japanesegrammarapp.ui.theme.ZenColors.WashiBg
 import androidx.compose.animation.AnimatedContent
@@ -60,6 +59,29 @@ import androidx.compose.animation.togetherWith
 
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
+
+private enum class ResultPaneMode {
+    CONTENT,
+    FAILED
+}
+
+private class ResultPaneTarget(
+    val recordId: Int,
+    val timestamp: Long,
+    val mode: ResultPaneMode
+) {
+    override fun equals(other: Any?): Boolean {
+        return other is ResultPaneTarget &&
+                recordId == other.recordId &&
+                mode == other.mode
+    }
+
+    override fun hashCode(): Int {
+        var result = recordId
+        result = 31 * result + mode.hashCode()
+        return result
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -589,10 +611,15 @@ fun WorkspaceScreen(
 
                             val record = uiState.selectedRecord
                             if (record != null) {
-                                val resultState = when {
-                                    record.status == AnalysisStatus.FAILED -> "FAILED"
-                                    else -> "CONTENT"
-                                }
+                                val resultPaneTarget = ResultPaneTarget(
+                                    recordId = record.id,
+                                    timestamp = record.timestamp,
+                                    mode = if (record.status == AnalysisStatus.FAILED) {
+                                        ResultPaneMode.FAILED
+                                    } else {
+                                        ResultPaneMode.CONTENT
+                                    }
+                                )
 
                                 Box(
                                     modifier = Modifier
@@ -600,12 +627,12 @@ fun WorkspaceScreen(
                                         .fillMaxWidth()
                                 ) {
                                     AnimatedContent(
-                                        targetState = record,
+                                        targetState = resultPaneTarget,
                                         transitionSpec = {
-                                            val oldRecord = initialState
-                                            val newRecord = targetState
-                                            if (oldRecord.id != newRecord.id) {
-                                                if (newRecord.timestamp < oldRecord.timestamp) {
+                                            val oldTarget = initialState
+                                            val newTarget = targetState
+                                            if (oldTarget.recordId != newTarget.recordId) {
+                                                if (newTarget.timestamp < oldTarget.timestamp) {
                                                     // Sliding to an older record (which is "above")
                                                     androidx.compose.animation.slideInVertically(initialOffsetY = { -it }, animationSpec = tween(400, easing = EaseInOutCubic)) togetherWith
                                                             androidx.compose.animation.slideOutVertically(targetOffsetY = { it }, animationSpec = tween(400, easing = EaseInOutCubic))
@@ -620,20 +647,18 @@ fun WorkspaceScreen(
                                         },
                                         label = "ResultStateTransition",
                                         modifier = Modifier.fillMaxSize()
-                                    ) { currentRecord ->
-                                        var snapshotUiState by remember(currentRecord.id) { mutableStateOf(uiState) }
-                                        if (currentRecord.id == uiState.selectedRecord?.id) {
-                                            snapshotUiState = uiState
+                                    ) { target ->
+                                        val targetMatchesCurrentRecord = target.recordId == uiState.selectedRecord?.id
+                                        var snapshotUiState by remember(target.recordId) { mutableStateOf(uiState) }
+                                        if (targetMatchesCurrentRecord) {
+                                            SideEffect {
+                                                snapshotUiState = uiState
+                                            }
                                         }
-                                        val displayUiState = snapshotUiState
+                                        val displayUiState = if (targetMatchesCurrentRecord) uiState else snapshotUiState
 
-                                        val resultState = when {
-                                            currentRecord.status == AnalysisStatus.FAILED -> "FAILED"
-                                            else -> "CONTENT"
-                                        }
-
-                                        when (resultState) {
-                                            "CONTENT" -> {
+                                        when (target.mode) {
+                                            ResultPaneMode.CONTENT -> {
                                                 WorkspaceResultContent(
                                                     uiState = displayUiState,
                                                     isPlayingTts = isPlayingTts,
@@ -654,76 +679,78 @@ fun WorkspaceScreen(
                                                     onUserInteracted = { viewModel.markCurrentRecordAsRead() }
                                                 )
                                             }
-                                            "FAILED" -> {
-                                                Card(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(horizontal = 16.dp).padding(top = 16.dp),
-                                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                                    border = BorderStroke(1.dp, Color(0xFFF3D8D8)),
-                                                    shape = RoundedCornerShape(8.dp)
-                                                ) {
-                                                    Column(
-                                                        modifier = Modifier.padding(16.dp),
-                                                        horizontalAlignment = Alignment.CenterHorizontally
+                                            ResultPaneMode.FAILED -> {
+                                                displayUiState.selectedRecord?.let { failedRecord ->
+                                                    Card(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(horizontal = 16.dp).padding(top = 16.dp),
+                                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                                        border = BorderStroke(1.dp, Color(0xFFF3D8D8)),
+                                                        shape = RoundedCornerShape(8.dp)
                                                     ) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Warning,
-                                                            contentDescription = "Error",
-                                                            tint = Color(0xFFD32F2F),
-                                                            modifier = Modifier.size(36.dp)
-                                                        )
-                                                        Spacer(modifier = Modifier.height(12.dp))
-                                                        Text(
-                                                            text = stringResource(R.string.error_occurred),
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = Color(0xFFD32F2F),
-                                                            fontSize = 14.sp
-                                                        )
-                                                        Spacer(modifier = Modifier.height(8.dp))
-                                                         androidx.compose.foundation.text.selection.SelectionContainer {
-                                                             Text(
-                                                                 text = record.errorMessage ?: stringResource(R.string.error_occurred),
-                                                                 color = SumiInk.copy(alpha = 0.7f),
-                                                                 fontSize = 13.sp,
-                                                                 textAlign = TextAlign.Center
-                                                             )
-                                                         }
-                                                         Spacer(modifier = Modifier.height(12.dp))
-                                                         val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
-                                                         val errorStr = record.errorMessage ?: stringResource(R.string.error_occurred)
-                                                         TextButton(
-                                                             onClick = {
-                                                                 clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(errorStr))
-                                                                 android.widget.Toast.makeText(context, context.getString(R.string.copy_success_toast), android.widget.Toast.LENGTH_SHORT).show()
-                                                             },
-                                                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                                             colors = ButtonDefaults.textButtonColors(contentColor = SumiInk.copy(alpha = 0.8f))
-                                                         ) {
-                                                             Icon(
-                                                                 imageVector = Icons.Default.ContentCopy,
-                                                                 contentDescription = "Copy Error Details",
-                                                                 modifier = Modifier.size(14.dp)
-                                                             )
-                                                             Spacer(modifier = Modifier.width(4.dp))
-                                                             Text(stringResource(R.string.copy_full_error_log), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                                         }
-                                                        Spacer(modifier = Modifier.height(16.dp))
-                                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                                            OutlinedButton(
-                                                                onClick = { viewModel.deleteRecord(record); viewModel.clearSelectedRecord() },
-                                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD32F2F)),
-                                                                border = BorderStroke(1.dp, Color(0xFFF3D8D8))
-                                                            ) {
-                                                                Text(stringResource(R.string.delete), fontSize = 13.sp)
-                                                            }
-                                                            Button(
-                                                                onClick = { viewModel.retryAnalysis(record.id) },
-                                                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor, contentColor = OnPrimaryColor)
-                                                            ) {
-                                                                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.retry), modifier = Modifier.size(16.dp))
+                                                        Column(
+                                                            modifier = Modifier.padding(16.dp),
+                                                            horizontalAlignment = Alignment.CenterHorizontally
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Warning,
+                                                                contentDescription = "Error",
+                                                                tint = Color(0xFFD32F2F),
+                                                                modifier = Modifier.size(36.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.height(12.dp))
+                                                            Text(
+                                                                text = stringResource(R.string.error_occurred),
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = Color(0xFFD32F2F),
+                                                                fontSize = 14.sp
+                                                            )
+                                                            Spacer(modifier = Modifier.height(8.dp))
+                                                             androidx.compose.foundation.text.selection.SelectionContainer {
+                                                                 Text(
+                                                                     text = failedRecord.errorMessage ?: stringResource(R.string.error_occurred),
+                                                                     color = SumiInk.copy(alpha = 0.7f),
+                                                                     fontSize = 13.sp,
+                                                                     textAlign = TextAlign.Center
+                                                                 )
+                                                             }
+                                                             Spacer(modifier = Modifier.height(12.dp))
+                                                             val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+                                                             val errorStr = failedRecord.errorMessage ?: stringResource(R.string.error_occurred)
+                                                             TextButton(
+                                                                 onClick = {
+                                                                     clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(errorStr))
+                                                                     android.widget.Toast.makeText(context, context.getString(R.string.copy_success_toast), android.widget.Toast.LENGTH_SHORT).show()
+                                                                 },
+                                                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                                 colors = ButtonDefaults.textButtonColors(contentColor = SumiInk.copy(alpha = 0.8f))
+                                                             ) {
+                                                                 Icon(
+                                                                     imageVector = Icons.Default.ContentCopy,
+                                                                     contentDescription = "Copy Error Details",
+                                                                     modifier = Modifier.size(14.dp)
+                                                                 )
                                                                  Spacer(modifier = Modifier.width(4.dp))
-                                                                Text(stringResource(R.string.retry), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                                                 Text(stringResource(R.string.copy_full_error_log), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                             }
+                                                            Spacer(modifier = Modifier.height(16.dp))
+                                                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                                                OutlinedButton(
+                                                                    onClick = { viewModel.deleteRecord(failedRecord); viewModel.clearSelectedRecord() },
+                                                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD32F2F)),
+                                                                    border = BorderStroke(1.dp, Color(0xFFF3D8D8))
+                                                                ) {
+                                                                    Text(stringResource(R.string.delete), fontSize = 13.sp)
+                                                                }
+                                                                Button(
+                                                                    onClick = { viewModel.retryAnalysis(failedRecord.id) },
+                                                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryColor, contentColor = OnPrimaryColor)
+                                                                ) {
+                                                                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.retry), modifier = Modifier.size(16.dp))
+                                                                     Spacer(modifier = Modifier.width(4.dp))
+                                                                    Text(stringResource(R.string.retry), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                                                }
                                                             }
                                                         }
                                                     }

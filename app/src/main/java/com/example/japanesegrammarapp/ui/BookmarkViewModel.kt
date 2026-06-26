@@ -43,6 +43,12 @@ enum class BookmarkSortOrder {
     OLDEST_FIRST
 }
 
+enum class BookmarkTab {
+    WORDS,
+    SENTENCES,
+    GRAMMAR
+}
+
 data class BookmarkFilterState(
     val mode: BookmarkFilter = BookmarkFilter.ALL,
     val selectedPosCategory: String? = null,
@@ -128,19 +134,27 @@ class BookmarkViewModel @Inject constructor(
         }
     }
 
-    private val _filterState = MutableStateFlow(BookmarkFilterState())
-    val filterState: StateFlow<BookmarkFilterState> = _filterState.asStateFlow()
-    val filterMode: StateFlow<BookmarkFilter> = filterState
+    private val _wordFilterState = MutableStateFlow(BookmarkFilterState())
+    private val _sentenceFilterState = MutableStateFlow(BookmarkFilterState())
+    private val _grammarFilterState = MutableStateFlow(BookmarkFilterState())
+
+    val wordFilterState: StateFlow<BookmarkFilterState> = _wordFilterState.asStateFlow()
+    val sentenceFilterState: StateFlow<BookmarkFilterState> = _sentenceFilterState.asStateFlow()
+    val grammarFilterState: StateFlow<BookmarkFilterState> = _grammarFilterState.asStateFlow()
+
+    // Existing callers use these as the word-tab state.
+    val filterState: StateFlow<BookmarkFilterState> = wordFilterState
+    val filterMode: StateFlow<BookmarkFilter> = wordFilterState
         .map { it.mode }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookmarkFilter.ALL)
 
     /** Currently selected POS category filter — only used when filterMode == BY_POS */
-    val selectedPosCategory: StateFlow<String?> = filterState
+    val selectedPosCategory: StateFlow<String?> = wordFilterState
         .map { it.selectedPosCategory }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     /** Currently selected date sub-filter — only used when filterMode == BY_DATE */
-    val selectedDateFilter: StateFlow<String?> = filterState
+    val selectedDateFilter: StateFlow<String?> = wordFilterState
         .map { it.selectedDateFilter }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -153,224 +167,190 @@ class BookmarkViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** Available date categories derived from all bookmarks */
-    val dateCategories: StateFlow<List<String>> = combine(
-        allBookmarks,
-        bookmarkedSentences,
-        grammarPoints
-    ) { bookmarks, sentences, grammar ->
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        val todayStart = cal.timeInMillis
-        cal.add(Calendar.DAY_OF_YEAR, -7)
-        val weekStart = cal.timeInMillis
+    val wordDateCategories: StateFlow<List<String>> = allBookmarks
+        .map { bookmarks -> bookmarkDateCategories(bookmarks.map { it.bookmarkedAt }) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-        val categories = mutableSetOf<String>()
-        val sdf = SimpleDateFormat("yyyy/MM", Locale.getDefault())
-        
-        val allTimes = bookmarks.map { it.bookmarkedAt } + 
-                       sentences.map { it.bookmarkedAt } + 
-                       grammar.map { it.bookmarkedAt }
+    val sentenceDateCategories: StateFlow<List<String>> = bookmarkedSentences
+        .map { sentences -> bookmarkDateCategories(sentences.map { it.bookmarkedAt }) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-        allTimes.forEach { time ->
-            when {
-                time >= todayStart -> categories.add("today")
-                time >= weekStart -> categories.add("week")
-                else -> categories.add(sdf.format(Date(time)))
-            }
-        }
-        
-        val sorted = mutableListOf<String>()
-        if (categories.contains("today")) sorted.add("today")
-        if (categories.contains("week")) sorted.add("week")
-        val dates = categories.filter { it != "today" && it != "week" }.sortedDescending()
-        sorted.addAll(dates)
-        
-        sorted
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val grammarDateCategories: StateFlow<List<String>> = grammarPoints
+        .map { points -> bookmarkDateCategories(points.map { it.bookmarkedAt }) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Existing callers use these as the word-tab categories.
+    val dateCategories: StateFlow<List<String>> = wordDateCategories
 
     val isPlayingTts: StateFlow<Boolean> = ttsRepository.isPlaying
 
-    val archiveFilter: StateFlow<ArchiveFilter> = filterState
+    val archiveFilter: StateFlow<ArchiveFilter> = wordFilterState
         .map { it.archiveFilter }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ArchiveFilter.ALL)
-    val searchQuery: StateFlow<String> = filterState
+    val searchQuery: StateFlow<String> = wordFilterState
         .map { it.searchQuery }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
-    val sortOrder: StateFlow<BookmarkSortOrder> = filterState
+    val sortOrder: StateFlow<BookmarkSortOrder> = wordFilterState
+        .map { it.sortOrder }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookmarkSortOrder.NEWEST_FIRST)
+
+    val sentenceFilterMode: StateFlow<BookmarkFilter> = sentenceFilterState
+        .map { it.mode }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookmarkFilter.ALL)
+    val sentenceSelectedDateFilter: StateFlow<String?> = sentenceFilterState
+        .map { it.selectedDateFilter }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val sentenceArchiveFilter: StateFlow<ArchiveFilter> = sentenceFilterState
+        .map { it.archiveFilter }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ArchiveFilter.ALL)
+    val sentenceSearchQuery: StateFlow<String> = sentenceFilterState
+        .map { it.searchQuery }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+    val sentenceSortOrder: StateFlow<BookmarkSortOrder> = sentenceFilterState
+        .map { it.sortOrder }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookmarkSortOrder.NEWEST_FIRST)
+
+    val grammarFilterMode: StateFlow<BookmarkFilter> = grammarFilterState
+        .map { it.mode }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookmarkFilter.ALL)
+    val grammarSelectedDateFilter: StateFlow<String?> = grammarFilterState
+        .map { it.selectedDateFilter }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val grammarArchiveFilter: StateFlow<ArchiveFilter> = grammarFilterState
+        .map { it.archiveFilter }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ArchiveFilter.ALL)
+    val grammarSearchQuery: StateFlow<String> = grammarFilterState
+        .map { it.searchQuery }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+    val grammarSortOrder: StateFlow<BookmarkSortOrder> = grammarFilterState
         .map { it.sortOrder }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookmarkSortOrder.NEWEST_FIRST)
 
     fun setArchiveFilter(filter: ArchiveFilter) {
-        _filterState.update { it.copy(archiveFilter = filter) }
+        setArchiveFilter(BookmarkTab.WORDS, filter)
     }
 
     /** Filtered and sorted bookmarks based on current filter mode and archive state */
     val filteredBookmarks: StateFlow<List<BookmarkedSegmentDomain>> = combine(
         allBookmarks,
-        filterState
+        wordFilterState
     ) { bookmarks, filter ->
-        val archiveFilteredList = when (filter.archiveFilter) {
-            ArchiveFilter.UNARCHIVED -> bookmarks.filter { !it.isArchived }
-            ArchiveFilter.ARCHIVED -> bookmarks.filter { it.isArchived }
-            ArchiveFilter.ALL -> bookmarks
-        }
-
-        val filteredByMode = when (filter.mode) {
-            BookmarkFilter.ALL -> archiveFilteredList
-            BookmarkFilter.BY_POS -> archiveFilteredList.filter { filter.selectedPosCategory == null || it.effectivePosCategory == filter.selectedPosCategory }
-            BookmarkFilter.BY_DATE -> {
-                val cal = Calendar.getInstance()
-                cal.set(Calendar.HOUR_OF_DAY, 0)
-                cal.set(Calendar.MINUTE, 0)
-                cal.set(Calendar.SECOND, 0)
-                cal.set(Calendar.MILLISECOND, 0)
-                val todayStart = cal.timeInMillis
-                cal.add(Calendar.DAY_OF_YEAR, -7)
-                val weekStart = cal.timeInMillis
-                val sdf = SimpleDateFormat("yyyy/MM", Locale.getDefault())
-
-                val grouped = archiveFilteredList.groupBy {
-                    when {
-                        it.bookmarkedAt >= todayStart -> "today"
-                        it.bookmarkedAt >= weekStart -> "week"
-                        else -> sdf.format(Date(it.bookmarkedAt))
-                    }
-                }
-
-                when (filter.selectedDateFilter) {
-                    null -> archiveFilteredList.sortedBy(filter.sortOrder) { it.bookmarkedAt }
-                    else -> (grouped[filter.selectedDateFilter] ?: emptyList()).sortedBy(filter.sortOrder) { it.bookmarkedAt }
-                }
+        bookmarks
+            .filterByArchive(filter.archiveFilter) { isArchived }
+            .filterByBookmarkMode(filter) { bookmarkedAt }
+            .filter {
+                filter.mode != BookmarkFilter.BY_POS ||
+                    filter.selectedPosCategory == null ||
+                    it.effectivePosCategory == filter.selectedPosCategory
             }
-        }
-        filteredByMode.filterByQuery(filter.searchQuery) {
-            listOf(
-                segmentText,
-                surfaceForm,
-                reading,
-                partOfSpeech,
-                dictionaryForm,
-                dictionaryFormReading,
-                meaning,
-                inflection,
-                role,
-                sourceText
-            )
-        }
+            .filterByQuery(filter.searchQuery) {
+                listOf(
+                    segmentText,
+                    surfaceForm,
+                    reading,
+                    partOfSpeech,
+                    dictionaryForm,
+                    dictionaryFormReading,
+                    meaning,
+                    inflection,
+                    role,
+                    sourceText
+                )
+            }
+            .sortedBy(filter.sortOrder) { it.bookmarkedAt }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val filteredSentences: StateFlow<List<BookmarkedSentenceDomain>> = combine(
         bookmarkedSentences,
-        filterState
+        sentenceFilterState
     ) { sentences, filter ->
-        val archiveFilteredList = when (filter.archiveFilter) {
-            ArchiveFilter.UNARCHIVED -> sentences.filter { !it.isArchived }
-            ArchiveFilter.ARCHIVED -> sentences.filter { it.isArchived }
-            ArchiveFilter.ALL -> sentences
-        }
-        if (filter.mode != BookmarkFilter.BY_DATE || filter.selectedDateFilter == null) {
-            return@combine archiveFilteredList
-                .sortedBy(filter.sortOrder) { it.bookmarkedAt }
-                .filterByQuery(filter.searchQuery) {
-                    listOf(originalText, translation, modelUsed)
-                }
-        }
-
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        val todayStart = cal.timeInMillis
-        cal.add(Calendar.DAY_OF_YEAR, -7)
-        val weekStart = cal.timeInMillis
-        val sdf = SimpleDateFormat("yyyy/MM", Locale.getDefault())
-
-        val grouped = archiveFilteredList.groupBy {
-            when {
-                it.bookmarkedAt >= todayStart -> "today"
-                it.bookmarkedAt >= weekStart -> "week"
-                else -> sdf.format(Date(it.bookmarkedAt))
-            }
-        }
-
-        (grouped[filter.selectedDateFilter] ?: emptyList())
-            .sortedBy(filter.sortOrder) { it.bookmarkedAt }
+        sentences
+            .filterByArchive(filter.archiveFilter) { isArchived }
+            .filterByBookmarkMode(filter.copy(mode = filter.mode.takeUnless { it == BookmarkFilter.BY_POS } ?: BookmarkFilter.ALL)) { bookmarkedAt }
             .filterByQuery(filter.searchQuery) {
                 listOf(originalText, translation, modelUsed)
             }
+            .sortedBy(filter.sortOrder) { it.bookmarkedAt }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val filteredGrammarPoints: StateFlow<List<BookmarkedGrammarPointDomain>> = combine(
         grammarPoints,
-        filterState
+        grammarFilterState
     ) { points, filter ->
-        val archiveFilteredList = when (filter.archiveFilter) {
-            ArchiveFilter.UNARCHIVED -> points.filter { !it.isArchived }
-            ArchiveFilter.ARCHIVED -> points.filter { it.isArchived }
-            ArchiveFilter.ALL -> points
-        }
-        if (filter.mode != BookmarkFilter.BY_DATE || filter.selectedDateFilter == null) {
-            return@combine archiveFilteredList
-                .sortedBy(filter.sortOrder) { it.bookmarkedAt }
-                .filterByQuery(filter.searchQuery) {
-                    listOf(pattern, explanation, sourceText)
-                }
-        }
-
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        val todayStart = cal.timeInMillis
-        cal.add(Calendar.DAY_OF_YEAR, -7)
-        val weekStart = cal.timeInMillis
-        val sdf = SimpleDateFormat("yyyy/MM", Locale.getDefault())
-
-        val grouped = archiveFilteredList.groupBy {
-            when {
-                it.bookmarkedAt >= todayStart -> "today"
-                it.bookmarkedAt >= weekStart -> "week"
-                else -> sdf.format(Date(it.bookmarkedAt))
-            }
-        }
-
-        (grouped[filter.selectedDateFilter] ?: emptyList())
-            .sortedBy(filter.sortOrder) { it.bookmarkedAt }
+        points
+            .filterByArchive(filter.archiveFilter) { isArchived }
+            .filterByBookmarkMode(filter.copy(mode = filter.mode.takeUnless { it == BookmarkFilter.BY_POS } ?: BookmarkFilter.ALL)) { bookmarkedAt }
             .filterByQuery(filter.searchQuery) {
                 listOf(pattern, explanation, sourceText)
             }
+            .sortedBy(filter.sortOrder) { it.bookmarkedAt }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setFilterMode(mode: BookmarkFilter) {
-        _filterState.update {
-            it.copy(
-                mode = mode,
+        setFilterMode(BookmarkTab.WORDS, mode)
+    }
+
+    fun setPosCategory(category: String?) {
+        setPosCategory(BookmarkTab.WORDS, category)
+    }
+
+    fun setDateFilter(filter: String?) {
+        setDateFilter(BookmarkTab.WORDS, filter)
+    }
+
+    fun setSearchQuery(query: String) {
+        setSearchQuery(BookmarkTab.WORDS, query)
+    }
+
+    fun setSortOrder(sortOrder: BookmarkSortOrder) {
+        setSortOrder(BookmarkTab.WORDS, sortOrder)
+    }
+
+    fun setFilterMode(tab: BookmarkTab, mode: BookmarkFilter) {
+        updateFilterState(tab) { state ->
+            val effectiveMode = if (tab == BookmarkTab.WORDS) mode else mode.takeUnless { it == BookmarkFilter.BY_POS } ?: BookmarkFilter.ALL
+            state.copy(
+                mode = effectiveMode,
                 selectedPosCategory = null,
                 selectedDateFilter = null
             )
         }
     }
 
-    fun setPosCategory(category: String?) {
-        _filterState.update { it.copy(selectedPosCategory = category) }
+    fun setPosCategory(tab: BookmarkTab, category: String?) {
+        if (tab != BookmarkTab.WORDS) return
+        updateFilterState(tab) { it.copy(selectedPosCategory = category) }
     }
 
-    fun setDateFilter(filter: String?) {
-        _filterState.update { it.copy(selectedDateFilter = filter) }
+    fun setDateFilter(tab: BookmarkTab, filter: String?) {
+        updateFilterState(tab) { it.copy(selectedDateFilter = filter) }
     }
 
-    fun setSearchQuery(query: String) {
-        _filterState.update { it.copy(searchQuery = query) }
+    fun setSearchQuery(tab: BookmarkTab, query: String) {
+        updateFilterState(tab) { it.copy(searchQuery = query) }
     }
 
-    fun setSortOrder(sortOrder: BookmarkSortOrder) {
-        _filterState.update { it.copy(sortOrder = sortOrder) }
+    fun setSortOrder(tab: BookmarkTab, sortOrder: BookmarkSortOrder) {
+        updateFilterState(tab) { it.copy(sortOrder = sortOrder) }
+    }
+
+    fun setArchiveFilter(tab: BookmarkTab, filter: ArchiveFilter) {
+        updateFilterState(tab) { it.copy(archiveFilter = filter) }
+    }
+
+    fun resetFilters(tab: BookmarkTab) {
+        updateFilterState(tab) { BookmarkFilterState() }
+    }
+
+    private fun updateFilterState(
+        tab: BookmarkTab,
+        transform: (BookmarkFilterState) -> BookmarkFilterState
+    ) {
+        when (tab) {
+            BookmarkTab.WORDS -> _wordFilterState.update(transform)
+            BookmarkTab.SENTENCES -> _sentenceFilterState.update { transform(it).withoutPosMode() }
+            BookmarkTab.GRAMMAR -> _grammarFilterState.update { transform(it).withoutPosMode() }
+        }
     }
 
     fun removeBookmark(id: Int) {
@@ -533,6 +513,71 @@ private fun <T, R : Comparable<R>> List<T>.sortedBy(
         BookmarkSortOrder.OLDEST_FIRST -> sortedBy(selector)
     }
 }
+
+private fun BookmarkFilterState.withoutPosMode(): BookmarkFilterState =
+    if (mode == BookmarkFilter.BY_POS) {
+        copy(mode = BookmarkFilter.ALL, selectedPosCategory = null)
+    } else {
+        copy(selectedPosCategory = null)
+    }
+
+private fun <T> List<T>.filterByArchive(
+    archiveFilter: ArchiveFilter,
+    isArchived: T.() -> Boolean
+): List<T> = when (archiveFilter) {
+    ArchiveFilter.UNARCHIVED -> filter { !it.isArchived() }
+    ArchiveFilter.ARCHIVED -> filter { it.isArchived() }
+    ArchiveFilter.ALL -> this
+}
+
+private fun <T> List<T>.filterByBookmarkMode(
+    filter: BookmarkFilterState,
+    bookmarkedAt: T.() -> Long
+): List<T> {
+    return when {
+        filter.mode == BookmarkFilter.BY_DATE && filter.selectedDateFilter != null -> {
+            filter { matchesBookmarkDateFilter(it.bookmarkedAt(), filter.selectedDateFilter) }
+        }
+        else -> this
+    }
+}
+
+private fun bookmarkDateCategories(times: List<Long>): List<String> {
+    val monthCategories = times.map { bookmarkMonthBucket(it) }.toSet()
+    return buildList {
+        if (times.any { bookmarkRelativeDateBucket(it) == "today" }) add("today")
+        if (times.any { bookmarkRelativeDateBucket(it) == "today" || bookmarkRelativeDateBucket(it) == "week" }) add("week")
+        addAll(monthCategories.sortedDescending())
+    }
+}
+
+private fun matchesBookmarkDateFilter(time: Long, selectedDateFilter: String?): Boolean {
+    return when (selectedDateFilter) {
+        null -> true
+        "today" -> bookmarkRelativeDateBucket(time) == "today"
+        "week" -> bookmarkRelativeDateBucket(time) == "today" || bookmarkRelativeDateBucket(time) == "week"
+        else -> bookmarkMonthBucket(time) == selectedDateFilter
+    }
+}
+
+private fun bookmarkRelativeDateBucket(time: Long): String? {
+    val cal = Calendar.getInstance()
+    cal.set(Calendar.HOUR_OF_DAY, 0)
+    cal.set(Calendar.MINUTE, 0)
+    cal.set(Calendar.SECOND, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    val todayStart = cal.timeInMillis
+    cal.add(Calendar.DAY_OF_YEAR, -7)
+    val weekStart = cal.timeInMillis
+    return when {
+        time >= todayStart -> "today"
+        time >= weekStart -> "week"
+        else -> null
+    }
+}
+
+private fun bookmarkMonthBucket(time: Long): String =
+    SimpleDateFormat("yyyy/MM", Locale.getDefault()).format(Date(time))
 
 private fun <T> List<T>.filterByQuery(
     query: String,

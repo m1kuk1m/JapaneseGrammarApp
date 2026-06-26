@@ -175,14 +175,6 @@ fun BookmarkCard(
                             modifier = Modifier.size(18.dp)
                         )
                     }
-                    IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = stringResource(R.string.edit),
-                            tint = sumiInk.copy(alpha = 0.4f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
                     IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
                         Icon(
                             Icons.Default.ExpandMore,
@@ -293,20 +285,31 @@ fun BookmarkCard(
                             color = sumiInk.copy(alpha = 0.3f)
                         )
 
-                        TextButton(
-                            onClick = onToggleArchive,
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = if (bookmark.isArchived) {
-                                    stringResource(R.string.bookmark_restore)
-                                } else {
-                                    stringResource(R.string.bookmark_archive)
-                                },
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = stringResource(R.string.edit),
+                                    tint = sumiInk.copy(alpha = 0.45f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+
+                            TextButton(
+                                onClick = onToggleArchive,
+                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = if (bookmark.isArchived) {
+                                        stringResource(R.string.bookmark_restore)
+                                    } else {
+                                        stringResource(R.string.bookmark_archive)
+                                    },
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
                     }
                 }

@@ -140,6 +140,11 @@ fun WorkspaceResultContent(
         val overscrollTop = remember { Animatable(0f) }
         val overscrollBottom = remember { Animatable(0f) }
         val coroutineScope = rememberCoroutineScope()
+
+        LaunchedEffect(uiState.selectedRecord?.id) {
+            overscrollTop.snapTo(0f)
+            overscrollBottom.snapTo(0f)
+        }
         
         Column(
             modifier = Modifier
@@ -147,32 +152,53 @@ fun WorkspaceResultContent(
                 .pointerInput(scrollState) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false)
+                        var totalDx = 0f
+                        var totalDy = 0f
+                        var isDirectionLocked = false
+                        var isVerticalOverscroll = false
                         var isDragging = false
                         do {
                             val event = awaitPointerEvent(PointerEventPass.Initial)
                             val change = event.changes.firstOrNull()
                             if (change != null) {
-                                val dragY = change.positionChange().y
-                                val atTop = scrollState.value == 0
-                                val atBottom = scrollState.value == scrollState.maxValue
+                                val positionChange = change.positionChange()
+                                totalDx += positionChange.x
+                                totalDy += positionChange.y
 
-                                val shouldIntercept = (atTop && dragY > 0) || (atBottom && dragY < 0) || overscrollTop.value > 0f || overscrollBottom.value > 0f
+                                if (!isDirectionLocked &&
+                                    (kotlin.math.abs(totalDx) > 20f || kotlin.math.abs(totalDy) > 20f)
+                                ) {
+                                    isDirectionLocked = true
+                                    isVerticalOverscroll = kotlin.math.abs(totalDy) > kotlin.math.abs(totalDx) * 1.2f
+                                }
 
-                                if (shouldIntercept && kotlin.math.abs(dragY) > 0f) {
-                                    isDragging = true
-                                    
-                                    if (overscrollTop.value > 0f && dragY < 0) {
-                                        coroutineScope.launch { overscrollTop.snapTo((overscrollTop.value + dragY * 0.5f).coerceAtLeast(0f)) }
-                                        change.consume()
-                                    } else if (overscrollBottom.value > 0f && dragY > 0) {
-                                        coroutineScope.launch { overscrollBottom.snapTo((overscrollBottom.value - dragY * 0.5f).coerceAtLeast(0f)) }
-                                        change.consume()
-                                    } else if (atTop && dragY > 0) {
-                                        coroutineScope.launch { overscrollTop.snapTo((overscrollTop.value + dragY * 0.5f).coerceIn(0f, 300f)) }
-                                        change.consume()
-                                    } else if (atBottom && dragY < 0) {
-                                        coroutineScope.launch { overscrollBottom.snapTo((overscrollBottom.value - dragY * 0.5f).coerceIn(0f, 300f)) }
-                                        change.consume()
+                                if (isDirectionLocked && isVerticalOverscroll) {
+                                    val dragY = positionChange.y
+                                    val atTop = scrollState.value == 0
+                                    val atBottom = scrollState.value == scrollState.maxValue
+                                    val isReturningTopOverscroll = overscrollTop.value > 0f && dragY < 0
+                                    val isReturningBottomOverscroll = overscrollBottom.value > 0f && dragY > 0
+                                    val shouldPullTop = atTop && dragY > 0
+                                    val shouldPullBottom = atBottom && dragY < 0
+
+                                    if (kotlin.math.abs(dragY) > 0f &&
+                                        (isReturningTopOverscroll || isReturningBottomOverscroll || shouldPullTop || shouldPullBottom)
+                                    ) {
+                                        isDragging = true
+
+                                        if (isReturningTopOverscroll) {
+                                            coroutineScope.launch { overscrollTop.snapTo((overscrollTop.value + dragY * 0.5f).coerceAtLeast(0f)) }
+                                            change.consume()
+                                        } else if (isReturningBottomOverscroll) {
+                                            coroutineScope.launch { overscrollBottom.snapTo((overscrollBottom.value - dragY * 0.5f).coerceAtLeast(0f)) }
+                                            change.consume()
+                                        } else if (shouldPullTop) {
+                                            coroutineScope.launch { overscrollTop.snapTo((overscrollTop.value + dragY * 0.5f).coerceIn(0f, 300f)) }
+                                            change.consume()
+                                        } else if (shouldPullBottom) {
+                                            coroutineScope.launch { overscrollBottom.snapTo((overscrollBottom.value - dragY * 0.5f).coerceIn(0f, 300f)) }
+                                            change.consume()
+                                        }
                                     }
                                 }
                             }
@@ -386,17 +412,6 @@ fun WorkspaceResultContent(
                                                         modifier = Modifier.size(22.dp)
                                                     )
                                                 }
-                                                IconButton(
-                                                    onClick = { onEditWordSegment(currentSegment) },
-                                                    modifier = Modifier.size(28.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Edit,
-                                                        contentDescription = stringResource(R.string.edit),
-                                                        tint = SumiInk.copy(alpha = 0.35f),
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                }
                                             }
                                             if (!currentSegment.reading.isNullOrBlank() && currentSegment.reading != currentSegment.text) {
                                                 Text(
@@ -450,12 +465,29 @@ fun WorkspaceResultContent(
                                         ) {
                                             SelectionContainer {
                                                 Column(modifier = Modifier.padding(12.dp)) {
-                                                    Text(
-                                                        text = stringResource(R.string.meaning),
-                                                        fontSize = 11.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = KuriAmber.copy(alpha = 1.0f)
-                                                    )
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(
+                                                            text = stringResource(R.string.meaning),
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = KuriAmber.copy(alpha = 1.0f)
+                                                        )
+                                                        IconButton(
+                                                            onClick = { onEditWordSegment(currentSegment) },
+                                                            modifier = Modifier.size(28.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Edit,
+                                                                contentDescription = stringResource(R.string.edit),
+                                                                tint = SumiInk.copy(alpha = 0.45f),
+                                                                modifier = Modifier.size(18.dp)
+                                                            )
+                                                        }
+                                                    }
                                                     Spacer(modifier = Modifier.height(4.dp))
                                                     Text(
                                                         text = currentSegment.meaning,
