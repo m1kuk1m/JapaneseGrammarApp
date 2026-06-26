@@ -79,29 +79,35 @@ fun HistorySidebar(
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val WashiBg = MaterialTheme.colorScheme.background
     val listState = rememberLazyListState()
-    val firstRecordId = historyList.itemSnapshotList.items.firstOrNull()?.record?.id
-    var previousFirstRecordId by remember { mutableStateOf<Int?>(null) }
-    var shouldStickToTop by remember { mutableStateOf(true) }
+    val lastRecordId = historyList.itemSnapshotList.items.lastOrNull()?.record?.id
+    var previousLastRecordId by remember { mutableStateOf<Int?>(null) }
+    var shouldStickToBottom by remember { mutableStateOf(true) }
 
     LaunchedEffect(listState) {
         snapshotFlow {
-            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-        }.collect { isAtTop ->
-            shouldStickToTop = isAtTop
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()
+            lastVisibleItem != null && lastVisibleItem.index >= totalItems - 1
+        }.collect { isAtBottom ->
+            shouldStickToBottom = isAtBottom
         }
     }
 
-    LaunchedEffect(firstRecordId) {
-        val oldFirstRecordId = previousFirstRecordId
-        val visibleTopRecordId = historyList.itemSnapshotList.items
-            .getOrNull(listState.firstVisibleItemIndex)
+    LaunchedEffect(lastRecordId) {
+        val oldLastRecordId = previousLastRecordId
+        val visibleBottomRecordId = historyList.itemSnapshotList.items
+            .getOrNull(listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1)
             ?.record
             ?.id
-        val isAnchoredToOldTop = oldFirstRecordId != null && visibleTopRecordId == oldFirstRecordId
-        if (oldFirstRecordId != null && firstRecordId != null && firstRecordId != oldFirstRecordId && (shouldStickToTop || isAnchoredToOldTop)) {
-            listState.scrollToItem(0)
+        val isAnchoredToOldBottom = oldLastRecordId != null && visibleBottomRecordId == oldLastRecordId
+        if (oldLastRecordId != null && lastRecordId != null && lastRecordId != oldLastRecordId && (shouldStickToBottom || isAnchoredToOldBottom)) {
+            val lastIndex = historyList.itemCount - 1
+            if (lastIndex >= 0) {
+                listState.scrollToItem(lastIndex)
+            }
         }
-        previousFirstRecordId = firstRecordId
+        previousLastRecordId = lastRecordId
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(

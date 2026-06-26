@@ -48,18 +48,18 @@ interface AnalysisDao {
     @Query("SELECT * FROM analysis_records WHERE timestamp < :currentTimestamp ORDER BY timestamp DESC LIMIT 1")
     suspend fun getOlderRecord(currentTimestamp: Long): AnalysisRecord?
 
-    @Query("SELECT * FROM analysis_records ORDER BY timestamp DESC")
+    @Query("SELECT * FROM analysis_records ORDER BY timestamp ASC")
     fun getAllRecords(): androidx.paging.PagingSource<Int, AnalysisRecord>
 
     @Query("""
         SELECT * FROM analysis_records
         WHERE originalText LIKE :pattern ESCAPE '\'
            OR analysisResult LIKE :pattern ESCAPE '\'
-        ORDER BY timestamp DESC
+        ORDER BY timestamp ASC
     """)
     fun searchRecords(pattern: String): androidx.paging.PagingSource<Int, AnalysisRecord>
 
-    @Query("SELECT * FROM analysis_records ORDER BY timestamp DESC")
+    @Query("SELECT * FROM analysis_records ORDER BY timestamp ASC")
     suspend fun getAllRecordsList(): List<AnalysisRecord>
 
     @Query("SELECT SUM(consumedTokens) FROM analysis_records")
