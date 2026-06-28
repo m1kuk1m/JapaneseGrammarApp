@@ -18,6 +18,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -53,8 +55,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 enum class SettingsCategory(val titleRes: Int, val icon: ImageVector) {
     APPEARANCE(R.string.appearance, Icons.Default.Palette),
     GENERAL(R.string.general, Icons.Default.Settings),
-    LLM_API(R.string.api_config, Icons.Default.VpnKey),
-    TTS(R.string.tts_settings_title, Icons.Default.RecordVoiceOver)
+    OCR_SCANNING(R.string.ocr_scanning, Icons.Default.DocumentScanner),
+    LLM_API(R.string.llm_prompts, Icons.Default.VpnKey),
+    TTS(R.string.tts_settings_title, Icons.Default.RecordVoiceOver),
+    ADVANCED(R.string.advanced_debug, Icons.Default.BugReport)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -483,16 +487,6 @@ fun SettingsScreen(
                             }
                         }
 
-                        SettingsGroup(title = stringResource(R.string.app_logs_title)) {
-                            SettingsItem(
-                                icon = Icons.Default.Code,
-                                title = stringResource(R.string.view_dev_logs),
-                                onClick = { showLogsDialog = true },
-                                trailingContent = {
-                                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = SumiInk.copy(alpha = 0.4f))
-                                }
-                            )
-                        }
                         Spacer(modifier = Modifier.height(40.dp))
                     } else {
                         when (targetCategory) {
@@ -511,20 +505,27 @@ fun SettingsScreen(
                                 SettingsGeneralSection(
                                     uiState = uiState,
                                     currentLangLabel = currentLangLabel,
-                                    totalTokensConsumed = totalTokensConsumed,
+                                    onAutoNavigateResultChange = viewModel::setAutoNavigateResult
+                                )
+                            }
+                            SettingsCategory.OCR_SCANNING -> {
+                                SettingsOcrSection(
+                                    uiState = uiState,
                                     onUseOcrChange = viewModel::setUseOcr,
                                     onOcrBoxDetectorEngineChange = viewModel::setOcrBoxDetectorEngine,
                                     onTextSelectEngineChange = viewModel::setTextSelectEngine,
                                     onAutoDeskewAfterCaptureChange = viewModel::setAutoDeskewAfterCapture,
-                                    onAutoNavigateResultChange = viewModel::setAutoNavigateResult,
                                     onImageTokenizerModeChange = viewModel::setImageTokenizerMode,
-                                    onShowTokenDialog = { showTokenDialog = true },
-                                    onShowApiLogs = { showApiLogsDialog = true },
-                                    onShowOcrDebug = { showOcrDebugDialog = true },
-                                    onShowPromptEditor = { showPromptEditor = true }
+                                    onShowOcrDebug = { showOcrDebugDialog = true }
                                 )
                             }
                             SettingsCategory.LLM_API -> {
+                                SettingsLlmPromptsSection(
+                                    totalTokensConsumed = totalTokensConsumed,
+                                    onShowTokenDialog = { showTokenDialog = true },
+                                    onShowPromptEditor = { showPromptEditor = true }
+                                )
+
                                 SettingsApiPrioritySection(
                                     uiState = uiState,
                                     providers = providers,
@@ -591,6 +592,12 @@ fun SettingsScreen(
                                         )
                                     },
                                     onRequestClearTtsKey = { pendingTtsKeyClearProvider = it }
+                                )
+                            }
+                            SettingsCategory.ADVANCED -> {
+                                SettingsAdvancedSection(
+                                    onShowApiLogs = { showApiLogsDialog = true },
+                                    onShowAppLogs = { showLogsDialog = true }
                                 )
                             }
                         }
