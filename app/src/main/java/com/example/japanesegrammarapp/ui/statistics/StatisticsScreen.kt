@@ -14,6 +14,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import java.time.LocalDate
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.StatisticsTimeRange
@@ -52,16 +57,23 @@ fun StatisticsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            TimeRangeTabs(
-                selectedTimeRange = uiState.timeRange,
-                onTimeRangeSelected = { viewModel.setTimeRange(it) }
-            )
-
-            TimeNavigator(
-                uiState = uiState,
-                onNavigatePrevious = { viewModel.navigatePrevious() },
-                onNavigateNext = { viewModel.navigateNext() }
-            )
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+            ) {
+                Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                    TimeRangeTabs(
+                        selectedTimeRange = uiState.timeRange,
+                        onTimeRangeSelected = { viewModel.setTimeRange(it) }
+                    )
+                    TimeNavigator(
+                        uiState = uiState,
+                        onNavigatePrevious = { viewModel.navigatePrevious() },
+                        onNavigateNext = { viewModel.navigateNext() }
+                    )
+                }
+            }
 
             if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -73,6 +85,10 @@ fun StatisticsScreen(
                 }
             } else {
                 uiState.summary?.let { summary ->
+                    val isDaily = uiState.timeRange == StatisticsTimeRange.DAILY
+                    val displaySentences = if (isDaily) summary.analyzedSentences else summary.analyzedSentences.take(5)
+                    val displayBookmarks = if (isDaily) summary.bookmarkedVocabulary else summary.bookmarkedVocabulary.take(5)
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
@@ -83,21 +99,28 @@ fun StatisticsScreen(
                         }
 
                         item {
-                            ChartSection(
-                                chartData = summary.chartData,
-                                timeRange = uiState.timeRange
-                            )
+                            if (uiState.timeRange == StatisticsTimeRange.YEARLY) {
+                                HeatmapSection(
+                                    heatmapData = summary.heatmapData,
+                                    yearDate = uiState.referenceDate
+                                )
+                            } else {
+                                ChartSection(
+                                    chartData = summary.chartData,
+                                    timeRange = uiState.timeRange
+                                )
+                            }
                         }
                         
-                        if (summary.analyzedSentences.isNotEmpty()) {
+                        if (displaySentences.isNotEmpty()) {
                             item {
                                 Text(
-                                    text = stringResource(R.string.statistics_section_analyzed_sentences),
+                                    text = if (isDaily) stringResource(R.string.statistics_section_analyzed_sentences) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_analyzed_sentences),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-                            items(summary.analyzedSentences) { record ->
+                            items(displaySentences) { record ->
                                 Card(modifier = Modifier.fillMaxWidth()) {
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Text(text = record.originalText, style = MaterialTheme.typography.bodyLarge)
@@ -106,22 +129,33 @@ fun StatisticsScreen(
                             }
                         }
 
-                        if (summary.bookmarkedVocabulary.isNotEmpty()) {
+                        if (displayBookmarks.isNotEmpty()) {
                             item {
                                 Text(
-                                    text = stringResource(R.string.statistics_section_bookmarked_vocabulary),
+                                    text = if (isDaily) stringResource(R.string.statistics_section_bookmarked_vocabulary) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_bookmarked_vocabulary),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(top = 16.dp)
                                 )
                             }
-                            items(summary.bookmarkedVocabulary) { bookmark ->
+                            items(displayBookmarks) { bookmark ->
                                 Card(modifier = Modifier.fillMaxWidth()) {
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Text(text = bookmark.segmentText, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                                         Text(text = bookmark.reading ?: "", style = MaterialTheme.typography.bodyMedium)
                                         Text(text = bookmark.meaning ?: "", style = MaterialTheme.typography.bodyMedium)
                                     }
+                                }
+                            }
+                        }
+                        
+                        if (!isDaily && (summary.analyzedSentences.size > 5 || summary.bookmarkedVocabulary.size > 5)) {
+                            item {
+                                OutlinedButton(
+                                    onClick = onNavigateBack,
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                                ) {
+                                    Text(stringResource(R.string.statistics_view_full_history))
                                 }
                             }
                         }
@@ -224,16 +258,19 @@ fun SummaryCards(summary: com.example.japanesegrammarapp.domain.StatisticsSummar
 
 @Composable
 fun SummaryCard(modifier: Modifier = Modifier, title: String, value: String) {
-    Card(modifier = modifier) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
         Column(
             modifier = Modifier
-                .padding(12.dp)
+                .padding(16.dp)
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = title, style = MaterialTheme.typography.bodySmall)
+            Text(text = value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(text = title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -256,7 +293,7 @@ fun ChartSection(
 
     Card(modifier = Modifier.fillMaxWidth().height(250.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = "Analysis Count", style = MaterialTheme.typography.titleSmall)
+            Text(text = stringResource(R.string.statistics_analysis_count), style = MaterialTheme.typography.titleSmall)
             Spacer(modifier = Modifier.height(8.dp))
             Chart(
                 chart = columnChart(),
@@ -268,3 +305,47 @@ fun ChartSection(
         }
     }
 }
+
+@Composable
+fun HeatmapSection(heatmapData: Map<LocalDate, Int>, yearDate: LocalDate) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = stringResource(R.string.statistics_heatmap_title), style = MaterialTheme.typography.titleSmall)
+            Spacer(modifier = Modifier.height(8.dp))
+            val startDate = yearDate.withDayOfYear(1)
+            val endDate = yearDate.withDayOfYear(yearDate.lengthOfYear())
+            val daysCount = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate).toInt() + 1
+            
+            val startDayOfWeek = startDate.dayOfWeek.value
+            val weeks = (daysCount + startDayOfWeek - 1) / 7 + 1
+            
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(weeks) { weekIndex ->
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        for (dayOfWeek in 1..7) {
+                            val dayOffset = weekIndex * 7 + dayOfWeek - startDayOfWeek
+                            if (dayOffset in 0 until daysCount) {
+                                val currentDate = startDate.plusDays(dayOffset.toLong())
+                                val count = heatmapData[currentDate] ?: 0
+                                val color = when {
+                                    count == 0 -> MaterialTheme.colorScheme.surfaceVariant
+                                    count < 5 -> MaterialTheme.colorScheme.primaryContainer
+                                    count < 10 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                                    else -> MaterialTheme.colorScheme.primary
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .background(color, RoundedCornerShape(2.dp))
+                                )
+                            } else {
+                                Box(modifier = Modifier.size(12.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

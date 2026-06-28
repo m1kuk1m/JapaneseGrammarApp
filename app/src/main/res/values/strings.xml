@@ -640,4 +640,8 @@
     <string name="statistics_total_analyses">Total Analyses</string>
     <string name="statistics_total_tokens">Total Tokens</string>
     <string name="statistics_total_bookmarks">Total Bookmarks</string>
+    <string name="statistics_recent_activity">Recent Activity</string>
+    <string name="statistics_view_full_history">View Full History</string>
+    <string name="statistics_analysis_count">Analysis Count</string>
+    <string name="statistics_heatmap_title">Learning Consistency</string>
 </resources>
