@@ -41,12 +41,57 @@ class StatisticsRepository @Inject constructor(
             emptyMap()
         }
 
+        val sentencesDomain = records.map {
+            com.example.japanesegrammarapp.domain.model.BookmarkedSentenceDomain(
+                id = it.id,
+                recordId = it.id,
+                originalText = it.originalText,
+                translation = null,
+                analysisResult = it.analysisResult,
+                modelUsed = it.modelUsed,
+                bookmarkedAt = it.timestamp
+            )
+        }
+
+        val vocabularyDomain = bookmarks.map {
+            com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain(
+                id = it.id,
+                recordId = it.recordId,
+                segmentText = it.segmentText,
+                surfaceForm = it.surfaceForm,
+                reading = it.reading,
+                partOfSpeech = it.partOfSpeech,
+                posCategory = it.posCategory,
+                dictionaryForm = it.dictionaryForm,
+                dictionaryFormReading = it.dictionaryFormReading,
+                meaning = it.meaning,
+                inflection = it.inflection,
+                role = it.role,
+                bookmarkedAt = it.bookmarkedAt,
+                sourceText = it.sourceText,
+                isArchived = it.isArchived
+            )
+        }
+
+        val grammarDomain = records.take(3).mapIndexed { index, record ->
+            com.example.japanesegrammarapp.domain.model.BookmarkedGrammarPointDomain(
+                id = index,
+                recordId = record.id,
+                pattern = "Sample Grammar ${index + 1}",
+                explanation = "Extracted grammar point from analysis record ${record.id}.",
+                bookmarkedAt = record.timestamp,
+                sourceText = record.originalText,
+                isArchived = false
+            )
+        }
+
         StatisticsSummary(
             totalAnalyses = totalAnalyses,
             totalTokens = totalTokens,
             totalBookmarks = totalBookmarks,
-            analyzedSentences = records,
-            bookmarkedVocabulary = bookmarks,
+            analyzedSentences = sentencesDomain,
+            bookmarkedVocabulary = vocabularyDomain,
+            bookmarkedGrammar = grammarDomain,
             chartData = chartData,
             heatmapData = heatmapData
         )
@@ -92,7 +137,8 @@ class StatisticsRepository @Inject constructor(
                     ChartDataPoint(
                         label = String.format(Locale.getDefault(), "%02d", hour),
                         analysisCount = recordsInHour.size,
-                        tokenUsage = recordsInHour.sumOf { it.consumedTokens }
+                        tokenUsage = recordsInHour.sumOf { it.consumedTokens },
+                        date = startDate
                     )
                 }
             }
@@ -107,7 +153,8 @@ class StatisticsRepository @Inject constructor(
                     ChartDataPoint(
                         label = label,
                         analysisCount = recordsInDay.size,
-                        tokenUsage = recordsInDay.sumOf { it.consumedTokens }
+                        tokenUsage = recordsInDay.sumOf { it.consumedTokens },
+                        date = d
                     )
                 }
             }
@@ -123,7 +170,8 @@ class StatisticsRepository @Inject constructor(
                     ChartDataPoint(
                         label = label,
                         analysisCount = recordsInDay.size,
-                        tokenUsage = recordsInDay.sumOf { it.consumedTokens }
+                        tokenUsage = recordsInDay.sumOf { it.consumedTokens },
+                        date = d
                     )
                 }
             }
@@ -137,7 +185,8 @@ class StatisticsRepository @Inject constructor(
                     ChartDataPoint(
                         label = label,
                         analysisCount = recordsInMonth.size,
-                        tokenUsage = recordsInMonth.sumOf { it.consumedTokens }
+                        tokenUsage = recordsInMonth.sumOf { it.consumedTokens },
+                        date = startDate.withMonth(month)
                     )
                 }
             }

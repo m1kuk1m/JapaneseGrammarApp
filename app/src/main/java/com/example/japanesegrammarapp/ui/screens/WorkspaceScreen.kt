@@ -457,24 +457,19 @@ fun WorkspaceScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                         ) {
-                            val surfaceMarginHorizontal by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 0.dp else 16.dp, animationSpec = tween(300, easing = EaseInOutCubic), label = "surfaceMarginHorizontal")
-                            val surfaceMarginVertical by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 0.dp else 8.dp, animationSpec = tween(300, easing = EaseInOutCubic), label = "surfaceMarginVertical")
-                            val surfaceCornerRadius by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 0.dp else 24.dp, animationSpec = tween(300, easing = EaseInOutCubic), label = "surfaceCornerRadius")
                             val surfaceColor by androidx.compose.animation.animateColorAsState(targetValue = if (isResultScrolled) MaterialTheme.colorScheme.surface.copy(alpha = 0.92f) else MaterialTheme.colorScheme.surface, animationSpec = tween(300), label = "surfaceColor")
 
                             Box(modifier = Modifier.fillMaxWidth()) {
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = surfaceMarginVertical, horizontal = surfaceMarginHorizontal),
+                                        .padding(vertical = 8.dp, horizontal = 16.dp),
                                     color = surfaceColor,
-                                    shape = RoundedCornerShape(surfaceCornerRadius),
+                                    shape = RoundedCornerShape(24.dp),
                                     shadowElevation = 0.dp,
                                     tonalElevation = 0.dp
                                 ) {
-                                    val innerVerticalPadding by androidx.compose.animation.core.animateDpAsState(if (isResultScrolled) 8.dp else 12.dp, label = "innerVerticalPadding")
-                                    val innerHorizontalPadding by androidx.compose.animation.core.animateDpAsState(if (isResultScrolled) 16.dp else 12.dp, label = "innerHorizontalPadding")
-                                    Column(modifier = Modifier.padding(horizontal = innerHorizontalPadding, vertical = innerVerticalPadding)) {
+                                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)) {
                                         val currentText = uiState.currentOriginalText
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
@@ -482,27 +477,15 @@ fun WorkspaceScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Box(modifier = Modifier.weight(1f, fill = false).padding(end = 8.dp)) {
-                                                androidx.compose.animation.Crossfade(targetState = isResultScrolled, label = "titleCrossfade") { scrolled ->
-                                                    if (scrolled) {
-                                                        Text(
-                                                            text = currentText.ifBlank { stringResource(R.string.image_analysis) },
-                                                            fontSize = 12.sp,
-                                                            color = SumiInk.copy(alpha = 0.8f),
-                                                            maxLines = 1,
-                                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                                        )
-                                                    } else {
-                                                        Text(
-                                                            text = stringResource(R.string.target_sentence),
-                                                            fontWeight = FontWeight.Bold,
-                                                            fontSize = 12.sp,
-                                                            color = SumiInk.copy(alpha = 0.6f)
-                                                        )
-                                                    }
-                                                }
+                                                Text(
+                                                    text = stringResource(R.string.target_sentence),
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 12.sp,
+                                                    color = SumiInk.copy(alpha = 0.6f)
+                                                )
                                             }
                                             Row(
-                                                horizontalArrangement = Arrangement.spacedBy(if (isResultScrolled) 0.dp else 8.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 val isPending = uiState.selectedRecord?.status == AnalysisStatus.PENDING
@@ -582,43 +565,39 @@ fun WorkspaceScreen(
                                                             showDeleteConfirmDialog = true
                                                         }
                                                     },
-                                                    contentPadding = PaddingValues(horizontal = if (isResultScrolled) 4.dp else 8.dp, vertical = 2.dp),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                                                     colors = ButtonDefaults.textButtonColors(contentColor = SumiInk)
                                                 ) {
                                                     Icon(
                                                         imageVector = if (isPending) Icons.Default.Close else Icons.Default.Delete,
                                                         contentDescription = stringResource(if (isPending) R.string.cancel else R.string.delete),
-                                                        modifier = Modifier.size(if (isResultScrolled) 18.dp else 14.dp)
+                                                        modifier = Modifier.size(14.dp)
                                                     )
-                                                    if (!isResultScrolled) {
-                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                        Text(
-                                                            text = stringResource(if (isPending) R.string.cancel else R.string.delete),
-                                                            fontSize = 11.sp,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    }
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(
+                                                        text = stringResource(if (isPending) R.string.cancel else R.string.delete),
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
                                                 }
                                                 TextButton(
                                                     onClick = {
                                                         viewModel.startNewAnalysisWithText(currentText)
                                                     },
-                                                    contentPadding = PaddingValues(horizontal = if (isResultScrolled) 4.dp else 8.dp, vertical = 2.dp),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                                                     colors = ButtonDefaults.textButtonColors(contentColor = SumiInk)
                                                 ) {
                                                     Icon(
                                                         imageVector = Icons.Default.Edit,
                                                         contentDescription = stringResource(R.string.edit_and_reanalyze_desc),
-                                                        modifier = Modifier.size(if (isResultScrolled) 18.dp else 14.dp)
+                                                        modifier = Modifier.size(14.dp)
                                                     )
-                                                    if (!isResultScrolled) {
-                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                        Text(
-                                                            text = stringResource(R.string.edit_and_reanalyze),
-                                                            fontSize = 11.sp,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    }
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(
+                                                        text = stringResource(R.string.edit_and_reanalyze),
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
                                                 }
                                             }
                                         }
@@ -639,19 +618,7 @@ fun WorkspaceScreen(
                                         }
                                     }
                                 }
-                                
-                                // Subtle bottom divider when scrolled
-                                androidx.compose.animation.AnimatedVisibility(
-                                    visible = isResultScrolled,
-                                    enter = fadeIn(animationSpec = tween(300)),
-                                    exit = fadeOut(animationSpec = tween(300)),
-                                    modifier = Modifier.align(Alignment.BottomCenter)
-                                ) {
-                                    Divider(
-                                        color = SumiInk.copy(alpha = 0.08f),
-                                        thickness = 1.dp
-                                    )
-                                }
+
                             }
 
                             val record = uiState.selectedRecord

@@ -644,4 +644,5 @@
     <string name="statistics_view_full_history">View Full History</string>
     <string name="statistics_analysis_count">Analysis Count</string>
     <string name="statistics_heatmap_title">Learning Consistency</string>
+    <string name="statistics_empty_state_title">No study data yet for this period. Start analyzing a sentence!</string>
 </resources>

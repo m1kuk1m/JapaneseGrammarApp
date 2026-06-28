@@ -27,6 +27,9 @@ import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.StatisticsTimeRange
 import com.example.japanesegrammarapp.ui.theme.ZenColors
 import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
+import com.example.japanesegrammarapp.ui.screens.SentenceBookmarkCard
+import com.example.japanesegrammarapp.ui.screens.BookmarkCard
+import com.example.japanesegrammarapp.ui.screens.BookmarkGrammarCard
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
@@ -39,11 +42,22 @@ import com.patrykandpatrick.vico.core.entry.entryModelOf
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.foundation.border
+import com.patrykandpatrick.vico.core.component.marker.MarkerComponent
+import com.patrykandpatrick.vico.core.marker.Marker
+import com.patrykandpatrick.vico.compose.component.shapeComponent
+import com.patrykandpatrick.vico.compose.component.textComponent
+import com.patrykandpatrick.vico.compose.component.lineComponent
+import com.patrykandpatrick.vico.core.component.shape.Shapes
+import com.patrykandpatrick.vico.core.context.DrawContext
+import android.graphics.RectF
+import com.patrykandpatrick.vico.compose.dimensions.dimensionsOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatisticsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToHistory: () -> Unit,
     viewModel: StatisticsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -93,27 +107,69 @@ fun StatisticsScreen(
                 }
             }
 
-            if (uiState.isLoading) {
+            var transitionTarget by remember { mutableStateOf<Triple<StatisticsTimeRange, LocalDate, com.example.japanesegrammarapp.domain.StatisticsSummary>?>(null) }
+            
+            LaunchedEffect(uiState) {
+                val summary = uiState.summary
+                if (!uiState.isLoading && summary != null) {
+                    transitionTarget = Triple(uiState.timeRange, uiState.referenceDate, summary)
+                }
+            }
+
+            if (uiState.isLoading && transitionTarget == null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = ZenColors.AizomeIndigo)
                 }
-            } else if (uiState.error != null) {
+            } else if (uiState.error != null && transitionTarget == null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(text = uiState.error ?: "", color = MaterialTheme.colorScheme.error)
                 }
             } else {
-                uiState.summary?.let { summary ->
-                    val isDaily = uiState.timeRange == StatisticsTimeRange.DAILY
+                transitionTarget?.let { (currentTargetTimeRange, currentTargetDate, targetSummary) ->
+                    val isDaily = currentTargetTimeRange == StatisticsTimeRange.DAILY
                     
-                    AnimatedContent(
-                        targetState = uiState.timeRange,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-                        },
-                        label = "TimeRangeTransition"
-                    ) { targetTimeRange ->
-                        val displaySentences = if (targetTimeRange == StatisticsTimeRange.DAILY) summary.analyzedSentences else summary.analyzedSentences.take(5)
-                        val displayBookmarks = if (targetTimeRange == StatisticsTimeRange.DAILY) summary.bookmarkedVocabulary else summary.bookmarkedVocabulary.take(5)
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AnimatedContent(
+                            targetState = transitionTarget!!,
+                            transitionSpec = {
+                                val (initialTimeRange, initialDate, _) = initialState
+                                val (targetTimeRange, targetDate, _) = targetState
+                                if (initialTimeRange != targetTimeRange) {
+                                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                                } else if (initialDate != targetDate) {
+                                    val direction = uiState.navigateDirection
+                                    slideInHorizontally(
+                                        initialOffsetX = { fullWidth -> fullWidth * direction },
+                                        animationSpec = tween(300)
+                                    ) + fadeIn(animationSpec = tween(300)) togetherWith
+                                    slideOutHorizontally(
+                                        targetOffsetX = { fullWidth -> -fullWidth * direction },
+                                        animationSpec = tween(300)
+                                    ) + fadeOut(animationSpec = tween(300))
+                                } else {
+                                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                                }
+                            },
+                            label = "TimeRangeTransition"
+                        ) { (targetTimeRange, _, summary) ->
+                        val selectedDate = uiState.selectedDetailDate
+                        val displaySentences = selectedDate?.let { date ->
+                            summary.analyzedSentences.filter { 
+                                java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
+                            }
+                        } ?: if (targetTimeRange == StatisticsTimeRange.DAILY) summary.analyzedSentences else summary.analyzedSentences.take(5)
+
+                        val displayBookmarks = selectedDate?.let { date ->
+                            summary.bookmarkedVocabulary.filter {
+                                java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
+                            }
+                        } ?: if (targetTimeRange == StatisticsTimeRange.DAILY) summary.bookmarkedVocabulary else summary.bookmarkedVocabulary.take(5)
+
+                        val displayGrammar = selectedDate?.let { date ->
+                            summary.bookmarkedGrammar.filter {
+                                java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
+                            }
+                        } ?: if (targetTimeRange == StatisticsTimeRange.DAILY) summary.bookmarkedGrammar else summary.bookmarkedGrammar.take(5)
 
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -128,12 +184,15 @@ fun StatisticsScreen(
                                 if (targetTimeRange == StatisticsTimeRange.YEARLY) {
                                     HeatmapSection(
                                         heatmapData = summary.heatmapData,
-                                        yearDate = uiState.referenceDate
+                                        yearDate = uiState.referenceDate,
+                                        selectedDetailDate = uiState.selectedDetailDate,
+                                        onDateSelected = { viewModel.setSelectedDetailDate(it) }
                                     )
                                 } else {
                                     ChartSection(
                                         chartData = summary.chartData,
-                                        timeRange = targetTimeRange
+                                        timeRange = targetTimeRange,
+                                        onDateSelected = { viewModel.setSelectedDetailDate(it) }
                                     )
                                 }
                             }
@@ -141,41 +200,81 @@ fun StatisticsScreen(
                             if (displaySentences.isNotEmpty()) {
                                 item {
                                     SectionHeader(
-                                        title = if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.statistics_section_analyzed_sentences) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_analyzed_sentences),
+                                        title = if (uiState.selectedDetailDate != null) {
+                                            uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.statistics_section_analyzed_sentences)
+                                        } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.statistics_section_analyzed_sentences) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_analyzed_sentences),
                                         icon = Icons.Default.Analytics
                                     )
                                 }
                                 items(displaySentences) { record ->
-                                    ActivityCard {
-                                        Text(text = record.originalText, style = MaterialTheme.typography.bodyLarge, color = sumiInk)
-                                    }
+                                    SentenceBookmarkCard(
+                                        sentence = record,
+                                        onNavigateToDetails = {},
+                                        onPlayTts = {},
+                                        onDelete = {},
+                                        onToggleArchive = {}
+                                    )
                                 }
                             }
 
                             if (displayBookmarks.isNotEmpty()) {
                                 item {
                                     SectionHeader(
-                                        title = if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.statistics_section_bookmarked_vocabulary) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_bookmarked_vocabulary),
+                                        title = if (uiState.selectedDetailDate != null) {
+                                            uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.statistics_section_bookmarked_vocabulary)
+                                        } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.statistics_section_bookmarked_vocabulary) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_bookmarked_vocabulary),
                                         icon = Icons.Default.Bookmark
                                     )
                                 }
                                 items(displayBookmarks) { bookmark ->
-                                    ActivityCard {
-                                        Text(text = bookmark.segmentText, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = sumiInk)
-                                        if (!bookmark.reading.isNullOrEmpty()) {
-                                            Text(text = bookmark.reading, style = MaterialTheme.typography.bodyMedium, color = sumiInk.copy(alpha = 0.7f))
-                                        }
-                                        if (!bookmark.meaning.isNullOrEmpty()) {
-                                            Text(text = bookmark.meaning, style = MaterialTheme.typography.bodyMedium, color = sumiInk.copy(alpha = 0.7f))
-                                        }
-                                    }
+                                    var isExpanded by remember { mutableStateOf(false) }
+                                    BookmarkCard(
+                                        bookmark = bookmark,
+                                        isExpanded = isExpanded,
+                                        isPendingDelete = false,
+                                        isDark = ZenThemeColors.isDark(),
+                                        uiPreferencesRepository = viewModel.uiPreferencesRepository,
+                                        onClick = { isExpanded = !isExpanded },
+                                        onLongPress = {},
+                                        onConfirmDelete = {},
+                                        onCancelDelete = {},
+                                        onNavigateToSource = {},
+                                        onToggleArchive = {},
+                                        onPlayTts = {},
+                                        onEdit = {}
+                                    )
+                                }
+                            }
+
+                            if (displayGrammar.isNotEmpty()) {
+                                item {
+                                    SectionHeader(
+                                        title = if (uiState.selectedDetailDate != null) {
+                                            uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.grammar_label)
+                                        } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.grammar_label) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.grammar_label),
+                                        icon = Icons.Default.Lightbulb
+                                    )
+                                }
+                                items(displayGrammar) { grammar ->
+                                    BookmarkGrammarCard(
+                                        grammarPoint = grammar,
+                                        onNavigateToDetails = {},
+                                        onDelete = {},
+                                        onToggleArchive = {}
+                                    )
                                 }
                             }
                             
-                            if (targetTimeRange != StatisticsTimeRange.DAILY && (summary.analyzedSentences.size > 5 || summary.bookmarkedVocabulary.size > 5)) {
+                            if (displaySentences.isEmpty() && displayBookmarks.isEmpty() && displayGrammar.isEmpty()) {
+                                item {
+                                    EmptyStateView()
+                                }
+                            }
+                            
+                            if (uiState.selectedDetailDate != null || (targetTimeRange != StatisticsTimeRange.DAILY && (summary.analyzedSentences.size > 5 || summary.bookmarkedVocabulary.size > 5 || summary.bookmarkedGrammar.size > 5))) {
                                 item {
                                     OutlinedButton(
-                                        onClick = onNavigateBack,
+                                        onClick = onNavigateToHistory,
                                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = sumiInk)
                                     ) {
@@ -185,9 +284,40 @@ fun StatisticsScreen(
                             }
                         }
                     }
+
+                    if (uiState.isLoading) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
+                            color = ZenColors.AizomeIndigo,
+                            trackColor = Color.Transparent
+                        )
+                    }
                 }
             }
         }
+    }
+}
+}
+
+@Composable
+fun EmptyStateView() {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.Inbox,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = ZenThemeColors.sumiInk().copy(alpha = 0.3f)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.statistics_empty_state_title),
+            style = MaterialTheme.typography.bodyLarge,
+            color = ZenThemeColors.sumiInk().copy(alpha = 0.5f),
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -206,15 +336,47 @@ fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.Image
 }
 
 @Composable
-fun ActivityCard(content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = ZenThemeColors.cardBg()),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            content()
+fun rememberMarker(onEntrySelected: (Int) -> Unit): Marker {
+    val labelBackgroundColor = ZenThemeColors.cardBg().toArgb()
+    val sumiInkArgb = ZenThemeColors.sumiInk().toArgb()
+    val aizomeIndigoArgb = ZenColors.AizomeIndigo.toArgb()
+
+    val labelBackground = com.patrykandpatrick.vico.core.component.shape.ShapeComponent(
+        shape = com.patrykandpatrick.vico.core.component.shape.Shapes.pillShape,
+        color = labelBackgroundColor
+    ).apply {
+        setShadow(radius = 4f, dy = 2f, color = android.graphics.Color.argb(50, 0, 0, 0))
+    }
+    
+    val label = com.patrykandpatrick.vico.core.component.text.TextComponent.Builder().apply {
+        color = sumiInkArgb
+        background = labelBackground
+        padding = com.patrykandpatrick.vico.core.dimensions.MutableDimensions(8f, 4f, 8f, 4f)
+    }.build()
+
+    val indicator = com.patrykandpatrick.vico.core.component.shape.ShapeComponent(
+        shape = com.patrykandpatrick.vico.core.component.shape.Shapes.pillShape,
+        color = aizomeIndigoArgb
+    )
+
+    val guideline = com.patrykandpatrick.vico.core.component.shape.LineComponent(
+        color = ZenThemeColors.sumiInk().copy(alpha = 0.1f).toArgb(),
+        thicknessDp = 2f
+    )
+
+    return remember(label, indicator, guideline) {
+        object : MarkerComponent(label, indicator, guideline) {
+            override fun draw(
+                context: DrawContext,
+                bounds: RectF,
+                markedEntries: List<Marker.EntryModel>,
+                chartValuesProvider: com.patrykandpatrick.vico.core.chart.values.ChartValuesProvider
+            ) {
+                super.draw(context, bounds, markedEntries, chartValuesProvider)
+                markedEntries.firstOrNull()?.let {
+                    onEntrySelected(it.index)
+                }
+            }
         }
     }
 }
@@ -371,7 +533,8 @@ fun SummaryCard(modifier: Modifier = Modifier, title: String, value: String, ico
 @Composable
 fun ChartSection(
     chartData: List<com.example.japanesegrammarapp.domain.ChartDataPoint>,
-    timeRange: StatisticsTimeRange
+    timeRange: StatisticsTimeRange,
+    onDateSelected: (LocalDate?) -> Unit = {}
 ) {
     if (chartData.isEmpty()) return
 
@@ -384,6 +547,11 @@ fun ChartSection(
         chartData.getOrNull(value.toInt())?.label ?: ""
     }
     
+    val marker = rememberMarker { index ->
+        val date = chartData.getOrNull(index)?.date
+        onDateSelected(date)
+    }
+
     val sumiInk = ZenThemeColors.sumiInk()
     val aizomeIndigo = ZenColors.AizomeIndigo
 
@@ -423,6 +591,7 @@ fun ChartSection(
                     axis = com.patrykandpatrick.vico.compose.component.lineComponent(color = sumiInk.copy(alpha = 0.1f)),
                     tick = null
                 ),
+                marker = marker,
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -430,7 +599,12 @@ fun ChartSection(
 }
 
 @Composable
-fun HeatmapSection(heatmapData: Map<LocalDate, Int>, yearDate: LocalDate) {
+fun HeatmapSection(
+    heatmapData: Map<LocalDate, Int>, 
+    yearDate: LocalDate,
+    selectedDetailDate: LocalDate? = null,
+    onDateSelected: (LocalDate?) -> Unit = {}
+) {
     val sumiInk = ZenThemeColors.sumiInk()
     val matchaGreen = ZenColors.MatchaGreen
 
@@ -472,10 +646,23 @@ fun HeatmapSection(heatmapData: Map<LocalDate, Int>, yearDate: LocalDate) {
                                     count < 20 -> matchaGreen.copy(alpha = 0.8f)
                                     else -> matchaGreen
                                 }
+                                val animatedColor by animateColorAsState(
+                                    targetValue = color,
+                                    animationSpec = tween(500),
+                                    label = "HeatmapColor"
+                                )
                                 Box(
                                     modifier = Modifier
                                         .size(14.dp)
-                                        .background(color, RoundedCornerShape(4.dp))
+                                        .background(animatedColor, RoundedCornerShape(4.dp))
+                                        .let {
+                                            if (selectedDetailDate == currentDate) {
+                                                it.border(1.dp, ZenColors.AizomeIndigo, RoundedCornerShape(4.dp))
+                                            } else it
+                                        }
+                                        .clickable {
+                                            onDateSelected(if (selectedDetailDate == currentDate) null else currentDate)
+                                        }
                                 )
                             } else {
                                 Box(modifier = Modifier.size(14.dp))

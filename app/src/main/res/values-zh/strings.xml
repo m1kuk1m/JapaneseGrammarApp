@@ -635,4 +635,5 @@
     <string name="statistics_view_full_history">查看完整历史</string>
     <string name="statistics_analysis_count">分析次数</string>
     <string name="statistics_heatmap_title">学习连续性</string>
+    <string name="statistics_empty_state_title">今天还没有学习哦，去分析一个句子吧！</string>
 </resources>

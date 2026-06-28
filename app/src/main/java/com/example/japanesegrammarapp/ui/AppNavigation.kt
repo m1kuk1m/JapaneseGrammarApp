@@ -900,7 +900,8 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             }
         ) {
             com.example.japanesegrammarapp.ui.statistics.StatisticsScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToHistory = { navController.navigate("bookmarks") }
             )
         }
     }
