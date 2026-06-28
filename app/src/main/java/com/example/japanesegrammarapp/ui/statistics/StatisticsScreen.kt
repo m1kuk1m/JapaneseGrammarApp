@@ -1,19 +1,22 @@
 package com.example.japanesegrammarapp.ui.statistics
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +37,8 @@ import com.example.japanesegrammarapp.ui.screens.EditWordDialog
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onGloballyPositioned
 import com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain
+import com.example.japanesegrammarapp.domain.model.effectivePosCategory
+import androidx.compose.ui.draw.rotate
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
@@ -56,6 +61,8 @@ import com.patrykandpatrick.vico.core.component.shape.Shapes
 import com.patrykandpatrick.vico.core.context.DrawContext
 import android.graphics.RectF
 import com.patrykandpatrick.vico.compose.dimensions.dimensionsOf
+
+enum class StatisticsModalType { SENTENCES, WORDS, GRAMMAR }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,6 +97,10 @@ fun StatisticsScreen(
                 .padding(paddingValues)
         ) {
             var transitionTarget by remember { mutableStateOf<Triple<StatisticsTimeRange, LocalDate, com.example.japanesegrammarapp.domain.StatisticsSummary>?>(null) }
+            var activeModalType by rememberSaveable { mutableStateOf<StatisticsModalType?>(null) }
+            val sentencesListState = rememberLazyListState()
+            val wordsListState = rememberLazyListState()
+            val grammarListState = rememberLazyListState()
             
             LaunchedEffect(uiState) {
                 val summary = uiState.summary
@@ -225,8 +236,8 @@ fun StatisticsScreen(
                                     if (allSentences.size > 3) {
                                         item {
                                             ViewAllButton(
-                                                text = "在历史记录中查看全部 ${allSentences.size} 个句子 →",
-                                                onClick = onNavigateToHistory
+                                                text = "查看全部 ${allSentences.size} 个句子 →",
+                                                onClick = { activeModalType = StatisticsModalType.SENTENCES }
                                             )
                                         }
                                     }
@@ -252,8 +263,8 @@ fun StatisticsScreen(
                                     if (allBookmarks.size > 3) {
                                         item {
                                             ViewAllButton(
-                                                text = "在历史记录中查看全部 ${allBookmarks.size} 个词汇 →",
-                                                onClick = onNavigateToHistory
+                                                text = "查看全部 ${allBookmarks.size} 个词汇 →",
+                                                onClick = { activeModalType = StatisticsModalType.WORDS }
                                             )
                                         }
                                     }
@@ -279,8 +290,8 @@ fun StatisticsScreen(
                                     if (allGrammar.size > 3) {
                                         item {
                                             ViewAllButton(
-                                                text = "在历史记录中查看全部 ${allGrammar.size} 个语法 →",
-                                                onClick = onNavigateToHistory
+                                                text = "查看全部 ${allGrammar.size} 个语法 →",
+                                                onClick = { activeModalType = StatisticsModalType.GRAMMAR }
                                             )
                                         }
                                     }
@@ -289,6 +300,95 @@ fun StatisticsScreen(
                                 if (allSentences.isEmpty() && allBookmarks.isEmpty() && allGrammar.isEmpty()) {
                                     item {
                                         EmptyStateView()
+                                    }
+                                }
+                            }
+
+                            // Modal Bottom Sheet to show all items of a category
+                            if (activeModalType != null) {
+                                val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+                                ModalBottomSheet(
+                                    onDismissRequest = { activeModalType = null },
+                                    sheetState = sheetState,
+                                    containerColor = washiBg,
+                                    dragHandle = { BottomSheetDefaults.DragHandle(color = sumiInk.copy(alpha = 0.4f)) }
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .fillMaxHeight(0.85f)
+                                            .padding(horizontal = 16.dp)
+                                    ) {
+                                        val title = when (activeModalType) {
+                                            StatisticsModalType.SENTENCES -> "所有已分析句子 (${allSentences.size})"
+                                            StatisticsModalType.WORDS -> "所有已收藏词汇 (${allBookmarks.size})"
+                                            StatisticsModalType.GRAMMAR -> "所有已学习语法 (${allGrammar.size})"
+                                            null -> ""
+                                        }
+                                        
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = title,
+                                                style = MaterialTheme.typography.titleLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                color = sumiInk
+                                            )
+                                            IconButton(onClick = { activeModalType = null }) {
+                                                Icon(Icons.Default.Close, contentDescription = "关闭", tint = sumiInk)
+                                            }
+                                        }
+                                        
+                                        val listState = when (activeModalType) {
+                                            StatisticsModalType.SENTENCES -> sentencesListState
+                                            StatisticsModalType.WORDS -> wordsListState
+                                            StatisticsModalType.GRAMMAR -> grammarListState
+                                            null -> rememberLazyListState()
+                                        }
+
+                                        LazyColumn(
+                                            state = listState,
+                                            modifier = Modifier.fillMaxSize(),
+                                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                                            contentPadding = PaddingValues(bottom = 32.dp)
+                                        ) {
+                                            when (activeModalType) {
+                                                StatisticsModalType.SENTENCES -> {
+                                                    items(allSentences) { record ->
+                                                        DetailedSentenceItem(
+                                                            record = record,
+                                                            onClickNavigate = {
+                                                                onNavigateToRecord(record.recordId, record.id)
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                                StatisticsModalType.WORDS -> {
+                                                    items(allBookmarks) { bookmark ->
+                                                        ExpandableWordItem(
+                                                            bookmark = bookmark,
+                                                            onClickNavigate = {
+                                                                onNavigateToRecord(bookmark.recordId, bookmark.id)
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                                StatisticsModalType.GRAMMAR -> {
+                                                    items(allGrammar) { grammar ->
+                                                        DetailedGrammarItem(
+                                                            grammar = grammar,
+                                                            onClick = {
+                                                                onNavigateToRecord(grammar.recordId, -1)
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                                null -> {}
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -759,5 +859,304 @@ fun ViewAllButton(
             .padding(vertical = 12.dp),
         textAlign = TextAlign.Center
     )
+}
+
+@Composable
+fun DetailedSentenceItem(
+    record: com.example.japanesegrammarapp.domain.model.BookmarkedSentenceDomain,
+    onClickNavigate: () -> Unit
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val cardBg = ZenThemeColors.cardBg()
+    val sumiInk = ZenThemeColors.sumiInk()
+    
+    val expandRotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        animationSpec = tween(300, easing = FastOutSlowInEasing),
+        label = "expandArrow"
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { isExpanded = !isExpanded },
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, sumiInk.copy(alpha = 0.08f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = record.originalText,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = sumiInk,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f)
+                )
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!record.translation.isNullOrBlank()) {
+                        IconButton(
+                            onClick = { isExpanded = !isExpanded },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ExpandMore,
+                                contentDescription = if (isExpanded) "折叠" else "展开",
+                                tint = sumiInk.copy(alpha = 0.4f),
+                                modifier = Modifier.rotate(expandRotation)
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = onClickNavigate,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowForward,
+                            contentDescription = "查看记录",
+                            tint = ZenColors.AizomeIndigo,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            if (!record.translation.isNullOrBlank()) {
+                AnimatedVisibility(
+                    visible = isExpanded,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                        Surface(
+                            color = ZenThemeColors.pillBg().copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = record.translation,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = sumiInk.copy(alpha = 0.8f),
+                                modifier = Modifier.padding(10.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ExpandableWordItem(
+    bookmark: com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain,
+    onClickNavigate: () -> Unit
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val cardBg = ZenThemeColors.cardBg()
+    val sumiInk = ZenThemeColors.sumiInk()
+    
+    val expandRotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        animationSpec = tween(300, easing = FastOutSlowInEasing),
+        label = "expandArrow"
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { isExpanded = !isExpanded },
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, sumiInk.copy(alpha = 0.08f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = bookmark.segmentText,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = sumiInk
+                        )
+                        if (!bookmark.reading.isNullOrBlank() && bookmark.reading != bookmark.segmentText) {
+                            Text(
+                                text = bookmark.reading,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = sumiInk.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                    if (!bookmark.partOfSpeech.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        val posCat = bookmark.effectivePosCategory
+                        val chipBg = ZenThemeColors.getChipColor(posCat)
+                        Surface(color = chipBg, shape = RoundedCornerShape(4.dp)) {
+                            Text(
+                                text = bookmark.partOfSpeech,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = sumiInk.copy(alpha = 0.75f),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = { isExpanded = !isExpanded },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ExpandMore,
+                            contentDescription = if (isExpanded) "折叠" else "展开",
+                            tint = sumiInk.copy(alpha = 0.4f),
+                            modifier = Modifier.rotate(expandRotation)
+                        )
+                    }
+                    IconButton(
+                        onClick = onClickNavigate,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowForward,
+                            contentDescription = "查看关联记录",
+                            tint = ZenColors.AizomeIndigo,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                    if (!bookmark.meaning.isNullOrBlank()) {
+                        Surface(
+                            color = ZenColors.KuriAmber.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = bookmark.meaning,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = sumiInk,
+                                modifier = Modifier.padding(10.dp)
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (!bookmark.dictionaryForm.isNullOrBlank()) {
+                            DetailRow("原型", bookmark.dictionaryForm, sumiInk)
+                        }
+                        if (!bookmark.inflection.isNullOrBlank()) {
+                            DetailRow("活用形", bookmark.inflection, sumiInk)
+                        }
+                        if (!bookmark.role.isNullOrBlank()) {
+                            DetailRow("句中角色", bookmark.role, sumiInk)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DetailedGrammarItem(
+    grammar: com.example.japanesegrammarapp.domain.model.BookmarkedGrammarPointDomain,
+    onClick: () -> Unit
+) {
+    val cardBg = ZenThemeColors.cardBg()
+    val sumiInk = ZenThemeColors.sumiInk()
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, sumiInk.copy(alpha = 0.08f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = grammar.pattern,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = sumiInk
+            )
+            if (!grammar.explanation.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = grammar.explanation,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = sumiInk.copy(alpha = 0.7f)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "查看关联分析",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = ZenColors.AizomeIndigo
+                )
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = ZenColors.AizomeIndigo,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailRow(label: String, value: String, sumiInk: Color) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = sumiInk.copy(alpha = 0.5f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            color = sumiInk,
+            fontWeight = FontWeight.Medium
+        )
+    }
 }
 
