@@ -102,7 +102,9 @@
     <string name="history_status_pending">分析中</string>
     <string name="history_status_error">エラー</string>
     <string name="export">エクスポート</string>
-    <string name="new_analysis">新規分析</string>
+    <string name="new_analysis">新しい解析</string>
+    <string name="history_today">今日</string>
+    <string name="history_yesterday">昨日</string>
 
     <string name="language">言語設定</string>
     <string name="language_auto">システムに従う</string>
