@@ -27,7 +27,9 @@ data class StatisticsUiState(
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
     private val repository: StatisticsRepository,
-    val uiPreferencesRepository: com.example.japanesegrammarapp.domain.repository.UiPreferencesRepository
+    val uiPreferencesRepository: com.example.japanesegrammarapp.domain.repository.UiPreferencesRepository,
+    private val bookmarkRepository: com.example.japanesegrammarapp.domain.repository.BookmarkRepository,
+    private val ttsRepository: com.example.japanesegrammarapp.domain.repository.TtsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StatisticsUiState())
@@ -86,5 +88,67 @@ class StatisticsViewModel @Inject constructor(
                 _uiState.update { it.copy(isLoading = false, error = e.localizedMessage ?: "Unknown error") }
             }
         }
+    }
+
+    fun removeBookmark(id: Int) {
+        viewModelScope.launch {
+            bookmarkRepository.removeBookmarkById(id)
+            loadStatistics()
+        }
+    }
+
+    fun removeSentenceBookmark(id: Int) {
+        viewModelScope.launch {
+            bookmarkRepository.deleteSentenceBookmark(id)
+            loadStatistics()
+        }
+    }
+
+    fun removeGrammarPointBookmark(id: Int) {
+        viewModelScope.launch {
+            bookmarkRepository.deleteGrammarPointById(id)
+            loadStatistics()
+        }
+    }
+
+    fun toggleArchiveBookmark(id: Int, isArchived: Boolean) {
+        viewModelScope.launch {
+            bookmarkRepository.updateArchivedStatus(id, isArchived)
+            loadStatistics()
+        }
+    }
+
+    fun toggleArchiveSentence(id: Int, isArchived: Boolean) {
+        viewModelScope.launch {
+            bookmarkRepository.setSentenceArchivedStatus(id, isArchived)
+            loadStatistics()
+        }
+    }
+
+    fun toggleArchiveGrammarPoint(id: Int, isArchived: Boolean) {
+        viewModelScope.launch {
+            bookmarkRepository.setGrammarPointArchivedStatus(id, isArchived)
+            loadStatistics()
+        }
+    }
+
+    fun updateWordBookmark(bookmark: com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain) {
+        viewModelScope.launch {
+            bookmarkRepository.updateWordBookmark(bookmark)
+            loadStatistics()
+        }
+    }
+
+    fun playTts(text: String) {
+        ttsRepository.playText(text)
+    }
+
+    fun playSentenceTts(analysisResult: String?, originalText: String) {
+        val kana = analysisResult?.let {
+            val lines = it.split("\n")
+            val kanaLine = lines.find { line -> line.startsWith("Reading:") || line.startsWith("Kana:") || line.startsWith("読み：") }
+            kanaLine?.substringAfter(":")?.trim()
+        }
+        ttsRepository.playText(kana ?: originalText)
     }
 }

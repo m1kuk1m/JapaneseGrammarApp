@@ -30,6 +30,10 @@ import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
 import com.example.japanesegrammarapp.ui.screens.SentenceBookmarkCard
 import com.example.japanesegrammarapp.ui.screens.BookmarkCard
 import com.example.japanesegrammarapp.ui.screens.BookmarkGrammarCard
+import com.example.japanesegrammarapp.ui.screens.EditWordDialog
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onGloballyPositioned
+import com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
@@ -58,6 +62,7 @@ import com.patrykandpatrick.vico.compose.dimensions.dimensionsOf
 fun StatisticsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToHistory: () -> Unit,
+    onNavigateToRecord: (Int, Int) -> Unit,
     viewModel: StatisticsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -75,38 +80,15 @@ fun StatisticsScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = sumiInk)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = cardBg)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = cardBg,
-                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                shadowElevation = 2.dp
-            ) {
-                Column(
-                    modifier = Modifier.padding(bottom = 16.dp, top = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    TimeRangeSegmentedControl(
-                        selectedTimeRange = uiState.timeRange,
-                        onTimeRangeSelected = { viewModel.setTimeRange(it) }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TimeNavigator(
-                        uiState = uiState,
-                        onNavigatePrevious = { viewModel.navigatePrevious() },
-                        onNavigateNext = { viewModel.navigateNext() }
-                    )
-                }
-            }
-
             var transitionTarget by remember { mutableStateOf<Triple<StatisticsTimeRange, LocalDate, com.example.japanesegrammarapp.domain.StatisticsSummary>?>(null) }
             
             LaunchedEffect(uiState) {
@@ -115,6 +97,10 @@ fun StatisticsScreen(
                     transitionTarget = Triple(uiState.timeRange, uiState.referenceDate, summary)
                 }
             }
+
+            var pendingDeleteId by remember { mutableStateOf<Int?>(null) }
+            var expandedId by remember { mutableStateOf<Int?>(null) }
+            var editingBookmark by remember { mutableStateOf<BookmarkedSegmentDomain?>(null) }
 
             if (uiState.isLoading && transitionTarget == null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -152,136 +138,180 @@ fun StatisticsScreen(
                             },
                             label = "TimeRangeTransition"
                         ) { (targetTimeRange, _, summary) ->
-                        val selectedDate = uiState.selectedDetailDate
-                        val displaySentences = selectedDate?.let { date ->
-                            summary.analyzedSentences.filter { 
-                                java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
-                            }
-                        } ?: if (targetTimeRange == StatisticsTimeRange.DAILY) summary.analyzedSentences else summary.analyzedSentences.take(5)
-
-                        val displayBookmarks = selectedDate?.let { date ->
-                            summary.bookmarkedVocabulary.filter {
-                                java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
-                            }
-                        } ?: if (targetTimeRange == StatisticsTimeRange.DAILY) summary.bookmarkedVocabulary else summary.bookmarkedVocabulary.take(5)
-
-                        val displayGrammar = selectedDate?.let { date ->
-                            summary.bookmarkedGrammar.filter {
-                                java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
-                            }
-                        } ?: if (targetTimeRange == StatisticsTimeRange.DAILY) summary.bookmarkedGrammar else summary.bookmarkedGrammar.take(5)
-
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            item {
-                                SummaryCards(summary = summary)
-                            }
-
-                            item {
-                                if (targetTimeRange == StatisticsTimeRange.YEARLY) {
-                                    HeatmapSection(
-                                        heatmapData = summary.heatmapData,
-                                        yearDate = uiState.referenceDate,
-                                        selectedDetailDate = uiState.selectedDetailDate,
-                                        onDateSelected = { viewModel.setSelectedDetailDate(it) }
-                                    )
-                                } else {
-                                    ChartSection(
-                                        chartData = summary.chartData,
-                                        timeRange = targetTimeRange,
-                                        onDateSelected = { viewModel.setSelectedDetailDate(it) }
-                                    )
-                                }
-                            }
+                            val selectedDate = uiState.selectedDetailDate
                             
-                            if (displaySentences.isNotEmpty()) {
-                                item {
-                                    SectionHeader(
-                                        title = if (uiState.selectedDetailDate != null) {
-                                            uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.statistics_section_analyzed_sentences)
-                                        } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.statistics_section_analyzed_sentences) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_analyzed_sentences),
-                                        icon = Icons.Default.Analytics
-                                    )
+                            val allSentences = selectedDate?.let { date ->
+                                summary.analyzedSentences.filter { 
+                                    java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
                                 }
-                                items(displaySentences) { record ->
-                                    SentenceBookmarkCard(
-                                        sentence = record,
-                                        onNavigateToDetails = {},
-                                        onPlayTts = {},
-                                        onDelete = {},
-                                        onToggleArchive = {}
-                                    )
-                                }
-                            }
+                            } ?: summary.analyzedSentences
+                            val displaySentences = allSentences.take(3)
 
-                            if (displayBookmarks.isNotEmpty()) {
-                                item {
-                                    SectionHeader(
-                                        title = if (uiState.selectedDetailDate != null) {
-                                            uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.statistics_section_bookmarked_vocabulary)
-                                        } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.statistics_section_bookmarked_vocabulary) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_bookmarked_vocabulary),
-                                        icon = Icons.Default.Bookmark
-                                    )
+                            val allBookmarks = selectedDate?.let { date ->
+                                summary.bookmarkedVocabulary.filter {
+                                    java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
                                 }
-                                items(displayBookmarks) { bookmark ->
-                                    var isExpanded by remember { mutableStateOf(false) }
-                                    BookmarkCard(
-                                        bookmark = bookmark,
-                                        isExpanded = isExpanded,
-                                        isPendingDelete = false,
-                                        isDark = ZenThemeColors.isDark(),
-                                        uiPreferencesRepository = viewModel.uiPreferencesRepository,
-                                        onClick = { isExpanded = !isExpanded },
-                                        onLongPress = {},
-                                        onConfirmDelete = {},
-                                        onCancelDelete = {},
-                                        onNavigateToSource = {},
-                                        onToggleArchive = {},
-                                        onPlayTts = {},
-                                        onEdit = {}
-                                    )
-                                }
-                            }
+                            } ?: summary.bookmarkedVocabulary
+                            val displayBookmarks = allBookmarks.take(3)
 
-                            if (displayGrammar.isNotEmpty()) {
-                                item {
-                                    SectionHeader(
-                                        title = if (uiState.selectedDetailDate != null) {
-                                            uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.grammar_label)
-                                        } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.grammar_label) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.grammar_label),
-                                        icon = Icons.Default.Lightbulb
-                                    )
+                            val allGrammar = selectedDate?.let { date ->
+                                summary.bookmarkedGrammar.filter {
+                                    java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
                                 }
-                                items(displayGrammar) { grammar ->
-                                    BookmarkGrammarCard(
-                                        grammarPoint = grammar,
-                                        onNavigateToDetails = {},
-                                        onDelete = {},
-                                        onToggleArchive = {}
-                                    )
-                                }
-                            }
-                            
-                            if (displaySentences.isEmpty() && displayBookmarks.isEmpty() && displayGrammar.isEmpty()) {
+                            } ?: summary.bookmarkedGrammar
+                            val displayGrammar = allGrammar.take(3)
+
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(top = 8.dp, bottom = 32.dp, start = 16.dp, end = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(24.dp)
+                            ) {
                                 item {
-                                    EmptyStateView()
-                                }
-                            }
-                            
-                            if (uiState.selectedDetailDate != null || (targetTimeRange != StatisticsTimeRange.DAILY && (summary.analyzedSentences.size > 5 || summary.bookmarkedVocabulary.size > 5 || summary.bookmarkedGrammar.size > 5))) {
-                                item {
-                                    OutlinedButton(
-                                        onClick = onNavigateToHistory,
-                                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = sumiInk)
+                                    Column(
+                                        modifier = Modifier.padding(bottom = 8.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        Text(stringResource(R.string.statistics_view_full_history))
+                                        TimeRangeSegmentedControl(
+                                            selectedTimeRange = uiState.timeRange,
+                                            onTimeRangeSelected = { viewModel.setTimeRange(it) }
+                                        )
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        TimeNavigator(
+                                            uiState = uiState,
+                                            onNavigatePrevious = { viewModel.navigatePrevious() },
+                                            onNavigateNext = { viewModel.navigateNext() }
+                                        )
+                                    }
+                                }
+
+                                item {
+                                    SummaryCards(summary = summary)
+                                }
+
+                                item {
+                                    if (targetTimeRange == StatisticsTimeRange.YEARLY) {
+                                        HeatmapSection(
+                                            heatmapData = summary.heatmapData,
+                                            yearDate = uiState.referenceDate,
+                                            selectedDetailDate = uiState.selectedDetailDate,
+                                            onDateSelected = { viewModel.setSelectedDetailDate(it) }
+                                        )
+                                    } else {
+                                        ChartSection(
+                                            chartData = summary.chartData,
+                                            timeRange = targetTimeRange,
+                                            onDateSelected = { viewModel.setSelectedDetailDate(it) }
+                                        )
+                                    }
+                                }
+                                
+                                if (allSentences.isNotEmpty()) {
+                                    item {
+                                        SectionHeader(
+                                            title = if (uiState.selectedDetailDate != null) {
+                                                uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.statistics_section_analyzed_sentences)
+                                            } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.statistics_section_analyzed_sentences) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_analyzed_sentences),
+                                            icon = Icons.Default.Analytics
+                                        )
+                                    }
+                                    items(displaySentences) { record ->
+                                        CompactActivityItem(
+                                            text = record.originalText,
+                                            secondaryText = record.translation?.takeIf { it.isNotBlank() },
+                                            timestamp = record.bookmarkedAt,
+                                            onClick = { onNavigateToRecord(record.recordId, record.id) }
+                                        )
+                                    }
+                                    if (allSentences.size > 3) {
+                                        item {
+                                            ViewAllButton(
+                                                text = "在历史记录中查看全部 ${allSentences.size} 个句子 →",
+                                                onClick = onNavigateToHistory
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (allBookmarks.isNotEmpty()) {
+                                    item {
+                                        SectionHeader(
+                                            title = if (uiState.selectedDetailDate != null) {
+                                                uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.statistics_section_bookmarked_vocabulary)
+                                            } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.statistics_section_bookmarked_vocabulary) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_bookmarked_vocabulary),
+                                            icon = Icons.Default.Bookmark
+                                        )
+                                    }
+                                    items(displayBookmarks) { bookmark ->
+                                        CompactActivityItem(
+                                            text = bookmark.segmentText,
+                                            secondaryText = bookmark.meaning,
+                                            timestamp = bookmark.bookmarkedAt,
+                                            onClick = { onNavigateToRecord(bookmark.recordId, bookmark.id) }
+                                        )
+                                    }
+                                    if (allBookmarks.size > 3) {
+                                        item {
+                                            ViewAllButton(
+                                                text = "在历史记录中查看全部 ${allBookmarks.size} 个词汇 →",
+                                                onClick = onNavigateToHistory
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (allGrammar.isNotEmpty()) {
+                                    item {
+                                        SectionHeader(
+                                            title = if (uiState.selectedDetailDate != null) {
+                                                uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.grammar_label)
+                                            } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.grammar_label) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.grammar_label),
+                                            icon = Icons.Default.Lightbulb
+                                        )
+                                    }
+                                    items(displayGrammar) { grammar ->
+                                        CompactActivityItem(
+                                            text = grammar.pattern,
+                                            secondaryText = grammar.explanation,
+                                            timestamp = grammar.bookmarkedAt,
+                                            onClick = { onNavigateToRecord(grammar.recordId, -1) }
+                                        )
+                                    }
+                                    if (allGrammar.size > 3) {
+                                        item {
+                                            ViewAllButton(
+                                                text = "在历史记录中查看全部 ${allGrammar.size} 个语法 →",
+                                                onClick = onNavigateToHistory
+                                            )
+                                        }
+                                    }
+                                }
+                                
+                                if (allSentences.isEmpty() && allBookmarks.isEmpty() && allGrammar.isEmpty()) {
+                                    item {
+                                        EmptyStateView()
                                     }
                                 }
                             }
+                        }
+
+                        editingBookmark?.let { bm ->
+                            EditWordDialog(
+                                initialDictionaryForm = bm.dictionaryForm ?: "",
+                                initialReading = bm.reading ?: "",
+                                initialMeaning = bm.meaning ?: "",
+                                initialPartOfSpeech = bm.partOfSpeech ?: "",
+                                onDismiss = { editingBookmark = null },
+                                onSave = { dictionaryForm, reading, meaning, partOfSpeech ->
+                                    val updatedBookmark = bm.copy(
+                                        dictionaryForm = dictionaryForm.takeIf { it.isNotBlank() },
+                                        reading = reading.takeIf { it.isNotBlank() },
+                                        meaning = meaning.takeIf { it.isNotBlank() },
+                                        partOfSpeech = partOfSpeech.takeIf { it.isNotBlank() }
+                                    )
+                                    viewModel.updateWordBookmark(updatedBookmark)
+                                    editingBookmark = null
+                                }
+                            )
                         }
                     }
 
@@ -296,7 +326,6 @@ fun StatisticsScreen(
             }
         }
     }
-}
 }
 
 @Composable
@@ -323,7 +352,7 @@ fun EmptyStateView() {
 
 @Composable
 fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)) {
         Icon(icon, contentDescription = null, tint = ZenColors.AizomeIndigo, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text(
@@ -472,61 +501,60 @@ fun TimeNavigator(
 
 @Composable
 fun SummaryCards(summary: com.example.japanesegrammarapp.domain.StatisticsSummary) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        SummaryCard(
-            modifier = Modifier.weight(1f),
-            title = stringResource(R.string.statistics_total_analyses),
-            value = summary.totalAnalyses.toString(),
-            icon = Icons.Default.Analytics,
-            tint = ZenColors.AizomeIndigo
+        Text(
+            text = summary.totalAnalyses.toString(),
+            style = MaterialTheme.typography.displayLarge,
+            fontWeight = FontWeight.Bold,
+            color = ZenColors.AizomeIndigo
         )
-        SummaryCard(
-            modifier = Modifier.weight(1f),
-            title = stringResource(R.string.statistics_total_tokens),
-            value = summary.totalTokens.toString(),
-            icon = Icons.Default.Timeline,
-            tint = ZenColors.MatchaGreen
+        Text(
+            text = stringResource(R.string.statistics_total_analyses),
+            style = MaterialTheme.typography.titleMedium,
+            color = ZenThemeColors.sumiInk().copy(alpha = 0.7f)
         )
-        SummaryCard(
-            modifier = Modifier.weight(1f),
-            title = stringResource(R.string.statistics_total_bookmarks),
-            value = summary.totalBookmarks.toString(),
-            icon = Icons.Default.Bookmark,
-            tint = ZenColors.KuriAmber
-        )
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            SummaryCardItem(
+                title = stringResource(R.string.statistics_total_tokens),
+                value = summary.totalTokens.toString(),
+                icon = Icons.Default.Timeline,
+                tint = ZenColors.MatchaGreen
+            )
+            Divider(
+                modifier = Modifier.height(40.dp).width(1.dp).align(Alignment.CenterVertically),
+                color = ZenThemeColors.sumiInk().copy(alpha = 0.1f)
+            )
+            SummaryCardItem(
+                title = stringResource(R.string.statistics_total_bookmarks),
+                value = summary.totalBookmarks.toString(),
+                icon = Icons.Default.Bookmark,
+                tint = ZenColors.KuriAmber
+            )
+        }
     }
 }
 
 @Composable
-fun SummaryCard(modifier: Modifier = Modifier, title: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = ZenThemeColors.cardBg()),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+fun SummaryCardItem(title: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(tint.copy(alpha = 0.15f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
-            }
-            Spacer(modifier = Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(text = value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = ZenThemeColors.sumiInk())
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = title, style = MaterialTheme.typography.bodySmall, color = ZenThemeColors.sumiInk().copy(alpha = 0.7f), textAlign = TextAlign.Center)
         }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(text = title, style = MaterialTheme.typography.bodySmall, color = ZenThemeColors.sumiInk().copy(alpha = 0.7f))
     }
 }
 
@@ -555,46 +583,39 @@ fun ChartSection(
     val sumiInk = ZenThemeColors.sumiInk()
     val aizomeIndigo = ZenColors.AizomeIndigo
 
-    Card(
-        modifier = Modifier.fillMaxWidth().height(260.dp),
-        colors = CardDefaults.cardColors(containerColor = ZenThemeColors.cardBg()),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.BarChart, contentDescription = null, tint = aizomeIndigo, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = stringResource(R.string.statistics_analysis_count), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sumiInk)
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Chart(
-                chart = columnChart(
-                    columns = listOf(
-                        LineComponent(
-                            color = aizomeIndigo.toArgb(),
-                            thicknessDp = 12f,
-                            shape = com.patrykandpatrick.vico.core.component.shape.Shapes.roundedCornerShape(topLeftPercent = 50, topRightPercent = 50)
-                        )
-                    )
-                ),
-                model = chartEntryModel,
-                startAxis = rememberStartAxis(
-                    label = com.patrykandpatrick.vico.compose.component.textComponent(color = sumiInk.copy(alpha = 0.7f)),
-                    axis = null,
-                    tick = null,
-                    guideline = com.patrykandpatrick.vico.compose.component.lineComponent(color = sumiInk.copy(alpha = 0.1f))
-                ),
-                bottomAxis = rememberBottomAxis(
-                    valueFormatter = bottomAxisFormatter,
-                    label = com.patrykandpatrick.vico.compose.component.textComponent(color = sumiInk.copy(alpha = 0.7f)),
-                    axis = com.patrykandpatrick.vico.compose.component.lineComponent(color = sumiInk.copy(alpha = 0.1f)),
-                    tick = null
-                ),
-                marker = marker,
-                modifier = Modifier.fillMaxSize()
-            )
+    Column(modifier = Modifier.fillMaxWidth().height(260.dp).padding(vertical = 16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.BarChart, contentDescription = null, tint = aizomeIndigo, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = stringResource(R.string.statistics_analysis_count), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sumiInk)
         }
+        Spacer(modifier = Modifier.height(16.dp))
+        Chart(
+            chart = columnChart(
+                columns = listOf(
+                    LineComponent(
+                        color = aizomeIndigo.toArgb(),
+                        thicknessDp = 12f,
+                        shape = com.patrykandpatrick.vico.core.component.shape.Shapes.roundedCornerShape(topLeftPercent = 50, topRightPercent = 50)
+                    )
+                )
+            ),
+            model = chartEntryModel,
+            startAxis = rememberStartAxis(
+                label = com.patrykandpatrick.vico.compose.component.textComponent(color = sumiInk.copy(alpha = 0.7f)),
+                axis = null,
+                tick = null,
+                guideline = com.patrykandpatrick.vico.compose.component.lineComponent(color = sumiInk.copy(alpha = 0.1f))
+            ),
+            bottomAxis = rememberBottomAxis(
+                valueFormatter = bottomAxisFormatter,
+                label = com.patrykandpatrick.vico.compose.component.textComponent(color = sumiInk.copy(alpha = 0.7f)),
+                axis = com.patrykandpatrick.vico.compose.component.lineComponent(color = sumiInk.copy(alpha = 0.1f)),
+                tick = null
+            ),
+            marker = marker,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
@@ -608,70 +629,135 @@ fun HeatmapSection(
     val sumiInk = ZenThemeColors.sumiInk()
     val matchaGreen = ZenColors.MatchaGreen
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = ZenThemeColors.cardBg()),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CalendarViewMonth, contentDescription = null, tint = matchaGreen, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = stringResource(R.string.statistics_heatmap_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sumiInk)
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            val startDate = yearDate.withDayOfYear(1)
-            val endDate = yearDate.withDayOfYear(yearDate.lengthOfYear())
-            val daysCount = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate).toInt() + 1
-            
-            val startDayOfWeek = startDate.dayOfWeek.value
-            val weeks = (daysCount + startDayOfWeek - 1) / 7 + 1
-            
-            val emptyColor = ZenThemeColors.divider()
-            
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                items(weeks) { weekIndex ->
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        for (dayOfWeek in 1..7) {
-                            val dayOffset = weekIndex * 7 + dayOfWeek - startDayOfWeek
-                            if (dayOffset in 0 until daysCount) {
-                                val currentDate = startDate.plusDays(dayOffset.toLong())
-                                val count = heatmapData[currentDate] ?: 0
-                                val color = when {
-                                    count == 0 -> emptyColor
-                                    count < 5 -> matchaGreen.copy(alpha = 0.3f)
-                                    count < 10 -> matchaGreen.copy(alpha = 0.6f)
-                                    count < 20 -> matchaGreen.copy(alpha = 0.8f)
-                                    else -> matchaGreen
-                                }
-                                val animatedColor by animateColorAsState(
-                                    targetValue = color,
-                                    animationSpec = tween(500),
-                                    label = "HeatmapColor"
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(14.dp)
-                                        .background(animatedColor, RoundedCornerShape(4.dp))
-                                        .let {
-                                            if (selectedDetailDate == currentDate) {
-                                                it.border(1.dp, ZenColors.AizomeIndigo, RoundedCornerShape(4.dp))
-                                            } else it
-                                        }
-                                        .clickable {
-                                            onDateSelected(if (selectedDetailDate == currentDate) null else currentDate)
-                                        }
-                                )
-                            } else {
-                                Box(modifier = Modifier.size(14.dp))
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.CalendarViewMonth, contentDescription = null, tint = matchaGreen, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = stringResource(R.string.statistics_heatmap_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sumiInk)
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        val startDate = yearDate.withDayOfYear(1)
+        val endDate = yearDate.withDayOfYear(yearDate.lengthOfYear())
+        val daysCount = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate).toInt() + 1
+        
+        val startDayOfWeek = startDate.dayOfWeek.value
+        val weeks = (daysCount + startDayOfWeek - 1) / 7 + 1
+        
+        val emptyColor = ZenThemeColors.divider()
+        
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(weeks) { weekIndex ->
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (dayOfWeek in 1..7) {
+                        val dayOffset = weekIndex * 7 + dayOfWeek - startDayOfWeek
+                        if (dayOffset in 0 until daysCount) {
+                            val currentDate = startDate.plusDays(dayOffset.toLong())
+                            val count = heatmapData[currentDate] ?: 0
+                            val color = when {
+                                count == 0 -> emptyColor
+                                count < 3 -> matchaGreen.copy(alpha = 0.25f)
+                                count < 7 -> matchaGreen.copy(alpha = 0.5f)
+                                count < 15 -> matchaGreen.copy(alpha = 0.75f)
+                                else -> matchaGreen
                             }
+                            val animatedColor by animateColorAsState(
+                                targetValue = color,
+                                animationSpec = tween(500),
+                                label = "HeatmapColor"
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .background(animatedColor, RoundedCornerShape(4.dp))
+                                    .let {
+                                        if (selectedDetailDate == currentDate) {
+                                            it.border(2.dp, ZenColors.AizomeIndigo, RoundedCornerShape(4.dp))
+                                        } else it
+                                    }
+                                    .clickable {
+                                        onDateSelected(if (selectedDetailDate == currentDate) null else currentDate)
+                                    }
+                            )
+                        } else {
+                            Box(modifier = Modifier.size(16.dp))
                         }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+fun CompactActivityItem(
+    text: String,
+    secondaryText: String?,
+    timestamp: Long,
+    onClick: () -> Unit
+) {
+    val date = java.time.Instant.ofEpochMilli(timestamp).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime()
+    val formatter = DateTimeFormatter.ofPattern("HH:mm")
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(ZenColors.AizomeIndigo.copy(alpha = 0.5f), CircleShape)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = ZenThemeColors.sumiInk(),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+                if (!secondaryText.isNullOrBlank()) {
+                    Text(
+                        text = secondaryText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ZenThemeColors.sumiInk().copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = date.format(formatter),
+                style = MaterialTheme.typography.labelSmall,
+                color = ZenThemeColors.sumiInk().copy(alpha = 0.4f)
+            )
+        }
+    }
+}
+
+@Composable
+fun ViewAllButton(
+    text: String,
+    onClick: () -> Unit
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = ZenColors.AizomeIndigo,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        textAlign = TextAlign.Center
+    )
 }
 

@@ -15,7 +15,8 @@ import javax.inject.Inject
 
 class StatisticsRepository @Inject constructor(
     private val analysisDao: AnalysisDao,
-    private val bookmarkDao: BookmarkDao
+    private val bookmarkDao: BookmarkDao,
+    private val grammarPointDao: com.example.japanesegrammarapp.data.BookmarkedGrammarPointDao
 ) {
     suspend fun getStatisticsSummary(
         timeRange: StatisticsTimeRange,
@@ -28,10 +29,11 @@ class StatisticsRepository @Inject constructor(
 
         val records = analysisDao.getRecordsByTimeRange(startMillis, endMillis)
         val bookmarks = bookmarkDao.getBookmarksByTimeRange(startMillis, endMillis)
+        val grammarPoints = grammarPointDao.getBookmarksByTimeRange(startMillis, endMillis)
         
         val totalAnalyses = records.size
         val totalTokens = records.sumOf { it.consumedTokens }
-        val totalBookmarks = bookmarks.size
+        val totalBookmarks = bookmarks.size + grammarPoints.size
 
         val chartData = buildChartData(timeRange, startDate, endDate, records)
         
@@ -73,15 +75,15 @@ class StatisticsRepository @Inject constructor(
             )
         }
 
-        val grammarDomain = records.take(3).mapIndexed { index, record ->
+        val grammarDomain = grammarPoints.map {
             com.example.japanesegrammarapp.domain.model.BookmarkedGrammarPointDomain(
-                id = index,
-                recordId = record.id,
-                pattern = "Sample Grammar ${index + 1}",
-                explanation = "Extracted grammar point from analysis record ${record.id}.",
-                bookmarkedAt = record.timestamp,
-                sourceText = record.originalText,
-                isArchived = false
+                id = it.id,
+                recordId = it.recordId,
+                pattern = it.pattern,
+                explanation = it.explanation,
+                bookmarkedAt = it.bookmarkedAt,
+                sourceText = it.sourceText,
+                isArchived = it.isArchived
             )
         }
 
