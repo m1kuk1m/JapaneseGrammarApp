@@ -619,4 +619,15 @@
     <string name="loading_newer">新しい履歴を読み込み中...</string>
     <string name="loading_older">古い履歴を読み込み中...</string>
     <string name="year_month_format">%1$s年%2$s月</string>
+    <!-- Statistics & Review -->
+    <string name="statistics_title">統計と復習</string>
+    <string name="statistics_tab_daily">日別</string>
+    <string name="statistics_tab_weekly">週別</string>
+    <string name="statistics_tab_monthly">月別</string>
+    <string name="statistics_tab_yearly">年別</string>
+    <string name="statistics_section_analyzed_sentences">分析した文</string>
+    <string name="statistics_section_bookmarked_vocabulary">お気に入り単語</string>
+    <string name="statistics_total_analyses">総分析回数</string>
+    <string name="statistics_total_tokens">総トークン消費</string>
+    <string name="statistics_total_bookmarks">総お気に入り数</string>
 </resources>
