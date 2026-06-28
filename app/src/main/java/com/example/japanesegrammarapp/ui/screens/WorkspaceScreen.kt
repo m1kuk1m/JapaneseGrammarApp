@@ -107,6 +107,7 @@ fun WorkspaceScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     
     val isPlayingTts by viewModel.isPlayingTts.collectAsState(initial = false)
+    var isResultScrolled by remember { mutableStateOf(false) }
 
     // Hoisted States for input form
     var textInputState by androidx.compose.runtime.saveable.rememberSaveable(uiState.currentOriginalText) {
@@ -456,16 +457,17 @@ fun WorkspaceScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                         ) {
-                             Surface(
+                            Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 8.dp, horizontal = 16.dp),
                                 color = MaterialTheme.colorScheme.surface,
                                 shape = RoundedCornerShape(24.dp),
-                                shadowElevation = 3.dp,
+                                shadowElevation = if (isResultScrolled) 4.dp else 0.dp,
                                 tonalElevation = 0.dp
                             ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
+                                val innerVerticalPadding by androidx.compose.animation.core.animateDpAsState(if (isResultScrolled) 4.dp else 12.dp, label = "innerVerticalPadding")
+                                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = innerVerticalPadding)) {
                                     val currentText = uiState.currentOriginalText
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -601,7 +603,7 @@ fun WorkspaceScreen(
                                             text = currentText.ifBlank { stringResource(R.string.image_analysis) },
                                             fontSize = 14.sp,
                                             color = SumiInk,
-                                            maxLines = 2,
+                                            maxLines = if (isResultScrolled) 1 else Int.MAX_VALUE,
                                             overflow = TextOverflow.Ellipsis,
                                             modifier = Modifier.padding(top = 4.dp)
                                         )
@@ -676,7 +678,8 @@ fun WorkspaceScreen(
                                                     onLoadNewer = { viewModel.loadNewerRecord() },
                                                     onLoadOlder = { viewModel.loadOlderRecord() },
                                                     uiPreferencesRepository = viewModel.uiPreferencesRepository,
-                                                    onUserInteracted = { viewModel.markCurrentRecordAsRead() }
+                                                    onUserInteracted = { viewModel.markCurrentRecordAsRead() },
+                                                    onScrollStateChange = { isResultScrolled = it }
                                                 )
                                             }
                                             ResultPaneMode.FAILED -> {

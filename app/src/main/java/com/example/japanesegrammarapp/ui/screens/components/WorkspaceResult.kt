@@ -79,7 +79,8 @@ fun WorkspaceResultContent(
     onLoadNewer: () -> Unit = {},
     onLoadOlder: () -> Unit = {},
     uiPreferencesRepository: UiPreferencesRepository,
-    onUserInteracted: () -> Unit = {}
+    onUserInteracted: () -> Unit = {},
+    onScrollStateChange: (Boolean) -> Unit = {}
 ) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val SurfaceColor = MaterialTheme.colorScheme.surface
@@ -99,6 +100,13 @@ fun WorkspaceResultContent(
         if (scrollState.isScrollInProgress) {
             onUserInteracted()
         }
+    }
+
+    LaunchedEffect(scrollState) {
+        androidx.compose.runtime.snapshotFlow { scrollState.value }
+            .collect { scrollValue ->
+                onScrollStateChange(scrollValue > 10)
+            }
     }
 
     if (detailedResult == null && !isPending && !rawResult.isNullOrBlank()) {
