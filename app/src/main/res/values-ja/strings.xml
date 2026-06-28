@@ -630,4 +630,8 @@
     <string name="statistics_total_analyses">総分析回数</string>
     <string name="statistics_total_tokens">総トークン消費</string>
     <string name="statistics_total_bookmarks">総お気に入り数</string>
+    <string name="statistics_recent_activity">最近のアクティビティ</string>
+    <string name="statistics_view_full_history">完全な履歴を表示</string>
+    <string name="statistics_analysis_count">分析回数</string>
+    <string name="statistics_heatmap_title">学習の継続性</string>
 </resources>

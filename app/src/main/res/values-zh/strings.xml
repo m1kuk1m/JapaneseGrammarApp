@@ -631,4 +631,8 @@
     <string name="statistics_total_analyses">总分析次数</string>
     <string name="statistics_total_tokens">总Token消耗</string>
     <string name="statistics_total_bookmarks">总收藏数</string>
+    <string name="statistics_recent_activity">最近活动</string>
+    <string name="statistics_view_full_history">查看完整历史</string>
+    <string name="statistics_analysis_count">分析次数</string>
+    <string name="statistics_heatmap_title">学习连续性</string>
 </resources>
