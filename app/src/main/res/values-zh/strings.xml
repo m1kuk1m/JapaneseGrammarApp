@@ -102,7 +102,9 @@
     <string name="history_status_pending">分析中</string>
     <string name="history_status_error">错误</string>
     <string name="export">导出</string>
-    <string name="new_analysis">新建分析</string>
+    <string name="new_analysis">新解析</string>
+    <string name="history_today">今天</string>
+    <string name="history_yesterday">昨天</string>
 
     <string name="language">显示语言</string>
     <string name="language_auto">跟随系统</string>

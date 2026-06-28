@@ -60,10 +60,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
+import com.example.japanesegrammarapp.ui.HistoryListItem
 
 @Composable
 fun HistorySidebar(
-    historyList: LazyPagingItems<HistoryUiRecord>,
+    historyList: LazyPagingItems<HistoryListItem>,
     searchQuery: String,
     selectedRecord: AnalysisDomainRecord?,
     bookmarkedSentenceIds: Set<Int>,
@@ -80,7 +81,7 @@ fun HistorySidebar(
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val WashiBg = MaterialTheme.colorScheme.background
     val listState = rememberLazyListState()
-    val firstRecordId = historyList.itemSnapshotList.items.firstOrNull()?.record?.id
+    val firstRecordId = (historyList.itemSnapshotList.items.firstOrNull { it is HistoryListItem.Record } as? HistoryListItem.Record)?.uiRecord?.record?.id
     var previousFirstRecordId by remember { mutableStateOf<Int?>(null) }
     var shouldStickToBottom by remember { mutableStateOf(true) }
 
@@ -95,10 +96,9 @@ fun HistorySidebar(
 
     LaunchedEffect(firstRecordId) {
         val oldFirstRecordId = previousFirstRecordId
-        val visibleBottomRecordId = historyList.itemSnapshotList.items
+        val visibleBottomRecordId = (historyList.itemSnapshotList.items
             .getOrNull(listState.layoutInfo.visibleItemsInfo.firstOrNull()?.index ?: -1)
-            ?.record
-            ?.id
+            as? HistoryListItem.Record)?.uiRecord?.record?.id
         val isAnchoredToOldBottom = oldFirstRecordId != null && visibleBottomRecordId == oldFirstRecordId
         if (oldFirstRecordId != null && firstRecordId != null && firstRecordId != oldFirstRecordId && (shouldStickToBottom || isAnchoredToOldBottom)) {
             if (historyList.itemCount > 0) {
@@ -334,35 +334,72 @@ fun HistorySidebar(
             ) {
                 items(
                     count = historyList.itemCount,
-                    key = historyList.itemKey { it.record.id },
-                    contentType = historyList.itemContentType { "history_record_item" }
-                ) { index ->
-                    val uiRecord = historyList[index]
-                    if (uiRecord != null) {
-                        val record = uiRecord.record
-                        val isSelected = selectedRecord?.id == record.id
-                        val onSelect = {
-                            onSelectRecord(record)
-                            onCloseDrawer()
+                    key = historyList.itemKey { item ->
+                        when (item) {
+                            is HistoryListItem.DateHeader -> "date_${item.date}"
+                            is HistoryListItem.Record -> item.uiRecord.record.id.toString()
                         }
-                        val onDelete = { onDeleteRecord(record) }
-                        val onExport = { onExportRecord(record) }
-                        val onToggleBookmark = { onToggleBookmarkSentence(record) }
-    
-                        val isBookmarked = bookmarkedSentenceIds.contains(record.id)
-                        HistorySidebarItem(
-                            uiRecord = uiRecord,
-                            isSelected = isSelected,
-                            isBookmarked = isBookmarked,
-                            onClick = onSelect,
-                            onDeleteClick = onDelete,
-                            onExportClick = onExport,
-                            onLongClick = onToggleBookmark
-                        )
+                    },
+                    contentType = historyList.itemContentType { item ->
+                        when (item) {
+                            is HistoryListItem.DateHeader -> "history_date_header"
+                            is HistoryListItem.Record -> "history_record_item"
+                        }
+                    }
+                ) { index ->
+                    val item = historyList[index]
+                    when (item) {
+                        is HistoryListItem.DateHeader -> {
+                            DateHeaderItem(label = item.label)
+                        }
+                        is HistoryListItem.Record -> {
+                            val uiRecord = item.uiRecord
+                            val record = uiRecord.record
+                            val isSelected = selectedRecord?.id == record.id
+                            val onSelect = {
+                                onSelectRecord(record)
+                                onCloseDrawer()
+                            }
+                            val onDelete = { onDeleteRecord(record) }
+                            val onExport = { onExportRecord(record) }
+                            val onToggleBookmark = { onToggleBookmarkSentence(record) }
+        
+                            val isBookmarked = bookmarkedSentenceIds.contains(record.id)
+                            HistorySidebarItem(
+                                uiRecord = uiRecord,
+                                isSelected = isSelected,
+                                isBookmarked = isBookmarked,
+                                onClick = onSelect,
+                                onDeleteClick = onDelete,
+                                onExportClick = onExport,
+                                onLongClick = onToggleBookmark
+                            )
+                        }
+                        null -> {}
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DateHeaderItem(
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp, horizontal = 14.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+        )
     }
 }
 

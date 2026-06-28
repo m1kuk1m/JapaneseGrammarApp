@@ -23,13 +23,15 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.paging.PagingData
 import androidx.paging.cachedIn
-import javax.inject.Inject
-
 import androidx.paging.map
+import androidx.paging.insertSeparators
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import javax.inject.Inject
 
 sealed class UiEvent {
     data class ShowError(val message: String) : UiEvent()
@@ -48,6 +50,11 @@ sealed class UiEvent {
         val subject: String? = null
     ) : UiEvent()
     data class NavigateToCameraWithImage(val uri: Uri) : UiEvent()
+}
+
+sealed class HistoryListItem {
+    data class DateHeader(val date: LocalDate, val label: String) : HistoryListItem()
+    data class Record(val uiRecord: HistoryUiRecord) : HistoryListItem()
 }
 
 data class HistoryUiRecord(
@@ -123,10 +130,61 @@ class WorkspaceViewModel @Inject constructor(
                 val tokens = if (record.status == AnalysisStatus.COMPLETED && record.consumedTokens > 0) {
                     if (record.consumedTokens >= 1000) String.format(java.util.Locale.US, "%.1fk", record.consumedTokens / 1000.0) else record.consumedTokens.toString()
                 } else null
-                HistoryUiRecord(record, dateStr, modelText, tokens, record.isRead)
+                HistoryListItem.Record(
+                    HistoryUiRecord(record, dateStr, modelText, tokens, record.isRead)
+                )
+            }.insertSeparators { before: HistoryListItem.Record?, after: HistoryListItem.Record? ->
+                if (after == null) return@insertSeparators null
+
+                val afterDate = Instant.ofEpochMilli(after.uiRecord.record.timestamp)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+
+                if (before == null) {
+                    return@insertSeparators HistoryListItem.DateHeader(
+                        date = afterDate,
+                        label = getDateLabel(afterDate)
+                    )
+                }
+
+                val beforeDate = Instant.ofEpochMilli(before.uiRecord.record.timestamp)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+
+                if (beforeDate != afterDate) {
+                    HistoryListItem.DateHeader(
+                        date = afterDate,
+                        label = getDateLabel(afterDate)
+                    )
+                } else {
+                    null
+                }
             }
         }
         .cachedIn(viewModelScope)
+
+    private fun getDateLabel(date: LocalDate): String {
+        val today = LocalDate.now()
+        val yesterday = today.minusDays(1)
+        val applicationContext = application.applicationContext
+        return when (date) {
+            today -> applicationContext.getString(R.string.history_today)
+            yesterday -> applicationContext.getString(R.string.history_yesterday)
+            else -> {
+                val formatter = if (date.year != today.year) {
+                    DateTimeFormatter.ofPattern(applicationContext.getString(R.string.year_month_format), java.util.Locale.getDefault())
+                } else {
+                    DateTimeFormatter.ofPattern("MM-dd", java.util.Locale.getDefault())
+                }
+                
+                if (date.year != today.year) {
+                    String.format(applicationContext.getString(R.string.year_month_format), date.year.toString(), String.format("%02d", date.monthValue))
+                } else {
+                    String.format("%02d/%02d", date.monthValue, date.dayOfMonth)
+                }
+            }
+        }
+    }
 
     fun setHistorySearchQuery(query: String) {
         _historySearchQuery.value = query

@@ -102,6 +102,8 @@
     <string name="history_status_error">Error</string>
     <string name="export">Export</string>
     <string name="new_analysis">New Analysis</string>
+    <string name="history_today">Today</string>
+    <string name="history_yesterday">Yesterday</string>
 
     <!-- Added for Custom Models & Language -->
     <string name="language">Language</string>
