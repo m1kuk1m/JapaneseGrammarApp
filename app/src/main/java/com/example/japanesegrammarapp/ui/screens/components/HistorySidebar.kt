@@ -18,6 +18,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -138,8 +140,42 @@ fun HistorySidebar(
                 fontWeight = FontWeight.Bold,
                 color = SumiInk
             )
-            IconButton(onClick = onCloseDrawer) {
-                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = SumiInk)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onNavigateToStatistics) {
+                    Icon(Icons.Default.BarChart, contentDescription = stringResource(R.string.statistics_title), tint = SumiInk)
+                }
+                var showMenu by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More", tint = SumiInk)
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.import_history)) },
+                            onClick = {
+                                showMenu = false
+                                filePickerLauncher.launch("text/plain")
+                            },
+                            leadingIcon = { Icon(Icons.Default.Upload, contentDescription = null, modifier = Modifier.size(20.dp)) }
+                        )
+                        if (historyList.itemCount > 0) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.export_all)) },
+                                onClick = {
+                                    showMenu = false
+                                    onExportAll()
+                                },
+                                leadingIcon = { Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(20.dp)) }
+                            )
+                        }
+                    }
+                }
+                IconButton(onClick = onCloseDrawer) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = SumiInk)
+                }
             }
         }
         
@@ -255,78 +291,6 @@ fun HistorySidebar(
             Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(stringResource(R.string.new_analysis), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        }
-
-        // Statistics Button
-        Button(
-            onClick = {
-                onNavigateToStatistics()
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 4.dp)
-                .height(44.dp),
-            shape = RoundedCornerShape(24.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = ZenThemeColors.buttonBg(),
-                contentColor = SumiInk
-            ),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
-        ) {
-            Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.statistics_title), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        }
-
-        // Secondary Actions Row: Import & Export All
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // Import History Button
-            Button(
-                onClick = {
-                    filePickerLauncher.launch("text/plain")
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(44.dp),
-                shape = RoundedCornerShape(24.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ZenThemeColors.buttonBg(),
-                    contentColor = SumiInk
-                ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
-            ) {
-                Icon(Icons.Default.Upload, contentDescription = stringResource(R.string.import_history), modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(stringResource(R.string.import_history), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-
-            if (historyList.itemCount > 0) {
-                // Export All Button
-                Button(
-                    onClick = onExportAll,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ZenThemeColors.buttonBg(),
-                        contentColor = SumiInk
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
-                ) {
-                    Icon(Icons.Default.Download, contentDescription = stringResource(R.string.export_all), modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.export_all), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
