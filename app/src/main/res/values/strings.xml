@@ -79,6 +79,9 @@
     <string name="in_out_ratio">In/Out Ratio</string>
 
     <string name="api_config">API Configuration</string>
+    <string name="ocr_scanning">OCR &amp; Scanning</string>
+    <string name="llm_prompts">LLM &amp; Prompts</string>
+    <string name="advanced_debug">Advanced &amp; Debug</string>
     <string name="main_api">Main API</string>
     <string name="backup_api">Backup API</string>
     <string name="credentials">Credentials &amp; Models</string>

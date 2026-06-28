@@ -80,6 +80,9 @@
     <string name="in_out_ratio">输入输出占比</string>
 
     <string name="api_config">API 优先级设置</string>
+    <string name="ocr_scanning">OCR与扫描</string>
+    <string name="llm_prompts">大模型与提示词</string>
+    <string name="advanced_debug">高级与调试</string>
     <string name="main_api">主 API</string>
     <string name="backup_api">备用 API</string>
     <string name="credentials">API 凭据与模型管理</string>

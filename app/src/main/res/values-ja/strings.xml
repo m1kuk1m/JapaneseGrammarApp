@@ -80,6 +80,9 @@
     <string name="in_out_ratio">入出力比率</string>
 
     <string name="api_config">API優先度設定</string>
+    <string name="ocr_scanning">OCRとスキャン</string>
+    <string name="llm_prompts">LLMとプロンプト</string>
+    <string name="advanced_debug">詳細とデバッグ</string>
     <string name="main_api">メインAPI</string>
     <string name="backup_api">予備API</string>
     <string name="credentials">API設定とモデル管理</string>

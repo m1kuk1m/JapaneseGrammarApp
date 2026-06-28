@@ -150,17 +150,7 @@ fun SettingsAppearanceSection(
 fun SettingsGeneralSection(
     uiState: SettingsUiState,
     currentLangLabel: String,
-    totalTokensConsumed: Int,
-    onUseOcrChange: (Boolean) -> Unit,
-    onOcrBoxDetectorEngineChange: (OcrBoxDetectorEngine) -> Unit,
-    onTextSelectEngineChange: (OcrBoxDetectorEngine) -> Unit,
-    onAutoDeskewAfterCaptureChange: (Boolean) -> Unit,
-    onAutoNavigateResultChange: (Boolean) -> Unit,
-    onImageTokenizerModeChange: (String) -> Unit,
-    onShowTokenDialog: () -> Unit,
-    onShowApiLogs: () -> Unit,
-    onShowOcrDebug: () -> Unit,
-    onShowPromptEditor: () -> Unit
+    onAutoNavigateResultChange: (Boolean) -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -229,6 +219,36 @@ fun SettingsGeneralSection(
 
         SettingsDivider()
 
+        SettingsItem(
+            icon = Icons.Default.Launch,
+            title = stringResource(R.string.auto_navigate_result),
+            subtitle = stringResource(R.string.auto_navigate_result_desc),
+            trailingContent = {
+                Switch(
+                    checked = uiState.autoNavigateResult,
+                    onCheckedChange = onAutoNavigateResultChange,
+                    colors = SettingsSwitchColors(onPrimaryColor, primaryColor, sumiInk)
+                )
+            }
+        )
+    }
+}
+
+@Composable
+fun SettingsOcrSection(
+    uiState: SettingsUiState,
+    onUseOcrChange: (Boolean) -> Unit,
+    onOcrBoxDetectorEngineChange: (OcrBoxDetectorEngine) -> Unit,
+    onTextSelectEngineChange: (OcrBoxDetectorEngine) -> Unit,
+    onAutoDeskewAfterCaptureChange: (Boolean) -> Unit,
+    onImageTokenizerModeChange: (String) -> Unit,
+    onShowOcrDebug: () -> Unit
+) {
+    val sumiInk = MaterialTheme.colorScheme.onBackground
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
+
+    SettingsGroup(title = stringResource(R.string.ocr_scanning)) {
         SettingsItem(
             icon = Icons.Default.ImageSearch,
             title = stringResource(R.string.local_ocr),
@@ -321,38 +341,11 @@ fun SettingsGeneralSection(
 
         SettingsDivider()
 
-        SettingsItem(
-            icon = Icons.Default.Tune,
-            title = stringResource(R.string.ocr_debug_title),
-            subtitle = stringResource(R.string.ocr_debug_entry_desc),
-            onClick = onShowOcrDebug,
-            trailingContent = {
-                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = sumiInk.copy(alpha = 0.4f))
-            }
-        )
-
-        SettingsDivider()
-
-        SettingsItem(
-            icon = Icons.Default.Launch,
-            title = stringResource(R.string.auto_navigate_result),
-            subtitle = stringResource(R.string.auto_navigate_result_desc),
-            trailingContent = {
-                Switch(
-                    checked = uiState.autoNavigateResult,
-                    onCheckedChange = onAutoNavigateResultChange,
-                    colors = SettingsSwitchColors(onPrimaryColor, primaryColor, sumiInk)
-                )
-            }
-        )
-
         var tokenizerModeDropdownExpanded by remember { mutableStateOf(false) }
         val currentModeLabel = when (uiState.imageTokenizerMode) {
             "repair" -> stringResource(R.string.image_tokenizer_mode_repair)
             else -> stringResource(R.string.image_tokenizer_mode_faithful)
         }
-
-        SettingsDivider()
 
         SettingsItem(
             icon = Icons.Default.AutoFixHigh,
@@ -398,6 +391,27 @@ fun SettingsGeneralSection(
         SettingsDivider()
 
         SettingsItem(
+            icon = Icons.Default.Tune,
+            title = stringResource(R.string.ocr_debug_title),
+            subtitle = stringResource(R.string.ocr_debug_entry_desc),
+            onClick = onShowOcrDebug,
+            trailingContent = {
+                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = sumiInk.copy(alpha = 0.4f))
+            }
+        )
+    }
+}
+
+@Composable
+fun SettingsLlmPromptsSection(
+    totalTokensConsumed: Int,
+    onShowTokenDialog: () -> Unit,
+    onShowPromptEditor: () -> Unit
+) {
+    val sumiInk = MaterialTheme.colorScheme.onBackground
+
+    SettingsGroup(title = stringResource(R.string.llm_prompts)) {
+        SettingsItem(
             icon = Icons.Default.DataUsage,
             title = stringResource(R.string.token_usage),
             subtitle = stringResource(R.string.token_usage_desc),
@@ -409,18 +423,6 @@ fun SettingsGeneralSection(
                     totalTokensConsumed.toString()
                 }
                 Text(text = formattedTotal, fontWeight = FontWeight.Bold, color = sumiInk)
-            }
-        )
-
-        SettingsDivider()
-
-        SettingsItem(
-            icon = Icons.Default.Code,
-            title = stringResource(R.string.view_api_debug_logs),
-            subtitle = stringResource(R.string.api_debug_logs_title),
-            onClick = onShowApiLogs,
-            trailingContent = {
-                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = sumiInk.copy(alpha = 0.4f))
             }
         )
 
@@ -439,7 +441,39 @@ fun SettingsGeneralSection(
 }
 
 @Composable
-private fun ocrBoxDetectorEngineLabel(engine: OcrBoxDetectorEngine): String {
+fun SettingsAdvancedSection(
+    onShowApiLogs: () -> Unit,
+    onShowAppLogs: () -> Unit
+) {
+    val sumiInk = MaterialTheme.colorScheme.onBackground
+
+    SettingsGroup(title = stringResource(R.string.advanced_debug)) {
+        SettingsItem(
+            icon = Icons.Default.Code,
+            title = stringResource(R.string.view_api_debug_logs),
+            subtitle = stringResource(R.string.api_debug_logs_title),
+            onClick = onShowApiLogs,
+            trailingContent = {
+                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = sumiInk.copy(alpha = 0.4f))
+            }
+        )
+
+        SettingsDivider()
+
+        SettingsItem(
+            icon = Icons.Default.Code,
+            title = stringResource(R.string.app_logs_title),
+            subtitle = stringResource(R.string.view_dev_logs),
+            onClick = onShowAppLogs,
+            trailingContent = {
+                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = sumiInk.copy(alpha = 0.4f))
+            }
+        )
+    }
+}
+
+@Composable
+fun ocrBoxDetectorEngineLabel(engine: OcrBoxDetectorEngine): String {
     return when (engine) {
         OcrBoxDetectorEngine.ML_KIT -> stringResource(R.string.ocr_debug_engine_mlkit)
         OcrBoxDetectorEngine.RAPID_OCR -> stringResource(R.string.ocr_debug_engine_rapidocr)
@@ -465,3 +499,4 @@ private fun SettingsSwitchColors(
     uncheckedThumbColor = sumiInk.copy(alpha = 0.4f),
     uncheckedTrackColor = sumiInk.copy(alpha = 0.1f)
 )
+
