@@ -28,7 +28,7 @@ data class OpenAiImageUrl(
 )
 data class OpenAiResponse(val choices: List<OpenAiChoice>, val usage: OpenAiUsage? = null)
 data class OpenAiUsage(val total_tokens: Int? = null, val prompt_tokens: Int? = null, val completion_tokens: Int? = null)
-data class OpenAiChoice(val message: OpenAiResponseMessage?, val delta: OpenAiResponseMessage? = null)
+data class OpenAiChoice(val message: OpenAiResponseMessage?, val delta: OpenAiResponseMessage? = null, val finish_reason: String? = null)
 data class OpenAiResponseMessage(val role: String? = null, val content: String? = null) // Responses are always textual content
 data class OpenAiModelListResponse(val data: List<OpenAiModel>)
 data class OpenAiModel(val id: String)

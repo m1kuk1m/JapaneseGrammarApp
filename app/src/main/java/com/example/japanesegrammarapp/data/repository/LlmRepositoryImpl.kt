@@ -779,7 +779,11 @@ class LlmRepositoryImpl @Inject constructor(
                                 var textChunk = ""
                                 if (config.baseProvider in listOf("OpenAI", "DeepSeek", "OpenAI Compatible", "Qwen")) {
                                     val response = gson.fromJson(data, OpenAiResponse::class.java)
-                                    textChunk = response.choices?.firstOrNull()?.delta?.content ?: ""
+                                    val choice = response.choices?.firstOrNull()
+                                    if (choice?.finish_reason == "content_filter") {
+                                        throw Exception("OpenAI API Blocked: Content filter triggered (finish_reason=content_filter)")
+                                    }
+                                    textChunk = choice?.delta?.content ?: ""
                                     response.usage?.let { u ->
                                         currentUsage = com.example.japanesegrammarapp.domain.repository.LlmResultMetadata(
                                             consumedTokens = u.total_tokens ?: 0,
@@ -789,7 +793,15 @@ class LlmRepositoryImpl @Inject constructor(
                                     }
                                 } else {
                                     val response = gson.fromJson(data, GeminiResponse::class.java)
-                                    textChunk = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: ""
+                                    if (!response.promptFeedback?.blockReason.isNullOrBlank()) {
+                                        throw Exception("Gemini API Blocked: Prompt flagged (blockReason=${response.promptFeedback?.blockReason})")
+                                    }
+                                    val candidate = response.candidates?.firstOrNull()
+                                    val finishReason = candidate?.finishReason
+                                    if (finishReason != null && finishReason != "STOP" && finishReason != "MAX_TOKENS") {
+                                        throw Exception(buildGeminiNoTextMessage(response))
+                                    }
+                                    textChunk = candidate?.content?.parts?.firstOrNull()?.text ?: ""
                                     response.usageMetadata?.let { u ->
                                         currentUsage = com.example.japanesegrammarapp.domain.repository.LlmResultMetadata(
                                             consumedTokens = u.totalTokenCount ?: 0,
