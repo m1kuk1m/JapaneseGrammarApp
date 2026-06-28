@@ -901,7 +901,10 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
         ) {
             com.example.japanesegrammarapp.ui.statistics.StatisticsScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToHistory = { navController.navigate("bookmarks") }
+                onNavigateToHistory = { navController.navigate("bookmarks") },
+                onNavigateToRecord = { recordId, bookmarkId ->
+                    navController.navigate("bookmark_workspace?recordId=$recordId&bookmarkId=$bookmarkId")
+                }
             )
         }
     }

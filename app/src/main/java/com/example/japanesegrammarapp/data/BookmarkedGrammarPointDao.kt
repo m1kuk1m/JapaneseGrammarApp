@@ -67,4 +67,7 @@ interface BookmarkedGrammarPointDao {
             return true
         }
     }
+
+    @Query("SELECT * FROM bookmarked_grammar_points WHERE bookmarkedAt >= :startTime AND bookmarkedAt <= :endTime ORDER BY bookmarkedAt DESC")
+    suspend fun getBookmarksByTimeRange(startTime: Long, endTime: Long): List<BookmarkedGrammarPoint>
 }

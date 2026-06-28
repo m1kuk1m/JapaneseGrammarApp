@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -458,18 +459,25 @@ fun WorkspaceScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                         ) {
-                            val surfaceColor by androidx.compose.animation.animateColorAsState(targetValue = if (isResultScrolled) MaterialTheme.colorScheme.surface.copy(alpha = 0.92f) else MaterialTheme.colorScheme.surface, animationSpec = tween(300), label = "surfaceColor")
-                            val outerVerticalPadding by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 2.dp else 8.dp, animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "outerVerticalPadding")
-                            val outerHorizontalPadding by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 8.dp else 16.dp, animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "outerHorizontalPadding")
-                            val shadowElevation by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 4.dp else 0.dp, animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "shadowElevation")
+                            val surfaceColor = MaterialTheme.colorScheme.surface
+                            val outerVerticalPadding by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 0.dp else 8.dp, animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "outerVerticalPadding")
+                            val outerHorizontalPadding = 16.dp
+                            val shadowElevation by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 6.dp else 0.dp, animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "shadowElevation")
+                            val topCornerRadius = 24.dp
+                            val innerHorizontalPadding = 12.dp
 
-                            Box(modifier = Modifier.fillMaxWidth()) {
+                            Box(modifier = Modifier.fillMaxWidth().zIndex(1f)) {
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = outerVerticalPadding, horizontal = outerHorizontalPadding),
                                     color = surfaceColor,
-                                    shape = RoundedCornerShape(24.dp),
+                                    shape = RoundedCornerShape(
+                                        topStart = topCornerRadius,
+                                        topEnd = topCornerRadius,
+                                        bottomStart = 24.dp,
+                                        bottomEnd = 24.dp
+                                    ),
                                     shadowElevation = shadowElevation,
                                     tonalElevation = 0.dp
                                 ) {
@@ -477,7 +485,7 @@ fun WorkspaceScreen(
                                     Column(
                                         modifier = Modifier
                                             .animateContentSize(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
-                                            .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = innerBottomPadding)
+                                            .padding(start = innerHorizontalPadding, end = innerHorizontalPadding, top = 12.dp, bottom = innerBottomPadding)
                                     ) {
                                         val currentText = uiState.currentOriginalText
                                         Row(
