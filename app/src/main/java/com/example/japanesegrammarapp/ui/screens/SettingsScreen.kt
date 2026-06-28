@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -472,6 +473,15 @@ fun SettingsScreen(
                 ) {
                     if (targetCategory == null) {
                         SettingsGroup(title = stringResource(R.string.settings_title)) {
+                            SettingsItem(
+                                icon = Icons.Default.BarChart,
+                                title = stringResource(R.string.statistics_title),
+                                onClick = { navController.navigate("statistics") },
+                                trailingContent = {
+                                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = SumiInk.copy(alpha = 0.4f))
+                                }
+                            )
+                            SettingsRootDivider()
                             SettingsCategory.entries.forEachIndexed { index, category ->
                                 SettingsItem(
                                     icon = category.icon,

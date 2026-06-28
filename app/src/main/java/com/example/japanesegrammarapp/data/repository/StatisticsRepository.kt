@@ -1,0 +1,164 @@
+package com.example.japanesegrammarapp.data.repository
+
+import com.example.japanesegrammarapp.data.AnalysisDao
+import com.example.japanesegrammarapp.data.BookmarkDao
+import com.example.japanesegrammarapp.domain.ChartDataPoint
+import com.example.japanesegrammarapp.domain.StatisticsSummary
+import com.example.japanesegrammarapp.domain.StatisticsTimeRange
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import javax.inject.Inject
+
+class StatisticsRepository @Inject constructor(
+    private val analysisDao: AnalysisDao,
+    private val bookmarkDao: BookmarkDao
+) {
+    suspend fun getStatisticsSummary(
+        timeRange: StatisticsTimeRange,
+        referenceDate: LocalDate
+    ): StatisticsSummary = withContext(Dispatchers.IO) {
+        val (startDate, endDate) = getStartAndEndDate(timeRange, referenceDate)
+        
+        val startMillis = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val endMillis = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
+
+        val records = analysisDao.getRecordsByTimeRange(startMillis, endMillis)
+        val bookmarks = bookmarkDao.getBookmarksByTimeRange(startMillis, endMillis)
+        
+        val totalAnalyses = records.size
+        val totalTokens = records.sumOf { it.consumedTokens }
+        val totalBookmarks = bookmarks.size
+
+        val chartData = buildChartData(timeRange, startDate, endDate, records)
+        
+        val heatmapData = if (timeRange == StatisticsTimeRange.YEARLY) {
+            buildHeatmapData(startDate, endDate)
+        } else {
+            emptyMap()
+        }
+
+        StatisticsSummary(
+            totalAnalyses = totalAnalyses,
+            totalTokens = totalTokens,
+            totalBookmarks = totalBookmarks,
+            analyzedSentences = records,
+            bookmarkedVocabulary = bookmarks,
+            chartData = chartData,
+            heatmapData = heatmapData
+        )
+    }
+
+    private fun getStartAndEndDate(timeRange: StatisticsTimeRange, referenceDate: LocalDate): Pair<LocalDate, LocalDate> {
+        return when (timeRange) {
+            StatisticsTimeRange.DAILY -> {
+                Pair(referenceDate, referenceDate)
+            }
+            StatisticsTimeRange.WEEKLY -> {
+                val dayOfWeek = referenceDate.dayOfWeek.value
+                val start = referenceDate.minusDays(dayOfWeek - 1L)
+                val end = start.plusDays(6)
+                Pair(start, end)
+            }
+            StatisticsTimeRange.MONTHLY -> {
+                val start = referenceDate.withDayOfMonth(1)
+                val end = referenceDate.withDayOfMonth(referenceDate.lengthOfMonth())
+                Pair(start, end)
+            }
+            StatisticsTimeRange.YEARLY -> {
+                val start = referenceDate.withDayOfYear(1)
+                val end = referenceDate.withDayOfYear(referenceDate.lengthOfYear())
+                Pair(start, end)
+            }
+        }
+    }
+
+    private fun buildChartData(
+        timeRange: StatisticsTimeRange,
+        startDate: LocalDate,
+        endDate: LocalDate,
+        records: List<com.example.japanesegrammarapp.data.AnalysisRecord>
+    ): List<ChartDataPoint> {
+        return when (timeRange) {
+            StatisticsTimeRange.DAILY -> {
+                (0..23).map { hour ->
+                    val recordsInHour = records.filter {
+                        val dt = java.time.Instant.ofEpochMilli(it.timestamp).atZone(ZoneId.systemDefault()).toLocalDateTime()
+                        dt.hour == hour
+                    }
+                    ChartDataPoint(
+                        label = String.format(Locale.getDefault(), "%02d", hour),
+                        analysisCount = recordsInHour.size,
+                        tokenUsage = recordsInHour.sumOf { it.consumedTokens }
+                    )
+                }
+            }
+            StatisticsTimeRange.WEEKLY -> {
+                (0..6).map { offset ->
+                    val d = startDate.plusDays(offset.toLong())
+                    val recordsInDay = records.filter {
+                        val dt = java.time.Instant.ofEpochMilli(it.timestamp).atZone(ZoneId.systemDefault()).toLocalDate()
+                        dt == d
+                    }
+                    val label = d.format(DateTimeFormatter.ofPattern("EEE", Locale.getDefault()))
+                    ChartDataPoint(
+                        label = label,
+                        analysisCount = recordsInDay.size,
+                        tokenUsage = recordsInDay.sumOf { it.consumedTokens }
+                    )
+                }
+            }
+            StatisticsTimeRange.MONTHLY -> {
+                val daysInMonth = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate).toInt() + 1
+                (0 until daysInMonth).map { offset ->
+                    val d = startDate.plusDays(offset.toLong())
+                    val recordsInDay = records.filter {
+                        val dt = java.time.Instant.ofEpochMilli(it.timestamp).atZone(ZoneId.systemDefault()).toLocalDate()
+                        dt == d
+                    }
+                    val label = d.dayOfMonth.toString()
+                    ChartDataPoint(
+                        label = label,
+                        analysisCount = recordsInDay.size,
+                        tokenUsage = recordsInDay.sumOf { it.consumedTokens }
+                    )
+                }
+            }
+            StatisticsTimeRange.YEARLY -> {
+                (1..12).map { month ->
+                    val recordsInMonth = records.filter {
+                        val dt = java.time.Instant.ofEpochMilli(it.timestamp).atZone(ZoneId.systemDefault()).toLocalDate()
+                        dt.monthValue == month
+                    }
+                    val label = startDate.withMonth(month).format(DateTimeFormatter.ofPattern("MMM", Locale.getDefault()))
+                    ChartDataPoint(
+                        label = label,
+                        analysisCount = recordsInMonth.size,
+                        tokenUsage = recordsInMonth.sumOf { it.consumedTokens }
+                    )
+                }
+            }
+        }
+    }
+    
+    private suspend fun buildHeatmapData(startDate: LocalDate, endDate: LocalDate): Map<LocalDate, Int> {
+        val dates = analysisDao.getDistinctStudyDates()
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        val map = mutableMapOf<LocalDate, Int>()
+        dates.forEach { dateString ->
+            try {
+                val date = LocalDate.parse(dateString, formatter)
+                if ((date.isEqual(startDate) || date.isAfter(startDate)) && 
+                    (date.isEqual(endDate) || date.isBefore(endDate))) {
+                    map[date] = 1 
+                }
+            } catch (e: Exception) {
+                // ignore parsing error
+            }
+        }
+        return map
+    }
+}

@@ -90,4 +90,10 @@ interface AnalysisDao {
 
     @Query("SELECT date(timestamp / 1000, 'unixepoch', 'localtime') as date, modelUsed, SUM(inputTokens) as inputTokens, SUM(outputTokens) as outputTokens, SUM(consumedTokens) as totalTokens FROM analysis_records WHERE consumedTokens > 0 GROUP BY date, modelUsed ORDER BY date DESC, totalTokens DESC")
     fun getDailyTokenUsage(): Flow<List<DailyTokenUsageEntity>>
+
+    @Query("SELECT * FROM analysis_records WHERE timestamp >= :startTime AND timestamp <= :endTime AND status = 'COMPLETED' ORDER BY timestamp DESC")
+    suspend fun getRecordsByTimeRange(startTime: Long, endTime: Long): List<AnalysisRecord>
+
+    @Query("SELECT DISTINCT date(timestamp / 1000, 'unixepoch', 'localtime') as date FROM analysis_records WHERE status = 'COMPLETED' ORDER BY date ASC")
+    suspend fun getDistinctStudyDates(): List<String>
 }

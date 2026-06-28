@@ -76,7 +76,8 @@ fun HistorySidebar(
     onExportRecord: (AnalysisDomainRecord) -> Unit,
     onCloseDrawer: () -> Unit,
     onImportHistory: (android.net.Uri) -> Unit,
-    onToggleBookmarkSentence: (AnalysisDomainRecord) -> Unit
+    onToggleBookmarkSentence: (AnalysisDomainRecord) -> Unit,
+    onNavigateToStatistics: () -> Unit
 ) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val WashiBg = MaterialTheme.colorScheme.background
@@ -254,6 +255,28 @@ fun HistorySidebar(
             Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(stringResource(R.string.new_analysis), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        }
+
+        // Statistics Button
+        Button(
+            onClick = {
+                onNavigateToStatistics()
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 4.dp)
+                .height(44.dp),
+            shape = RoundedCornerShape(24.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = ZenThemeColors.buttonBg(),
+                contentColor = SumiInk
+            ),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
+        ) {
+            Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(stringResource(R.string.statistics_title), fontSize = 13.sp, fontWeight = FontWeight.Bold)
         }
 
         // Secondary Actions Row: Import & Export All
