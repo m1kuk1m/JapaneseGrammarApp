@@ -96,6 +96,7 @@ fun ApiLogsDialog(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var filterStatus by remember { mutableStateOf("ALL") }
+    var filterStep by remember { mutableStateOf("ALL") }
     var internalSelectedDate by remember { mutableStateOf<String?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -106,7 +107,7 @@ fun ApiLogsDialog(
     val primaryColor = MaterialTheme.colorScheme.primary
     val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
 
-    val filteredApiLogs = remember(apiLogs, searchQuery, filterStatus, selectedDate) {
+    val filteredApiLogs = remember(apiLogs, searchQuery, filterStatus, filterStep, selectedDate) {
         apiLogs.filter { log ->
             val matchesQuery = searchQuery.isBlank() ||
                 log.provider.contains(searchQuery, ignoreCase = true) ||
@@ -116,12 +117,13 @@ fun ApiLogsDialog(
                 (log.rawResponse?.contains(searchQuery, ignoreCase = true) ?: false)
 
             val matchesStatus = filterStatus == "ALL" || log.status == filterStatus
+            val matchesStep = filterStep == "ALL" || log.stepName == filterStep
             val matchesDate = if (selectedDate != null) {
                 val sdf = SimpleDateFormat("MM-dd", Locale.getDefault())
                 sdf.format(Date(log.id)) == selectedDate
             } else true
             
-            matchesQuery && matchesStatus && matchesDate
+            matchesQuery && matchesStatus && matchesStep && matchesDate
         }.reversed()
     }
 
@@ -276,6 +278,26 @@ fun ApiLogsDialog(
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val steps = listOf("ALL", "DETAILED_GRAMMAR", "CLAUSE_ANALYSIS", "GRAMMAR_EXPLANATION", "TOKENIZATION", "TRANSLATION")
+                        steps.forEach { step ->
+                            FilterChip(
+                                selected = filterStep == step,
+                                onClick = { filterStep = step },
+                                label = { Text(apiStepLabel(step), fontSize = 11.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = primaryColor,
+                                    selectedLabelColor = onPrimaryColor
+                                )
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Divider(color = sumiInk.copy(alpha = 0.1f))
                     Box(
@@ -355,7 +377,7 @@ fun ApiLogsDialog(
                             }
                             TextButton(
                                 onClick = { 
-                                    val copyTarget = if (selectedDate != null || searchQuery.isNotBlank() || filterStatus != "ALL") {
+                                    val copyTarget = if (selectedDate != null || searchQuery.isNotBlank() || filterStatus != "ALL" || filterStep != "ALL") {
                                         filteredApiLogs
                                     } else {
                                         val startTime = if (AppLogger.previousSessionStartTimeMs > 0) AppLogger.previousSessionStartTimeMs else AppLogger.sessionStartTimeMs
@@ -746,5 +768,18 @@ private fun apiStatusColor(status: String): Color {
         "RETRY", "BACKUP" -> Color(0xFFE65100)
         "START" -> fallback.copy(alpha = 0.65f)
         else -> fallback.copy(alpha = 0.55f)
+    }
+}
+
+@Composable
+private fun apiStepLabel(step: String): String {
+    return when (step) {
+        "ALL" -> stringResource(R.string.api_debug_filter_all)
+        "DETAILED_GRAMMAR" -> stringResource(R.string.step_detailed_grammar)
+        "CLAUSE_ANALYSIS", "CLAUSES" -> stringResource(R.string.step_clause_analysis)
+        "GRAMMAR_EXPLANATION", "GRAMMAR" -> stringResource(R.string.step_grammar_explanation)
+        "TOKENIZATION", "SEGMENTS" -> stringResource(R.string.step_tokenization)
+        "TRANSLATION" -> stringResource(R.string.step_translation)
+        else -> step
     }
 }
