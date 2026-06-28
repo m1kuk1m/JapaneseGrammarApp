@@ -641,7 +641,7 @@ fun WorkspaceScreen(
                                 }
                                 
                                 // Subtle bottom divider when scrolled
-                                AnimatedVisibility(
+                                androidx.compose.animation.AnimatedVisibility(
                                     visible = isResultScrolled,
                                     enter = fadeIn(animationSpec = tween(300)),
                                     exit = fadeOut(animationSpec = tween(300)),
