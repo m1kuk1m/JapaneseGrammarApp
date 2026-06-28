@@ -457,17 +457,23 @@ fun WorkspaceScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                         ) {
+                            val surfaceMarginHorizontal by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 0.dp else 16.dp, animationSpec = tween(300, easing = EaseInOutCubic), label = "surfaceMarginHorizontal")
+                            val surfaceMarginVertical by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 0.dp else 8.dp, animationSpec = tween(300, easing = EaseInOutCubic), label = "surfaceMarginVertical")
+                            val surfaceCornerRadius by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 0.dp else 24.dp, animationSpec = tween(300, easing = EaseInOutCubic), label = "surfaceCornerRadius")
+                            val surfaceElevation by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 4.dp else 0.dp, animationSpec = tween(300, easing = EaseInOutCubic), label = "surfaceElevation")
+
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 8.dp, horizontal = 16.dp),
+                                    .padding(vertical = surfaceMarginVertical, horizontal = surfaceMarginHorizontal),
                                 color = MaterialTheme.colorScheme.surface,
-                                shape = RoundedCornerShape(24.dp),
-                                shadowElevation = if (isResultScrolled) 4.dp else 0.dp,
+                                shape = RoundedCornerShape(surfaceCornerRadius),
+                                shadowElevation = surfaceElevation,
                                 tonalElevation = 0.dp
                             ) {
-                                val innerVerticalPadding by androidx.compose.animation.core.animateDpAsState(if (isResultScrolled) 4.dp else 12.dp, label = "innerVerticalPadding")
-                                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = innerVerticalPadding)) {
+                                val innerVerticalPadding by androidx.compose.animation.core.animateDpAsState(if (isResultScrolled) 8.dp else 12.dp, label = "innerVerticalPadding")
+                                val innerHorizontalPadding by androidx.compose.animation.core.animateDpAsState(if (isResultScrolled) 16.dp else 12.dp, label = "innerHorizontalPadding")
+                                Column(modifier = Modifier.padding(horizontal = innerHorizontalPadding, vertical = innerVerticalPadding)) {
                                     val currentText = uiState.currentOriginalText
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -598,15 +604,19 @@ fun WorkspaceScreen(
                                         }
                                     }
 
-                                    androidx.compose.foundation.text.selection.SelectionContainer {
-                                        Text(
-                                            text = currentText.ifBlank { stringResource(R.string.image_analysis) },
-                                            fontSize = 14.sp,
-                                            color = SumiInk,
-                                            maxLines = if (isResultScrolled) 1 else Int.MAX_VALUE,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.padding(top = 4.dp)
-                                        )
+                                    AnimatedVisibility(
+                                        visible = !isResultScrolled,
+                                        enter = expandVertically(animationSpec = tween(300, easing = EaseInOutCubic)) + fadeIn(animationSpec = tween(200)),
+                                        exit = shrinkVertically(animationSpec = tween(300, easing = EaseInOutCubic)) + fadeOut(animationSpec = tween(200))
+                                    ) {
+                                        androidx.compose.foundation.text.selection.SelectionContainer {
+                                            Text(
+                                                text = currentText.ifBlank { stringResource(R.string.image_analysis) },
+                                                fontSize = 14.sp,
+                                                color = SumiInk,
+                                                modifier = Modifier.padding(top = 4.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
