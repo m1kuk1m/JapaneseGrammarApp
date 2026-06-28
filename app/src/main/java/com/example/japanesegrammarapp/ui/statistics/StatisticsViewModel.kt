@@ -17,14 +17,17 @@ import javax.inject.Inject
 data class StatisticsUiState(
     val timeRange: StatisticsTimeRange = StatisticsTimeRange.DAILY,
     val referenceDate: LocalDate = LocalDate.now(),
+    val selectedDetailDate: LocalDate? = null,
     val summary: StatisticsSummary? = null,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val navigateDirection: Int = 1
 )
 
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
-    private val repository: StatisticsRepository
+    private val repository: StatisticsRepository,
+    val uiPreferencesRepository: com.example.japanesegrammarapp.domain.repository.UiPreferencesRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StatisticsUiState())
@@ -35,7 +38,7 @@ class StatisticsViewModel @Inject constructor(
     }
 
     fun setTimeRange(timeRange: StatisticsTimeRange) {
-        _uiState.update { it.copy(timeRange = timeRange, referenceDate = LocalDate.now()) }
+        _uiState.update { it.copy(timeRange = timeRange, referenceDate = LocalDate.now(), selectedDetailDate = null) }
         loadStatistics()
     }
 
@@ -47,7 +50,7 @@ class StatisticsViewModel @Inject constructor(
             StatisticsTimeRange.MONTHLY -> current.referenceDate.minusMonths(1)
             StatisticsTimeRange.YEARLY -> current.referenceDate.minusYears(1)
         }
-        _uiState.update { it.copy(referenceDate = newDate) }
+        _uiState.update { it.copy(referenceDate = newDate, selectedDetailDate = null, navigateDirection = -1) }
         loadStatistics()
     }
 
@@ -59,13 +62,17 @@ class StatisticsViewModel @Inject constructor(
             StatisticsTimeRange.MONTHLY -> current.referenceDate.plusMonths(1)
             StatisticsTimeRange.YEARLY -> current.referenceDate.plusYears(1)
         }
-        _uiState.update { it.copy(referenceDate = newDate) }
+        _uiState.update { it.copy(referenceDate = newDate, selectedDetailDate = null, navigateDirection = 1) }
         loadStatistics()
     }
     
     fun resetDate() {
-        _uiState.update { it.copy(referenceDate = LocalDate.now()) }
+        _uiState.update { it.copy(referenceDate = LocalDate.now(), selectedDetailDate = null) }
         loadStatistics()
+    }
+
+    fun setSelectedDetailDate(date: LocalDate?) {
+        _uiState.update { it.copy(selectedDetailDate = date) }
     }
 
     private fun loadStatistics() {
