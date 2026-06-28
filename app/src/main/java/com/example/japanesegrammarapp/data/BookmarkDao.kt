@@ -117,4 +117,7 @@ interface BookmarkDao {
             return true
         }
     }
+
+    @Query("SELECT * FROM bookmarked_segments WHERE bookmarkedAt >= :startTime AND bookmarkedAt <= :endTime ORDER BY bookmarkedAt DESC")
+    suspend fun getBookmarksByTimeRange(startTime: Long, endTime: Long): List<BookmarkedSegment>
 }

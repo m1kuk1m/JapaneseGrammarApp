@@ -628,4 +628,16 @@
     <string name="loading_newer">Loading newer record...</string>
     <string name="loading_older">Loading older record...</string>
     <string name="year_month_format">%1$s/%2$s</string>
+
+    <!-- Statistics & Review -->
+    <string name="statistics_title">Statistics &amp; Review</string>
+    <string name="statistics_tab_daily">Daily</string>
+    <string name="statistics_tab_weekly">Weekly</string>
+    <string name="statistics_tab_monthly">Monthly</string>
+    <string name="statistics_tab_yearly">Yearly</string>
+    <string name="statistics_section_analyzed_sentences">Analyzed Sentences</string>
+    <string name="statistics_section_bookmarked_vocabulary">Bookmarked Vocabulary</string>
+    <string name="statistics_total_analyses">Total Analyses</string>
+    <string name="statistics_total_tokens">Total Tokens</string>
+    <string name="statistics_total_bookmarks">Total Bookmarks</string>
 </resources>

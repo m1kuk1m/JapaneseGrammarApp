@@ -535,7 +535,11 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                             onExportRecord = { record -> workspaceViewModel.exportRecord(record) },
                             onCloseDrawer = { closeDrawer() },
                             onImportHistory = { uri -> workspaceViewModel.importHistoryFromUri(uri) },
-                            onToggleBookmarkSentence = { record -> workspaceViewModel.toggleSentenceBookmark(record) }
+                            onToggleBookmarkSentence = { record -> workspaceViewModel.toggleSentenceBookmark(record) },
+                            onNavigateToStatistics = {
+                                closeDrawer()
+                                navController.navigate("statistics")
+                            }
                         )
                     }
                 }
@@ -865,6 +869,38 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 cardLimit = limit,
                 posFilter = pos,
                 archiveScope = scope
+            )
+        }
+
+        composable(
+            route = "statistics",
+            enterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            popEnterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            },
+            popExitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(300, easing = EaseInOutQuart)
+                )
+            }
+        ) {
+            com.example.japanesegrammarapp.ui.statistics.StatisticsScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }
