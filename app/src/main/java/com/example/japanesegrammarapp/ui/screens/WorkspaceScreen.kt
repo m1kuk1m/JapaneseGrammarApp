@@ -460,164 +460,197 @@ fun WorkspaceScreen(
                             val surfaceMarginHorizontal by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 0.dp else 16.dp, animationSpec = tween(300, easing = EaseInOutCubic), label = "surfaceMarginHorizontal")
                             val surfaceMarginVertical by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 0.dp else 8.dp, animationSpec = tween(300, easing = EaseInOutCubic), label = "surfaceMarginVertical")
                             val surfaceCornerRadius by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 0.dp else 24.dp, animationSpec = tween(300, easing = EaseInOutCubic), label = "surfaceCornerRadius")
-                            val surfaceElevation by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 4.dp else 0.dp, animationSpec = tween(300, easing = EaseInOutCubic), label = "surfaceElevation")
+                            val surfaceColor by androidx.compose.animation.animateColorAsState(targetValue = if (isResultScrolled) MaterialTheme.colorScheme.surface.copy(alpha = 0.92f) else MaterialTheme.colorScheme.surface, animationSpec = tween(300), label = "surfaceColor")
 
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = surfaceMarginVertical, horizontal = surfaceMarginHorizontal),
-                                color = MaterialTheme.colorScheme.surface,
-                                shape = RoundedCornerShape(surfaceCornerRadius),
-                                shadowElevation = surfaceElevation,
-                                tonalElevation = 0.dp
-                            ) {
-                                val innerVerticalPadding by androidx.compose.animation.core.animateDpAsState(if (isResultScrolled) 8.dp else 12.dp, label = "innerVerticalPadding")
-                                val innerHorizontalPadding by androidx.compose.animation.core.animateDpAsState(if (isResultScrolled) 16.dp else 12.dp, label = "innerHorizontalPadding")
-                                Column(modifier = Modifier.padding(horizontal = innerHorizontalPadding, vertical = innerVerticalPadding)) {
-                                    val currentText = uiState.currentOriginalText
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = stringResource(R.string.target_sentence),
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp,
-                                            color = SumiInk.copy(alpha = 0.6f)
-                                        )
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = surfaceMarginVertical, horizontal = surfaceMarginHorizontal),
+                                    color = surfaceColor,
+                                    shape = RoundedCornerShape(surfaceCornerRadius),
+                                    shadowElevation = 0.dp,
+                                    tonalElevation = 0.dp
+                                ) {
+                                    val innerVerticalPadding by androidx.compose.animation.core.animateDpAsState(if (isResultScrolled) 8.dp else 12.dp, label = "innerVerticalPadding")
+                                    val innerHorizontalPadding by androidx.compose.animation.core.animateDpAsState(if (isResultScrolled) 16.dp else 12.dp, label = "innerHorizontalPadding")
+                                    Column(modifier = Modifier.padding(horizontal = innerHorizontalPadding, vertical = innerVerticalPadding)) {
+                                        val currentText = uiState.currentOriginalText
                                         Row(
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            val isPending = uiState.selectedRecord?.status == AnalysisStatus.PENDING
-
-                                            if (!isPending && uiState.selectedRecord != null) {
-                                                val isSentenceBookmarked = uiState.isSentenceBookmarked
-                                                val goldColor = Color(0xFFD4A017)
-                                                val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-
-                                                // Star pulse animation when bookmark state changes
-                                                var wasSentenceBookmarked by remember { mutableStateOf(isSentenceBookmarked) }
-                                                var starScale by remember { mutableFloatStateOf(1f) }
-                                                LaunchedEffect(isSentenceBookmarked) {
-                                                    if (isSentenceBookmarked && !wasSentenceBookmarked) {
-                                                        val pulse = androidx.compose.animation.core.Animatable(1f)
-                                                        pulse.animateTo(1.3f, animationSpec = androidx.compose.animation.core.tween(120, easing = androidx.compose.animation.core.FastOutSlowInEasing))
-                                                        pulse.animateTo(1.0f, animationSpec = androidx.compose.animation.core.tween(150, easing = androidx.compose.animation.core.FastOutSlowInEasing))
-                                                        starScale = 1f
-                                                    }
-                                                    wasSentenceBookmarked = isSentenceBookmarked
-                                                }
-
-                                                // Brief glow animation on bookmark
-                                                var showGlowAnimation by remember { mutableStateOf(false) }
-                                                val glow = remember { androidx.compose.animation.core.Animatable(0f) }
-                                                LaunchedEffect(isSentenceBookmarked) {
-                                                    if (isSentenceBookmarked && showGlowAnimation) {
-                                                        glow.snapTo(0.4f)
-                                                        glow.animateTo(0f, animationSpec = androidx.compose.animation.core.tween(600, easing = androidx.compose.animation.core.EaseInOutCubic))
-                                                        showGlowAnimation = false
-                                                    }
-                                                }
-
-                                                Box(
-                                                    contentAlignment = Alignment.Center,
-                                                    modifier = Modifier.size(36.dp)
-                                                ) {
-                                                    IconButton(
-                                                        onClick = {
-                                                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                                                            if (!isSentenceBookmarked) {
-                                                                showGlowAnimation = true
-                                                            }
-                                                            viewModel.toggleSentenceBookmark()
-                                                        },
-                                                        modifier = Modifier.size(32.dp)
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = if (isSentenceBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
-                                                            contentDescription = stringResource(if (isSentenceBookmarked) R.string.bookmark_sentence_removed else R.string.bookmark_sentence_added),
-                                                            tint = if (isSentenceBookmarked) goldColor else SumiInk.copy(alpha = 0.45f),
-                                                            modifier = Modifier.size(20.dp).graphicsLayer {
-                                                                scaleX = starScale
-                                                                scaleY = starScale
-                                                            }
+                                            Box(modifier = Modifier.weight(1f, fill = false).padding(end = 8.dp)) {
+                                                androidx.compose.animation.Crossfade(targetState = isResultScrolled, label = "titleCrossfade") { scrolled ->
+                                                    if (scrolled) {
+                                                        Text(
+                                                            text = currentText.ifBlank { stringResource(R.string.image_analysis) },
+                                                            fontSize = 12.sp,
+                                                            color = SumiInk.copy(alpha = 0.8f),
+                                                            maxLines = 1,
+                                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                                         )
-                                                    }
-                                                    if (isSentenceBookmarked && glow.value > 0.01f) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .size(32.dp)
-                                                                .clip(RoundedCornerShape(16.dp))
-                                                                .background(goldColor.copy(alpha = glow.value))
-                                                        )
-                                                    }
-                                                }
-                                            }
-
-                                            TextButton(
-                                                onClick = {
-                                                    if (isPending) {
-                                                        uiState.selectedRecord?.let { record ->
-                                                            viewModel.cancelAnalysis(record.id)
-                                                            viewModel.deleteRecord(record)
-                                                        }
                                                     } else {
-                                                        showDeleteConfirmDialog = true
+                                                        Text(
+                                                            text = stringResource(R.string.target_sentence),
+                                                            fontWeight = FontWeight.Bold,
+                                                            fontSize = 12.sp,
+                                                            color = SumiInk.copy(alpha = 0.6f)
+                                                        )
                                                     }
-                                                },
-                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                                colors = ButtonDefaults.textButtonColors(contentColor = SumiInk)
-                                            ) {
-                                                Icon(
-                                                    imageVector = if (isPending) Icons.Default.Close else Icons.Default.Delete,
-                                                    contentDescription = stringResource(if (isPending) R.string.cancel else R.string.delete),
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text(
-                                                    text = stringResource(if (isPending) R.string.cancel else R.string.delete),
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
+                                                }
                                             }
-                                            TextButton(
-                                                onClick = {
-                                                    viewModel.startNewAnalysisWithText(currentText)
-                                                },
-                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                                colors = ButtonDefaults.textButtonColors(contentColor = SumiInk)
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(if (isResultScrolled) 0.dp else 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Edit,
-                                                    contentDescription = stringResource(R.string.edit_and_reanalyze_desc),
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text(
-                                                    text = stringResource(R.string.edit_and_reanalyze),
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-                                    }
+                                                val isPending = uiState.selectedRecord?.status == AnalysisStatus.PENDING
 
-                                    AnimatedVisibility(
-                                        visible = !isResultScrolled,
-                                        enter = expandVertically(animationSpec = tween(300, easing = EaseInOutCubic)) + fadeIn(animationSpec = tween(200)),
-                                        exit = shrinkVertically(animationSpec = tween(300, easing = EaseInOutCubic)) + fadeOut(animationSpec = tween(200))
-                                    ) {
-                                        androidx.compose.foundation.text.selection.SelectionContainer {
-                                            Text(
-                                                text = currentText.ifBlank { stringResource(R.string.image_analysis) },
-                                                fontSize = 14.sp,
-                                                color = SumiInk,
-                                                modifier = Modifier.padding(top = 4.dp)
-                                            )
+                                                if (!isPending && uiState.selectedRecord != null) {
+                                                    val isSentenceBookmarked = uiState.isSentenceBookmarked
+                                                    val goldColor = Color(0xFFD4A017)
+                                                    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+
+                                                    // Star pulse animation when bookmark state changes
+                                                    var wasSentenceBookmarked by remember { mutableStateOf(isSentenceBookmarked) }
+                                                    var starScale by remember { mutableFloatStateOf(1f) }
+                                                    LaunchedEffect(isSentenceBookmarked) {
+                                                        if (isSentenceBookmarked && !wasSentenceBookmarked) {
+                                                            val pulse = androidx.compose.animation.core.Animatable(1f)
+                                                            pulse.animateTo(1.3f, animationSpec = androidx.compose.animation.core.tween(120, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                                                            pulse.animateTo(1.0f, animationSpec = androidx.compose.animation.core.tween(150, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                                                            starScale = 1f
+                                                        }
+                                                        wasSentenceBookmarked = isSentenceBookmarked
+                                                    }
+
+                                                    // Brief glow animation on bookmark
+                                                    var showGlowAnimation by remember { mutableStateOf(false) }
+                                                    val glow = remember { androidx.compose.animation.core.Animatable(0f) }
+                                                    LaunchedEffect(isSentenceBookmarked) {
+                                                        if (isSentenceBookmarked && showGlowAnimation) {
+                                                            glow.snapTo(0.4f)
+                                                            glow.animateTo(0f, animationSpec = androidx.compose.animation.core.tween(600, easing = androidx.compose.animation.core.EaseInOutCubic))
+                                                            showGlowAnimation = false
+                                                        }
+                                                    }
+
+                                                    Box(
+                                                        contentAlignment = Alignment.Center,
+                                                        modifier = Modifier.size(36.dp)
+                                                    ) {
+                                                        IconButton(
+                                                            onClick = {
+                                                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                                                if (!isSentenceBookmarked) {
+                                                                    showGlowAnimation = true
+                                                                }
+                                                                viewModel.toggleSentenceBookmark()
+                                                            },
+                                                            modifier = Modifier.size(32.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = if (isSentenceBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
+                                                                contentDescription = stringResource(if (isSentenceBookmarked) R.string.bookmark_sentence_removed else R.string.bookmark_sentence_added),
+                                                                tint = if (isSentenceBookmarked) goldColor else SumiInk.copy(alpha = 0.45f),
+                                                                modifier = Modifier.size(20.dp).graphicsLayer {
+                                                                    scaleX = starScale
+                                                                    scaleY = starScale
+                                                                }
+                                                            )
+                                                        }
+                                                        if (isSentenceBookmarked && glow.value > 0.01f) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(32.dp)
+                                                                    .clip(RoundedCornerShape(16.dp))
+                                                                    .background(goldColor.copy(alpha = glow.value))
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                TextButton(
+                                                    onClick = {
+                                                        if (isPending) {
+                                                            uiState.selectedRecord?.let { record ->
+                                                                viewModel.cancelAnalysis(record.id)
+                                                                viewModel.deleteRecord(record)
+                                                            }
+                                                        } else {
+                                                            showDeleteConfirmDialog = true
+                                                        }
+                                                    },
+                                                    contentPadding = PaddingValues(horizontal = if (isResultScrolled) 4.dp else 8.dp, vertical = 2.dp),
+                                                    colors = ButtonDefaults.textButtonColors(contentColor = SumiInk)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (isPending) Icons.Default.Close else Icons.Default.Delete,
+                                                        contentDescription = stringResource(if (isPending) R.string.cancel else R.string.delete),
+                                                        modifier = Modifier.size(if (isResultScrolled) 18.dp else 14.dp)
+                                                    )
+                                                    if (!isResultScrolled) {
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text(
+                                                            text = stringResource(if (isPending) R.string.cancel else R.string.delete),
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+                                                }
+                                                TextButton(
+                                                    onClick = {
+                                                        viewModel.startNewAnalysisWithText(currentText)
+                                                    },
+                                                    contentPadding = PaddingValues(horizontal = if (isResultScrolled) 4.dp else 8.dp, vertical = 2.dp),
+                                                    colors = ButtonDefaults.textButtonColors(contentColor = SumiInk)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Edit,
+                                                        contentDescription = stringResource(R.string.edit_and_reanalyze_desc),
+                                                        modifier = Modifier.size(if (isResultScrolled) 18.dp else 14.dp)
+                                                    )
+                                                    if (!isResultScrolled) {
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text(
+                                                            text = stringResource(R.string.edit_and_reanalyze),
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        AnimatedVisibility(
+                                            visible = !isResultScrolled,
+                                            enter = expandVertically(animationSpec = tween(300, easing = EaseInOutCubic)) + fadeIn(animationSpec = tween(200)),
+                                            exit = shrinkVertically(animationSpec = tween(300, easing = EaseInOutCubic)) + fadeOut(animationSpec = tween(200))
+                                        ) {
+                                            androidx.compose.foundation.text.selection.SelectionContainer {
+                                                Text(
+                                                    text = currentText.ifBlank { stringResource(R.string.image_analysis) },
+                                                    fontSize = 14.sp,
+                                                    color = SumiInk,
+                                                    modifier = Modifier.padding(top = 4.dp)
+                                                )
+                                            }
                                         }
                                     }
+                                }
+                                
+                                // Subtle bottom divider when scrolled
+                                AnimatedVisibility(
+                                    visible = isResultScrolled,
+                                    enter = fadeIn(animationSpec = tween(300)),
+                                    exit = fadeOut(animationSpec = tween(300)),
+                                    modifier = Modifier.align(Alignment.BottomCenter)
+                                ) {
+                                    Divider(
+                                        color = SumiInk.copy(alpha = 0.08f),
+                                        thickness = 1.dp
+                                    )
                                 }
                             }
 
