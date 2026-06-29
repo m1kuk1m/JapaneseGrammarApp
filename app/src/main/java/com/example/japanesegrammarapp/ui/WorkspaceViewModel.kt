@@ -703,7 +703,7 @@ class WorkspaceViewModel @Inject constructor(
                     if (existingRecord != null && existingRecord.status == AnalysisStatus.COMPLETED) {
                         // Directly show the completed record to avoid flashing a PENDING loading skeleton
                         withContext(Dispatchers.Main) {
-                            selectRecord(existingRecord)
+                            selectRecord(existingRecord, clearExternalQuery = false)
                         }
                     } else {
                         // Instantly transition the UI state on the Main thread to avoid loading/flashing delays
