@@ -472,7 +472,7 @@ fun WorkspaceScreen(
                             val outerVerticalPadding = 8.dp
                             val outerHorizontalPadding = 16.dp
                             val shadowElevation by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 6.dp else 0.dp, animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "shadowElevation")
-                            val topCornerRadius = 24.dp
+                            val topCornerRadius = 0.dp
                             val innerHorizontalPadding = 12.dp
 
                             Box(
@@ -489,7 +489,7 @@ fun WorkspaceScreen(
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = outerVerticalPadding, horizontal = outerHorizontalPadding),
+                                        .padding(start = outerHorizontalPadding, end = outerHorizontalPadding, bottom = outerVerticalPadding),
                                     color = surfaceColor,
                                     shape = RoundedCornerShape(
                                         topStart = topCornerRadius,
