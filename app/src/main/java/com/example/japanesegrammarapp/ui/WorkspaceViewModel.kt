@@ -628,12 +628,21 @@ class WorkspaceViewModel @Inject constructor(
 
     fun startNewAnalysisWithText(text: String, isExternal: Boolean = false) {
         _uiState.update { it.copy(
-            selectedRecord = null,
+            selectedRecord = if (isExternal) {
+                AnalysisDomainRecord(
+                    id = -999,
+                    originalText = text,
+                    imageUri = null,
+                    analysisResult = null,
+                    modelUsed = "",
+                    status = AnalysisStatus.PENDING
+                )
+            } else null,
             currentOriginalText = text,
             analysisResult = null,
             detailedResult = null,
             isParsingDetailedResult = false,
-            selectedRecordProgress = null,
+            selectedRecordProgress = if (isExternal) AnalysisProgress() else null,
             isExternalQuery = isExternal
         ) }
     }
