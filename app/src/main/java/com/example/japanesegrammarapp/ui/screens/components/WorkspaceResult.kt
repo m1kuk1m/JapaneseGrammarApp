@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -66,6 +67,9 @@ import com.example.japanesegrammarapp.ui.theme.ZenColors.MatchaGreen
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SakuraPink
 import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
 
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun WorkspaceResultContent(
@@ -80,7 +84,8 @@ fun WorkspaceResultContent(
     onLoadOlder: () -> Unit = {},
     uiPreferencesRepository: UiPreferencesRepository,
     onUserInteracted: () -> Unit = {},
-    onScrollStateChange: (Boolean) -> Unit = {}
+    onScrollStateChange: (Boolean) -> Unit = {},
+    topPadding: Dp = 0.dp
 ) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val SurfaceColor = MaterialTheme.colorScheme.surface
@@ -114,7 +119,7 @@ fun WorkspaceResultContent(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(vertical = 8.dp),
+                .padding(top = topPadding + 8.dp, bottom = 8.dp, start = 8.dp, end = 8.dp),
             color = SurfaceColor,
             shadowElevation = 3.dp,
             tonalElevation = 0.dp,
@@ -247,7 +252,7 @@ fun WorkspaceResultContent(
                     .verticalScroll(scrollState)
                     .padding(vertical = 8.dp)
             ) {
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(topPadding + 10.dp))
                     // 1. Target Sentence Header with clickable chips
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -292,7 +297,9 @@ fun WorkspaceResultContent(
                         tonalElevation = 0.dp
                     ) {
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                            val isLoadingExplain = isPending && progress?.segmentsCompleted != true && !data.segments.isNullOrEmpty()
+                            val segmentError = progress?.stepErrors?.get("DETAILED_GRAMMAR")
+                                ?: progress?.stepErrors?.get("TOKENIZATION")
+                            val isLoadingExplain = isPending && progress?.segmentsCompleted != true && !data.segments.isNullOrEmpty() && segmentError == null
                             
                             AnimatedVisibility(
                                 visible = isLoadingExplain,
@@ -310,13 +317,33 @@ fun WorkspaceResultContent(
                                 }
                             }
                             
+                            if (segmentError != null) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = "Error",
+                                        tint = Color.Red,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = segmentError,
+                                        color = Color.Red,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
+                            
                             FlowRow(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 if (data.segments.isNullOrEmpty()) {
-                                    if (isPending) {
+                                    if (segmentError == null && isPending) {
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(24.dp).align(Alignment.CenterVertically),
                                             color = SumiInk.copy(alpha = 0.5f),
@@ -578,8 +605,9 @@ fun WorkspaceResultContent(
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                         )
                                     }
+                                    val translationError = progress?.stepErrors?.get("TRANSLATION")
                                     AnimatedContent(
-                                        targetState = data.translation.isNullOrBlank() && isPending,
+                                        targetState = data.translation.isNullOrBlank() && isPending && translationError == null,
                                         label = "TranslationAnimation",
                                         modifier = Modifier.weight(1f)
                                     ) { isLoading ->
@@ -587,6 +615,25 @@ fun WorkspaceResultContent(
                                             Column(modifier = Modifier.padding(start = 2.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                                 ShimmerSkeleton(modifier = Modifier.fillMaxWidth().height(16.dp))
                                                 ShimmerSkeleton(modifier = Modifier.fillMaxWidth(0.7f).height(16.dp))
+                                            }
+                                        } else if (translationError != null) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Warning,
+                                                    contentDescription = "Error",
+                                                    tint = Color.Red,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = translationError,
+                                                    color = Color.Red,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Medium
+                                                )
                                             }
                                         } else {
                                             StreamingText(
@@ -636,8 +683,9 @@ fun WorkspaceResultContent(
                         ) {
                             SelectionContainer {
                                 Column(modifier = Modifier.animateContentSize().padding(16.dp)) {
+                                    val clausesError = progress?.stepErrors?.get("CLAUSE_ANALYSIS")
                                     AnimatedContent(
-                                        targetState = data.clauses.isNullOrEmpty() && isPending,
+                                        targetState = data.clauses.isNullOrEmpty() && isPending && clausesError == null,
                                         label = "ClausesAnimation"
                                     ) { isLoading ->
                                         if (isLoading) {
@@ -656,6 +704,24 @@ fun WorkspaceResultContent(
                                                         }
                                                     }
                                                 }
+                                            }
+                                        } else if (clausesError != null) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Warning,
+                                                    contentDescription = "Error",
+                                                    tint = Color.Red,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = clausesError,
+                                                    color = Color.Red,
+                                                    fontSize = 13.sp
+                                                )
                                             }
                                         } else {
                                             Column {
@@ -761,8 +827,9 @@ fun WorkspaceResultContent(
                         ) {
                             SelectionContainer {
                                 Column(modifier = Modifier.animateContentSize().padding(16.dp)) {
+                                    val grammarError = progress?.stepErrors?.get("GRAMMAR_EXPLANATION")
                                     AnimatedContent(
-                                        targetState = data.grammarPoints.isNullOrEmpty() && isPending,
+                                        targetState = data.grammarPoints.isNullOrEmpty() && isPending && grammarError == null,
                                         label = "GrammarAnimation"
                                     ) { isLoading ->
                                         if (isLoading) {
@@ -777,6 +844,24 @@ fun WorkspaceResultContent(
                                                         ShimmerSkeleton(modifier = Modifier.fillMaxWidth(0.7f).height(12.dp))
                                                     }
                                                 }
+                                            }
+                                        } else if (grammarError != null) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Warning,
+                                                    contentDescription = "Error",
+                                                    tint = Color.Red,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = grammarError,
+                                                    color = Color.Red,
+                                                    fontSize = 13.sp
+                                                )
                                             }
                                         } else {
                                             Column {

@@ -564,14 +564,14 @@ fun ApiLogDetailDialog(
                         ) {
                             ApiLogMetadataCard(log = log, sumiInk = sumiInk)
                             ApiLogPromptSection(log = log, context = context, sumiInk = sumiInk)
-                            if (log.status == "SUCCESS") {
+                            if (!log.rawResponse.isNullOrBlank()) {
                                 ApiLogResponseSection(
                                     formattedResponse = formattedResponse,
                                     context = context,
                                     sumiInk = sumiInk
                                 )
                             }
-                            if (log.status == "ERROR" || log.status == "TIMEOUT") {
+                            if (log.status == "ERROR" || log.status == "TIMEOUT" || log.status == "RETRY") {
                                 ApiLogErrorSection(log = log, context = context)
                             }
                         }

@@ -15,7 +15,8 @@ data class AnalysisProgress(
     val clausesCompleted: Boolean = false,
     val translationCompleted: Boolean = false,
     val grammarCompleted: Boolean = false,
-    val partialSegments: List<WordSegment>? = null
+    val partialSegments: List<WordSegment>? = null,
+    val stepErrors: Map<String, String> = emptyMap()
 )
 
 interface AnalysisTaskManager {
@@ -273,6 +274,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                 }
                             } catch (e: Exception) {
                                 logStepFailure(recordId, AnalysisStep.TRANSLATION, e)
+                                progressStore.markStepError(recordId, AnalysisStep.TRANSLATION.name, e.localizedMessage ?: "Unknown error")
                             } finally {
                                 progressStore.markTranslationCompleted(recordId)
                             }
@@ -305,6 +307,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                 }
                             } catch (e: Exception) {
                                 logStepFailure(recordId, AnalysisStep.CLAUSE_ANALYSIS, e)
+                                progressStore.markStepError(recordId, AnalysisStep.CLAUSE_ANALYSIS.name, e.localizedMessage ?: "Unknown error")
                             } finally {
                                 progressStore.markClausesCompleted(recordId)
                             }
@@ -337,6 +340,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                 }
                             } catch (e: Exception) {
                                 logStepFailure(recordId, AnalysisStep.GRAMMAR_EXPLANATION, e)
+                                progressStore.markStepError(recordId, AnalysisStep.GRAMMAR_EXPLANATION.name, e.localizedMessage ?: "Unknown error")
                             } finally {
                                 progressStore.markGrammarCompleted(recordId)
                             }
@@ -372,6 +376,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                 }
                             } catch (e: Exception) {
                                 logStepFailure(recordId, AnalysisStep.DETAILED_GRAMMAR, e)
+                                progressStore.markStepError(recordId, AnalysisStep.DETAILED_GRAMMAR.name, e.localizedMessage ?: "Unknown error")
                             } finally {
                                 progressStore.markSegmentsCompleted(recordId)
                             }
@@ -477,6 +482,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.TRANSLATION, e)
+                                    progressStore.markStepError(recordId, AnalysisStep.TRANSLATION.name, e.localizedMessage ?: "Unknown error")
                                 } finally {
                                     progressStore.markTranslationCompleted(recordId)
                                 }
@@ -509,6 +515,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.CLAUSE_ANALYSIS, e)
+                                    progressStore.markStepError(recordId, AnalysisStep.CLAUSE_ANALYSIS.name, e.localizedMessage ?: "Unknown error")
                                 } finally {
                                     progressStore.markClausesCompleted(recordId)
                                 }
@@ -541,6 +548,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.GRAMMAR_EXPLANATION, e)
+                                    progressStore.markStepError(recordId, AnalysisStep.GRAMMAR_EXPLANATION.name, e.localizedMessage ?: "Unknown error")
                                 } finally {
                                     progressStore.markGrammarCompleted(recordId)
                                 }
@@ -576,6 +584,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.DETAILED_GRAMMAR, e)
+                                    progressStore.markStepError(recordId, AnalysisStep.DETAILED_GRAMMAR.name, e.localizedMessage ?: "Unknown error")
                                 } finally {
                                     progressStore.markSegmentsCompleted(recordId)
                                 }
@@ -613,6 +622,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.TRANSLATION, e)
+                                    progressStore.markStepError(recordId, AnalysisStep.TRANSLATION.name, e.localizedMessage ?: "Unknown error")
                                 } finally {
                                     progressStore.markTranslationCompleted(recordId)
                                 }
@@ -645,6 +655,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.CLAUSE_ANALYSIS, e)
+                                    progressStore.markStepError(recordId, AnalysisStep.CLAUSE_ANALYSIS.name, e.localizedMessage ?: "Unknown error")
                                 } finally {
                                     progressStore.markClausesCompleted(recordId)
                                 }
@@ -677,6 +688,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.GRAMMAR_EXPLANATION, e)
+                                    progressStore.markStepError(recordId, AnalysisStep.GRAMMAR_EXPLANATION.name, e.localizedMessage ?: "Unknown error")
                                 } finally {
                                     progressStore.markGrammarCompleted(recordId)
                                 }
@@ -750,6 +762,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.DETAILED_GRAMMAR, e)
+                                    progressStore.markStepError(recordId, AnalysisStep.DETAILED_GRAMMAR.name, e.localizedMessage ?: "Unknown error")
                                 } finally {
                                     progressStore.markSegmentsCompleted(recordId)
                                 }

@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
@@ -110,6 +111,13 @@ fun WorkspaceScreen(
     
     val isPlayingTts by viewModel.isPlayingTts.collectAsState(initial = false)
     var isResultScrolled by remember { mutableStateOf(false) }
+    var topBoxHeight by remember { mutableStateOf(0.dp) }
+
+    // Reset scroll and floating panel header states when selected record changes
+    LaunchedEffect(uiState.selectedRecord?.id) {
+        isResultScrolled = false
+        topBoxHeight = 0.dp
+    }
 
     // Hoisted States for input form
     var textInputState by androidx.compose.runtime.saveable.rememberSaveable(uiState.currentOriginalText) {
@@ -455,18 +463,29 @@ fun WorkspaceScreen(
                             }
                         }
                     } else {
-                        Column(
+                        Box(
                             modifier = Modifier
                                 .fillMaxSize()
                         ) {
                             val surfaceColor = MaterialTheme.colorScheme.surface
-                            val outerVerticalPadding by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 0.dp else 8.dp, animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "outerVerticalPadding")
+                            val density = androidx.compose.ui.platform.LocalDensity.current
+                            val outerVerticalPadding = 8.dp
                             val outerHorizontalPadding = 16.dp
                             val shadowElevation by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 6.dp else 0.dp, animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "shadowElevation")
                             val topCornerRadius = 24.dp
                             val innerHorizontalPadding = 12.dp
 
-                            Box(modifier = Modifier.fillMaxWidth().zIndex(1f)) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .zIndex(1f)
+                                    .onGloballyPositioned { coordinates ->
+                                        val height = with(density) { coordinates.size.height.toDp() }
+                                        if (height > topBoxHeight) {
+                                            topBoxHeight = height
+                                        }
+                                    }
+                            ) {
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -652,8 +671,7 @@ fun WorkspaceScreen(
 
                                 Box(
                                     modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxWidth()
+                                        .fillMaxSize()
                                 ) {
                                     AnimatedContent(
                                         targetState = resultPaneTarget,
@@ -661,7 +679,9 @@ fun WorkspaceScreen(
                                             val oldTarget = initialState
                                             val newTarget = targetState
                                             if (oldTarget.recordId != newTarget.recordId) {
-                                                if (newTarget.timestamp < oldTarget.timestamp) {
+                                                if (uiState.isExternalQuery) {
+                                                    fadeIn(animationSpec = tween(400, easing = EaseInOutCubic)) togetherWith fadeOut(animationSpec = tween(400, easing = EaseInOutCubic))
+                                                } else if (newTarget.timestamp < oldTarget.timestamp) {
                                                     // Sliding to an older record (which is "above")
                                                     androidx.compose.animation.slideInVertically(initialOffsetY = { -it }, animationSpec = tween(400, easing = EaseInOutCubic)) togetherWith
                                                             androidx.compose.animation.slideOutVertically(targetOffsetY = { it }, animationSpec = tween(400, easing = EaseInOutCubic))
@@ -699,14 +719,15 @@ fun WorkspaceScreen(
                                                     onEditWordSegment = { segment ->
                                                         editingSegment = segment
                                                     },
-                                                    onToggleGrammarBookmark = { pattern, explanation, sourceText ->
+                                                onToggleGrammarBookmark = { pattern, explanation, sourceText ->
                                                         viewModel.toggleGrammarPointBookmark(pattern, explanation, sourceText)
                                                     },
                                                     onLoadNewer = { viewModel.loadNewerRecord() },
                                                     onLoadOlder = { viewModel.loadOlderRecord() },
                                                     uiPreferencesRepository = viewModel.uiPreferencesRepository,
                                                     onUserInteracted = { viewModel.markCurrentRecordAsRead() },
-                                                    onScrollStateChange = { isResultScrolled = it }
+                                                    onScrollStateChange = { isResultScrolled = it },
+                                                    topPadding = topBoxHeight
                                                 )
                                             }
                                             ResultPaneMode.FAILED -> {
@@ -714,7 +735,8 @@ fun WorkspaceScreen(
                                                     Card(
                                                         modifier = Modifier
                                                             .fillMaxWidth()
-                                                            .padding(horizontal = 16.dp).padding(top = 16.dp),
+                                                            .padding(horizontal = 16.dp)
+                                                            .padding(top = topBoxHeight + 16.dp),
                                                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                                         border = BorderStroke(1.dp, Color(0xFFF3D8D8)),
                                                         shape = RoundedCornerShape(8.dp)

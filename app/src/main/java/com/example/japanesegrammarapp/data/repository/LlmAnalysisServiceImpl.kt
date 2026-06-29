@@ -330,10 +330,10 @@ class LlmAnalysisServiceImpl @Inject constructor(
             append(primaryConfigs.firstOrNull()?.modelName ?: "Unknown")
             backupConfigs.firstOrNull()?.modelName?.let { append(" -> ").append(it) }
         }
+        val stepStartMs = System.currentTimeMillis()
+        var accumulatedText = ""
+        var currentMetadata = LlmResultMetadata(0, 0, 0)
         try {
-            val stepStartMs = System.currentTimeMillis()
-            var accumulatedText = ""
-            var currentMetadata = LlmResultMetadata(0, 0, 0)
             
             withTimeout(timeoutMs) {
                 llmRepository.executeWithStreaming(
@@ -382,17 +382,18 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 elapsedMs = System.currentTimeMillis() - stepStartMs
             )
         } catch (e: TimeoutCancellationException) {
-            val elapsedMs = System.currentTimeMillis() - System.currentTimeMillis() // just 0 for timeout 
+            val elapsedMs = System.currentTimeMillis() - stepStartMs
             val message = "Step timed out after ${timeoutMs / 1000}s"
-            AppLogger.apiEvent(
+            AppLogger.apiError(
                 apiTypeLabel = apiTypeLabel,
                 provider = providerLabel,
                 model = modelLabel,
-                status = "TIMEOUT",
                 hasImage = imageBase64 != null,
                 userPrompt = userPrompt,
                 systemPrompt = systemPrompt,
                 message = message,
+                throwable = e,
+                rawResponse = accumulatedText,
                 recordId = recordId,
                 stepName = stepName,
                 elapsedMs = elapsedMs
@@ -413,7 +414,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 throwable = e,
                 rawResponse = body,
                 recordId = recordId,
-                stepName = stepName
+                stepName = stepName,
+                elapsedMs = System.currentTimeMillis() - stepStartMs
             )
             throw Exception(message, e)
         } catch (e: Exception) {
@@ -427,8 +429,10 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 systemPrompt = systemPrompt,
                 message = e.localizedMessage ?: "Unknown LLM step error",
                 throwable = e,
+                rawResponse = accumulatedText,
                 recordId = recordId,
-                stepName = stepName
+                stepName = stepName,
+                elapsedMs = System.currentTimeMillis() - stepStartMs
             )
             throw e
         }

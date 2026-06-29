@@ -42,6 +42,10 @@ class AnalysisProgressStore {
         update(recordId) { it.copy(grammarCompleted = true) }
     }
 
+    fun markStepError(recordId: Int, stepName: String, errorMessage: String) {
+        update(recordId) { it.copy(stepErrors = it.stepErrors + (stepName to errorMessage)) }
+    }
+
     private fun update(recordId: Int, block: (AnalysisProgress) -> AnalysisProgress) {
         _progressFlow.update { map ->
             val current = map[recordId] ?: AnalysisProgress()

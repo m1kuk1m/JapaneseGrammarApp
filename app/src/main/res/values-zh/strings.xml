@@ -636,4 +636,15 @@
     <string name="statistics_analysis_count">分析次数</string>
     <string name="statistics_heatmap_title">学习连续性</string>
     <string name="statistics_empty_state_title">今天还没有学习哦，去分析一个句子吧！</string>
+    <string name="view_all_sentences">查看全部 %1$d 个句子 →</string>
+    <string name="view_all_words">查看全部 %1$d 个词汇 →</string>
+    <string name="view_all_grammar">查看全部 %1$d 个语法 →</string>
+    <string name="all_analyzed_sentences">所有已分析句子 (%1$d)</string>
+    <string name="all_bookmarked_words">所有已收藏词汇 (%1$d)</string>
+    <string name="all_learned_grammar">所有已学习语法 (%1$d)</string>
+    <string name="view_record">查看记录</string>
+    <string name="view_related_record">查看关联记录</string>
+    <string name="view_related_analysis">查看关联分析</string>
+    <string name="previous">上一页</string>
+    <string name="next">下一页</string>
 </resources>

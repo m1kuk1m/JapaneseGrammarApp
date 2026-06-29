@@ -236,7 +236,7 @@ fun StatisticsScreen(
                                     if (allSentences.size > 3) {
                                         item {
                                             ViewAllButton(
-                                                text = "查看全部 ${allSentences.size} 个句子 →",
+                                                text = stringResource(R.string.view_all_sentences, allSentences.size),
                                                 onClick = { activeModalType = StatisticsModalType.SENTENCES }
                                             )
                                         }
@@ -263,7 +263,7 @@ fun StatisticsScreen(
                                     if (allBookmarks.size > 3) {
                                         item {
                                             ViewAllButton(
-                                                text = "查看全部 ${allBookmarks.size} 个词汇 →",
+                                                text = stringResource(R.string.view_all_words, allBookmarks.size),
                                                 onClick = { activeModalType = StatisticsModalType.WORDS }
                                             )
                                         }
@@ -290,7 +290,7 @@ fun StatisticsScreen(
                                     if (allGrammar.size > 3) {
                                         item {
                                             ViewAllButton(
-                                                text = "查看全部 ${allGrammar.size} 个语法 →",
+                                                text = stringResource(R.string.view_all_grammar, allGrammar.size),
                                                 onClick = { activeModalType = StatisticsModalType.GRAMMAR }
                                             )
                                         }
@@ -320,9 +320,9 @@ fun StatisticsScreen(
                                             .padding(horizontal = 16.dp)
                                     ) {
                                         val title = when (activeModalType) {
-                                            StatisticsModalType.SENTENCES -> "所有已分析句子 (${allSentences.size})"
-                                            StatisticsModalType.WORDS -> "所有已收藏词汇 (${allBookmarks.size})"
-                                            StatisticsModalType.GRAMMAR -> "所有已学习语法 (${allGrammar.size})"
+                                            StatisticsModalType.SENTENCES -> stringResource(R.string.all_analyzed_sentences, allSentences.size)
+                                            StatisticsModalType.WORDS -> stringResource(R.string.all_bookmarked_words, allBookmarks.size)
+                                            StatisticsModalType.GRAMMAR -> stringResource(R.string.all_learned_grammar, allGrammar.size)
                                             null -> ""
                                         }
                                         
@@ -338,7 +338,7 @@ fun StatisticsScreen(
                                                 color = sumiInk
                                             )
                                             IconButton(onClick = { activeModalType = null }) {
-                                                Icon(Icons.Default.Close, contentDescription = "关闭", tint = sumiInk)
+                                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = sumiInk)
                                             }
                                         }
                                         
@@ -575,7 +575,7 @@ fun TimeNavigator(
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onNavigatePrevious) {
-            Icon(Icons.Default.ChevronLeft, contentDescription = "Previous", tint = sumiInk)
+            Icon(Icons.Default.ChevronLeft, contentDescription = stringResource(R.string.previous), tint = sumiInk)
         }
 
         val dateText = when (uiState.timeRange) {
@@ -594,7 +594,7 @@ fun TimeNavigator(
         Text(text = dateText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sumiInk)
 
         IconButton(onClick = onNavigateNext) {
-            Icon(Icons.Default.ChevronRight, contentDescription = "Next", tint = sumiInk)
+            Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.next), tint = sumiInk)
         }
     }
 }
@@ -908,7 +908,7 @@ fun DetailedSentenceItem(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ExpandMore,
-                                contentDescription = if (isExpanded) "折叠" else "展开",
+                                contentDescription = if (isExpanded) stringResource(R.string.collapse) else stringResource(R.string.expand),
                                 tint = sumiInk.copy(alpha = 0.4f),
                                 modifier = Modifier.rotate(expandRotation)
                             )
@@ -920,7 +920,7 @@ fun DetailedSentenceItem(
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowForward,
-                            contentDescription = "查看记录",
+                            contentDescription = stringResource(R.string.view_record),
                             tint = ZenColors.AizomeIndigo,
                             modifier = Modifier.size(18.dp)
                         )
@@ -1026,7 +1026,7 @@ fun ExpandableWordItem(
                     ) {
                         Icon(
                             imageVector = Icons.Default.ExpandMore,
-                            contentDescription = if (isExpanded) "折叠" else "展开",
+                            contentDescription = if (isExpanded) stringResource(R.string.collapse) else stringResource(R.string.expand),
                             tint = sumiInk.copy(alpha = 0.4f),
                             modifier = Modifier.rotate(expandRotation)
                         )
@@ -1037,7 +1037,7 @@ fun ExpandableWordItem(
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowForward,
-                            contentDescription = "查看关联记录",
+                            contentDescription = stringResource(R.string.view_related_record),
                             tint = ZenColors.AizomeIndigo,
                             modifier = Modifier.size(18.dp)
                         )
@@ -1070,13 +1070,13 @@ fun ExpandableWordItem(
                     
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         if (!bookmark.dictionaryForm.isNullOrBlank()) {
-                            DetailRow("原型", bookmark.dictionaryForm, sumiInk)
+                            DetailRow(stringResource(R.string.dictionary_form), bookmark.dictionaryForm, sumiInk)
                         }
                         if (!bookmark.inflection.isNullOrBlank()) {
-                            DetailRow("活用形", bookmark.inflection, sumiInk)
+                            DetailRow(stringResource(R.string.inflection), bookmark.inflection, sumiInk)
                         }
                         if (!bookmark.role.isNullOrBlank()) {
-                            DetailRow("句中角色", bookmark.role, sumiInk)
+                            DetailRow(stringResource(R.string.role_in_sentence), bookmark.role, sumiInk)
                         }
                     }
                 }
@@ -1125,7 +1125,7 @@ fun DetailedGrammarItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "查看关联分析",
+                    text = stringResource(R.string.view_related_analysis),
                     style = MaterialTheme.typography.labelMedium,
                     color = ZenColors.AizomeIndigo
                 )

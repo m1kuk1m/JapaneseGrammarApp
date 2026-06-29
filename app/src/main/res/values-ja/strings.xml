@@ -635,4 +635,15 @@
     <string name="statistics_analysis_count">分析回数</string>
     <string name="statistics_heatmap_title">学習の継続性</string>
     <string name="statistics_empty_state_title">この期間の学習データはまだありません。文の分析を始めましょう！</string>
+    <string name="view_all_sentences">すべての文を表示 (%1$d) →</string>
+    <string name="view_all_words">すべての単語を表示 (%1$d) →</string>
+    <string name="view_all_grammar">すべての文法を表示 (%1$d) →</string>
+    <string name="all_analyzed_sentences">すべての分析した文 (%1$d)</string>
+    <string name="all_bookmarked_words">すべてのお気に入り単語 (%1$d)</string>
+    <string name="all_learned_grammar">すべての学習した文法 (%1$d)</string>
+    <string name="view_record">記録を表示</string>
+    <string name="view_related_record">関連する記録を表示</string>
+    <string name="view_related_analysis">関連する分析を表示</string>
+    <string name="previous">前へ</string>
+    <string name="next">次へ</string>
 </resources>
