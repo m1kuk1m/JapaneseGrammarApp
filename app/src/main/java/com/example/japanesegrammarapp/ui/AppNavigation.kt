@@ -537,7 +537,8 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                             onImportHistory = { uri -> workspaceViewModel.importHistoryFromUri(uri) },
                             onToggleBookmarkSentence = { record -> workspaceViewModel.toggleSentenceBookmark(record) },
                             onNavigateToStatistics = {
-                                closeDrawer()
+                                drawerAnimationJob?.cancel()
+                                drawerOffsetPx = 0f
                                 navController.navigate("statistics")
                             }
                         )
