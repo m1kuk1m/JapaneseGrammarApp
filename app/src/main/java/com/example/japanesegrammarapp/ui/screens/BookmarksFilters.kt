@@ -238,6 +238,7 @@ private fun BookmarkFiltersSheet(
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -314,10 +315,16 @@ private fun BookmarkFiltersSheet(
                         onClick = { onFilterModeChange(BookmarkFilter.BY_POS) }
                     )
                 }
+                
+                val dateLabel = if (filterMode == BookmarkFilter.BY_DATE && selectedDateFilter != null) {
+                    formatBookmarkDate(selectedDateFilter)
+                } else {
+                    stringResource(R.string.filter_by_date)
+                }
                 BookmarkFilterChip(
-                    label = stringResource(R.string.filter_by_date),
+                    label = dateLabel,
                     isSelected = filterMode == BookmarkFilter.BY_DATE,
-                    onClick = { onFilterModeChange(BookmarkFilter.BY_DATE) }
+                    onClick = { showDatePicker = true }
                 )
             }
 
@@ -342,58 +349,39 @@ private fun BookmarkFiltersSheet(
                 }
             }
 
-            if (filterMode == BookmarkFilter.BY_DATE) {
-                FilterSectionTitle(text = stringResource(R.string.bookmark_filter_details))
-                var showDatePicker by rememberSaveable { mutableStateOf(false) }
-
-                HorizontalFilterOptions {
-                    BookmarkFilterChip(
-                        label = stringResource(R.string.bookmark_filter_all_dates),
-                        isSelected = selectedDateFilter == null,
-                        onClick = { onDateFilterChange(null) }
-                    )
-                    
-                    val dateLabel = selectedDateFilter?.let { formatBookmarkDate(it) } ?: stringResource(R.string.bookmark_filter_select_date)
-                    BookmarkFilterChip(
-                        label = dateLabel,
-                        isSelected = selectedDateFilter != null,
-                        onClick = { showDatePicker = true }
-                    )
-                }
-
-                if (showDatePicker) {
-                    val initialSelectedDate = selectedDateFilter ?: if (dateCategories.isNotEmpty()) dateCategories.maxOrNull() else null
-                    val datePickerState = rememberDatePickerState(
-                        initialSelectedDateMillis = initialSelectedDate,
-                        selectableDates = remember(dateCategories) {
-                            object : SelectableDates {
-                                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                                    return dateCategories.contains(utcTimeMillis)
-                                }
+            if (showDatePicker) {
+                val initialSelectedDate = selectedDateFilter ?: if (dateCategories.isNotEmpty()) dateCategories.maxOrNull() else null
+                val datePickerState = rememberDatePickerState(
+                    initialSelectedDateMillis = initialSelectedDate,
+                    selectableDates = remember(dateCategories) {
+                        object : SelectableDates {
+                            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                                return dateCategories.contains(utcTimeMillis)
                             }
                         }
-                    )
-
-                    DatePickerDialog(
-                        onDismissRequest = { showDatePicker = false },
-                        confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    onDateFilterChange(datePickerState.selectedDateMillis)
-                                    showDatePicker = false
-                                }
-                            ) {
-                                Text(stringResource(android.R.string.ok))
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showDatePicker = false }) {
-                                Text(stringResource(android.R.string.cancel))
-                            }
-                        }
-                    ) {
-                        DatePicker(state = datePickerState)
                     }
+                )
+
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                onFilterModeChange(BookmarkFilter.BY_DATE)
+                                onDateFilterChange(datePickerState.selectedDateMillis)
+                                showDatePicker = false
+                            }
+                        ) {
+                            Text(stringResource(android.R.string.ok))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text(stringResource(android.R.string.cancel))
+                        }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
                 }
             }
         }

@@ -116,7 +116,10 @@ fun WorkspaceScreen(
     // Reset scroll and floating panel header states when selected record changes
     LaunchedEffect(uiState.selectedRecord?.id) {
         isResultScrolled = false
-        topBoxHeight = 0.dp
+        // Do NOT reset topBoxHeight to 0.dp here — that causes the Spacer inside
+        // the scrollable content to shrink dramatically, which shifts maxValue and
+        // can cause the scroll position to drift during the AnimatedContent transition.
+        // topBoxHeight will be recalculated by onGloballyPositioned on the next layout pass.
     }
 
     // Hoisted States for input form
@@ -481,9 +484,7 @@ fun WorkspaceScreen(
                                     .zIndex(1f)
                                     .onGloballyPositioned { coordinates ->
                                         val height = with(density) { coordinates.size.height.toDp() }
-                                        if (height > topBoxHeight) {
-                                            topBoxHeight = height
-                                        }
+                                        topBoxHeight = height
                                     }
                             ) {
                                 Surface(
