@@ -480,8 +480,14 @@ class WorkspaceViewModel @Inject constructor(
                     selectRecord(record, clearExternalQuery = clearExternalQuery)
                 }
             } else {
+                // If it was just deleted due to a DuplicateFound event, the DuplicateFound handler
+                // will set a new selectedRecord. We delay briefly and check if the current selection
+                // matches the record we failed to load, avoiding an unnecessary flash to the Home Page.
+                kotlinx.coroutines.delay(100)
                 withContext(Dispatchers.Main) {
-                    clearSelectedRecord()
+                    if (_uiState.value.selectedRecord?.id == recordId) {
+                        clearSelectedRecord()
+                    }
                 }
             }
         }
@@ -688,27 +694,36 @@ class WorkspaceViewModel @Inject constructor(
         apiKey: String,
         autoNavigate: Boolean = true
     ) {
+        val trimmedText = text.trim()
         viewModelScope.launch {
             try {
-                val recordId = analyzeTextUseCase.execute(text, imageUri?.toString(), provider, modelName, baseUrl, apiKey)
+                val recordId = analyzeTextUseCase.execute(trimmedText, imageUri?.toString(), provider, modelName, baseUrl, apiKey)
                 if (autoNavigate) {
-                    // Instantly transition the UI state on the Main thread to avoid loading/flashing delays
-                    val initialRecord = AnalysisDomainRecord(
-                        id = recordId,
-                        originalText = text,
-                        imageUri = imageUri?.toString(),
-                        analysisResult = null,
-                        modelUsed = "$provider: $modelName",
-                        status = AnalysisStatus.PENDING
-                    )
-                    _uiState.update { it.copy(
-                        selectedRecord = initialRecord,
-                        currentOriginalText = text,
-                        analysisResult = null,
-                        detailedResult = null,
-                        selectedRecordProgress = AnalysisProgress()
-                    ) }
-                    selectRecordById(recordId)
+                    val existingRecord = withContext(Dispatchers.IO) { historyRepository.getRecordById(recordId) }
+                    if (existingRecord != null && existingRecord.status == AnalysisStatus.COMPLETED) {
+                        // Directly show the completed record to avoid flashing a PENDING loading skeleton
+                        withContext(Dispatchers.Main) {
+                            selectRecord(existingRecord)
+                        }
+                    } else {
+                        // Instantly transition the UI state on the Main thread to avoid loading/flashing delays
+                        val initialRecord = AnalysisDomainRecord(
+                            id = recordId,
+                            originalText = trimmedText,
+                            imageUri = imageUri?.toString(),
+                            analysisResult = null,
+                            modelUsed = "$provider: $modelName",
+                            status = AnalysisStatus.PENDING
+                        )
+                        _uiState.update { it.copy(
+                            selectedRecord = initialRecord,
+                            currentOriginalText = trimmedText,
+                            analysisResult = null,
+                            detailedResult = null,
+                            selectedRecordProgress = AnalysisProgress()
+                        ) }
+                        selectRecordById(recordId)
+                    }
                 } else {
                     _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.analysis_started_toast))
                 }
