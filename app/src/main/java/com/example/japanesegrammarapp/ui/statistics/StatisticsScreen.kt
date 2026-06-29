@@ -61,6 +61,10 @@ import com.patrykandpatrick.vico.core.component.shape.Shapes
 import com.patrykandpatrick.vico.core.context.DrawContext
 import android.graphics.RectF
 import com.patrykandpatrick.vico.compose.dimensions.dimensionsOf
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import kotlinx.coroutines.launch
 
 enum class StatisticsModalType { SENTENCES, WORDS, GRAMMAR }
 
@@ -98,6 +102,8 @@ fun StatisticsScreen(
         ) {
             var transitionTarget by remember { mutableStateOf<Triple<StatisticsTimeRange, LocalDate, com.example.japanesegrammarapp.domain.StatisticsSummary>?>(null) }
             var activeModalType by rememberSaveable { mutableStateOf<StatisticsModalType?>(null) }
+            var returningFromNav by rememberSaveable { mutableStateOf(false) }
+            val coroutineScope = rememberCoroutineScope()
             val sentencesListState = rememberLazyListState()
             val wordsListState = rememberLazyListState()
             val grammarListState = rememberLazyListState()
@@ -324,7 +330,26 @@ fun StatisticsScreen(
                                 }
                             } ?: targetSummary.bookmarkedGrammar
 
-                            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+                            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                            
+                            val lifecycleOwner = LocalLifecycleOwner.current
+                            DisposableEffect(lifecycleOwner) {
+                                val observer = LifecycleEventObserver { _, event ->
+                                    if (event == Lifecycle.Event.ON_RESUME) {
+                                        if (returningFromNav) {
+                                            coroutineScope.launch {
+                                                sheetState.show()
+                                                returningFromNav = false
+                                            }
+                                        }
+                                    }
+                                }
+                                lifecycleOwner.lifecycle.addObserver(observer)
+                                onDispose {
+                                    lifecycleOwner.lifecycle.removeObserver(observer)
+                                }
+                            }
+
                             ModalBottomSheet(
                                 onDismissRequest = { activeModalType = null },
                                 sheetState = sheetState,
@@ -379,7 +404,11 @@ fun StatisticsScreen(
                                                     DetailedSentenceItem(
                                                         record = record,
                                                         onClickNavigate = {
-                                                            onNavigateToRecord(record.recordId, record.id)
+                                                            coroutineScope.launch {
+                                                                sheetState.hide()
+                                                                returningFromNav = true
+                                                                onNavigateToRecord(record.recordId, record.id)
+                                                            }
                                                         }
                                                     )
                                                 }
@@ -389,7 +418,11 @@ fun StatisticsScreen(
                                                     ExpandableWordItem(
                                                         bookmark = bookmark,
                                                         onClickNavigate = {
-                                                            onNavigateToRecord(bookmark.recordId, bookmark.id)
+                                                            coroutineScope.launch {
+                                                                sheetState.hide()
+                                                                returningFromNav = true
+                                                                onNavigateToRecord(bookmark.recordId, bookmark.id)
+                                                            }
                                                         }
                                                     )
                                                 }
@@ -399,7 +432,11 @@ fun StatisticsScreen(
                                                     DetailedGrammarItem(
                                                         grammar = grammar,
                                                         onClick = {
-                                                            onNavigateToRecord(grammar.recordId, -1)
+                                                            coroutineScope.launch {
+                                                                sheetState.hide()
+                                                                returningFromNav = true
+                                                                onNavigateToRecord(grammar.recordId, -1)
+                                                            }
                                                         }
                                                     )
                                                 }
