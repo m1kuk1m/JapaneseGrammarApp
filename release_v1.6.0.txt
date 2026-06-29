@@ -1,0 +1,6 @@
+v1.6.0 Release Notes
+- Statistics: Added daily, weekly, monthly, and yearly learning statistics with interactive charts, heatmap, and review features, localized in ZH and JA.
+- Workspace: Implemented dynamic collapsing headers, expandable sentence cards, and sticky toolbars with smooth transitions.
+- Bookmarks & DB: Upgraded Compose BOM, optimized duplicate check queries with database indexing, and migrated schema to v15.
+- Navigation & Gestures: Refined scroll position reset, eliminated drift during transition, resolved scrolling freezes, and optimized sidebar closing speed.
+- Settings & Core: Reorganized settings into 6 logical categories, stabilized tokenizer/LLM streaming error propagation, and added robust fallback handling.
