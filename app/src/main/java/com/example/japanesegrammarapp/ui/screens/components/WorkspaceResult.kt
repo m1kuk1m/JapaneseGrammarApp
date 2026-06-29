@@ -194,23 +194,28 @@ fun WorkspaceResultContent(
                                     val shouldPullTop = atTop && dragY > 0
                                     val shouldPullBottom = atBottom && dragY < 0
 
-                                    if (kotlin.math.abs(dragY) > 0f &&
-                                        (isReturningTopOverscroll || isReturningBottomOverscroll || shouldPullTop || shouldPullBottom)
-                                    ) {
-                                        isDragging = true
+                                    if (kotlin.math.abs(dragY) > 0f) {
+                                        if (isReturningTopOverscroll || isReturningBottomOverscroll || shouldPullTop || shouldPullBottom) {
+                                            isDragging = true
 
-                                        if (isReturningTopOverscroll) {
-                                            coroutineScope.launch { overscrollTop.snapTo((overscrollTop.value + dragY * 0.5f).coerceAtLeast(0f)) }
-                                            change.consume()
-                                        } else if (isReturningBottomOverscroll) {
-                                            coroutineScope.launch { overscrollBottom.snapTo((overscrollBottom.value - dragY * 0.5f).coerceAtLeast(0f)) }
-                                            change.consume()
-                                        } else if (shouldPullTop) {
-                                            coroutineScope.launch { overscrollTop.snapTo((overscrollTop.value + dragY * 0.5f).coerceIn(0f, 300f)) }
-                                            change.consume()
-                                        } else if (shouldPullBottom) {
-                                            coroutineScope.launch { overscrollBottom.snapTo((overscrollBottom.value - dragY * 0.5f).coerceIn(0f, 300f)) }
-                                            change.consume()
+                                            if (isReturningTopOverscroll) {
+                                                coroutineScope.launch { overscrollTop.snapTo((overscrollTop.value + dragY * 0.5f).coerceAtLeast(0f)) }
+                                                change.consume()
+                                            } else if (isReturningBottomOverscroll) {
+                                                coroutineScope.launch { overscrollBottom.snapTo((overscrollBottom.value - dragY * 0.5f).coerceAtLeast(0f)) }
+                                                change.consume()
+                                            } else if (shouldPullTop) {
+                                                coroutineScope.launch { overscrollTop.snapTo((overscrollTop.value + dragY * 0.5f).coerceIn(0f, 300f)) }
+                                                change.consume()
+                                            } else if (shouldPullBottom) {
+                                                coroutineScope.launch { overscrollBottom.snapTo((overscrollBottom.value - dragY * 0.5f).coerceIn(0f, 300f)) }
+                                                change.consume()
+                                            }
+                                        } else if (isDragging) {
+                                            val consumed = scrollState.dispatchRawDelta(-dragY)
+                                            if (consumed != 0f) {
+                                                change.consume()
+                                            }
                                         }
                                     }
                                 }
