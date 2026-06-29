@@ -815,6 +815,7 @@ class LlmRepositoryImpl @Inject constructor(
                                 }
                             } catch (e: Exception) {
                                 AppLogger.e("LLM_API", "Error parsing SSE chunk: $data", e)
+                                close(e)
                             }
                         }
 
