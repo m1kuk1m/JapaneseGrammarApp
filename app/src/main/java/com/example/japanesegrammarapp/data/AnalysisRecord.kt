@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "analysis_records",
     indices = [
+        Index(value = ["originalText"]),
         Index(value = ["timestamp"]),
         Index(value = ["consumedTokens"]),
         Index(value = ["modelUsed"])
