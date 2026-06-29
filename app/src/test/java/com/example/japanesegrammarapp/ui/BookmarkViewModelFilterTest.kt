@@ -80,12 +80,12 @@ class BookmarkViewModelFilterTest {
     @Test
     fun grammarDateCategoriesOnlyUseGrammarDataAndFilterByDate() = runTest(dispatcher) {
         val viewModel = createViewModel()
-        val oldDate = date("2024/05/01")
+        val oldDate = getUtcMidnightOfLocalDate(date("2024/05/01"))
 
         val categories = viewModel.grammarDateCategories.first { it.contains(oldDate) }
         val expectedDates = setOf(
             oldDate,
-            date("2024/06/01"),
+            getUtcMidnightOfLocalDate(date("2024/06/01")),
             getUtcMidnightOfLocalDate(System.currentTimeMillis())
         )
         assertEquals(expectedDates, categories)

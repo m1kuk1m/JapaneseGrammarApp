@@ -96,11 +96,25 @@ fun WorkspaceResultContent(
     val progress = uiState.selectedRecordProgress
     val isPending = uiState.selectedRecord?.status == AnalysisStatus.PENDING
 
-    val scrollState = androidx.compose.runtime.saveable.rememberSaveable(uiState.selectedRecord?.id, saver = androidx.compose.foundation.ScrollState.Saver) {
+    val scrollState = remember(uiState.selectedRecord?.id) {
         androidx.compose.foundation.ScrollState(0)
     }
     LaunchedEffect(uiState.selectedRecord?.id) {
+        // Immediate reset
         scrollState.scrollTo(0)
+        // Monitor for scroll position drift during the AnimatedContent transition
+        // and layout re-measurements (topBoxHeight reset, detailedResult loading).
+        // Force scroll back to 0 if it drifts during this settlement window.
+        val settlementEndTime = System.currentTimeMillis() + 500L
+        while (System.currentTimeMillis() < settlementEndTime) {
+            if (scrollState.value != 0) {
+                scrollState.scrollTo(0)
+            }
+            kotlinx.coroutines.delay(16) // Check roughly every frame (60fps)
+        }
+        if (scrollState.value != 0) {
+            scrollState.scrollTo(0)
+        }
     }
 
     LaunchedEffect(scrollState.isScrollInProgress) {
@@ -152,14 +166,9 @@ fun WorkspaceResultContent(
     } else {
         var selectedSegmentIndex by remember(uiState.selectedRecord?.id) { mutableStateOf(-1) }
 
-        val overscrollTop = remember { Animatable(0f) }
-        val overscrollBottom = remember { Animatable(0f) }
+        val overscrollTop = remember(uiState.selectedRecord?.id) { Animatable(0f) }
+        val overscrollBottom = remember(uiState.selectedRecord?.id) { Animatable(0f) }
         val coroutineScope = rememberCoroutineScope()
-
-        LaunchedEffect(uiState.selectedRecord?.id) {
-            overscrollTop.snapTo(0f)
-            overscrollBottom.snapTo(0f)
-        }
         
         Column(
             modifier = Modifier
@@ -226,9 +235,14 @@ fun WorkspaceResultContent(
 
                         if (isDragging) {
                             if (overscrollTop.value > 150f) {
+                                // Reset scroll position immediately and synchronously before loading the new record,
+                                // so the outgoing page doesn't carry a non-zero scroll offset
+                                // into the AnimatedContent transition.
+                                scrollState.dispatchRawDelta(-scrollState.value.toFloat())
                                 onLoadOlder()
                             }
                             if (overscrollBottom.value > 150f) {
+                                scrollState.dispatchRawDelta(-scrollState.value.toFloat())
                                 onLoadNewer()
                             }
                             coroutineScope.launch { overscrollTop.animateTo(0f) }
