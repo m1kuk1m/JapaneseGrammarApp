@@ -106,7 +106,7 @@ class MainActivity : AppCompatActivity() {
             else -> null
         }
         text?.takeIf { it.isNotBlank() }?.let {
-            externalTextChannel.trySend(it)
+            externalTextChannel.trySend(it.trim())
             intent.action = null
             intent.removeExtra(Intent.EXTRA_PROCESS_TEXT)
             intent.removeExtra(Intent.EXTRA_TEXT)
