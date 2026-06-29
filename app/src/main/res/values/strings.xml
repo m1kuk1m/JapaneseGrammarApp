@@ -407,6 +407,8 @@
     <string name="bookmark_filter_scope">Scope</string>
     <string name="bookmark_filter_grouping">Group by</string>
     <string name="bookmark_filter_details">Options</string>
+    <string name="bookmark_filter_select_date">Select Date</string>
+    <string name="bookmark_filter_all_dates">All Dates</string>
 
     <!-- Flashcard -->
     <string name="flashcard_title">Flashcards</string>
@@ -635,6 +637,7 @@
     <string name="statistics_tab_weekly">Weekly</string>
     <string name="statistics_tab_monthly">Monthly</string>
     <string name="statistics_tab_yearly">Yearly</string>
+    <string name="statistics_tab_all_time">Total</string>
     <string name="statistics_section_analyzed_sentences">Analyzed Sentences</string>
     <string name="statistics_section_bookmarked_vocabulary">Bookmarked Vocabulary</string>
     <string name="statistics_total_analyses">Total Analyses</string>

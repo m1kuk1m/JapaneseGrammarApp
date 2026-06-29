@@ -215,7 +215,7 @@ fun StatisticsScreen(
                                                 selectedDetailDate = uiState.selectedDetailDate,
                                                 onDateSelected = { viewModel.setSelectedDetailDate(it) }
                                             )
-                                        } else {
+                                        } else if (targetTimeRange != StatisticsTimeRange.ALL_TIME) {
                                             ChartSection(
                                                 chartData = summary.chartData,
                                                 timeRange = targetTimeRange,
@@ -573,7 +573,8 @@ fun TimeRangeSegmentedControl(
         StatisticsTimeRange.DAILY to R.string.statistics_tab_daily,
         StatisticsTimeRange.WEEKLY to R.string.statistics_tab_weekly,
         StatisticsTimeRange.MONTHLY to R.string.statistics_tab_monthly,
-        StatisticsTimeRange.YEARLY to R.string.statistics_tab_yearly
+        StatisticsTimeRange.YEARLY to R.string.statistics_tab_yearly,
+        StatisticsTimeRange.ALL_TIME to R.string.statistics_tab_all_time
     )
 
     Surface(
@@ -621,6 +622,7 @@ fun TimeNavigator(
     onNavigateNext: () -> Unit
 ) {
     val sumiInk = ZenThemeColors.sumiInk()
+    val showArrows = uiState.timeRange != StatisticsTimeRange.ALL_TIME
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -628,8 +630,12 @@ fun TimeNavigator(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onNavigatePrevious) {
-            Icon(Icons.Default.ChevronLeft, contentDescription = stringResource(R.string.previous), tint = sumiInk)
+        if (showArrows) {
+            IconButton(onClick = onNavigatePrevious) {
+                Icon(Icons.Default.ChevronLeft, contentDescription = stringResource(R.string.previous), tint = sumiInk)
+            }
+        } else {
+            Spacer(modifier = Modifier.size(48.dp))
         }
 
         val dateText = when (uiState.timeRange) {
@@ -643,12 +649,17 @@ fun TimeNavigator(
             }
             StatisticsTimeRange.MONTHLY -> uiState.referenceDate.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
             StatisticsTimeRange.YEARLY -> uiState.referenceDate.year.toString()
+            StatisticsTimeRange.ALL_TIME -> stringResource(R.string.statistics_tab_all_time)
         }
 
         Text(text = dateText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sumiInk)
 
-        IconButton(onClick = onNavigateNext) {
-            Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.next), tint = sumiInk)
+        if (showArrows) {
+            IconButton(onClick = onNavigateNext) {
+                Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.next), tint = sumiInk)
+            }
+        } else {
+            Spacer(modifier = Modifier.size(48.dp))
         }
     }
 }

@@ -46,11 +46,13 @@ class StatisticsViewModel @Inject constructor(
 
     fun navigatePrevious() {
         val current = _uiState.value
+        if (current.timeRange == StatisticsTimeRange.ALL_TIME) return
         val newDate = when (current.timeRange) {
             StatisticsTimeRange.DAILY -> current.referenceDate.minusDays(1)
             StatisticsTimeRange.WEEKLY -> current.referenceDate.minusWeeks(1)
             StatisticsTimeRange.MONTHLY -> current.referenceDate.minusMonths(1)
             StatisticsTimeRange.YEARLY -> current.referenceDate.minusYears(1)
+            StatisticsTimeRange.ALL_TIME -> current.referenceDate
         }
         _uiState.update { it.copy(referenceDate = newDate, selectedDetailDate = null, navigateDirection = -1) }
         loadStatistics()
@@ -58,11 +60,13 @@ class StatisticsViewModel @Inject constructor(
 
     fun navigateNext() {
         val current = _uiState.value
+        if (current.timeRange == StatisticsTimeRange.ALL_TIME) return
         val newDate = when (current.timeRange) {
             StatisticsTimeRange.DAILY -> current.referenceDate.plusDays(1)
             StatisticsTimeRange.WEEKLY -> current.referenceDate.plusWeeks(1)
             StatisticsTimeRange.MONTHLY -> current.referenceDate.plusMonths(1)
             StatisticsTimeRange.YEARLY -> current.referenceDate.plusYears(1)
+            StatisticsTimeRange.ALL_TIME -> current.referenceDate
         }
         _uiState.update { it.copy(referenceDate = newDate, selectedDetailDate = null, navigateDirection = 1) }
         loadStatistics()

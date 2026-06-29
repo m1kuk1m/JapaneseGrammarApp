@@ -29,9 +29,14 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -54,15 +59,15 @@ fun BookmarkFilterChipsBar(
     filterMode: BookmarkFilter,
     archiveFilter: ArchiveFilter,
     posCategories: List<String>,
-    dateCategories: List<String>,
+    dateCategories: Set<Long>,
     selectedPosCategory: String?,
-    selectedDateFilter: String?,
+    selectedDateFilter: Long?,
     onSearchQueryChange: (String) -> Unit,
     onSortOrderChange: (BookmarkSortOrder) -> Unit,
     onFilterModeChange: (BookmarkFilter) -> Unit,
     onArchiveFilterChange: (ArchiveFilter) -> Unit,
     onPosCategoryChange: (String?) -> Unit,
-    onDateFilterChange: (String?) -> Unit,
+    onDateFilterChange: (Long?) -> Unit,
     onReset: () -> Unit,
     isDark: Boolean,
     showPosFilter: Boolean = true,
@@ -217,14 +222,14 @@ private fun BookmarkFiltersSheet(
     filterMode: BookmarkFilter,
     archiveFilter: ArchiveFilter,
     posCategories: List<String>,
-    dateCategories: List<String>,
+    dateCategories: Set<Long>,
     selectedPosCategory: String?,
-    selectedDateFilter: String?,
+    selectedDateFilter: Long?,
     onSortOrderChange: (BookmarkSortOrder) -> Unit,
     onFilterModeChange: (BookmarkFilter) -> Unit,
     onArchiveFilterChange: (ArchiveFilter) -> Unit,
     onPosCategoryChange: (String?) -> Unit,
-    onDateFilterChange: (String?) -> Unit,
+    onDateFilterChange: (Long?) -> Unit,
     onDismiss: () -> Unit,
     onReset: () -> Unit,
     isDark: Boolean,
@@ -339,18 +344,55 @@ private fun BookmarkFiltersSheet(
 
             if (filterMode == BookmarkFilter.BY_DATE) {
                 FilterSectionTitle(text = stringResource(R.string.bookmark_filter_details))
+                var showDatePicker by rememberSaveable { mutableStateOf(false) }
+
                 HorizontalFilterOptions {
                     BookmarkFilterChip(
-                        label = stringResource(R.string.filter_all),
+                        label = stringResource(R.string.bookmark_filter_all_dates),
                         isSelected = selectedDateFilter == null,
                         onClick = { onDateFilterChange(null) }
                     )
-                    dateCategories.forEach { dateCat ->
-                        BookmarkFilterChip(
-                            label = bookmarkDateDisplayName(dateCat),
-                            isSelected = selectedDateFilter == dateCat,
-                            onClick = { onDateFilterChange(dateCat) }
-                        )
+                    
+                    val dateLabel = selectedDateFilter?.let { formatBookmarkDate(it) } ?: stringResource(R.string.bookmark_filter_select_date)
+                    BookmarkFilterChip(
+                        label = dateLabel,
+                        isSelected = selectedDateFilter != null,
+                        onClick = { showDatePicker = true }
+                    )
+                }
+
+                if (showDatePicker) {
+                    val initialSelectedDate = selectedDateFilter ?: if (dateCategories.isNotEmpty()) dateCategories.maxOrNull() else null
+                    val datePickerState = rememberDatePickerState(
+                        initialSelectedDateMillis = initialSelectedDate,
+                        selectableDates = remember(dateCategories) {
+                            object : SelectableDates {
+                                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                                    return dateCategories.contains(utcTimeMillis)
+                                }
+                            }
+                        }
+                    )
+
+                    DatePickerDialog(
+                        onDismissRequest = { showDatePicker = false },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    onDateFilterChange(datePickerState.selectedDateMillis)
+                                    showDatePicker = false
+                                }
+                            ) {
+                                Text(stringResource(android.R.string.ok))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDatePicker = false }) {
+                                Text(stringResource(android.R.string.cancel))
+                            }
+                        }
+                    ) {
+                        DatePicker(state = datePickerState)
                     }
                 }
             }
@@ -444,29 +486,25 @@ private fun ArchiveFilter.displayName(): String = when (this) {
 }
 
 @Composable
+private fun formatBookmarkDate(millis: Long): String {
+    val formatter = remember {
+        java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale.getDefault()).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }
+    }
+    return formatter.format(java.util.Date(millis))
+}
+
+@Composable
 private fun BookmarkFilter.displaySummary(
     selectedPosCategory: String?,
-    selectedDateFilter: String?
+    selectedDateFilter: Long?
 ): String = when (this) {
     BookmarkFilter.ALL -> stringResource(R.string.filter_all)
     BookmarkFilter.BY_POS -> selectedPosCategory?.let { bookmarkPosDisplayName(it) }
         ?: stringResource(R.string.filter_by_pos)
-    BookmarkFilter.BY_DATE -> selectedDateFilter?.let { bookmarkDateDisplayName(it) }
+    BookmarkFilter.BY_DATE -> selectedDateFilter?.let { formatBookmarkDate(it) }
         ?: stringResource(R.string.filter_by_date)
-}
-
-@Composable
-private fun bookmarkDateDisplayName(dateCat: String): String = when (dateCat) {
-    "today" -> stringResource(R.string.filter_today)
-    "week" -> stringResource(R.string.filter_week)
-    else -> {
-        val parts = dateCat.split("/")
-        if (parts.size == 2) {
-            stringResource(R.string.year_month_format, parts[0], parts[1])
-        } else {
-            dateCat
-        }
-    }
 }
 
 private val bookmarkPosNameKeys = mapOf(
