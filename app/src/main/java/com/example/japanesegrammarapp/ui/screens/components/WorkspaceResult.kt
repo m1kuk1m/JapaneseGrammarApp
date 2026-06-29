@@ -96,7 +96,9 @@ fun WorkspaceResultContent(
     val progress = uiState.selectedRecordProgress
     val isPending = uiState.selectedRecord?.status == AnalysisStatus.PENDING
 
-    val scrollState = rememberScrollState()
+    val scrollState = androidx.compose.runtime.saveable.rememberSaveable(uiState.selectedRecord?.id, saver = androidx.compose.foundation.ScrollState.Saver) {
+        androidx.compose.foundation.ScrollState(0)
+    }
     LaunchedEffect(uiState.selectedRecord?.id) {
         scrollState.scrollTo(0)
     }
