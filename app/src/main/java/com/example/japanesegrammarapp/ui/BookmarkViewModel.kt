@@ -52,7 +52,7 @@ enum class BookmarkTab {
 data class BookmarkFilterState(
     val mode: BookmarkFilter = BookmarkFilter.ALL,
     val selectedPosCategory: String? = null,
-    val selectedDateFilter: String? = null,
+    val selectedDateFilter: Long? = null,
     val archiveFilter: ArchiveFilter = ArchiveFilter.ALL,
     val searchQuery: String = "",
     val sortOrder: BookmarkSortOrder = BookmarkSortOrder.NEWEST_FIRST
@@ -154,7 +154,7 @@ class BookmarkViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     /** Currently selected date sub-filter — only used when filterMode == BY_DATE */
-    val selectedDateFilter: StateFlow<String?> = wordFilterState
+    val selectedDateFilter: StateFlow<Long?> = wordFilterState
         .map { it.selectedDateFilter }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -167,20 +167,20 @@ class BookmarkViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val wordDateCategories: StateFlow<List<String>> = allBookmarks
+    val wordDateCategories: StateFlow<Set<Long>> = allBookmarks
         .map { bookmarks -> bookmarkDateCategories(bookmarks.map { it.bookmarkedAt }) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
-    val sentenceDateCategories: StateFlow<List<String>> = bookmarkedSentences
+    val sentenceDateCategories: StateFlow<Set<Long>> = bookmarkedSentences
         .map { sentences -> bookmarkDateCategories(sentences.map { it.bookmarkedAt }) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
-    val grammarDateCategories: StateFlow<List<String>> = grammarPoints
+    val grammarDateCategories: StateFlow<Set<Long>> = grammarPoints
         .map { points -> bookmarkDateCategories(points.map { it.bookmarkedAt }) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     // Existing callers use these as the word-tab categories.
-    val dateCategories: StateFlow<List<String>> = wordDateCategories
+    val dateCategories: StateFlow<Set<Long>> = wordDateCategories
 
     val isPlayingTts: StateFlow<Boolean> = ttsRepository.isPlaying
 
@@ -197,7 +197,7 @@ class BookmarkViewModel @Inject constructor(
     val sentenceFilterMode: StateFlow<BookmarkFilter> = sentenceFilterState
         .map { it.mode }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookmarkFilter.ALL)
-    val sentenceSelectedDateFilter: StateFlow<String?> = sentenceFilterState
+    val sentenceSelectedDateFilter: StateFlow<Long?> = sentenceFilterState
         .map { it.selectedDateFilter }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val sentenceArchiveFilter: StateFlow<ArchiveFilter> = sentenceFilterState
@@ -213,7 +213,7 @@ class BookmarkViewModel @Inject constructor(
     val grammarFilterMode: StateFlow<BookmarkFilter> = grammarFilterState
         .map { it.mode }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookmarkFilter.ALL)
-    val grammarSelectedDateFilter: StateFlow<String?> = grammarFilterState
+    val grammarSelectedDateFilter: StateFlow<Long?> = grammarFilterState
         .map { it.selectedDateFilter }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val grammarArchiveFilter: StateFlow<ArchiveFilter> = grammarFilterState
@@ -294,7 +294,7 @@ class BookmarkViewModel @Inject constructor(
         setPosCategory(BookmarkTab.WORDS, category)
     }
 
-    fun setDateFilter(filter: String?) {
+    fun setDateFilter(filter: Long?) {
         setDateFilter(BookmarkTab.WORDS, filter)
     }
 
@@ -322,7 +322,7 @@ class BookmarkViewModel @Inject constructor(
         updateFilterState(tab) { it.copy(selectedPosCategory = category) }
     }
 
-    fun setDateFilter(tab: BookmarkTab, filter: String?) {
+    fun setDateFilter(tab: BookmarkTab, filter: Long?) {
         updateFilterState(tab) { it.copy(selectedDateFilter = filter) }
     }
 
@@ -542,42 +542,27 @@ private fun <T> List<T>.filterByBookmarkMode(
     }
 }
 
-private fun bookmarkDateCategories(times: List<Long>): List<String> {
-    val monthCategories = times.map { bookmarkMonthBucket(it) }.toSet()
-    return buildList {
-        if (times.any { bookmarkRelativeDateBucket(it) == "today" }) add("today")
-        if (times.any { bookmarkRelativeDateBucket(it) == "today" || bookmarkRelativeDateBucket(it) == "week" }) add("week")
-        addAll(monthCategories.sortedDescending())
-    }
-}
-
-private fun matchesBookmarkDateFilter(time: Long, selectedDateFilter: String?): Boolean {
-    return when (selectedDateFilter) {
-        null -> true
-        "today" -> bookmarkRelativeDateBucket(time) == "today"
-        "week" -> bookmarkRelativeDateBucket(time) == "today" || bookmarkRelativeDateBucket(time) == "week"
-        else -> bookmarkMonthBucket(time) == selectedDateFilter
-    }
-}
-
-private fun bookmarkRelativeDateBucket(time: Long): String? {
+private fun getUtcMidnightOfLocalDate(localTimeMillis: Long): Long {
     val cal = Calendar.getInstance()
-    cal.set(Calendar.HOUR_OF_DAY, 0)
-    cal.set(Calendar.MINUTE, 0)
-    cal.set(Calendar.SECOND, 0)
-    cal.set(Calendar.MILLISECOND, 0)
-    val todayStart = cal.timeInMillis
-    cal.add(Calendar.DAY_OF_YEAR, -7)
-    val weekStart = cal.timeInMillis
-    return when {
-        time >= todayStart -> "today"
-        time >= weekStart -> "week"
-        else -> null
-    }
+    cal.timeInMillis = localTimeMillis
+    val year = cal.get(Calendar.YEAR)
+    val month = cal.get(Calendar.MONTH)
+    val day = cal.get(Calendar.DAY_OF_MONTH)
+
+    val utcCal = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+    utcCal.clear()
+    utcCal.set(year, month, day)
+    return utcCal.timeInMillis
 }
 
-private fun bookmarkMonthBucket(time: Long): String =
-    SimpleDateFormat("yyyy/MM", Locale.getDefault()).format(Date(time))
+private fun bookmarkDateCategories(times: List<Long>): Set<Long> {
+    return times.map { getUtcMidnightOfLocalDate(it) }.toSet()
+}
+
+private fun matchesBookmarkDateFilter(time: Long, selectedDateFilter: Long?): Boolean {
+    if (selectedDateFilter == null) return true
+    return getUtcMidnightOfLocalDate(time) == selectedDateFilter
+}
 
 private fun <T> List<T>.filterByQuery(
     query: String,

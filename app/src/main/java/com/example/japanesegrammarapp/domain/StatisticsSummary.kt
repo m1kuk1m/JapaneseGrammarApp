@@ -27,5 +27,6 @@ enum class StatisticsTimeRange {
     DAILY,
     WEEKLY,
     MONTHLY,
-    YEARLY
+    YEARLY,
+    ALL_TIME
 }

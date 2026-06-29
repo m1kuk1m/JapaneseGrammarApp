@@ -402,6 +402,8 @@
     <string name="bookmark_filter_scope">显示范围</string>
     <string name="bookmark_filter_grouping">分类</string>
     <string name="bookmark_filter_details">选项</string>
+    <string name="bookmark_filter_select_date">选择日期</string>
+    <string name="bookmark_filter_all_dates">所有日期</string>
 
     <!-- Flashcard -->
     <string name="flashcard_title">闪卡练习</string>
@@ -626,6 +628,7 @@
     <string name="statistics_tab_weekly">每周</string>
     <string name="statistics_tab_monthly">每月</string>
     <string name="statistics_tab_yearly">每年</string>
+    <string name="statistics_tab_all_time">总计</string>
     <string name="statistics_section_analyzed_sentences">分析的句子</string>
     <string name="statistics_section_bookmarked_vocabulary">收藏的单词</string>
     <string name="statistics_total_analyses">总分析次数</string>

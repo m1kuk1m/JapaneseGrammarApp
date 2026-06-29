@@ -24,8 +24,8 @@ class StatisticsRepository @Inject constructor(
     ): StatisticsSummary = withContext(Dispatchers.IO) {
         val (startDate, endDate) = getStartAndEndDate(timeRange, referenceDate)
         
-        val startMillis = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val endMillis = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
+        val startMillis = if (timeRange == StatisticsTimeRange.ALL_TIME) 0L else startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val endMillis = if (timeRange == StatisticsTimeRange.ALL_TIME) Long.MAX_VALUE else endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
 
         val records = analysisDao.getRecordsByTimeRange(startMillis, endMillis)
         val bookmarks = bookmarkDao.getBookmarksByTimeRange(startMillis, endMillis)
@@ -120,6 +120,9 @@ class StatisticsRepository @Inject constructor(
                 val end = referenceDate.withDayOfYear(referenceDate.lengthOfYear())
                 Pair(start, end)
             }
+            StatisticsTimeRange.ALL_TIME -> {
+                Pair(referenceDate, referenceDate)
+            }
         }
     }
 
@@ -191,6 +194,9 @@ class StatisticsRepository @Inject constructor(
                         date = startDate.withMonth(month)
                     )
                 }
+            }
+            StatisticsTimeRange.ALL_TIME -> {
+                emptyList()
             }
         }
     }

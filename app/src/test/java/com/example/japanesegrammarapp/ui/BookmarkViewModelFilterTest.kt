@@ -64,18 +64,34 @@ class BookmarkViewModelFilterTest {
         assertEquals(ArchiveFilter.ARCHIVED, viewModel.sentenceFilterState.value.archiveFilter)
     }
 
-    @Test
-    fun grammarDateCategoriesOnlyUseGrammarDataAndFilterByMonth() = runTest(dispatcher) {
-        val viewModel = createViewModel()
-        val grammarMonth = "2024/05"
+    private fun getUtcMidnightOfLocalDate(localTimeMillis: Long): Long {
+        val cal = java.util.Calendar.getInstance()
+        cal.timeInMillis = localTimeMillis
+        val year = cal.get(java.util.Calendar.YEAR)
+        val month = cal.get(java.util.Calendar.MONTH)
+        val day = cal.get(java.util.Calendar.DAY_OF_MONTH)
 
-        assertEquals(
-            listOf(currentMonth(), "2024/06", grammarMonth),
-            viewModel.grammarDateCategories.first { it.contains(grammarMonth) }
-                .filter { it != "today" && it != "week" }
+        val utcCal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+        utcCal.clear()
+        utcCal.set(year, month, day)
+        return utcCal.timeInMillis
+    }
+
+    @Test
+    fun grammarDateCategoriesOnlyUseGrammarDataAndFilterByDate() = runTest(dispatcher) {
+        val viewModel = createViewModel()
+        val oldDate = date("2024/05/01")
+
+        val categories = viewModel.grammarDateCategories.first { it.contains(oldDate) }
+        val expectedDates = setOf(
+            oldDate,
+            date("2024/06/01"),
+            getUtcMidnightOfLocalDate(System.currentTimeMillis())
         )
+        assertEquals(expectedDates, categories)
+
         viewModel.setFilterMode(BookmarkTab.GRAMMAR, BookmarkFilter.BY_DATE)
-        viewModel.setDateFilter(BookmarkTab.GRAMMAR, grammarMonth)
+        viewModel.setDateFilter(BookmarkTab.GRAMMAR, oldDate)
         advanceUntilIdle()
 
         assertEquals(
@@ -85,34 +101,21 @@ class BookmarkViewModelFilterTest {
     }
 
     @Test
-    fun dateFiltersExposeRelativeAndMonthBucketsTogether() = runTest(dispatcher) {
+    fun dateFiltersMatchExactDate() = runTest(dispatcher) {
         val viewModel = createViewModel()
-
-        val categories = viewModel.grammarDateCategories.first { it.contains(currentMonth()) }
-        assertEquals(listOf("today", "week", currentMonth()), categories.take(3))
+        val todayMidnight = getUtcMidnightOfLocalDate(System.currentTimeMillis())
 
         viewModel.setFilterMode(BookmarkTab.GRAMMAR, BookmarkFilter.BY_DATE)
-        viewModel.setDateFilter(BookmarkTab.GRAMMAR, currentMonth())
+        viewModel.setDateFilter(BookmarkTab.GRAMMAR, todayMidnight)
         advanceUntilIdle()
         assertEquals(
             listOf("today grammar"),
-            viewModel.filteredGrammarPoints.first { it.firstOrNull()?.pattern == "today grammar" }.map { it.pattern }
-        )
-
-        viewModel.setDateFilter(BookmarkTab.GRAMMAR, "today")
-        advanceUntilIdle()
-        assertEquals(
-            listOf("today grammar"),
-            viewModel.filteredGrammarPoints.first { it.firstOrNull()?.pattern == "today grammar" }.map { it.pattern }
-        )
-
-        viewModel.setDateFilter(BookmarkTab.GRAMMAR, "week")
-        advanceUntilIdle()
-        assertEquals(
-            listOf("today grammar"),
-            viewModel.filteredGrammarPoints.first { it.firstOrNull()?.pattern == "today grammar" }.map { it.pattern }
+            viewModel.filteredGrammarPoints.first { it.isNotEmpty() }.map { it.pattern }
         )
     }
+
+    private fun date(value: String): Long =
+        SimpleDateFormat("yyyy/MM/dd", Locale.US).parse(value)!!.time
 
     @Test
     fun sortingAppliesToAllBookmarkTypes() = runTest(dispatcher) {
@@ -157,8 +160,8 @@ class BookmarkViewModelFilterTest {
     }
 
     private class FakeBookmarkRepository : BookmarkRepository {
-        private val old = month("2024/05")
-        private val newer = month("2024/06")
+        private val old = date("2024/05/01")
+        private val newer = date("2024/06/01")
         private val today = System.currentTimeMillis()
 
         override val allBookmarks: Flow<List<BookmarkedSegmentDomain>> = MutableStateFlow(
@@ -203,8 +206,8 @@ class BookmarkViewModelFilterTest {
         override suspend fun setGrammarPointArchivedStatus(id: Int, isArchived: Boolean) = Unit
         override suspend fun archiveMultipleGrammarPoints(ids: List<Int>) = Unit
 
-        private fun month(value: String): Long =
-            SimpleDateFormat("yyyy/MM", Locale.US).parse(value)!!.time
+        private fun date(value: String): Long =
+            SimpleDateFormat("yyyy/MM/dd", Locale.US).parse(value)!!.time
     }
 
     private companion object {

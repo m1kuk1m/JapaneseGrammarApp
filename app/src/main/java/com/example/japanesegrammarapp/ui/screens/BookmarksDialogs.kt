@@ -356,8 +356,12 @@ private fun PracticeFilterChip(
             labelColor = sumiInk.copy(alpha = 0.7f)
         ),
         border = FilterChipDefaults.filterChipBorder(
-            borderColor = if (selected) sumiInk else sumiInk.copy(alpha = 0.12f),
-            borderWidth = if (selected) 1.5.dp else 1.dp
+            enabled = true,
+            selected = selected,
+            borderColor = sumiInk.copy(alpha = 0.12f),
+            selectedBorderColor = sumiInk,
+            borderWidth = 1.dp,
+            selectedBorderWidth = 1.5.dp
         ),
         modifier = modifier
     )
