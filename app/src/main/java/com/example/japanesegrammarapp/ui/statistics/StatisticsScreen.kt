@@ -126,268 +126,285 @@ fun StatisticsScreen(
                     val isDaily = currentTargetTimeRange == StatisticsTimeRange.DAILY
                     
                     Box(modifier = Modifier.fillMaxSize()) {
-                        AnimatedContent(
-                            targetState = transitionTarget!!,
-                            transitionSpec = {
-                                val (initialTimeRange, initialDate, _) = initialState
-                                val (targetTimeRange, targetDate, _) = targetState
-                                if (initialTimeRange != targetTimeRange) {
-                                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-                                } else if (initialDate != targetDate) {
-                                    val direction = uiState.navigateDirection
-                                    slideInHorizontally(
-                                        initialOffsetX = { fullWidth -> fullWidth * direction },
-                                        animationSpec = tween(300)
-                                    ) + fadeIn(animationSpec = tween(300)) togetherWith
-                                    slideOutHorizontally(
-                                        targetOffsetX = { fullWidth -> -fullWidth * direction },
-                                        animationSpec = tween(300)
-                                    ) + fadeOut(animationSpec = tween(300))
-                                } else {
-                                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-                                }
-                            },
-                            label = "TimeRangeTransition"
-                        ) { (targetTimeRange, _, summary) ->
-                            val selectedDate = uiState.selectedDetailDate
-                            
-                            val allSentences = selectedDate?.let { date ->
-                                summary.analyzedSentences.filter { 
-                                    java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
-                                }
-                            } ?: summary.analyzedSentences
-                            val displaySentences = allSentences.take(3)
-
-                            val allBookmarks = selectedDate?.let { date ->
-                                summary.bookmarkedVocabulary.filter {
-                                    java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
-                                }
-                            } ?: summary.bookmarkedVocabulary
-                            val displayBookmarks = allBookmarks.take(3)
-
-                            val allGrammar = selectedDate?.let { date ->
-                                summary.bookmarkedGrammar.filter {
-                                    java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
-                                }
-                            } ?: summary.bookmarkedGrammar
-                            val displayGrammar = allGrammar.take(3)
-
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(top = 8.dp, bottom = 32.dp, start = 16.dp, end = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(24.dp)
-                            ) {
-                                item {
-                                    Column(
-                                        modifier = Modifier.padding(bottom = 8.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        TimeRangeSegmentedControl(
-                                            selectedTimeRange = uiState.timeRange,
-                                            onTimeRangeSelected = { viewModel.setTimeRange(it) }
-                                        )
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        TimeNavigator(
-                                            uiState = uiState,
-                                            onNavigatePrevious = { viewModel.navigatePrevious() },
-                                            onNavigateNext = { viewModel.navigateNext() }
-                                        )
-                                    }
-                                }
-
-                                item {
-                                    SummaryCards(summary = summary)
-                                }
-
-                                item {
-                                    if (targetTimeRange == StatisticsTimeRange.YEARLY) {
-                                        HeatmapSection(
-                                            heatmapData = summary.heatmapData,
-                                            yearDate = uiState.referenceDate,
-                                            selectedDetailDate = uiState.selectedDetailDate,
-                                            onDateSelected = { viewModel.setSelectedDetailDate(it) }
-                                        )
-                                    } else {
-                                        ChartSection(
-                                            chartData = summary.chartData,
-                                            timeRange = targetTimeRange,
-                                            onDateSelected = { viewModel.setSelectedDetailDate(it) }
-                                        )
-                                    }
-                                }
-                                
-                                if (allSentences.isNotEmpty()) {
-                                    item {
-                                        SectionHeader(
-                                            title = if (uiState.selectedDetailDate != null) {
-                                                uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.statistics_section_analyzed_sentences)
-                                            } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.statistics_section_analyzed_sentences) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_analyzed_sentences),
-                                            icon = Icons.Default.Analytics
-                                        )
-                                    }
-                                    items(displaySentences) { record ->
-                                        CompactActivityItem(
-                                            text = record.originalText,
-                                            secondaryText = record.translation?.takeIf { it.isNotBlank() },
-                                            timestamp = record.bookmarkedAt,
-                                            onClick = { onNavigateToRecord(record.recordId, record.id) }
-                                        )
-                                    }
-                                    if (allSentences.size > 3) {
-                                        item {
-                                            ViewAllButton(
-                                                text = stringResource(R.string.view_all_sentences, allSentences.size),
-                                                onClick = { activeModalType = StatisticsModalType.SENTENCES }
-                                            )
-                                        }
-                                    }
-                                }
-
-                                if (allBookmarks.isNotEmpty()) {
-                                    item {
-                                        SectionHeader(
-                                            title = if (uiState.selectedDetailDate != null) {
-                                                uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.statistics_section_bookmarked_vocabulary)
-                                            } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.statistics_section_bookmarked_vocabulary) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_bookmarked_vocabulary),
-                                            icon = Icons.Default.Bookmark
-                                        )
-                                    }
-                                    items(displayBookmarks) { bookmark ->
-                                        CompactActivityItem(
-                                            text = bookmark.segmentText,
-                                            secondaryText = bookmark.meaning,
-                                            timestamp = bookmark.bookmarkedAt,
-                                            onClick = { onNavigateToRecord(bookmark.recordId, bookmark.id) }
-                                        )
-                                    }
-                                    if (allBookmarks.size > 3) {
-                                        item {
-                                            ViewAllButton(
-                                                text = stringResource(R.string.view_all_words, allBookmarks.size),
-                                                onClick = { activeModalType = StatisticsModalType.WORDS }
-                                            )
-                                        }
-                                    }
-                                }
-
-                                if (allGrammar.isNotEmpty()) {
-                                    item {
-                                        SectionHeader(
-                                            title = if (uiState.selectedDetailDate != null) {
-                                                uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.grammar_label)
-                                            } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.grammar_label) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.grammar_label),
-                                            icon = Icons.Default.Lightbulb
-                                        )
-                                    }
-                                    items(displayGrammar) { grammar ->
-                                        CompactActivityItem(
-                                            text = grammar.pattern,
-                                            secondaryText = grammar.explanation,
-                                            timestamp = grammar.bookmarkedAt,
-                                            onClick = { onNavigateToRecord(grammar.recordId, -1) }
-                                        )
-                                    }
-                                    if (allGrammar.size > 3) {
-                                        item {
-                                            ViewAllButton(
-                                                text = stringResource(R.string.view_all_grammar, allGrammar.size),
-                                                onClick = { activeModalType = StatisticsModalType.GRAMMAR }
-                                            )
-                                        }
-                                    }
-                                }
-                                
-                                if (allSentences.isEmpty() && allBookmarks.isEmpty() && allGrammar.isEmpty()) {
-                                    item {
-                                        EmptyStateView()
-                                    }
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(top = 8.dp, bottom = 32.dp, start = 16.dp, end = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(24.dp)
+                        ) {
+                            item {
+                                Column(
+                                    modifier = Modifier.padding(bottom = 8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    TimeRangeSegmentedControl(
+                                        selectedTimeRange = uiState.timeRange,
+                                        onTimeRangeSelected = { viewModel.setTimeRange(it) }
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    TimeNavigator(
+                                        uiState = uiState,
+                                        onNavigatePrevious = { viewModel.navigatePrevious() },
+                                        onNavigateNext = { viewModel.navigateNext() }
+                                    )
                                 }
                             }
 
-                            // Modal Bottom Sheet to show all items of a category
-                            if (activeModalType != null) {
-                                val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
-                                ModalBottomSheet(
-                                    onDismissRequest = { activeModalType = null },
-                                    sheetState = sheetState,
-                                    containerColor = washiBg,
-                                    dragHandle = { BottomSheetDefaults.DragHandle(color = sumiInk.copy(alpha = 0.4f)) }
-                                ) {
+                            item {
+                                AnimatedContent(
+                                    targetState = transitionTarget!!,
+                                    transitionSpec = {
+                                        val (initialTimeRange, initialDate, _) = initialState
+                                        val (targetTimeRange, targetDate, _) = targetState
+                                        if (initialTimeRange != targetTimeRange) {
+                                            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                                        } else if (initialDate != targetDate) {
+                                            val direction = uiState.navigateDirection
+                                            slideInHorizontally(
+                                                initialOffsetX = { fullWidth -> fullWidth * direction },
+                                                animationSpec = tween(300)
+                                            ) + fadeIn(animationSpec = tween(300)) togetherWith
+                                            slideOutHorizontally(
+                                                targetOffsetX = { fullWidth -> -fullWidth * direction },
+                                                animationSpec = tween(300)
+                                            ) + fadeOut(animationSpec = tween(300))
+                                        } else {
+                                            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                                        }
+                                    },
+                                    label = "TimeRangeTransition"
+                                ) { (targetTimeRange, _, summary) ->
+                                    val selectedDate = uiState.selectedDetailDate
+                                    
+                                    val allSentences = selectedDate?.let { date ->
+                                        summary.analyzedSentences.filter { 
+                                            java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
+                                        }
+                                    } ?: summary.analyzedSentences
+                                    val displaySentences = allSentences.take(3)
+
+                                    val allBookmarks = selectedDate?.let { date ->
+                                        summary.bookmarkedVocabulary.filter {
+                                            java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
+                                        }
+                                    } ?: summary.bookmarkedVocabulary
+                                    val displayBookmarks = allBookmarks.take(3)
+
+                                    val allGrammar = selectedDate?.let { date ->
+                                        summary.bookmarkedGrammar.filter {
+                                            java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
+                                        }
+                                    } ?: summary.bookmarkedGrammar
+                                    val displayGrammar = allGrammar.take(3)
+
                                     Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .fillMaxHeight(0.85f)
-                                            .padding(horizontal = 16.dp)
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(24.dp)
                                     ) {
-                                        val title = when (activeModalType) {
-                                            StatisticsModalType.SENTENCES -> stringResource(R.string.all_analyzed_sentences, allSentences.size)
-                                            StatisticsModalType.WORDS -> stringResource(R.string.all_bookmarked_words, allBookmarks.size)
-                                            StatisticsModalType.GRAMMAR -> stringResource(R.string.all_learned_grammar, allGrammar.size)
-                                            null -> ""
-                                        }
-                                        
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = title,
-                                                style = MaterialTheme.typography.titleLarge,
-                                                fontWeight = FontWeight.Bold,
-                                                color = sumiInk
+                                        SummaryCards(summary = summary)
+
+                                        if (targetTimeRange == StatisticsTimeRange.YEARLY) {
+                                            HeatmapSection(
+                                                heatmapData = summary.heatmapData,
+                                                yearDate = uiState.referenceDate,
+                                                selectedDetailDate = uiState.selectedDetailDate,
+                                                onDateSelected = { viewModel.setSelectedDetailDate(it) }
                                             )
-                                            IconButton(onClick = { activeModalType = null }) {
-                                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = sumiInk)
-                                            }
+                                        } else {
+                                            ChartSection(
+                                                chartData = summary.chartData,
+                                                timeRange = targetTimeRange,
+                                                onDateSelected = { viewModel.setSelectedDetailDate(it) }
+                                            )
                                         }
                                         
-                                        val listState = when (activeModalType) {
-                                            StatisticsModalType.SENTENCES -> sentencesListState
-                                            StatisticsModalType.WORDS -> wordsListState
-                                            StatisticsModalType.GRAMMAR -> grammarListState
-                                            null -> rememberLazyListState()
+                                        if (allSentences.isNotEmpty()) {
+                                            Column {
+                                                SectionHeader(
+                                                    title = if (uiState.selectedDetailDate != null) {
+                                                        uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.statistics_section_analyzed_sentences)
+                                                    } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.statistics_section_analyzed_sentences) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_analyzed_sentences),
+                                                    icon = Icons.Default.Analytics
+                                                )
+                                                displaySentences.forEach { record ->
+                                                    CompactActivityItem(
+                                                        text = record.originalText,
+                                                        secondaryText = record.translation?.takeIf { it.isNotBlank() },
+                                                        timestamp = record.bookmarkedAt,
+                                                        onClick = { onNavigateToRecord(record.recordId, record.id) }
+                                                    )
+                                                }
+                                                if (allSentences.size > 3) {
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    ViewAllButton(
+                                                        text = stringResource(R.string.view_all_sentences, allSentences.size),
+                                                        onClick = { activeModalType = StatisticsModalType.SENTENCES }
+                                                    )
+                                                }
+                                            }
                                         }
 
-                                        LazyColumn(
-                                            state = listState,
-                                            modifier = Modifier.fillMaxSize(),
-                                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                                            contentPadding = PaddingValues(bottom = 32.dp)
-                                        ) {
-                                            when (activeModalType) {
-                                                StatisticsModalType.SENTENCES -> {
-                                                    items(allSentences) { record ->
-                                                        DetailedSentenceItem(
-                                                            record = record,
-                                                            onClickNavigate = {
-                                                                onNavigateToRecord(record.recordId, record.id)
-                                                            }
-                                                        )
-                                                    }
+                                        if (allBookmarks.isNotEmpty()) {
+                                            Column {
+                                                SectionHeader(
+                                                    title = if (uiState.selectedDetailDate != null) {
+                                                        uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.statistics_section_bookmarked_vocabulary)
+                                                    } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.statistics_section_bookmarked_vocabulary) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_bookmarked_vocabulary),
+                                                    icon = Icons.Default.Bookmark
+                                                )
+                                                displayBookmarks.forEach { bookmark ->
+                                                    CompactActivityItem(
+                                                        text = bookmark.segmentText,
+                                                        secondaryText = bookmark.meaning,
+                                                        timestamp = bookmark.bookmarkedAt,
+                                                        onClick = { onNavigateToRecord(bookmark.recordId, bookmark.id) }
+                                                    )
                                                 }
-                                                StatisticsModalType.WORDS -> {
-                                                    items(allBookmarks) { bookmark ->
-                                                        ExpandableWordItem(
-                                                            bookmark = bookmark,
-                                                            onClickNavigate = {
-                                                                onNavigateToRecord(bookmark.recordId, bookmark.id)
-                                                            }
-                                                        )
-                                                    }
+                                                if (allBookmarks.size > 3) {
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    ViewAllButton(
+                                                        text = stringResource(R.string.view_all_words, allBookmarks.size),
+                                                        onClick = { activeModalType = StatisticsModalType.WORDS }
+                                                    )
                                                 }
-                                                StatisticsModalType.GRAMMAR -> {
-                                                    items(allGrammar) { grammar ->
-                                                        DetailedGrammarItem(
-                                                            grammar = grammar,
-                                                            onClick = {
-                                                                onNavigateToRecord(grammar.recordId, -1)
-                                                            }
-                                                        )
-                                                    }
-                                                }
-                                                null -> {}
                                             }
+                                        }
+
+                                        if (allGrammar.isNotEmpty()) {
+                                            Column {
+                                                SectionHeader(
+                                                    title = if (uiState.selectedDetailDate != null) {
+                                                        uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.grammar_label)
+                                                    } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.grammar_label) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.grammar_label),
+                                                    icon = Icons.Default.Lightbulb
+                                                )
+                                                displayGrammar.forEach { grammar ->
+                                                    CompactActivityItem(
+                                                        text = grammar.pattern,
+                                                        secondaryText = grammar.explanation,
+                                                        timestamp = grammar.bookmarkedAt,
+                                                        onClick = { onNavigateToRecord(grammar.recordId, -1) }
+                                                    )
+                                                }
+                                                if (allGrammar.size > 3) {
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    ViewAllButton(
+                                                        text = stringResource(R.string.view_all_grammar, allGrammar.size),
+                                                        onClick = { activeModalType = StatisticsModalType.GRAMMAR }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        
+                                        if (allSentences.isEmpty() && allBookmarks.isEmpty() && allGrammar.isEmpty()) {
+                                            EmptyStateView()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Modal Bottom Sheet to show all items of a category
+                        if (activeModalType != null) {
+                            val selectedDate = uiState.selectedDetailDate
+                            val allSentences = selectedDate?.let { date ->
+                                targetSummary.analyzedSentences.filter { 
+                                    java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
+                                }
+                            } ?: targetSummary.analyzedSentences
+
+                            val allBookmarks = selectedDate?.let { date ->
+                                targetSummary.bookmarkedVocabulary.filter {
+                                    java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
+                                }
+                            } ?: targetSummary.bookmarkedVocabulary
+
+                            val allGrammar = selectedDate?.let { date ->
+                                targetSummary.bookmarkedGrammar.filter {
+                                    java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
+                                }
+                            } ?: targetSummary.bookmarkedGrammar
+
+                            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+                            ModalBottomSheet(
+                                onDismissRequest = { activeModalType = null },
+                                sheetState = sheetState,
+                                containerColor = washiBg,
+                                dragHandle = { BottomSheetDefaults.DragHandle(color = sumiInk.copy(alpha = 0.4f)) }
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .fillMaxHeight(0.85f)
+                                        .padding(horizontal = 16.dp)
+                                ) {
+                                    val title = when (activeModalType) {
+                                        StatisticsModalType.SENTENCES -> stringResource(R.string.all_analyzed_sentences, allSentences.size)
+                                        StatisticsModalType.WORDS -> stringResource(R.string.all_bookmarked_words, allBookmarks.size)
+                                        StatisticsModalType.GRAMMAR -> stringResource(R.string.all_learned_grammar, allGrammar.size)
+                                        null -> ""
+                                    }
+                                    
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = title,
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = sumiInk
+                                        )
+                                        IconButton(onClick = { activeModalType = null }) {
+                                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = sumiInk)
+                                        }
+                                    }
+                                    
+                                    val listState = when (activeModalType) {
+                                        StatisticsModalType.SENTENCES -> sentencesListState
+                                        StatisticsModalType.WORDS -> wordsListState
+                                        StatisticsModalType.GRAMMAR -> grammarListState
+                                        null -> rememberLazyListState()
+                                    }
+
+                                    LazyColumn(
+                                        state = listState,
+                                        modifier = Modifier.fillMaxSize(),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                        contentPadding = PaddingValues(bottom = 32.dp)
+                                    ) {
+                                        when (activeModalType) {
+                                            StatisticsModalType.SENTENCES -> {
+                                                items(allSentences) { record ->
+                                                    DetailedSentenceItem(
+                                                        record = record,
+                                                        onClickNavigate = {
+                                                            onNavigateToRecord(record.recordId, record.id)
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                            StatisticsModalType.WORDS -> {
+                                                items(allBookmarks) { bookmark ->
+                                                    ExpandableWordItem(
+                                                        bookmark = bookmark,
+                                                        onClickNavigate = {
+                                                            onNavigateToRecord(bookmark.recordId, bookmark.id)
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                            StatisticsModalType.GRAMMAR -> {
+                                                items(allGrammar) { grammar ->
+                                                    DetailedGrammarItem(
+                                                        grammar = grammar,
+                                                        onClick = {
+                                                            onNavigateToRecord(grammar.recordId, -1)
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                            null -> {}
                                         }
                                     }
                                 }
