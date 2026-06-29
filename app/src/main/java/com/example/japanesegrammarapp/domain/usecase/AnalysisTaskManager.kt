@@ -184,36 +184,51 @@ class DefaultAnalysisTaskManager @Inject constructor(
                     var tokens = emptyList<String>()
                     var correctedText: String? = null
 
-                    llmAnalysisService.executeTokenizer(
-                        text = ocrText,
-                        imageBase64 = null,
-                        mimeType = null,
-                        isOcrMode = true,
-                        imageTokenizerMode = imageTokenizerMode,
-                        primaryConfigs = primaryConfigs,
-                        backupConfigs = backupConfigs,
-                        onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
-                        onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
-                        recordId = recordId,
-                        stepName = AnalysisStep.TOKENIZATION.name
-                    ).collect { res ->
-                        val tokenObj = res.first
-                        val metadata = res.second
-                        tokens = tokenObj?.tokens ?: emptyList()
-                        correctedText = tokenObj?.correctedText
+                    try {
+                        llmAnalysisService.executeTokenizer(
+                            text = ocrText,
+                            imageBase64 = null,
+                            mimeType = null,
+                            isOcrMode = true,
+                            imageTokenizerMode = imageTokenizerMode,
+                            primaryConfigs = primaryConfigs,
+                            backupConfigs = backupConfigs,
+                            onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
+                            onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
+                            recordId = recordId,
+                            stepName = AnalysisStep.TOKENIZATION.name
+                        ).collect { res ->
+                            val tokenObj = res.first
+                            val metadata = res.second
+                            tokens = tokenObj?.tokens ?: emptyList()
+                            correctedText = tokenObj?.correctedText
 
+                            val skeletonSegments = tokens.map { WordSegment(text = it) }
+                            progressStore.updatePartialSegments(recordId, skeletonSegments)
+                            partialResultStore.update { current ->
+                                var updated = current
+                                if (skeletonSegments.isNotEmpty()) {
+                                    updated = updated.copy(segments = skeletonSegments)
+                                }
+                                updated.copy(
+                                    consumedTokens = updated.consumedTokens + metadata.consumedTokens,
+                                    inputTokens = updated.inputTokens + metadata.inputTokens,
+                                    outputTokens = updated.outputTokens + metadata.outputTokens
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {
+                        logStepFailure(recordId, AnalysisStep.TOKENIZATION, e)
+                        progressStore.markStepError(recordId, AnalysisStep.TOKENIZATION.name, e.localizedMessage ?: "Tokenizer failed")
+                        
+                        val fallbackToken = if (ocrText.isNotBlank()) ocrText else "読み取り失敗"
+                        tokens = listOf(fallbackToken)
+                        correctedText = ocrText
+                        
                         val skeletonSegments = tokens.map { WordSegment(text = it) }
                         progressStore.updatePartialSegments(recordId, skeletonSegments)
                         partialResultStore.update { current ->
-                            var updated = current
-                            if (skeletonSegments.isNotEmpty()) {
-                                updated = updated.copy(segments = skeletonSegments)
-                            }
-                            updated.copy(
-                                consumedTokens = updated.consumedTokens + metadata.consumedTokens,
-                                inputTokens = updated.inputTokens + metadata.inputTokens,
-                                outputTokens = updated.outputTokens + metadata.outputTokens
-                            )
+                            current.copy(segments = skeletonSegments)
                         }
                     }
 
@@ -393,36 +408,50 @@ class DefaultAnalysisTaskManager @Inject constructor(
                         var tokens = emptyList<String>()
                         var recognizedText: String? = null
 
-                        llmAnalysisService.executeTokenizer(
-                            text = "",
-                            imageBase64 = imageBase64,
-                            mimeType = mimeType,
-                            isOcrMode = false,
-                            imageTokenizerMode = imageTokenizerMode,
-                            primaryConfigs = primaryConfigs,
-                            backupConfigs = backupConfigs,
-                            onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
-                            onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
-                            recordId = recordId,
-                            stepName = AnalysisStep.TOKENIZATION.name
-                        ).collect { res ->
-                            val tokenObj = res.first
-                            val metadata = res.second
-                            tokens = tokenObj?.tokens ?: emptyList()
-                            recognizedText = tokenObj?.recognizedText
+                        try {
+                            llmAnalysisService.executeTokenizer(
+                                text = "",
+                                imageBase64 = imageBase64,
+                                mimeType = mimeType,
+                                isOcrMode = false,
+                                imageTokenizerMode = imageTokenizerMode,
+                                primaryConfigs = primaryConfigs,
+                                backupConfigs = backupConfigs,
+                                onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
+                                onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
+                                recordId = recordId,
+                                stepName = AnalysisStep.TOKENIZATION.name
+                            ).collect { res ->
+                                val tokenObj = res.first
+                                val metadata = res.second
+                                tokens = tokenObj?.tokens ?: emptyList()
+                                recognizedText = tokenObj?.recognizedText
 
+                                val skeletonSegments = tokens.map { WordSegment(text = it) }
+                                progressStore.updatePartialSegments(recordId, skeletonSegments)
+                                partialResultStore.update { current ->
+                                    var updated = current
+                                    if (skeletonSegments.isNotEmpty()) {
+                                        updated = updated.copy(segments = skeletonSegments)
+                                    }
+                                    updated.copy(
+                                        consumedTokens = updated.consumedTokens + metadata.consumedTokens,
+                                        inputTokens = updated.inputTokens + metadata.inputTokens,
+                                        outputTokens = updated.outputTokens + metadata.outputTokens
+                                    )
+                                }
+                            }
+                        } catch (e: Exception) {
+                            logStepFailure(recordId, AnalysisStep.TOKENIZATION, e)
+                            progressStore.markStepError(recordId, AnalysisStep.TOKENIZATION.name, e.localizedMessage ?: "Tokenizer failed")
+                            
+                            tokens = listOf("画像認識失敗")
+                            recognizedText = "画像認識失敗"
+                            
                             val skeletonSegments = tokens.map { WordSegment(text = it) }
                             progressStore.updatePartialSegments(recordId, skeletonSegments)
                             partialResultStore.update { current ->
-                                var updated = current
-                                if (skeletonSegments.isNotEmpty()) {
-                                    updated = updated.copy(segments = skeletonSegments)
-                                }
-                                updated.copy(
-                                    consumedTokens = updated.consumedTokens + metadata.consumedTokens,
-                                    inputTokens = updated.inputTokens + metadata.inputTokens,
-                                    outputTokens = updated.outputTokens + metadata.outputTokens
-                                )
+                                current.copy(segments = skeletonSegments)
                             }
                         }
 
@@ -696,10 +725,9 @@ class DefaultAnalysisTaskManager @Inject constructor(
 
                             // 4. Tokenizer & Segments Sequence
                             launch {
+                                var tokens = emptyList<String>()
                                 try {
                                     // 4a. Execute Tokenizer first
-                                    var tokens = emptyList<String>()
-
                                     llmAnalysisService.executeTokenizer(
                                         text = text,
                                         imageBase64 = imageBase64,
@@ -731,9 +759,21 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                             )
                                         }
                                     }
-
+                                } catch (e: Exception) {
+                                    logStepFailure(recordId, AnalysisStep.TOKENIZATION, e)
+                                    progressStore.markStepError(recordId, AnalysisStep.TOKENIZATION.name, e.localizedMessage ?: "Tokenizer failed")
+                                    val fallbackToken = if (text.isNotBlank()) text else "読み取り失敗"
+                                    tokens = listOf(fallbackToken)
+                                    val skeletonSegments = tokens.map { WordSegment(text = it) }
+                                    progressStore.updatePartialSegments(recordId, skeletonSegments)
+                                    partialResultStore.update { current ->
+                                        current.copy(segments = skeletonSegments)
+                                    }
+                                } finally {
                                     progressStore.markTokenizerCompleted(recordId)
+                                }
 
+                                try {
                                     // 4b. Execute detailed segments analysis using the retrieved tokens
                                     llmAnalysisService.executeSegments(
                                         text = text,
@@ -751,14 +791,14 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         val segMeta = resSeg.second
                                         segObj?.segments?.let { progressStore.updatePartialSegments(recordId, it) }
                                         partialResultStore.update { current ->
-                                        val nextSegments = segObj?.segments ?: current.segments
-                                        current.copy(
-                                            segments = nextSegments,
-                                            consumedTokens = current.consumedTokens + segMeta.consumedTokens,
-                                            inputTokens = current.inputTokens + segMeta.inputTokens,
-                                            outputTokens = current.outputTokens + segMeta.outputTokens
-                                        )
-                                    }
+                                            val nextSegments = segObj?.segments ?: current.segments
+                                            current.copy(
+                                                segments = nextSegments,
+                                                consumedTokens = current.consumedTokens + segMeta.consumedTokens,
+                                                inputTokens = current.inputTokens + segMeta.inputTokens,
+                                                outputTokens = current.outputTokens + segMeta.outputTokens
+                                            )
+                                        }
                                     }
                                 } catch (e: Exception) {
                                     logStepFailure(recordId, AnalysisStep.DETAILED_GRAMMAR, e)
