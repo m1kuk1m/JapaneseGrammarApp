@@ -404,10 +404,10 @@ fun StatisticsScreen(
                                                     DetailedSentenceItem(
                                                         record = record,
                                                         onClickNavigate = {
+                                                            returningFromNav = true
+                                                            onNavigateToRecord(record.recordId, record.id)
                                                             coroutineScope.launch {
                                                                 sheetState.hide()
-                                                                returningFromNav = true
-                                                                onNavigateToRecord(record.recordId, record.id)
                                                             }
                                                         }
                                                     )
@@ -418,10 +418,10 @@ fun StatisticsScreen(
                                                     ExpandableWordItem(
                                                         bookmark = bookmark,
                                                         onClickNavigate = {
+                                                            returningFromNav = true
+                                                            onNavigateToRecord(bookmark.recordId, bookmark.id)
                                                             coroutineScope.launch {
                                                                 sheetState.hide()
-                                                                returningFromNav = true
-                                                                onNavigateToRecord(bookmark.recordId, bookmark.id)
                                                             }
                                                         }
                                                     )
@@ -432,10 +432,10 @@ fun StatisticsScreen(
                                                     DetailedGrammarItem(
                                                         grammar = grammar,
                                                         onClick = {
+                                                            returningFromNav = true
+                                                            onNavigateToRecord(grammar.recordId, -1)
                                                             coroutineScope.launch {
                                                                 sheetState.hide()
-                                                                returningFromNav = true
-                                                                onNavigateToRecord(grammar.recordId, -1)
                                                             }
                                                         }
                                                     )
