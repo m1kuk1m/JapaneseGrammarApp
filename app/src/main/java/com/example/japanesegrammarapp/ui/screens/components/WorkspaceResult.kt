@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -65,11 +67,15 @@ import com.example.japanesegrammarapp.ui.theme.ZenColors.AizomeIndigo
 import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.MatchaGreen
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SakuraPink
+import com.example.japanesegrammarapp.ui.theme.ZenColors
 import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
+import com.example.japanesegrammarapp.utils.DictionaryApp
 
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -166,6 +172,8 @@ fun WorkspaceResultContent(
         }
     } else {
         var selectedSegmentIndex by remember(uiState.selectedRecord?.id) { mutableStateOf(-1) }
+        val showPopup = uiState.cardDetailDisplayMode == "POPUP"
+        val hasSelectedSegment = selectedSegmentIndex in 0 until (data.segments?.size ?: 0)
 
         val overscrollTop = remember(uiState.selectedRecord?.id) { Animatable(0f) }
         val overscrollBottom = remember(uiState.selectedRecord?.id) { Animatable(0f) }
@@ -381,62 +389,56 @@ fun WorkspaceResultContent(
                                             val isHistory = !isPending
                                             val visibleState = remember(uiState.selectedRecord?.id) { MutableTransitionState(isHistory) }.apply { targetState = true }
                                             
-                                            AnimatedVisibility(
-                                                visibleState = visibleState,
-                                                enter = if (isHistory) androidx.compose.animation.EnterTransition.None else (scaleIn(initialScale = 0.8f, animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 800f)) + fadeIn(animationSpec = tween(150)))
-                                            ) {
-                                                SegmentChip(
-                                                    segment = segment,
-                                                    isSelected = index == selectedSegmentIndex,
-                                                    isLoading = isThisSegmentLoading,
-                                                    isBookmarked = uiState.bookmarkedSegmentTexts.contains(segment.text) || 
-                                                            uiState.bookmarkedSegmentTexts.contains(segment.dictionaryForm ?: ""),
-                                                    fontScale = uiState.cardFontSizeScale,
-                                                    spacingScale = uiState.cardSpacingScale,
-                                                    furiganaScale = uiState.furiganaSizeScale,
-                                                    onClick = {
-                                                        onUserInteracted()
-                                                        if (!isThisSegmentLoading) {
-                                                            selectedSegmentIndex = if (selectedSegmentIndex == index) -1 else index
-                                                        }
-                                                    },
-                                                    onLongClick = { onToggleBookmark(segment) }
-                                                )
+                                            Box {
+                                                androidx.compose.animation.AnimatedVisibility(
+                                                    visibleState = visibleState,
+                                                    enter = if (isHistory) androidx.compose.animation.EnterTransition.None else (scaleIn(initialScale = 0.8f, animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 800f)) + fadeIn(animationSpec = tween(150)))
+                                                ) {
+                                                    SegmentChip(
+                                                        segment = segment,
+                                                        isSelected = index == selectedSegmentIndex,
+                                                        isLoading = isThisSegmentLoading,
+                                                        isBookmarked = uiState.bookmarkedSegmentTexts.contains(segment.text) || 
+                                                                uiState.bookmarkedSegmentTexts.contains(segment.dictionaryForm ?: ""),
+                                                        fontScale = uiState.cardFontSizeScale,
+                                                        spacingScale = uiState.cardSpacingScale,
+                                                        furiganaScale = uiState.furiganaSizeScale,
+                                                        onClick = {
+                                                            onUserInteracted()
+                                                            if (!isThisSegmentLoading) {
+                                                                selectedSegmentIndex = if (selectedSegmentIndex == index) -1 else index
+                                                            }
+                                                        },
+                                                        onLongClick = { onToggleBookmark(segment) }
+                                                    )
+                                                }
+
+                                                if (showPopup && index == selectedSegmentIndex) {
+                                                    Popup(
+                                                        alignment = Alignment.BottomCenter,
+                                                        onDismissRequest = { selectedSegmentIndex = -1 },
+                                                        properties = PopupProperties(
+                                                            focusable = true,
+                                                            dismissOnClickOutside = true,
+                                                            dismissOnBackPress = true
+                                                        )
+                                                    ) {
+                                                        CompactSegmentDetailCard(
+                                                            currentSegment = segment,
+                                                            uiState = uiState,
+                                                            onToggleBookmark = onToggleBookmark,
+                                                            onEditWordSegment = onEditWordSegment,
+                                                            onCloseDetails = { selectedSegmentIndex = -1 },
+                                                            uiPreferencesRepository = uiPreferencesRepository,
+                                                            sumiInk = SumiInk,
+                                                            surfaceColor = SurfaceColor
+                                                        )
+                                                    }
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
-                        }
-                    }
-                    
-                    // Inline or Popup Details Card
-                    val hasSelectedSegment = selectedSegmentIndex in 0 until (data.segments?.size ?: 0)
-                    val showPopup = uiState.cardDetailDisplayMode == "POPUP"
-
-                    if (showPopup && hasSelectedSegment) {
-                        val currentSegment = data.segments!![selectedSegmentIndex]
-                        Dialog(onDismissRequest = { selectedSegmentIndex = -1 }) {
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                color = SurfaceColor,
-                                shape = RoundedCornerShape(24.dp),
-                                shadowElevation = 6.dp,
-                                tonalElevation = 0.dp
-                            ) {
-                                SegmentDetailContent(
-                                    currentSegment = currentSegment,
-                                    uiState = uiState,
-                                    onToggleBookmark = onToggleBookmark,
-                                    onEditWordSegment = onEditWordSegment,
-                                    onCloseDetails = { selectedSegmentIndex = -1 },
-                                    uiPreferencesRepository = uiPreferencesRepository,
-                                    sumiInk = SumiInk,
-                                    surfaceColor = SurfaceColor,
-                                    modifier = Modifier.padding(16.dp)
-                                )
                             }
                         }
                     }
@@ -1034,5 +1036,188 @@ fun SegmentDetailContent(
         }
     }
 }
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun CompactSegmentDetailCard(
+    currentSegment: WordSegment,
+    uiState: WorkspaceUiState,
+    onToggleBookmark: (WordSegment) -> Unit,
+    onEditWordSegment: (WordSegment) -> Unit,
+    onCloseDetails: () -> Unit,
+    uiPreferencesRepository: UiPreferencesRepository,
+    sumiInk: Color,
+    surfaceColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val KuriAmber = com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
+    Surface(
+        color = surfaceColor,
+        shape = RoundedCornerShape(16.dp),
+        shadowElevation = 8.dp,
+        modifier = modifier
+            .widthIn(max = 280.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = currentSegment.text ?: "",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = sumiInk
+                    )
+                    if (!currentSegment.reading.isNullOrBlank() && currentSegment.reading != currentSegment.text) {
+                        Text(
+                            text = currentSegment.reading,
+                            fontSize = 11.sp,
+                            color = sumiInk.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val isCurrentBookmarked = uiState.bookmarkedSegmentTexts.contains(currentSegment.text) || 
+                            uiState.bookmarkedSegmentTexts.contains(currentSegment.dictionaryForm ?: "")
+                    IconButton(
+                        onClick = { onToggleBookmark(currentSegment) },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isCurrentBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
+                            contentDescription = null,
+                            tint = if (isCurrentBookmarked) Color(0xFFD4A017) else sumiInk.copy(alpha = 0.3f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = onCloseDetails,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = null,
+                            tint = sumiInk.copy(alpha = 0.4f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(6.dp))
+            
+            val tags = remember(currentSegment) {
+                buildList {
+                    currentSegment.partOfSpeech?.let { if (it.isNotBlank()) add("词性: $it") }
+                    currentSegment.dictionaryForm?.let { if (it.isNotBlank() && it != currentSegment.text) add("原形: $it") }
+                    currentSegment.inflection?.let { if (it.isNotBlank()) add("活用: $it") }
+                    currentSegment.role?.let { if (it.isNotBlank()) add("成分: $it") }
+                }
+            }
+            
+            if (tags.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    tags.forEach { tag ->
+                        Surface(
+                            color = sumiInk.copy(alpha = 0.05f),
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier.padding(vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = tag,
+                                fontSize = 10.sp,
+                                color = sumiInk.copy(alpha = 0.7f),
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+            
+            if (!currentSegment.meaning.isNullOrBlank()) {
+                Surface(
+                    color = KuriAmber.copy(alpha = 0.08f),
+                    shape = RoundedCornerShape(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = currentSegment.meaning,
+                            fontSize = 12.sp,
+                            color = sumiInk,
+                            lineHeight = 16.sp,
+                            modifier = Modifier.weight(1f).padding(end = 4.dp)
+                        )
+                        IconButton(
+                            onClick = { onEditWordSegment(currentSegment) },
+                            modifier = Modifier.size(20.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = null,
+                                tint = sumiInk.copy(alpha = 0.4f),
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+            
+            val queryWord = currentSegment.dictionaryQueryWord()
+            if (queryWord.isNotBlank()) {
+                val context = LocalContext.current
+                val savedDict = remember {
+                    val dictName = uiPreferencesRepository.getLastDictionary(DictionaryApp.EUDIC.name)
+                    runCatching { DictionaryApp.valueOf(dictName) }.getOrDefault(DictionaryApp.EUDIC)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(
+                        onClick = { savedDict.search(context, queryWord) },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier.height(28.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.textButtonColors(
+                            containerColor = sumiInk.copy(alpha = 0.05f),
+                            contentColor = sumiInk
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${stringResource(R.string.search_in_dict)} (${stringResource(savedDict.nameResId)})",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 
