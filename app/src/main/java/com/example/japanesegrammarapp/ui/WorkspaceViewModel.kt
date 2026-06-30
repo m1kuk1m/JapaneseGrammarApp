@@ -251,6 +251,18 @@ class WorkspaceViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            settingsRepository.cardInternalPaddingScale.collect { scale ->
+                _uiState.update { it.copy(cardInternalPaddingScale = scale) }
+            }
+        }
+
+        viewModelScope.launch {
+            settingsRepository.furiganaGapScale.collect { scale ->
+                _uiState.update { it.copy(furiganaGapScale = scale) }
+            }
+        }
+
+        viewModelScope.launch {
             settingsRepository.cardDetailDisplayMode.collect { mode ->
                 _uiState.update { it.copy(cardDetailDisplayMode = mode) }
             }

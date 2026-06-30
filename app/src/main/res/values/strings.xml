@@ -663,8 +663,10 @@
     <!-- Card Customization -->
     <string name="card_appearance">Word Segment Customization</string>
     <string name="card_font_size">Kanji/Kana Font Size</string>
-    <string name="card_spacing">Spacing &amp; Padding</string>
+    <string name="card_spacing">Card Spacing (Margin)</string>
+    <string name="card_internal_padding">Internal Padding</string>
     <string name="furigana_size">Furigana Font Size</string>
+    <string name="furigana_gap">Furigana Vertical Gap</string>
     <string name="card_detail_display_mode">Detail Display Mode</string>
     <string name="card_detail_inline">Inline</string>
     <string name="card_detail_popup">Floating Dialog</string>

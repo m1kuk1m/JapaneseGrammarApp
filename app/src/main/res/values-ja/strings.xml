@@ -654,8 +654,10 @@
     <!-- Card Customization -->
     <string name="card_appearance">成分カードのカスタマイズ</string>
     <string name="card_font_size">漢字/かなのサイズ</string>
-    <string name="card_spacing">余白と間隔</string>
+    <string name="card_spacing">カードの外側間隔</string>
+    <string name="card_internal_padding">カードの内側余白</string>
     <string name="furigana_size">ふりがなのサイズ</string>
+    <string name="furigana_gap">ふりがなとの縦方向間隔</string>
     <string name="restore_defaults">デフォルトに戻す</string>
     <string name="card_preview_title">成分カードプレビュー：</string>
 </resources>

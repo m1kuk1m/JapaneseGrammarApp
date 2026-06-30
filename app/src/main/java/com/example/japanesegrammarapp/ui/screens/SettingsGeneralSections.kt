@@ -518,6 +518,8 @@ fun SettingsCardAppearanceSection(
     onFontSizeScaleChange: (Float) -> Unit,
     onSpacingScaleChange: (Float) -> Unit,
     onFuriganaSizeScaleChange: (Float) -> Unit,
+    onCardInternalPaddingScaleChange: (Float) -> Unit,
+    onFuriganaGapScaleChange: (Float) -> Unit,
     onCardDetailDisplayModeChange: (String) -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
@@ -580,6 +582,28 @@ fun SettingsCardAppearanceSection(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Slider for Card Internal Padding Scale
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "${stringResource(R.string.card_internal_padding)}: ${String.format(java.util.Locale.US, "%.1f", uiState.cardInternalPaddingScale)}x",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = sumiInk,
+                    modifier = Modifier.weight(1f)
+                )
+                Slider(
+                    value = uiState.cardInternalPaddingScale,
+                    onValueChange = onCardInternalPaddingScaleChange,
+                    valueRange = 0.5f..2.0f,
+                    modifier = Modifier.width(180.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             // Slider for Furigana Size Scale
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -596,6 +620,28 @@ fun SettingsCardAppearanceSection(
                     value = uiState.furiganaSizeScale,
                     onValueChange = onFuriganaSizeScaleChange,
                     valueRange = 0.5f..2.0f,
+                    modifier = Modifier.width(180.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Slider for Furigana Gap Scale
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "${stringResource(R.string.furigana_gap)}: ${String.format(java.util.Locale.US, "%.1f", uiState.furiganaGapScale)}x",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = sumiInk,
+                    modifier = Modifier.weight(1f)
+                )
+                Slider(
+                    value = uiState.furiganaGapScale,
+                    onValueChange = onFuriganaGapScaleChange,
+                    valueRange = 0.0f..3.0f,
                     modifier = Modifier.width(180.dp)
                 )
             }
@@ -663,6 +709,8 @@ fun SettingsCardAppearanceSection(
                         onFontSizeScaleChange(1.0f)
                         onSpacingScaleChange(1.0f)
                         onFuriganaSizeScaleChange(1.0f)
+                        onCardInternalPaddingScaleChange(1.0f)
+                        onFuriganaGapScaleChange(1.0f)
                         onCardDetailDisplayModeChange("INLINE")
                     }
                 ) {
@@ -699,6 +747,8 @@ fun SettingsCardAppearanceSection(
                             fontScale = uiState.cardFontSizeScale,
                             spacingScale = uiState.cardSpacingScale,
                             furiganaScale = uiState.furiganaSizeScale,
+                            internalPaddingScale = uiState.cardInternalPaddingScale,
+                            furiganaGapScale = uiState.furiganaGapScale,
                             onClick = {}
                         )
                     }

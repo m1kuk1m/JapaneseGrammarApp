@@ -415,6 +415,8 @@ fun WorkspaceResultContent(
                                                         fontScale = uiState.cardFontSizeScale,
                                                         spacingScale = uiState.cardSpacingScale,
                                                         furiganaScale = uiState.furiganaSizeScale,
+                                                        internalPaddingScale = uiState.cardInternalPaddingScale,
+                                                        furiganaGapScale = uiState.furiganaGapScale,
                                                         onClick = {
                                                             onUserInteracted()
                                                             if (!isThisSegmentLoading) {

@@ -18,6 +18,11 @@ import com.example.japanesegrammarapp.domain.repository.DetailedResultSerializer
 import com.example.japanesegrammarapp.domain.repository.HistoryRepository
 import com.example.japanesegrammarapp.domain.repository.TtsRepository
 import com.example.japanesegrammarapp.domain.repository.UiPreferencesRepository
+import com.example.japanesegrammarapp.domain.repository.SettingsRepository
+import com.example.japanesegrammarapp.domain.model.LlmEndpoint
+import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
+import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
+import com.example.japanesegrammarapp.domain.model.PromptPreset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -155,7 +160,8 @@ class BookmarkViewModelFilterTest {
             ttsRepository = FakeTtsRepository(),
             historyRepository = FakeHistoryRepository(),
             detailedResultSerializer = FakeDetailedResultSerializer(),
-            uiPreferencesRepository = FakeUiPreferencesRepository()
+            uiPreferencesRepository = FakeUiPreferencesRepository(),
+            settingsRepository = FakeSettingsRepository
         )
     }
 
@@ -254,5 +260,88 @@ class BookmarkViewModelFilterTest {
         override val totalTokensConsumed: Flow<Int?> = MutableStateFlow(0)
         override val tokenUsageByModel: Flow<List<ModelTokenUsage>> = MutableStateFlow(emptyList())
         override val dailyTokenUsage: Flow<List<DailyTokenUsage>> = MutableStateFlow(emptyList())
+    }
+
+    private object FakeSettingsRepository : SettingsRepository {
+        override fun getAllProviders(): List<String> = listOf("Gemini")
+        override fun getBaseProviderType(providerId: String): String = providerId
+        override fun getApiKey(provider: String): String = "key"
+        override fun saveApiKey(provider: String, key: String): Boolean = true
+        override fun getApiUrl(provider: String): String = "https://example.test"
+        override fun saveApiUrl(provider: String, url: String) = Unit
+        override fun getEndpoints(provider: String): List<LlmEndpoint> = emptyList()
+        override fun getApiKeyForEndpoint(endpointId: String): String = "key"
+        override fun saveEndpoint(endpoint: LlmEndpoint, apiKey: String?): Boolean = true
+        override fun deleteEndpoint(provider: String, endpointId: String): Boolean = true
+        override fun markEndpointSuccess(provider: String, endpointId: String) = Unit
+        override fun markEndpointFailure(provider: String, endpointId: String, error: String, cooldownMs: Long) = Unit
+        override fun touchEndpoint(provider: String, endpointId: String) = Unit
+        override fun buildLlmApiConfigs(provider: String, modelName: String): List<LlmApiConfig> = emptyList()
+        override fun getActiveProvider(): String = "Gemini"
+        override fun setActiveProvider(provider: String) = Unit
+        override fun getActiveModel(provider: String): String = "gemini-test"
+        override fun setActiveModel(provider: String, model: String) = Unit
+        override fun getUseOcr(): Boolean = false
+        override fun setUseOcr(value: Boolean) = Unit
+        override fun getImageTokenizerMode(): String = "faithful"
+        override fun setImageTokenizerMode(mode: String) = Unit
+        override fun getOcrBoxDetectionSettings(): OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT
+        override fun setOcrBoxDetectionSettings(settings: OcrBoxDetectionSettings) = Unit
+        override fun resetOcrBoxDetectionSettings() = Unit
+        override fun getAutoNavigateResult(): Boolean = true
+        override fun setAutoNavigateResult(value: Boolean) = Unit
+        override fun getAutoDeskewAfterCapture(): Boolean = false
+        override fun setAutoDeskewAfterCapture(value: Boolean) = Unit
+        override fun getModelsForProvider(provider: String): List<String> = emptyList()
+        override fun saveModelsForProvider(provider: String, models: List<String>) = Unit
+        override fun getBackupProvider(): String = ""
+        override fun setBackupProvider(provider: String) = Unit
+        override fun getBackupModel(): String = ""
+        override fun setBackupModel(model: String) = Unit
+        override fun getThemeMode(): String = "System"
+        override fun setThemeMode(mode: String) = Unit
+        override fun getWallpaperUri(): String = ""
+        override fun setWallpaperUri(uri: String) = Unit
+        override val themeMode = MutableStateFlow("System")
+        override val wallpaperUri = MutableStateFlow("")
+        override fun getCustomPrompt(promptKey: String): String = ""
+        override fun saveCustomPrompt(promptKey: String, prompt: String) = Unit
+        override fun resetCustomPrompt(promptKey: String) = Unit
+        override fun resetAllCustomPrompts() = Unit
+        override fun getTtsProvider(): String = "OpenAI"
+        override fun setTtsProvider(provider: String) = Unit
+        override fun getTtsApiUrl(provider: String): String = ""
+        override fun setTtsApiUrl(provider: String, url: String) = Unit
+        override fun getTtsApiKey(provider: String): String = ""
+        override fun setTtsApiKey(provider: String, key: String): Boolean = true
+        override fun getTtsModel(provider: String): String = ""
+        override fun setTtsModel(provider: String, model: String) = Unit
+        override fun getTtsVoice(provider: String): String = ""
+        override fun setTtsVoice(provider: String, voice: String) = Unit
+        override fun getTtsRegion(provider: String): String = ""
+        override fun setTtsRegion(provider: String, region: String) = Unit
+        override fun getPromptPresets(): List<PromptPreset> = emptyList()
+        override fun getActivePromptPresetId(): String = ""
+        override fun setActivePromptPresetId(id: String) = Unit
+        override fun savePromptPreset(preset: PromptPreset) = Unit
+        override fun deletePromptPreset(id: String) = Unit
+        override fun getCardFontSizeScale(): Float = 1.0f
+        override fun setCardFontSizeScale(scale: Float) = Unit
+        override fun getCardSpacingScale(): Float = 1.0f
+        override fun setCardSpacingScale(scale: Float) = Unit
+        override fun getFuriganaSizeScale(): Float = 1.0f
+        override fun setFuriganaSizeScale(scale: Float) = Unit
+        override fun getCardInternalPaddingScale(): Float = 1.0f
+        override fun setCardInternalPaddingScale(scale: Float) = Unit
+        override fun getFuriganaGapScale(): Float = 1.0f
+        override fun setFuriganaGapScale(scale: Float) = Unit
+        override val cardFontSizeScale = MutableStateFlow(1.0f)
+        override val cardSpacingScale = MutableStateFlow(1.0f)
+        override val furiganaSizeScale = MutableStateFlow(1.0f)
+        override val cardInternalPaddingScale = MutableStateFlow(1.0f)
+        override val furiganaGapScale = MutableStateFlow(1.0f)
+        override fun getCardDetailDisplayMode(): String = "INLINE"
+        override fun setCardDetailDisplayMode(mode: String) = Unit
+        override val cardDetailDisplayMode = MutableStateFlow("INLINE")
     }
 }
