@@ -14,6 +14,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.foundation.background
@@ -419,7 +421,11 @@ fun WorkspaceResultContent(
                                                     )
                                                 }
 
-                                                if (showPopup && index == selectedSegmentIndex) {
+                                                val isVisible = showPopup && index == selectedSegmentIndex
+                                                val transitionState = remember(segment) { MutableTransitionState(false) }
+                                                transitionState.targetState = isVisible
+
+                                                if (transitionState.currentState || transitionState.targetState) {
                                                     val density = LocalDensity.current
                                                     val gapPx = remember(density) { with(density) { 8.dp.roundToPx() } }
                                                     Popup(
@@ -431,16 +437,18 @@ fun WorkspaceResultContent(
                                                             dismissOnBackPress = true
                                                         )
                                                     ) {
-                                                        CompactSegmentDetailCard(
-                                                            currentSegment = segment,
-                                                            uiState = uiState,
-                                                            onToggleBookmark = onToggleBookmark,
-                                                            onEditWordSegment = onEditWordSegment,
-                                                            onCloseDetails = { selectedSegmentIndex = -1 },
-                                                            uiPreferencesRepository = uiPreferencesRepository,
-                                                            sumiInk = SumiInk,
-                                                            surfaceColor = SurfaceColor
-                                                        )
+                                                        PopupAnimatedContent(visibleState = transitionState) {
+                                                            CompactSegmentDetailCard(
+                                                                currentSegment = segment,
+                                                                uiState = uiState,
+                                                                onToggleBookmark = onToggleBookmark,
+                                                                onEditWordSegment = onEditWordSegment,
+                                                                onCloseDetails = { selectedSegmentIndex = -1 },
+                                                                uiPreferencesRepository = uiPreferencesRepository,
+                                                                sumiInk = SumiInk,
+                                                                surfaceColor = SurfaceColor
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             }
@@ -1242,6 +1250,24 @@ class SmartPopupPositionProvider(
         val clampedY = y.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0))
 
         return IntOffset(clampedX, clampedY)
+    }
+}
+
+@Composable
+fun PopupAnimatedContent(
+    visibleState: MutableTransitionState<Boolean>,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    AnimatedVisibility(
+        visibleState = visibleState,
+        modifier = modifier,
+        enter = fadeIn(tween(250, easing = LinearOutSlowInEasing)) + 
+                scaleIn(initialScale = 0.9f, animationSpec = tween(250, easing = LinearOutSlowInEasing)),
+        exit = fadeOut(tween(200)) + 
+               scaleOut(targetScale = 0.9f, animationSpec = tween(200))
+    ) {
+        content()
     }
 }
 
