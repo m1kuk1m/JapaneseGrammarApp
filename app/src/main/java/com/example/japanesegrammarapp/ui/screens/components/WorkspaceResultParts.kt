@@ -88,6 +88,9 @@ fun SegmentChip(
     isSelected: Boolean,
     isLoading: Boolean = false,
     isBookmarked: Boolean = false,
+    fontScale: Float = 1.0f,
+    spacingScale: Float = 1.0f,
+    furiganaScale: Float = 1.0f,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
@@ -183,7 +186,10 @@ fun SegmentChip(
                 )
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                modifier = Modifier.padding(
+                    horizontal = 8.dp * spacingScale,
+                    vertical = 4.dp * spacingScale
+                ),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 val isPunctuation = segment.partOfSpeech?.contains("記号") == true || segment.posCategory == "symbol" || segment.text?.matches(Regex("^[\\p{Punct}、。！？「」『』（）]+$")) == true
@@ -201,15 +207,15 @@ fun SegmentChip(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = targetReading,
-                            fontSize = 9.sp,
-                            lineHeight = 10.sp,
+                            fontSize = 9.sp * furiganaScale,
+                            lineHeight = 10.sp * furiganaScale,
                             color = chipTextColor.copy(
                                 alpha = if (isLoading || targetReading == "\u200B") 0.0f else 0.6f
                             )
                         )
                         Text(
                             text = targetText,
-                            fontSize = 16.sp,
+                            fontSize = 16.sp * fontScale,
                             fontWeight = FontWeight.SemiBold,
                             color = chipTextColor.copy(alpha = if (isLoading) 0.4f else 1.0f)
                         )

@@ -81,7 +81,10 @@ interface SettingsRepository {
     fun setCardFontSizeScale(scale: Float)
     fun getCardSpacingScale(): Float
     fun setCardSpacingScale(scale: Float)
+    fun getFuriganaSizeScale(): Float
+    fun setFuriganaSizeScale(scale: Float)
     val cardFontSizeScale: kotlinx.coroutines.flow.StateFlow<Float>
     val cardSpacingScale: kotlinx.coroutines.flow.StateFlow<Float>
+    val furiganaSizeScale: kotlinx.coroutines.flow.StateFlow<Float>
 }
 

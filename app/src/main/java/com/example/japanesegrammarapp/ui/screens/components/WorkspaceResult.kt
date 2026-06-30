@@ -360,8 +360,8 @@ fun WorkspaceResultContent(
                             
                             FlowRow(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp * uiState.cardSpacingScale),
+                                verticalArrangement = Arrangement.spacedBy(10.dp * uiState.cardSpacingScale)
                             ) {
                                 if (data.segments.isNullOrEmpty()) {
                                     if (segmentError == null && isPending) {
@@ -390,6 +390,9 @@ fun WorkspaceResultContent(
                                                     isLoading = isThisSegmentLoading,
                                                     isBookmarked = uiState.bookmarkedSegmentTexts.contains(segment.text) || 
                                                             uiState.bookmarkedSegmentTexts.contains(segment.dictionaryForm ?: ""),
+                                                    fontScale = uiState.cardFontSizeScale,
+                                                    spacingScale = uiState.cardSpacingScale,
+                                                    furiganaScale = uiState.furiganaSizeScale,
                                                     onClick = {
                                                         onUserInteracted()
                                                         if (!isThisSegmentLoading) {
