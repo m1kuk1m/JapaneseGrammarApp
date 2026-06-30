@@ -659,6 +659,9 @@
     <string name="furigana_size">ふりがなのサイズ</string>
     <string name="furigana_gap">ふりがなとの縦方向間隔</string>
     <string name="restore_defaults">デフォルトに戻す</string>
+    <string name="card_detail_display_mode">詳細表示モード</string>
+    <string name="card_detail_inline">インライン</string>
+    <string name="card_detail_popup">フローティングダイアログ</string>
     <string name="card_preview_title">成分カードプレビュー：</string>
 </resources>
 

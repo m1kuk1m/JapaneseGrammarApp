@@ -340,8 +340,8 @@ class BookmarkViewModelFilterTest {
         override val furiganaSizeScale = MutableStateFlow(1.0f)
         override val cardInternalPaddingScale = MutableStateFlow(1.0f)
         override val furiganaGapScale = MutableStateFlow(1.0f)
-        override fun getCardDetailDisplayMode(): String = "INLINE"
+        override fun getCardDetailDisplayMode(): String = "POPUP"
         override fun setCardDetailDisplayMode(mode: String) = Unit
-        override val cardDetailDisplayMode = MutableStateFlow("INLINE")
+        override val cardDetailDisplayMode = MutableStateFlow("POPUP")
     }
 }

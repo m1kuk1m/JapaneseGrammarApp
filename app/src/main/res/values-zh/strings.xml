@@ -660,6 +660,9 @@
     <string name="furigana_size">注音假名大小</string>
     <string name="furigana_gap">注音与汉字间距</string>
     <string name="restore_defaults">恢复默认值</string>
+    <string name="card_detail_display_mode">详细显示模式</string>
+    <string name="card_detail_inline">行内</string>
+    <string name="card_detail_popup">浮动对话框</string>
     <string name="card_preview_title">成分卡片预览：</string>
 </resources>
 

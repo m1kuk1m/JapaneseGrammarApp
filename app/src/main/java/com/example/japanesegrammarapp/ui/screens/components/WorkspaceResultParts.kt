@@ -127,11 +127,15 @@ fun SegmentChip(
     )
     val borderWidth by animateDpAsState(
         targetValue = when {
-            isSelected && isBookmarked -> 2.5.dp
+            isSelected -> 3.dp
             isBookmarked -> 2.dp
             else -> 1.5.dp
         },
         label = "borderWidth"
+    )
+    val shadowElevation by animateDpAsState(
+        targetValue = if (isSelected) 4.dp else 0.dp,
+        label = "shadowElevation"
     )
     val infiniteTransition = rememberInfiniteTransition(label = "chipShimmer")
     val shimmerAlpha by infiniteTransition.animateFloat(
@@ -147,6 +151,8 @@ fun SegmentChip(
     val hasDetails = !segment.meaning.isNullOrBlank() || !segment.role.isNullOrBlank()
     val targetBgColor = if (isLoading) {
         sumiInk.copy(alpha = shimmerAlpha)
+    } else if (isSelected) {
+        baseBgColor
     } else if (hasDetails) {
         baseBgColor
     } else {
@@ -175,6 +181,8 @@ fun SegmentChip(
             color = bgColor,
             shape = RoundedCornerShape(8.dp),
             border = BorderStroke(width = borderWidth, color = borderColor),
+            shadowElevation = shadowElevation,
+            tonalElevation = 0.dp,
             modifier = Modifier
                 .animateContentSize(animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing))
                 .clip(RoundedCornerShape(8.dp))
@@ -191,8 +199,8 @@ fun SegmentChip(
         ) {
             Column(
                 modifier = Modifier.padding(
-                    horizontal = 8.dp * internalPaddingScale,
-                    vertical = 4.dp * internalPaddingScale
+                    horizontal = 9.6.dp * internalPaddingScale,
+                    vertical = 4.8.dp * internalPaddingScale
                 ),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -211,8 +219,8 @@ fun SegmentChip(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = targetReading,
-                            fontSize = 9.sp * furiganaScale,
-                            lineHeight = 10.sp * furiganaScale,
+                            fontSize = 9.9.sp * furiganaScale,
+                            lineHeight = 11.sp * furiganaScale,
                             color = chipTextColor.copy(
                                 alpha = if (isLoading || targetReading == "\u200B") 0.0f else 0.6f
                             )
