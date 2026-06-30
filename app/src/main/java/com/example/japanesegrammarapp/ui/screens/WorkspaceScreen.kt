@@ -654,7 +654,7 @@ fun WorkspaceScreen(
                                         AnimatedVisibility(
                                             visible = !isResultScrolled,
                                             enter = expandVertically(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow)) + fadeIn(animationSpec = tween(200)),
-                                            exit = shrinkVertically(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow)) + fadeOut(animationSpec = tween(100))
+                                            exit = shrinkVertically(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow)) + fadeOut(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
                                         ) {
                                             androidx.compose.foundation.text.selection.SelectionContainer {
                                                 Text(
