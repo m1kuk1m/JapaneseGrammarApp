@@ -183,38 +183,37 @@ fun SegmentChip(
                 )
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 val isPunctuation = segment.partOfSpeech?.contains("記号") == true || segment.posCategory == "symbol" || segment.text?.matches(Regex("^[\\p{Punct}、。！？「」『』（）]+$")) == true
-                val displayReading = if (isPunctuation) "" else (segment.reading ?: "")
+                val displayReading = if (isPunctuation) "\u200B" else (segment.reading?.takeIf { it.isNotBlank() } ?: "\u200B")
 
                 AnimatedContent(
-                    targetState = displayReading,
+                    targetState = Pair(displayReading, segment.text ?: ""),
                     transitionSpec = { 
                         (fadeIn(tween(150)) togetherWith fadeOut(tween(150))).using(
                             SizeTransform(clip = false)
                         )
                     },
-                    label = "readingReveal"
-                ) { targetReading ->
-                    Text(
-                        text = targetReading,
-                        fontSize = 9.sp,
-                        color = chipTextColor.copy(alpha = if (isLoading) 0.0f else 0.6f)
-                    )
-                }
-                AnimatedContent(
-                    targetState = segment.text ?: "",
-                    transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(150)) },
                     label = "textReveal"
-                ) { targetText ->
-                    Text(
-                        text = targetText,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = chipTextColor.copy(alpha = if (isLoading) 0.4f else 1.0f)
-                    )
+                ) { (targetReading, targetText) ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = targetReading,
+                            fontSize = 9.sp,
+                            lineHeight = 10.sp,
+                            color = chipTextColor.copy(
+                                alpha = if (isLoading || targetReading == "\u200B") 0.0f else 0.6f
+                            )
+                        )
+                        Text(
+                            text = targetText,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = chipTextColor.copy(alpha = if (isLoading) 0.4f else 1.0f)
+                        )
+                    }
                 }
             }
         }
