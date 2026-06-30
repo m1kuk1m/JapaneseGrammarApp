@@ -522,14 +522,14 @@ fun SettingsCardAppearanceSection(
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val mockSegments = remember {
         listOf(
-            WordSegment(text = "今日", reading = "きょう", partOfSpeech = "名詞", posCategory = "NOUN"),
-            WordSegment(text = "は", reading = "は", partOfSpeech = "助詞", posCategory = "PARTICLE"),
-            WordSegment(text = "とても", reading = "とても", partOfSpeech = "副詞", posCategory = "ADVERB"),
-            WordSegment(text = "天気", reading = "てんき", partOfSpeech = "名詞", posCategory = "NOUN"),
-            WordSegment(text = "が", reading = "が", partOfSpeech = "助詞", posCategory = "PARTICLE"),
-            WordSegment(text = "いい", reading = "いい", partOfSpeech = "形容詞", posCategory = "ADJECTIVE"),
-            WordSegment(text = "です", reading = "です", partOfSpeech = "助動詞", posCategory = "AUXILIARY"),
-            WordSegment(text = "ね", reading = "ね", partOfSpeech = "助詞", posCategory = "PARTICLE")
+            WordSegment(text = "今日", reading = "きょう", partOfSpeech = "名詞", posCategory = "NOUN", meaning = "preview"),
+            WordSegment(text = "は", reading = "は", partOfSpeech = "助詞", posCategory = "PARTICLE", meaning = "preview"),
+            WordSegment(text = "とても", reading = "とても", partOfSpeech = "副詞", posCategory = "ADVERB", meaning = "preview"),
+            WordSegment(text = "天気", reading = "てんき", partOfSpeech = "名詞", posCategory = "NOUN", meaning = "preview"),
+            WordSegment(text = "が", reading = "が", partOfSpeech = "助詞", posCategory = "PARTICLE", meaning = "preview"),
+            WordSegment(text = "いい", reading = "いい", partOfSpeech = "形容詞", posCategory = "ADJECTIVE", meaning = "preview"),
+            WordSegment(text = "です", reading = "です", partOfSpeech = "助動詞", posCategory = "AUXILIARY", meaning = "preview"),
+            WordSegment(text = "ね", reading = "ね", partOfSpeech = "助詞", posCategory = "PARTICLE", meaning = "preview")
         )
     }
 
