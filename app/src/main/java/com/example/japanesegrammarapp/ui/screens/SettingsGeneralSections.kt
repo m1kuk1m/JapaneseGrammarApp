@@ -522,19 +522,14 @@ fun SettingsCardAppearanceSection(
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val mockSegments = remember {
         listOf(
-            WordSegment(text = "最後", reading = "さいご", partOfSpeech = "名詞", posCategory = "NOUN"),
-            WordSegment(text = "の", reading = "の", partOfSpeech = "助詞", posCategory = "PARTICLE"),
-            WordSegment(text = "ノルマ", reading = "ノルマ", partOfSpeech = "名詞", posCategory = "NOUN"),
-            WordSegment(text = "で", reading = "で", partOfSpeech = "助詞", posCategory = "PARTICLE"),
-            WordSegment(text = "、", reading = "、", partOfSpeech = "記号", posCategory = "SYMBOL"),
-            WordSegment(text = "その", reading = "その", partOfSpeech = "連体詞", posCategory = "PRE_NOUN_ADJECTIVAL"),
-            WordSegment(text = "、", reading = "、", partOfSpeech = "記号", posCategory = "SYMBOL"),
-            WordSegment(text = "から", reading = "から", partOfSpeech = "助詞", posCategory = "PARTICLE"),
-            WordSegment(text = "入る", reading = "はいる", partOfSpeech = "動詞", posCategory = "VERB"),
-            WordSegment(text = "の", reading = "の", partOfSpeech = "助詞", posCategory = "PARTICLE"),
-            WordSegment(text = "間違って", reading = "まちがって", partOfSpeech = "動詞", posCategory = "VERB"),
-            WordSegment(text = "ます", reading = "ます", partOfSpeech = "助動詞", posCategory = "AUXILIARY"),
-            WordSegment(text = "よ", reading = "よ", partOfSpeech = "助詞", posCategory = "PARTICLE")
+            WordSegment(text = "今日", reading = "きょう", partOfSpeech = "名詞", posCategory = "NOUN"),
+            WordSegment(text = "は", reading = "は", partOfSpeech = "助詞", posCategory = "PARTICLE"),
+            WordSegment(text = "とても", reading = "とても", partOfSpeech = "副詞", posCategory = "ADVERB"),
+            WordSegment(text = "天気", reading = "てんき", partOfSpeech = "名詞", posCategory = "NOUN"),
+            WordSegment(text = "が", reading = "が", partOfSpeech = "助詞", posCategory = "PARTICLE"),
+            WordSegment(text = "いい", reading = "いい", partOfSpeech = "形容詞", posCategory = "ADJECTIVE"),
+            WordSegment(text = "です", reading = "です", partOfSpeech = "助動詞", posCategory = "AUXILIARY"),
+            WordSegment(text = "ね", reading = "ね", partOfSpeech = "助詞", posCategory = "PARTICLE")
         )
     }
 
