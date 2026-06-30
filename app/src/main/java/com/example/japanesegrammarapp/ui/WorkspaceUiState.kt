@@ -26,5 +26,6 @@ data class WorkspaceUiState(
     val isSentenceBookmarked: Boolean = false,
     val cardFontSizeScale: Float = 1.0f,
     val cardSpacingScale: Float = 1.0f,
-    val furiganaSizeScale: Float = 1.0f
+    val furiganaSizeScale: Float = 1.0f,
+    val cardDetailDisplayMode: String = "INLINE"
 )

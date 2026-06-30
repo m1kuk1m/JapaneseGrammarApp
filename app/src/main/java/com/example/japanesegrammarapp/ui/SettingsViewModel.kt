@@ -148,6 +148,12 @@ class SettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(furiganaSizeScale = scale) }
             }
         }
+
+        viewModelScope.launch {
+            settingsRepository.cardDetailDisplayMode.collect { mode ->
+                _uiState.update { it.copy(cardDetailDisplayMode = mode) }
+            }
+        }
     }
 
     fun getApiKey(provider: String): String = settingsRepository.getApiKey(provider)
@@ -678,6 +684,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setFuriganaSizeScale(scale: Float) {
         settingsRepository.setFuriganaSizeScale(scale)
+    }
+
+    fun setCardDetailDisplayMode(mode: String) {
+        settingsRepository.setCardDetailDisplayMode(mode)
     }
 
     private companion object {

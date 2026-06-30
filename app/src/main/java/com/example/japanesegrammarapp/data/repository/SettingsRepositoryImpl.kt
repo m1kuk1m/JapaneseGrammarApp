@@ -46,6 +46,7 @@ class SettingsRepositoryImpl @Inject constructor(
     @Volatile private var cachedCardFontSizeScale: Float? = null
     @Volatile private var cachedCardSpacingScale: Float? = null
     @Volatile private var cachedFuriganaSizeScale: Float? = null
+    @Volatile private var cachedCardDetailDisplayMode: String? = null
 
     private val _themeMode = kotlinx.coroutines.flow.MutableStateFlow("System")
     override val themeMode: kotlinx.coroutines.flow.StateFlow<String> = _themeMode.asStateFlow()
@@ -62,6 +63,9 @@ class SettingsRepositoryImpl @Inject constructor(
     private val _furiganaSizeScale = kotlinx.coroutines.flow.MutableStateFlow(1.0f)
     override val furiganaSizeScale: kotlinx.coroutines.flow.StateFlow<Float> = _furiganaSizeScale.asStateFlow()
 
+    private val _cardDetailDisplayMode = kotlinx.coroutines.flow.MutableStateFlow("INLINE")
+    override val cardDetailDisplayMode: kotlinx.coroutines.flow.StateFlow<String> = _cardDetailDisplayMode.asStateFlow()
+
     init {
         applicationScope.launch {
             _themeMode.value = settingPrefs.getString("theme_mode", "System") ?: "System"
@@ -69,6 +73,7 @@ class SettingsRepositoryImpl @Inject constructor(
             _cardFontSizeScale.value = settingPrefs.getFloat("card_font_size_scale", 1.0f)
             _cardSpacingScale.value = settingPrefs.getFloat("card_spacing_scale", 1.0f)
             _furiganaSizeScale.value = settingPrefs.getFloat("furigana_size_scale", 1.0f)
+            _cardDetailDisplayMode.value = settingPrefs.getString("card_detail_display_mode", "INLINE") ?: "INLINE"
         }
     }
 
@@ -972,5 +977,22 @@ class SettingsRepositoryImpl @Inject constructor(
         cachedFuriganaSizeScale = scale
         settingPrefs.edit().putFloat("furigana_size_scale", scale).apply()
         _furiganaSizeScale.value = scale
+    }
+
+    override fun getCardDetailDisplayMode(): String {
+        return cachedCardDetailDisplayMode ?: synchronized(this) {
+            val cached = cachedCardDetailDisplayMode
+            if (cached != null) cached else {
+                val value = settingPrefs.getString("card_detail_display_mode", "INLINE") ?: "INLINE"
+                cachedCardDetailDisplayMode = value
+                value
+            }
+        }
+    }
+
+    override fun setCardDetailDisplayMode(mode: String) {
+        cachedCardDetailDisplayMode = mode
+        settingPrefs.edit().putString("card_detail_display_mode", mode).apply()
+        _cardDetailDisplayMode.value = mode
     }
 }
