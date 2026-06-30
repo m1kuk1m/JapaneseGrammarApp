@@ -86,5 +86,9 @@ interface SettingsRepository {
     val cardFontSizeScale: kotlinx.coroutines.flow.StateFlow<Float>
     val cardSpacingScale: kotlinx.coroutines.flow.StateFlow<Float>
     val furiganaSizeScale: kotlinx.coroutines.flow.StateFlow<Float>
+
+    fun getCardDetailDisplayMode(): String
+    fun setCardDetailDisplayMode(mode: String)
+    val cardDetailDisplayMode: kotlinx.coroutines.flow.StateFlow<String>
 }
 

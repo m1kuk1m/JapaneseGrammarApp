@@ -517,19 +517,20 @@ fun SettingsCardAppearanceSection(
     uiState: SettingsUiState,
     onFontSizeScaleChange: (Float) -> Unit,
     onSpacingScaleChange: (Float) -> Unit,
-    onFuriganaSizeScaleChange: (Float) -> Unit
+    onFuriganaSizeScaleChange: (Float) -> Unit,
+    onCardDetailDisplayModeChange: (String) -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val mockSegments = remember {
         listOf(
             WordSegment(text = "今日", reading = "きょう", partOfSpeech = "名詞", posCategory = "NOUN", meaning = "preview"),
-            WordSegment(text = "は", reading = "は", partOfSpeech = "助詞", posCategory = "PARTICLE", meaning = "preview"),
+            WordSegment(text = "は", reading = "は", partOfSpeech = "助词", posCategory = "PARTICLE", meaning = "preview"),
             WordSegment(text = "とても", reading = "とても", partOfSpeech = "副詞", posCategory = "ADVERB", meaning = "preview"),
             WordSegment(text = "天気", reading = "てんき", partOfSpeech = "名詞", posCategory = "NOUN", meaning = "preview"),
-            WordSegment(text = "が", reading = "が", partOfSpeech = "助詞", posCategory = "PARTICLE", meaning = "preview"),
+            WordSegment(text = "が", reading = "が", partOfSpeech = "助词", posCategory = "PARTICLE", meaning = "preview"),
             WordSegment(text = "いい", reading = "いい", partOfSpeech = "形容詞", posCategory = "ADJECTIVE", meaning = "preview"),
             WordSegment(text = "です", reading = "です", partOfSpeech = "助動詞", posCategory = "AUXILIARY", meaning = "preview"),
-            WordSegment(text = "ね", reading = "ね", partOfSpeech = "助詞", posCategory = "PARTICLE", meaning = "preview")
+            WordSegment(text = "ね", reading = "ね", partOfSpeech = "助词", posCategory = "PARTICLE", meaning = "preview")
         )
     }
 
@@ -599,6 +600,57 @@ fun SettingsCardAppearanceSection(
                 )
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Detail Display Mode Selector
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = stringResource(R.string.card_detail_display_mode),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = sumiInk,
+                    modifier = Modifier.weight(1f)
+                )
+                var displayModeDropdownExpanded by remember { mutableStateOf(false) }
+                Box {
+                    TextButton(onClick = { displayModeDropdownExpanded = true }) {
+                        Text(
+                            text = when (uiState.cardDetailDisplayMode) {
+                                "POPUP" -> stringResource(R.string.card_detail_popup)
+                                else -> stringResource(R.string.card_detail_inline)
+                            }
+                        )
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = displayModeDropdownExpanded,
+                        onDismissRequest = { displayModeDropdownExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.card_detail_inline)) },
+                            onClick = {
+                                onCardDetailDisplayModeChange("INLINE")
+                                displayModeDropdownExpanded = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.card_detail_popup)) },
+                            onClick = {
+                                onCardDetailDisplayModeChange("POPUP")
+                                displayModeDropdownExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // Restore Defaults Button
@@ -611,6 +663,7 @@ fun SettingsCardAppearanceSection(
                         onFontSizeScaleChange(1.0f)
                         onSpacingScaleChange(1.0f)
                         onFuriganaSizeScaleChange(1.0f)
+                        onCardDetailDisplayModeChange("INLINE")
                     }
                 ) {
                     Text(text = stringResource(R.string.restore_defaults))

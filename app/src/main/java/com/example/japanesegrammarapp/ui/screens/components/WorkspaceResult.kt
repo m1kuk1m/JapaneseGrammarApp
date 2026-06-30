@@ -69,6 +69,7 @@ import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
 
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -409,10 +410,39 @@ fun WorkspaceResultContent(
                         }
                     }
                     
-                    // Inline Details Card
+                    // Inline or Popup Details Card
                     val hasSelectedSegment = selectedSegmentIndex in 0 until (data.segments?.size ?: 0)
+                    val showPopup = uiState.cardDetailDisplayMode == "POPUP"
+
+                    if (showPopup && hasSelectedSegment) {
+                        val currentSegment = data.segments!![selectedSegmentIndex]
+                        Dialog(onDismissRequest = { selectedSegmentIndex = -1 }) {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                color = SurfaceColor,
+                                shape = RoundedCornerShape(24.dp),
+                                shadowElevation = 6.dp,
+                                tonalElevation = 0.dp
+                            ) {
+                                SegmentDetailContent(
+                                    currentSegment = currentSegment,
+                                    uiState = uiState,
+                                    onToggleBookmark = onToggleBookmark,
+                                    onEditWordSegment = onEditWordSegment,
+                                    onCloseDetails = { selectedSegmentIndex = -1 },
+                                    uiPreferencesRepository = uiPreferencesRepository,
+                                    sumiInk = SumiInk,
+                                    surfaceColor = SurfaceColor,
+                                    modifier = Modifier.padding(16.dp)
+                                )
+                            }
+                        }
+                    }
+
                     AnimatedVisibility(
-                        visible = hasSelectedSegment,
+                        visible = !showPopup && hasSelectedSegment,
                         enter = expandVertically(
                             animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)
                         ) + fadeIn(
@@ -435,149 +465,17 @@ fun WorkspaceResultContent(
                                 shadowElevation = 3.dp,
                                 tonalElevation = 0.dp
                             ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .animateContentSize()
-                                        .padding(16.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(
-                                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                                            modifier = Modifier.weight(1f).padding(end = 8.dp)
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    text = currentSegment.text ?: "",
-                                                    fontSize = 20.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = SumiInk
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                val isCurrentBookmarked = uiState.bookmarkedSegmentTexts.contains(currentSegment.text) || 
-                                                        uiState.bookmarkedSegmentTexts.contains(currentSegment.dictionaryForm ?: "")
-                                                IconButton(
-                                                    onClick = { onToggleBookmark(currentSegment) },
-                                                    modifier = Modifier.size(28.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = if (isCurrentBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
-                                                        contentDescription = stringResource(if (isCurrentBookmarked) R.string.delete_bookmark else R.string.long_press_to_bookmark),
-                                                        tint = if (isCurrentBookmarked) Color(0xFFD4A017) else SumiInk.copy(alpha = 0.35f),
-                                                        modifier = Modifier.size(22.dp)
-                                                    )
-                                                }
-                                            }
-                                            if (!currentSegment.reading.isNullOrBlank() && currentSegment.reading != currentSegment.text) {
-                                                Text(
-                                                    text = "（${currentSegment.reading}）",
-                                                    fontSize = 13.sp,
-                                                    color = SumiInk.copy(alpha = 0.6f)
-                                                )
-                                            }
-                                        }
-                                        
-                                        IconButton(
-                                            onClick = { selectedSegmentIndex = -1 },
-                                            modifier = Modifier.size(28.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = stringResource(R.string.close_details),
-                                                tint = SumiInk.copy(alpha = 0.5f),
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
-                                    
-                                    Divider(
-                                        modifier = Modifier.padding(vertical = 10.dp),
-                                        color = SumiInk.copy(alpha = 0.08f)
-                                    )
-                                    
-                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        AlignedDetailRow(label = stringResource(R.string.pos), value = currentSegment.partOfSpeech ?: "")
-                                        
-                                        if (!currentSegment.dictionaryForm.isNullOrBlank() && currentSegment.dictionaryForm != currentSegment.text) {
-                                            AlignedDetailRow(label = stringResource(R.string.dictionary_form), value = currentSegment.dictionaryForm)
-                                        }
-                                        
-                                        if (!currentSegment.inflection.isNullOrBlank()) {
-                                            AlignedDetailRow(label = stringResource(R.string.inflection), value = currentSegment.inflection)
-                                        }
-                                        
-                                        if (!currentSegment.role.isNullOrBlank()) {
-                                            AlignedDetailRow(label = stringResource(R.string.role_in_sentence), value = currentSegment.role)
-                                        }
-                                    }
-                                    
-                                    if (!currentSegment.meaning.isNullOrBlank()) {
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                        Surface(
-                                            color = KuriAmber.copy(alpha = 0.15f),
-                                            shape = RoundedCornerShape(8.dp),
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            SelectionContainer {
-                                                Column(modifier = Modifier.padding(12.dp)) {
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Text(
-                                                            text = stringResource(R.string.meaning),
-                                                            fontSize = 11.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = KuriAmber.copy(alpha = 1.0f)
-                                                        )
-                                                        IconButton(
-                                                            onClick = { onEditWordSegment(currentSegment) },
-                                                            modifier = Modifier.size(28.dp)
-                                                        ) {
-                                                            Icon(
-                                                                imageVector = Icons.Default.Edit,
-                                                                contentDescription = stringResource(R.string.edit),
-                                                                tint = SumiInk.copy(alpha = 0.45f),
-                                                                modifier = Modifier.size(18.dp)
-                                                            )
-                                                        }
-                                                    }
-                                                    Spacer(modifier = Modifier.height(4.dp))
-                                                    Text(
-                                                        text = currentSegment.meaning,
-                                                        fontSize = 14.sp,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = SumiInk,
-                                                        lineHeight = 20.sp
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        val queryWord = currentSegment.dictionaryQueryWord()
-                                        
-                                        if (queryWord.isNotBlank()) {
-                                            DictionarySearchControls(
-                                                queryWord = queryWord,
-                                                uiPreferencesRepository = uiPreferencesRepository,
-                                                sumiInk = SumiInk,
-                                                surfaceColor = SurfaceColor
-                                            )
-                                        }
-                                    }
-                                }
+                                SegmentDetailContent(
+                                    currentSegment = currentSegment,
+                                    uiState = uiState,
+                                    onToggleBookmark = onToggleBookmark,
+                                    onEditWordSegment = onEditWordSegment,
+                                    onCloseDetails = { selectedSegmentIndex = -1 },
+                                    uiPreferencesRepository = uiPreferencesRepository,
+                                    sumiInk = SumiInk,
+                                    surfaceColor = SurfaceColor,
+                                    modifier = Modifier.padding(16.dp)
+                                )
                             }
                         }
                     }
@@ -977,6 +875,161 @@ fun WorkspaceResultContent(
                         fontSize = 12.sp
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun SegmentDetailContent(
+    currentSegment: WordSegment,
+    uiState: WorkspaceUiState,
+    onToggleBookmark: (WordSegment) -> Unit,
+    onEditWordSegment: (WordSegment) -> Unit,
+    onCloseDetails: () -> Unit,
+    uiPreferencesRepository: UiPreferencesRepository,
+    sumiInk: Color,
+    surfaceColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val KuriAmber = com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
+    Column(
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.weight(1f).padding(end = 8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = currentSegment.text ?: "",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = sumiInk
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    val isCurrentBookmarked = uiState.bookmarkedSegmentTexts.contains(currentSegment.text) || 
+                            uiState.bookmarkedSegmentTexts.contains(currentSegment.dictionaryForm ?: "")
+                    IconButton(
+                        onClick = { onToggleBookmark(currentSegment) },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isCurrentBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
+                            contentDescription = stringResource(if (isCurrentBookmarked) R.string.delete_bookmark else R.string.long_press_to_bookmark),
+                            tint = if (isCurrentBookmarked) Color(0xFFD4A017) else sumiInk.copy(alpha = 0.35f),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+                if (!currentSegment.reading.isNullOrBlank() && currentSegment.reading != currentSegment.text) {
+                    Text(
+                        text = "（${currentSegment.reading}）",
+                        fontSize = 13.sp,
+                        color = sumiInk.copy(alpha = 0.6f)
+                    )
+                }
+            }
+            
+            IconButton(
+                onClick = onCloseDetails,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.close_details),
+                    tint = sumiInk.copy(alpha = 0.5f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+        
+        Divider(
+            modifier = Modifier.padding(vertical = 10.dp),
+            color = sumiInk.copy(alpha = 0.08f)
+        )
+        
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            AlignedDetailRow(label = stringResource(R.string.pos), value = currentSegment.partOfSpeech ?: "")
+            
+            if (!currentSegment.dictionaryForm.isNullOrBlank() && currentSegment.dictionaryForm != currentSegment.text) {
+                AlignedDetailRow(label = stringResource(R.string.dictionary_form), value = currentSegment.dictionaryForm)
+            }
+            
+            if (!currentSegment.inflection.isNullOrBlank()) {
+                AlignedDetailRow(label = stringResource(R.string.inflection), value = currentSegment.inflection)
+            }
+            
+            if (!currentSegment.role.isNullOrBlank()) {
+                AlignedDetailRow(label = stringResource(R.string.role_in_sentence), value = currentSegment.role)
+            }
+        }
+        
+        if (!currentSegment.meaning.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Surface(
+                color = KuriAmber.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                SelectionContainer {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.meaning),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = KuriAmber.copy(alpha = 1.0f)
+                            )
+                            IconButton(
+                                onClick = { onEditWordSegment(currentSegment) },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = stringResource(R.string.edit),
+                                    tint = sumiInk.copy(alpha = 0.45f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = currentSegment.meaning,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = sumiInk,
+                            lineHeight = 20.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val queryWord = currentSegment.dictionaryQueryWord()
+            
+            if (queryWord.isNotBlank()) {
+                DictionarySearchControls(
+                    queryWord = queryWord,
+                    uiPreferencesRepository = uiPreferencesRepository,
+                    sumiInk = sumiInk,
+                    surfaceColor = surfaceColor
+                )
             }
         }
     }

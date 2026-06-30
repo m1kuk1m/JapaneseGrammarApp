@@ -250,6 +250,12 @@ class WorkspaceViewModel @Inject constructor(
             }
         }
 
+        viewModelScope.launch {
+            settingsRepository.cardDetailDisplayMode.collect { mode ->
+                _uiState.update { it.copy(cardDetailDisplayMode = mode) }
+            }
+        }
+
         // Observe bookmarks for the currently selected record reactively
         viewModelScope.launch {
             _uiState

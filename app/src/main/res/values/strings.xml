@@ -665,6 +665,9 @@
     <string name="card_font_size">Kanji/Kana Font Size</string>
     <string name="card_spacing">Spacing &amp; Padding</string>
     <string name="furigana_size">Furigana Font Size</string>
+    <string name="card_detail_display_mode">Detail Display Mode</string>
+    <string name="card_detail_inline">Inline</string>
+    <string name="card_detail_popup">Floating Dialog</string>
     <string name="restore_defaults">Restore Defaults</string>
     <string name="card_preview_title">Word Segment Preview:</string>
 </resources>
