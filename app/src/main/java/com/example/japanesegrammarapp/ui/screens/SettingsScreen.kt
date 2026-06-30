@@ -510,6 +510,12 @@ fun SettingsScreen(
                                         android.widget.Toast.makeText(ctx, ctx.getString(R.string.clear_wallpaper_toast), android.widget.Toast.LENGTH_SHORT).show()
                                     }
                                 )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                SettingsCardAppearanceSection(
+                                    uiState = uiState,
+                                    onFontSizeScaleChange = viewModel::setCardFontSizeScale,
+                                    onSpacingScaleChange = viewModel::setCardSpacingScale
+                                )
                             }
                             SettingsCategory.GENERAL -> {
                                 SettingsGeneralSection(

@@ -7,6 +7,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoFixHigh
@@ -31,6 +36,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -499,4 +505,118 @@ private fun SettingsSwitchColors(
     uncheckedThumbColor = sumiInk.copy(alpha = 0.4f),
     uncheckedTrackColor = sumiInk.copy(alpha = 0.1f)
 )
+
+@Composable
+fun SettingsCardAppearanceSection(
+    uiState: SettingsUiState,
+    onFontSizeScaleChange: (Float) -> Unit,
+    onSpacingScaleChange: (Float) -> Unit
+) {
+    val sumiInk = MaterialTheme.colorScheme.onBackground
+    val mockCard = remember {
+        com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain(
+            recordId = 0,
+            segmentText = "日本語",
+            surfaceForm = "日本語",
+            reading = "にほんご",
+            partOfSpeech = "名詞",
+            posCategory = "NOUN",
+            meaning = "日语，日本语言",
+            sourceText = "私は日本語を勉強しています。"
+        )
+    }
+    var isFlipped by remember { mutableStateOf(false) }
+
+    SettingsGroup(title = stringResource(R.string.card_appearance)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Slider for Font Size Scale
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "${stringResource(R.string.card_font_size)}: ${String.format(java.util.Locale.US, "%.1f", uiState.cardFontSizeScale)}x",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = sumiInk,
+                    modifier = Modifier.weight(1f)
+                )
+                Slider(
+                    value = uiState.cardFontSizeScale,
+                    onValueChange = onFontSizeScaleChange,
+                    valueRange = 0.5f..2.0f,
+                    modifier = Modifier.width(180.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Slider for Spacing Scale
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "${stringResource(R.string.card_spacing)}: ${String.format(java.util.Locale.US, "%.1f", uiState.cardSpacingScale)}x",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = sumiInk,
+                    modifier = Modifier.weight(1f)
+                )
+                Slider(
+                    value = uiState.cardSpacingScale,
+                    onValueChange = onSpacingScaleChange,
+                    valueRange = 0.5f..2.0f,
+                    modifier = Modifier.width(180.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Restore Defaults Button
+            Row(
+                horizontalArrangement = Arrangement.End,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                TextButton(
+                    onClick = {
+                        onFontSizeScaleChange(1.0f)
+                        onSpacingScaleChange(1.0f)
+                    }
+                ) {
+                    Text(text = stringResource(R.string.restore_defaults))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Card Preview Area
+            Text(
+                text = stringResource(R.string.card_preview_title),
+                fontSize = 12.sp,
+                color = sumiInk.copy(alpha = 0.5f),
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { isFlipped = !isFlipped }
+            ) {
+                FlipCard(
+                    card = mockCard,
+                    isFlipped = isFlipped,
+                    studyMode = "ja_to_zh",
+                    onPlayTts = {},
+                    fontScale = uiState.cardFontSizeScale,
+                    spacingScale = uiState.cardSpacingScale,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+    }
+}
+
 

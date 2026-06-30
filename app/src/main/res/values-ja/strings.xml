@@ -649,4 +649,13 @@
     <string name="view_related_analysis">関連する分析を表示</string>
     <string name="previous">前へ</string>
     <string name="next">次へ</string>
+
+
+    <!-- Card Customization -->
+    <string name="card_appearance">単語カードのカスタマイズ</string>
+    <string name="card_font_size">フォントサイズ</string>
+    <string name="card_spacing">余白と間隔</string>
+    <string name="restore_defaults">デフォルトに戻す</string>
+    <string name="card_preview_title">プレビュー (タップで回転):</string>
 </resources>
+

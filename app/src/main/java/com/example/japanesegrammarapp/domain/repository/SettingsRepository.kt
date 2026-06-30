@@ -75,4 +75,13 @@ interface SettingsRepository {
     fun setTtsVoice(provider: String, voice: String)
     fun getTtsRegion(provider: String): String
     fun setTtsRegion(provider: String, region: String)
+
+    // Card Customization Settings
+    fun getCardFontSizeScale(): Float
+    fun setCardFontSizeScale(scale: Float)
+    fun getCardSpacingScale(): Float
+    fun setCardSpacingScale(scale: Float)
+    val cardFontSizeScale: kotlinx.coroutines.flow.StateFlow<Float>
+    val cardSpacingScale: kotlinx.coroutines.flow.StateFlow<Float>
 }
+

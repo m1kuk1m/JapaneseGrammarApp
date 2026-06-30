@@ -52,6 +52,8 @@ fun FlashcardScreen(
 ) {
     val bookmarks by viewModel.allBookmarks.collectAsState()
     val isDbLoaded by viewModel.isLoaded.collectAsState()
+    val fontScale by viewModel.cardFontSizeScale.collectAsState()
+    val spacingScale by viewModel.cardSpacingScale.collectAsState()
     val SumiInk = ZenThemeColors.sumiInk()
     val WashiBg = ZenThemeColors.washiBg()
 
@@ -413,6 +415,8 @@ fun FlashcardScreen(
                         isFlipped = isFlipped,
                         studyMode = studyMode,
                         onPlayTts = { text -> viewModel.playTts(text) },
+                        fontScale = fontScale,
+                        spacingScale = spacingScale,
                         modifier = Modifier.fillMaxSize()
                     )
 
@@ -628,11 +632,13 @@ fun FlashcardScreen(
 }
 
 @Composable
-private fun FlipCard(
+fun FlipCard(
     card: BookmarkedSegmentDomain,
     isFlipped: Boolean,
     studyMode: String,
     onPlayTts: (String) -> Unit,
+    fontScale: Float = 1.0f,
+    spacingScale: Float = 1.0f,
     modifier: Modifier = Modifier
 ) {
     val SumiInk = ZenThemeColors.sumiInk()
@@ -655,7 +661,7 @@ private fun FlipCard(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(24.dp),
+                        .padding((24 * spacingScale).dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -663,22 +669,17 @@ private fun FlipCard(
                         if (card.sourceText.isNotBlank()) {
                             Text(
                                 text = card.sourceText.take(30) + if (card.sourceText.length > 30) "…" else "",
-                                fontSize = 13.sp,
+                                fontSize = (13 * fontScale).sp,
                                 color = SumiInk.copy(alpha = 0.4f),
                                 fontWeight = FontWeight.Light,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(bottom = 12.dp)
+                                modifier = Modifier.padding(bottom = (12 * spacingScale).dp)
                             )
                         }
 
                         val displayWord = card.dictionaryForm?.takeIf { it.isNotBlank() } ?: card.segmentText
-                        val wordFontSize = when {
-                            displayWord.length <= 4 -> 40.sp
-                            displayWord.length <= 7 -> 30.sp
-                            displayWord.length <= 10 -> 24.sp
-                            else -> 20.sp
-                        }
+                        val wordFontSize = (40 * fontScale).sp
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -693,7 +694,7 @@ private fun FlipCard(
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.weight(1f, fill = false)
                             )
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width((8 * spacingScale).dp))
                             IconButton(
                                 onClick = { onPlayTts(displayWord) },
                                 modifier = Modifier.size(36.dp)
@@ -714,26 +715,26 @@ private fun FlipCard(
                             ) {
                                 Text(
                                     text = card.partOfSpeech,
-                                    fontSize = 12.sp,
+                                    fontSize = (12 * fontScale).sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = SumiInk,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    modifier = Modifier.padding(horizontal = (10 * spacingScale).dp, vertical = (4 * spacingScale).dp)
                                 )
                             }
-                            Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height((16 * spacingScale).dp))
                         }
 
                         Text(
                             text = card.meaning ?: stringResource(R.string.flashcard_no_meaning),
-                            fontSize = 24.sp,
+                            fontSize = (24 * fontScale).sp,
                             fontWeight = FontWeight.Bold,
                             color = SumiInk,
                             textAlign = TextAlign.Center,
-                            lineHeight = 34.sp
+                            lineHeight = (34 * fontScale).sp
                         )
 
                         if (card.sourceText.isNotBlank()) {
-                            Spacer(Modifier.height(24.dp))
+                            Spacer(Modifier.height((24 * spacingScale).dp))
                             val targetWord = card.surfaceForm?.takeIf { it.isNotBlank() } ?: card.segmentText
                             val maskedText = if (targetWord.isNotBlank()) {
                                 card.sourceText.replace(targetWord, " ____ ")
@@ -746,11 +747,11 @@ private fun FlipCard(
                             ) {
                                 Text(
                                     text = maskedText,
-                                    fontSize = 12.sp,
+                                    fontSize = (12 * fontScale).sp,
                                     color = SumiInk.copy(alpha = 0.45f),
                                     maxLines = 3,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                    modifier = Modifier.padding(horizontal = (12 * spacingScale).dp, vertical = (8 * spacingScale).dp)
                                 )
                             }
                         }
@@ -761,7 +762,7 @@ private fun FlipCard(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(24.dp)
+                        .padding((24 * spacingScale).dp)
                         .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -774,30 +775,30 @@ private fun FlipCard(
                             ) {
                                 Text(
                                     text = card.partOfSpeech,
-                                    fontSize = 12.sp,
+                                    fontSize = (12 * fontScale).sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = SumiInk,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    modifier = Modifier.padding(horizontal = (10 * spacingScale).dp, vertical = (4 * spacingScale).dp)
                                 )
                             }
-                            Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height((16 * spacingScale).dp))
                         }
 
                         Text(
                             text = card.meaning ?: stringResource(R.string.flashcard_no_meaning),
-                            fontSize = 22.sp,
+                            fontSize = (22 * fontScale).sp,
                             fontWeight = FontWeight.Bold,
                             color = SumiInk,
                             textAlign = TextAlign.Center,
-                            lineHeight = 30.sp
+                            lineHeight = (30 * fontScale).sp
                         )
 
                         val displayReading = card.reading
                         if (!displayReading.isNullOrBlank()) {
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height((12 * spacingScale).dp))
                             Text(
                                 text = displayReading,
-                                fontSize = 16.sp,
+                                fontSize = (16 * fontScale).sp,
                                 color = SumiInk.copy(alpha = 0.6f),
                                 fontWeight = FontWeight.Normal
                             )
@@ -811,13 +812,13 @@ private fun FlipCard(
                             }
                         }
                         if (extras.isNotEmpty()) {
-                            Spacer(Modifier.height(20.dp))
+                            Spacer(Modifier.height((20 * spacingScale).dp))
                             Divider(color = SumiInk.copy(alpha = 0.1f))
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height((12 * spacingScale).dp))
                             extras.forEach { line ->
                                 Text(
                                     text = line,
-                                    fontSize = 13.sp,
+                                    fontSize = (13 * fontScale).sp,
                                     color = SumiInk.copy(alpha = 0.5f),
                                     textAlign = TextAlign.Center
                                 )
@@ -825,30 +826,25 @@ private fun FlipCard(
                         }
 
                         if (card.sourceText.isNotBlank()) {
-                            Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height((16 * spacingScale).dp))
                             Surface(
                                 color = SumiInk.copy(alpha = 0.04f),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text(
                                     text = card.sourceText,
-                                    fontSize = 12.sp,
+                                    fontSize = (12 * fontScale).sp,
                                     color = SumiInk.copy(alpha = 0.45f),
                                     maxLines = 3,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                    modifier = Modifier.padding(horizontal = (12 * spacingScale).dp, vertical = (8 * spacingScale).dp)
                                 )
                             }
                         }
                     } else {
                         // BACK: Japanese spelling, reading, and unmasked sentence
                         val displayWord = card.dictionaryForm?.takeIf { it.isNotBlank() } ?: card.segmentText
-                        val wordFontSize = when {
-                            displayWord.length <= 4 -> 36.sp
-                            displayWord.length <= 7 -> 28.sp
-                            displayWord.length <= 10 -> 22.sp
-                            else -> 18.sp
-                        }
+                        val wordFontSize = (36 * fontScale).sp
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -863,7 +859,7 @@ private fun FlipCard(
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.weight(1f, fill = false)
                             )
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width((8 * spacingScale).dp))
                             IconButton(
                                 onClick = { onPlayTts(displayWord) },
                                 modifier = Modifier.size(36.dp)
@@ -878,10 +874,10 @@ private fun FlipCard(
 
                         val displayReading = card.reading
                         if (!displayReading.isNullOrBlank()) {
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height((12 * spacingScale).dp))
                             Text(
                                 text = displayReading,
-                                fontSize = 16.sp,
+                                fontSize = (16 * fontScale).sp,
                                 color = SumiInk.copy(alpha = 0.6f),
                                 fontWeight = FontWeight.Normal
                             )
@@ -895,13 +891,13 @@ private fun FlipCard(
                             }
                         }
                         if (extras.isNotEmpty()) {
-                            Spacer(Modifier.height(20.dp))
+                            Spacer(Modifier.height((20 * spacingScale).dp))
                             Divider(color = SumiInk.copy(alpha = 0.1f))
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height((12 * spacingScale).dp))
                             extras.forEach { line ->
                                 Text(
                                     text = line,
-                                    fontSize = 13.sp,
+                                    fontSize = (13 * fontScale).sp,
                                     color = SumiInk.copy(alpha = 0.5f),
                                     textAlign = TextAlign.Center
                                 )
@@ -909,18 +905,18 @@ private fun FlipCard(
                         }
 
                         if (card.sourceText.isNotBlank()) {
-                            Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height((16 * spacingScale).dp))
                             Surface(
                                 color = SumiInk.copy(alpha = 0.04f),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text(
                                     text = card.sourceText,
-                                    fontSize = 12.sp,
+                                    fontSize = (12 * fontScale).sp,
                                     color = SumiInk.copy(alpha = 0.45f),
                                     maxLines = 3,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                    modifier = Modifier.padding(horizontal = (12 * spacingScale).dp, vertical = (8 * spacingScale).dp)
                                 )
                             }
                         }

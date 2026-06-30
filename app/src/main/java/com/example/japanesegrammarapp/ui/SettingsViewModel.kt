@@ -130,6 +130,18 @@ class SettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(wallpaperUri = uri) }
             }
         }
+
+        viewModelScope.launch {
+            settingsRepository.cardFontSizeScale.collect { scale ->
+                _uiState.update { it.copy(cardFontSizeScale = scale) }
+            }
+        }
+
+        viewModelScope.launch {
+            settingsRepository.cardSpacingScale.collect { scale ->
+                _uiState.update { it.copy(cardSpacingScale = scale) }
+            }
+        }
     }
 
     fun getApiKey(provider: String): String = settingsRepository.getApiKey(provider)
@@ -648,6 +660,14 @@ class SettingsViewModel @Inject constructor(
                 activePromptPresetId = settingsRepository.getActivePromptPresetId()
             )
         }
+    }
+
+    fun setCardFontSizeScale(scale: Float) {
+        settingsRepository.setCardFontSizeScale(scale)
+    }
+
+    fun setCardSpacingScale(scale: Float) {
+        settingsRepository.setCardSpacingScale(scale)
     }
 
     private companion object {

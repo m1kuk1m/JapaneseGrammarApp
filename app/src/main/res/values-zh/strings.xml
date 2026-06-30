@@ -650,4 +650,13 @@
     <string name="view_related_analysis">查看关联分析</string>
     <string name="previous">上一页</string>
     <string name="next">下一页</string>
+
+
+    <!-- Card Customization -->
+    <string name="card_appearance">单词卡片自定义</string>
+    <string name="card_font_size">字体大小</string>
+    <string name="card_spacing">间距留白</string>
+    <string name="restore_defaults">恢复默认值</string>
+    <string name="card_preview_title">效果预览 (点击翻转):</string>
 </resources>
+
