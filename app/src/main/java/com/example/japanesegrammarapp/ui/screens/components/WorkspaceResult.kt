@@ -51,6 +51,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
@@ -1070,11 +1074,17 @@ fun CompactSegmentDetailCard(
     Surface(
         color = surfaceColor,
         shape = RoundedCornerShape(16.dp),
-        shadowElevation = 8.dp,
+        shadowElevation = 0.dp,
         modifier = modifier
             .fillMaxWidth()
             .widthIn(max = 600.dp)
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 24.dp, vertical = 24.dp)
+            .softShadow(
+                color = sumiInk.copy(alpha = 0.12f),
+                borderRadius = 16.dp,
+                blurRadius = 16.dp,
+                offsetY = 6.dp
+            )
     ) {
         Column(
             modifier = Modifier
@@ -1268,6 +1278,42 @@ fun PopupAnimatedContent(
                scaleOut(targetScale = 0.9f, animationSpec = tween(200))
     ) {
         content()
+    }
+}
+
+fun Modifier.softShadow(
+    color: Color,
+    borderRadius: Dp,
+    blurRadius: Dp,
+    offsetY: Dp = 0.dp,
+    offsetX: Dp = 0.dp,
+    spread: Dp = 0.dp
+): Modifier = this.drawBehind {
+    this.drawIntoCanvas { canvas ->
+        val paint = Paint()
+        val frameworkPaint = paint.asFrameworkPaint()
+        frameworkPaint.color = 0 // transparent fill
+        frameworkPaint.setShadowLayer(
+            blurRadius.toPx(),
+            offsetX.toPx(),
+            offsetY.toPx(),
+            color.toArgb()
+        )
+        
+        val leftPixel = (0f - spread.toPx())
+        val topPixel = (0f - spread.toPx())
+        val rightPixel = (this.size.width + spread.toPx())
+        val bottomPixel = (this.size.height + spread.toPx())
+        
+        canvas.drawRoundRect(
+            left = leftPixel,
+            top = topPixel,
+            right = rightPixel,
+            bottom = bottomPixel,
+            radiusX = borderRadius.toPx(),
+            radiusY = borderRadius.toPx(),
+            paint
+        )
     }
 }
 
