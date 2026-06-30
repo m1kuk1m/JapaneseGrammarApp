@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.BrightnessMedium
@@ -27,6 +29,13 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Launch
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Wallpaper
+import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.SpaceBar
+import androidx.compose.material.icons.filled.CropFree
+import androidx.compose.material.icons.filled.Abc
+import androidx.compose.material.icons.filled.Height
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -537,203 +546,124 @@ fun SettingsCardAppearanceSection(
     }
 
     SettingsGroup(title = stringResource(R.string.card_appearance)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Slider for Font Size Scale
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+        SettingsSliderItem(
+            icon = Icons.Default.FormatSize,
+            title = stringResource(R.string.card_font_size),
+            value = uiState.cardFontSizeScale,
+            onValueChange = onFontSizeScaleChange,
+            valueRange = 0.5f..2.0f
+        )
+
+        Divider(color = sumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+
+        SettingsSliderItem(
+            icon = Icons.Default.SpaceBar,
+            title = stringResource(R.string.card_spacing),
+            value = uiState.cardSpacingScale,
+            onValueChange = onSpacingScaleChange,
+            valueRange = 0.5f..2.0f
+        )
+
+        Divider(color = sumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+
+        SettingsSliderItem(
+            icon = Icons.Default.CropFree,
+            title = stringResource(R.string.card_internal_padding),
+            value = uiState.cardInternalPaddingScale,
+            onValueChange = onCardInternalPaddingScaleChange,
+            valueRange = 0.5f..2.0f
+        )
+
+        Divider(color = sumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+
+        SettingsSliderItem(
+            icon = Icons.Default.Abc,
+            title = stringResource(R.string.furigana_size),
+            value = uiState.furiganaSizeScale,
+            onValueChange = onFuriganaSizeScaleChange,
+            valueRange = 0.5f..2.0f
+        )
+
+        Divider(color = sumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+
+        SettingsSliderItem(
+            icon = Icons.Default.Height,
+            title = stringResource(R.string.furigana_gap),
+            value = uiState.furiganaGapScale,
+            onValueChange = onFuriganaGapScaleChange,
+            valueRange = 0.0f..3.0f
+        )
+
+        Divider(color = sumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+
+        // Detail Display Mode Selector
+        var displayModeDropdownExpanded by remember { mutableStateOf(false) }
+        Box {
+            SettingsItem(
+                icon = Icons.Default.OpenInNew,
+                title = stringResource(R.string.card_detail_display_mode),
+                subtitle = when (uiState.cardDetailDisplayMode) {
+                    "POPUP" -> stringResource(R.string.card_detail_popup)
+                    else -> stringResource(R.string.card_detail_inline)
+                },
+                onClick = { displayModeDropdownExpanded = true }
+            )
+            DropdownMenu(
+                expanded = displayModeDropdownExpanded,
+                onDismissRequest = { displayModeDropdownExpanded = false }
             ) {
-                Text(
-                    text = "${stringResource(R.string.card_font_size)}: ${String.format(java.util.Locale.US, "%.1f", uiState.cardFontSizeScale)}x",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = sumiInk,
-                    modifier = Modifier.weight(1f)
-                )
-                Slider(
-                    value = uiState.cardFontSizeScale,
-                    onValueChange = onFontSizeScaleChange,
-                    valueRange = 0.5f..2.0f,
-                    modifier = Modifier.width(180.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Slider for Spacing Scale
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "${stringResource(R.string.card_spacing)}: ${String.format(java.util.Locale.US, "%.1f", uiState.cardSpacingScale)}x",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = sumiInk,
-                    modifier = Modifier.weight(1f)
-                )
-                Slider(
-                    value = uiState.cardSpacingScale,
-                    onValueChange = onSpacingScaleChange,
-                    valueRange = 0.5f..2.0f,
-                    modifier = Modifier.width(180.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Slider for Card Internal Padding Scale
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "${stringResource(R.string.card_internal_padding)}: ${String.format(java.util.Locale.US, "%.1f", uiState.cardInternalPaddingScale)}x",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = sumiInk,
-                    modifier = Modifier.weight(1f)
-                )
-                Slider(
-                    value = uiState.cardInternalPaddingScale,
-                    onValueChange = onCardInternalPaddingScaleChange,
-                    valueRange = 0.5f..2.0f,
-                    modifier = Modifier.width(180.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Slider for Furigana Size Scale
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "${stringResource(R.string.furigana_size)}: ${String.format(java.util.Locale.US, "%.1f", uiState.furiganaSizeScale)}x",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = sumiInk,
-                    modifier = Modifier.weight(1f)
-                )
-                Slider(
-                    value = uiState.furiganaSizeScale,
-                    onValueChange = onFuriganaSizeScaleChange,
-                    valueRange = 0.5f..2.0f,
-                    modifier = Modifier.width(180.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Slider for Furigana Gap Scale
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "${stringResource(R.string.furigana_gap)}: ${String.format(java.util.Locale.US, "%.1f", uiState.furiganaGapScale)}x",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = sumiInk,
-                    modifier = Modifier.weight(1f)
-                )
-                Slider(
-                    value = uiState.furiganaGapScale,
-                    onValueChange = onFuriganaGapScaleChange,
-                    valueRange = 0.0f..3.0f,
-                    modifier = Modifier.width(180.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Detail Display Mode Selector
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = stringResource(R.string.card_detail_display_mode),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = sumiInk,
-                    modifier = Modifier.weight(1f)
-                )
-                var displayModeDropdownExpanded by remember { mutableStateOf(false) }
-                Box {
-                    TextButton(onClick = { displayModeDropdownExpanded = true }) {
-                        Text(
-                            text = when (uiState.cardDetailDisplayMode) {
-                                "POPUP" -> stringResource(R.string.card_detail_popup)
-                                else -> stringResource(R.string.card_detail_inline)
-                            }
-                        )
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
-                            modifier = Modifier.padding(start = 4.dp)
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = displayModeDropdownExpanded,
-                        onDismissRequest = { displayModeDropdownExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.card_detail_inline)) },
-                            onClick = {
-                                onCardDetailDisplayModeChange("INLINE")
-                                displayModeDropdownExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.card_detail_popup)) },
-                            onClick = {
-                                onCardDetailDisplayModeChange("POPUP")
-                                displayModeDropdownExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Restore Defaults Button
-            Row(
-                horizontalArrangement = Arrangement.End,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                TextButton(
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.card_detail_inline)) },
                     onClick = {
-                        onFontSizeScaleChange(1.0f)
-                        onSpacingScaleChange(1.0f)
-                        onFuriganaSizeScaleChange(1.0f)
-                        onCardInternalPaddingScaleChange(1.0f)
-                        onFuriganaGapScaleChange(1.0f)
                         onCardDetailDisplayModeChange("INLINE")
+                        displayModeDropdownExpanded = false
                     }
-                ) {
-                    Text(text = stringResource(R.string.restore_defaults))
-                }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.card_detail_popup)) },
+                    onClick = {
+                        onCardDetailDisplayModeChange("POPUP")
+                        displayModeDropdownExpanded = false
+                    }
+                )
             }
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
+        Divider(color = sumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
 
-            // Card Preview Area
+        // Restore Defaults
+        SettingsItem(
+            icon = Icons.Default.Restore,
+            title = stringResource(R.string.restore_defaults),
+            onClick = {
+                onFontSizeScaleChange(1.0f)
+                onSpacingScaleChange(1.0f)
+                onFuriganaSizeScaleChange(1.0f)
+                onCardInternalPaddingScaleChange(1.0f)
+                onFuriganaGapScaleChange(1.0f)
+                onCardDetailDisplayModeChange("POPUP")
+            }
+        )
+
+        Divider(color = sumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+
+        // Card Preview Area
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = stringResource(R.string.card_preview_title),
-                fontSize = 12.sp,
-                color = sumiInk.copy(alpha = 0.5f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = sumiInk.copy(alpha = 0.6f),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                    .padding(16.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                    .border(BorderStroke(1.dp, sumiInk.copy(alpha = 0.05f)), RoundedCornerShape(12.dp))
+                    .padding(12.dp)
             ) {
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),

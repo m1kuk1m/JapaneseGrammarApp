@@ -1,10 +1,13 @@
 package com.example.japanesegrammarapp.ui.screens.components
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.slideInVertically
@@ -18,6 +21,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -83,6 +87,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import android.os.Build
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.ViewCompat
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
@@ -186,12 +194,22 @@ fun WorkspaceResultContent(
         var selectedSegmentIndex by remember(uiState.selectedRecord?.id) { mutableStateOf(-1) }
         val showPopup = uiState.cardDetailDisplayMode == "POPUP"
         val hasSelectedSegment = selectedSegmentIndex in 0 until (data.segments?.size ?: 0)
+        val contentAlpha by animateFloatAsState(
+            targetValue = if (showPopup && hasSelectedSegment) 0.35f else 1.0f,
+            animationSpec = tween(durationMillis = 200),
+            label = "contentAlpha"
+        )
 
         val overscrollTop = remember(uiState.selectedRecord?.id) { Animatable(0f) }
         val overscrollBottom = remember(uiState.selectedRecord?.id) { Animatable(0f) }
         val coroutineScope = rememberCoroutineScope()
         
-        Column(
+        BackHandler(enabled = showPopup && hasSelectedSegment) {
+            selectedSegmentIndex = -1
+        }
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(scrollState) {
@@ -298,7 +316,10 @@ fun WorkspaceResultContent(
                     // 1. Target Sentence Header with clickable chips
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 4.dp, top = 4.dp)
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 4.dp, top = 4.dp)
+                            .graphicsLayer { alpha = contentAlpha }
                     ) {
                         Box(
                             modifier = Modifier
@@ -400,11 +421,18 @@ fun WorkspaceResultContent(
                                         key("${uiState.selectedRecord?.id}_$index") {
                                             val isHistory = !isPending
                                             val visibleState = remember(uiState.selectedRecord?.id) { MutableTransitionState(isHistory) }.apply { targetState = true }
-                                            
+                                            val isSelected = index == selectedSegmentIndex
+                                            val isDimmed = showPopup && hasSelectedSegment && !isSelected
+                                            val chipAlpha by animateFloatAsState(
+                                                targetValue = if (isDimmed) 0.35f else 1.0f,
+                                                animationSpec = tween(durationMillis = 200),
+                                                label = "chipAlpha"
+                                            )
                                             Box {
                                                 androidx.compose.animation.AnimatedVisibility(
                                                     visibleState = visibleState,
-                                                    enter = if (isHistory) androidx.compose.animation.EnterTransition.None else (scaleIn(initialScale = 0.8f, animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 800f)) + fadeIn(animationSpec = tween(150)))
+                                                    enter = if (isHistory) androidx.compose.animation.EnterTransition.None else (scaleIn(initialScale = 0.8f, animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 800f)) + fadeIn(animationSpec = tween(150))),
+                                                    modifier = Modifier.graphicsLayer { alpha = chipAlpha }
                                                 ) {
                                                     SegmentChip(
                                                         segment = segment,
@@ -438,9 +466,9 @@ fun WorkspaceResultContent(
                                                         popupPositionProvider = remember(gapPx) { SmartPopupPositionProvider(gapPx) },
                                                         onDismissRequest = { selectedSegmentIndex = -1 },
                                                         properties = PopupProperties(
-                                                            focusable = true,
-                                                            dismissOnClickOutside = true,
-                                                            dismissOnBackPress = true
+                                                            focusable = false,
+                                                            dismissOnClickOutside = false,
+                                                            dismissOnBackPress = false
                                                         )
                                                     ) {
                                                         PopupAnimatedContent(visibleState = transitionState) {
@@ -509,7 +537,10 @@ fun WorkspaceResultContent(
                     // 2. Overall Sentence Translation
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 4.dp, top = 4.dp)
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 4.dp, top = 4.dp)
+                            .graphicsLayer { alpha = contentAlpha }
                     ) {
                         Box(
                             modifier = Modifier
@@ -527,7 +558,10 @@ fun WorkspaceResultContent(
                     }
                     
                         Surface(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .graphicsLayer { alpha = contentAlpha },
                             color = SurfaceColor,
                             shape = RoundedCornerShape(24.dp),
                             shadowElevation = 3.dp,
@@ -603,7 +637,10 @@ fun WorkspaceResultContent(
                     if (!data.clauses.isNullOrEmpty() || (isPending && progress != null && progress.clausesCompleted != true)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 4.dp, top = 4.dp)
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
+                                .padding(bottom = 4.dp, top = 4.dp)
+                                .graphicsLayer { alpha = contentAlpha }
                         ) {
                             Box(
                                 modifier = Modifier
@@ -621,7 +658,10 @@ fun WorkspaceResultContent(
                         }
                         
                         Surface(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .graphicsLayer { alpha = contentAlpha },
                             color = SurfaceColor,
                             shape = RoundedCornerShape(24.dp),
                             shadowElevation = 3.dp,
@@ -747,7 +787,10 @@ fun WorkspaceResultContent(
                     if (!data.grammarPoints.isNullOrEmpty() || (isPending && progress != null && progress.grammarCompleted != true)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 4.dp, top = 4.dp)
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
+                                .padding(bottom = 4.dp, top = 4.dp)
+                                .graphicsLayer { alpha = contentAlpha }
                         ) {
                             Box(
                                 modifier = Modifier
@@ -765,7 +808,10 @@ fun WorkspaceResultContent(
                         }
                         
                         Surface(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .graphicsLayer { alpha = contentAlpha },
                             color = SurfaceColor,
                             shape = RoundedCornerShape(24.dp),
                             shadowElevation = 3.dp,
@@ -900,8 +946,23 @@ fun WorkspaceResultContent(
                     )
                 }
             }
+            
+            if (showPopup && hasSelectedSegment) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Transparent)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            selectedSegmentIndex = -1
+                        }
+                )
+            }
         }
     }
+}
 }
 
 @Composable
@@ -1077,10 +1138,12 @@ fun CompactSegmentDetailCard(
         color = surfaceColor,
         shape = RoundedCornerShape(16.dp),
         shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, sumiInk.copy(alpha = 0.15f)),
         modifier = modifier
             .fillMaxWidth()
             .widthIn(max = 600.dp)
             .padding(horizontal = 24.dp, vertical = 24.dp)
+            .fixSystemGestureExclusion()
             .softShadow(
                 color = sumiInk.copy(alpha = 0.12f),
                 borderRadius = 16.dp,
@@ -1262,6 +1325,23 @@ class SmartPopupPositionProvider(
         val clampedY = y.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0))
 
         return IntOffset(clampedX, clampedY)
+    }
+}
+
+/**
+ * Clears the system gesture exclusion rects for the current Android View (Window).
+ * When applied inside a Compose [Popup] (which is `focusable = true`), the underlying
+ * PopupWindow occupies a full-screen Window that can block Android's edge-swipe back gesture.
+ * Calling [ViewCompat.setSystemGestureExclusionRects] with an empty list tells the system
+ * that this Window does NOT exclude any area from gesture recognition, allowing the
+ * edge-swipe back gesture to pass through on Android 10+ (API 29+).
+ */
+@Composable
+fun Modifier.fixSystemGestureExclusion(): Modifier {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return this
+    val view = LocalView.current
+    return this.onGloballyPositioned {
+        ViewCompat.setSystemGestureExclusionRects(view, emptyList())
     }
 }
 

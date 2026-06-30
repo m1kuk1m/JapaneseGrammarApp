@@ -29,5 +29,5 @@ data class WorkspaceUiState(
     val furiganaSizeScale: Float = 1.0f,
     val cardInternalPaddingScale: Float = 1.0f,
     val furiganaGapScale: Float = 1.0f,
-    val cardDetailDisplayMode: String = "INLINE"
+    val cardDetailDisplayMode: String = "POPUP"
 )

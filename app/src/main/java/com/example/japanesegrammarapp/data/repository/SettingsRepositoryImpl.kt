@@ -71,7 +71,7 @@ class SettingsRepositoryImpl @Inject constructor(
     private val _furiganaGapScale = kotlinx.coroutines.flow.MutableStateFlow(1.0f)
     override val furiganaGapScale: kotlinx.coroutines.flow.StateFlow<Float> = _furiganaGapScale.asStateFlow()
 
-    private val _cardDetailDisplayMode = kotlinx.coroutines.flow.MutableStateFlow("INLINE")
+    private val _cardDetailDisplayMode = kotlinx.coroutines.flow.MutableStateFlow("POPUP")
     override val cardDetailDisplayMode: kotlinx.coroutines.flow.StateFlow<String> = _cardDetailDisplayMode.asStateFlow()
 
     init {
@@ -83,7 +83,7 @@ class SettingsRepositoryImpl @Inject constructor(
             _furiganaSizeScale.value = settingPrefs.getFloat("furigana_size_scale", 1.0f)
             _cardInternalPaddingScale.value = settingPrefs.getFloat("card_internal_padding_scale", 1.0f)
             _furiganaGapScale.value = settingPrefs.getFloat("furigana_gap_scale", 1.0f)
-            _cardDetailDisplayMode.value = settingPrefs.getString("card_detail_display_mode", "INLINE") ?: "INLINE"
+            _cardDetailDisplayMode.value = settingPrefs.getString("card_detail_display_mode", "POPUP") ?: "POPUP"
         }
     }
 
@@ -1027,7 +1027,7 @@ class SettingsRepositoryImpl @Inject constructor(
         return cachedCardDetailDisplayMode ?: synchronized(this) {
             val cached = cachedCardDetailDisplayMode
             if (cached != null) cached else {
-                val value = settingPrefs.getString("card_detail_display_mode", "INLINE") ?: "INLINE"
+                val value = settingPrefs.getString("card_detail_display_mode", "POPUP") ?: "POPUP"
                 cachedCardDetailDisplayMode = value
                 value
             }
