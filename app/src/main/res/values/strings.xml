@@ -659,4 +659,12 @@
     <string name="view_related_analysis">View Related Analysis</string>
     <string name="previous">Previous</string>
     <string name="next">Next</string>
+
+    <!-- Card Customization -->
+    <string name="card_appearance">Card Customization</string>
+    <string name="card_font_size">Font Size</string>
+    <string name="card_spacing">Spacing &amp; Padding</string>
+    <string name="restore_defaults">Restore Defaults</string>
+    <string name="card_preview_title">Card Preview (Tap to flip):</string>
 </resources>
+

@@ -43,6 +43,8 @@ class SettingsRepositoryImpl @Inject constructor(
     
     @Volatile private var cachedThemeMode: String? = null
     @Volatile private var cachedWallpaperUri: String? = null
+    @Volatile private var cachedCardFontSizeScale: Float? = null
+    @Volatile private var cachedCardSpacingScale: Float? = null
 
     private val _themeMode = kotlinx.coroutines.flow.MutableStateFlow("System")
     override val themeMode: kotlinx.coroutines.flow.StateFlow<String> = _themeMode.asStateFlow()
@@ -50,10 +52,18 @@ class SettingsRepositoryImpl @Inject constructor(
     private val _wallpaperUri = kotlinx.coroutines.flow.MutableStateFlow("")
     override val wallpaperUri: kotlinx.coroutines.flow.StateFlow<String> = _wallpaperUri.asStateFlow()
 
+    private val _cardFontSizeScale = kotlinx.coroutines.flow.MutableStateFlow(1.0f)
+    override val cardFontSizeScale: kotlinx.coroutines.flow.StateFlow<Float> = _cardFontSizeScale.asStateFlow()
+
+    private val _cardSpacingScale = kotlinx.coroutines.flow.MutableStateFlow(1.0f)
+    override val cardSpacingScale: kotlinx.coroutines.flow.StateFlow<Float> = _cardSpacingScale.asStateFlow()
+
     init {
         applicationScope.launch {
             _themeMode.value = settingPrefs.getString("theme_mode", "System") ?: "System"
             _wallpaperUri.value = settingPrefs.getString("wallpaper_uri", "") ?: ""
+            _cardFontSizeScale.value = settingPrefs.getFloat("card_font_size_scale", 1.0f)
+            _cardSpacingScale.value = settingPrefs.getFloat("card_spacing_scale", 1.0f)
         }
     }
 
@@ -906,5 +916,39 @@ class SettingsRepositoryImpl @Inject constructor(
             AppLogger.e("SETTINGS", "Failed to save $label for $provider", e)
             false
         }
+    }
+
+    override fun getCardFontSizeScale(): Float {
+        return cachedCardFontSizeScale ?: synchronized(this) {
+            val cached = cachedCardFontSizeScale
+            if (cached != null) cached else {
+                val value = settingPrefs.getFloat("card_font_size_scale", 1.0f)
+                cachedCardFontSizeScale = value
+                value
+            }
+        }
+    }
+
+    override fun setCardFontSizeScale(scale: Float) {
+        cachedCardFontSizeScale = scale
+        settingPrefs.edit().putFloat("card_font_size_scale", scale).apply()
+        _cardFontSizeScale.value = scale
+    }
+
+    override fun getCardSpacingScale(): Float {
+        return cachedCardSpacingScale ?: synchronized(this) {
+            val cached = cachedCardSpacingScale
+            if (cached != null) cached else {
+                val value = settingPrefs.getFloat("card_spacing_scale", 1.0f)
+                cachedCardSpacingScale = value
+                value
+            }
+        }
+    }
+
+    override fun setCardSpacingScale(scale: Float) {
+        cachedCardSpacingScale = scale
+        settingPrefs.edit().putFloat("card_spacing_scale", scale).apply()
+        _cardSpacingScale.value = scale
     }
 }

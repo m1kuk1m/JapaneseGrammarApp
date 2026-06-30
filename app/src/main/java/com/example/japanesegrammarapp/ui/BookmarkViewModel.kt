@@ -66,8 +66,13 @@ class BookmarkViewModel @Inject constructor(
     private val ttsRepository: TtsRepository,
     private val historyRepository: HistoryRepository,
     private val detailedResultSerializer: com.example.japanesegrammarapp.domain.repository.DetailedResultSerializer,
-    val uiPreferencesRepository: UiPreferencesRepository
+    val uiPreferencesRepository: UiPreferencesRepository,
+    private val settingsRepository: com.example.japanesegrammarapp.domain.repository.SettingsRepository
 ) : ViewModel() {
+
+    val cardFontSizeScale: StateFlow<Float> = settingsRepository.cardFontSizeScale
+    val cardSpacingScale: StateFlow<Float> = settingsRepository.cardSpacingScale
+
 
     fun playSentenceTts(analysisResultJson: String?, originalText: String) {
         val detail = detailedResultSerializer.fromJson(analysisResultJson)

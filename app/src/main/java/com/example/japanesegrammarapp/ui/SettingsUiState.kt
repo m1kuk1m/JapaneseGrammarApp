@@ -34,5 +34,8 @@ data class SettingsUiState(
     val endpointHasKeys: Map<String, Boolean> = emptyMap(),
     val fetchingEndpointId: String? = null,
     val promptPresets: List<PromptPreset> = emptyList(),
-    val activePromptPresetId: String = PromptPreset.DEFAULT_PRESET_ID
+    val activePromptPresetId: String = PromptPreset.DEFAULT_PRESET_ID,
+    val cardFontSizeScale: Float = 1.0f,
+    val cardSpacingScale: Float = 1.0f
 )
+
