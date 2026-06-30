@@ -655,8 +655,10 @@
     <!-- Card Customization -->
     <string name="card_appearance">句子成分卡片自定义</string>
     <string name="card_font_size">汉字/假名大小</string>
-    <string name="card_spacing">间距留白</string>
+    <string name="card_spacing">卡片外部间距</string>
+    <string name="card_internal_padding">卡片内部留白</string>
     <string name="furigana_size">注音假名大小</string>
+    <string name="furigana_gap">注音与汉字间距</string>
     <string name="restore_defaults">恢复默认值</string>
     <string name="card_preview_title">成分卡片预览：</string>
 </resources>

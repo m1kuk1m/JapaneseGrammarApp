@@ -24,7 +24,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -91,6 +93,8 @@ fun SegmentChip(
     fontScale: Float = 1.0f,
     spacingScale: Float = 1.0f,
     furiganaScale: Float = 1.0f,
+    internalPaddingScale: Float = 1.0f,
+    furiganaGapScale: Float = 1.0f,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
@@ -187,8 +191,8 @@ fun SegmentChip(
         ) {
             Column(
                 modifier = Modifier.padding(
-                    horizontal = 8.dp * spacingScale,
-                    vertical = 4.dp * spacingScale
+                    horizontal = 8.dp * internalPaddingScale,
+                    vertical = 4.dp * internalPaddingScale
                 ),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -213,6 +217,9 @@ fun SegmentChip(
                                 alpha = if (isLoading || targetReading == "\u200B") 0.0f else 0.6f
                             )
                         )
+                        if (targetReading != "\u200B") {
+                            Spacer(modifier = Modifier.height(2.dp * furiganaGapScale))
+                        }
                         Text(
                             text = targetText,
                             fontSize = 16.sp * fontScale,

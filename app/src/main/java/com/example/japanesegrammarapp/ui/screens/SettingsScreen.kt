@@ -516,6 +516,8 @@ fun SettingsScreen(
                                     onFontSizeScaleChange = viewModel::setCardFontSizeScale,
                                     onSpacingScaleChange = viewModel::setCardSpacingScale,
                                     onFuriganaSizeScaleChange = viewModel::setFuriganaSizeScale,
+                                    onCardInternalPaddingScaleChange = viewModel::setCardInternalPaddingScale,
+                                    onFuriganaGapScaleChange = viewModel::setFuriganaGapScale,
                                     onCardDetailDisplayModeChange = viewModel::setCardDetailDisplayMode
                                 )
                             }

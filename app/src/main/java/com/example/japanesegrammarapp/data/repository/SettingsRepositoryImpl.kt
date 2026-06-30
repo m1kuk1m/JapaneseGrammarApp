@@ -46,6 +46,8 @@ class SettingsRepositoryImpl @Inject constructor(
     @Volatile private var cachedCardFontSizeScale: Float? = null
     @Volatile private var cachedCardSpacingScale: Float? = null
     @Volatile private var cachedFuriganaSizeScale: Float? = null
+    @Volatile private var cachedCardInternalPaddingScale: Float? = null
+    @Volatile private var cachedFuriganaGapScale: Float? = null
     @Volatile private var cachedCardDetailDisplayMode: String? = null
 
     private val _themeMode = kotlinx.coroutines.flow.MutableStateFlow("System")
@@ -63,6 +65,12 @@ class SettingsRepositoryImpl @Inject constructor(
     private val _furiganaSizeScale = kotlinx.coroutines.flow.MutableStateFlow(1.0f)
     override val furiganaSizeScale: kotlinx.coroutines.flow.StateFlow<Float> = _furiganaSizeScale.asStateFlow()
 
+    private val _cardInternalPaddingScale = kotlinx.coroutines.flow.MutableStateFlow(1.0f)
+    override val cardInternalPaddingScale: kotlinx.coroutines.flow.StateFlow<Float> = _cardInternalPaddingScale.asStateFlow()
+
+    private val _furiganaGapScale = kotlinx.coroutines.flow.MutableStateFlow(1.0f)
+    override val furiganaGapScale: kotlinx.coroutines.flow.StateFlow<Float> = _furiganaGapScale.asStateFlow()
+
     private val _cardDetailDisplayMode = kotlinx.coroutines.flow.MutableStateFlow("INLINE")
     override val cardDetailDisplayMode: kotlinx.coroutines.flow.StateFlow<String> = _cardDetailDisplayMode.asStateFlow()
 
@@ -73,6 +81,8 @@ class SettingsRepositoryImpl @Inject constructor(
             _cardFontSizeScale.value = settingPrefs.getFloat("card_font_size_scale", 1.0f)
             _cardSpacingScale.value = settingPrefs.getFloat("card_spacing_scale", 1.0f)
             _furiganaSizeScale.value = settingPrefs.getFloat("furigana_size_scale", 1.0f)
+            _cardInternalPaddingScale.value = settingPrefs.getFloat("card_internal_padding_scale", 1.0f)
+            _furiganaGapScale.value = settingPrefs.getFloat("furigana_gap_scale", 1.0f)
             _cardDetailDisplayMode.value = settingPrefs.getString("card_detail_display_mode", "INLINE") ?: "INLINE"
         }
     }
@@ -977,6 +987,40 @@ class SettingsRepositoryImpl @Inject constructor(
         cachedFuriganaSizeScale = scale
         settingPrefs.edit().putFloat("furigana_size_scale", scale).apply()
         _furiganaSizeScale.value = scale
+    }
+
+    override fun getCardInternalPaddingScale(): Float {
+        return cachedCardInternalPaddingScale ?: synchronized(this) {
+            val cached = cachedCardInternalPaddingScale
+            if (cached != null) cached else {
+                val value = settingPrefs.getFloat("card_internal_padding_scale", 1.0f)
+                cachedCardInternalPaddingScale = value
+                value
+            }
+        }
+    }
+
+    override fun setCardInternalPaddingScale(scale: Float) {
+        cachedCardInternalPaddingScale = scale
+        settingPrefs.edit().putFloat("card_internal_padding_scale", scale).apply()
+        _cardInternalPaddingScale.value = scale
+    }
+
+    override fun getFuriganaGapScale(): Float {
+        return cachedFuriganaGapScale ?: synchronized(this) {
+            val cached = cachedFuriganaGapScale
+            if (cached != null) cached else {
+                val value = settingPrefs.getFloat("furigana_gap_scale", 1.0f)
+                cachedFuriganaGapScale = value
+                value
+            }
+        }
+    }
+
+    override fun setFuriganaGapScale(scale: Float) {
+        cachedFuriganaGapScale = scale
+        settingPrefs.edit().putFloat("furigana_gap_scale", scale).apply()
+        _furiganaGapScale.value = scale
     }
 
     override fun getCardDetailDisplayMode(): String {

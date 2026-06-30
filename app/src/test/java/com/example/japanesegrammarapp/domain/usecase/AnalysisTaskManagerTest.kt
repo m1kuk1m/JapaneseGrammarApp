@@ -310,6 +310,25 @@ private class FakeSettingsRepository(
     override fun setActivePromptPresetId(id: String) = Unit
     override fun savePromptPreset(preset: com.example.japanesegrammarapp.domain.model.PromptPreset) = Unit
     override fun deletePromptPreset(id: String) = Unit
+
+    override fun getCardFontSizeScale(): Float = 1.0f
+    override fun setCardFontSizeScale(scale: Float) = Unit
+    override fun getCardSpacingScale(): Float = 1.0f
+    override fun setCardSpacingScale(scale: Float) = Unit
+    override fun getFuriganaSizeScale(): Float = 1.0f
+    override fun setFuriganaSizeScale(scale: Float) = Unit
+    override fun getCardInternalPaddingScale(): Float = 1.0f
+    override fun setCardInternalPaddingScale(scale: Float) = Unit
+    override fun getFuriganaGapScale(): Float = 1.0f
+    override fun setFuriganaGapScale(scale: Float) = Unit
+    override val cardFontSizeScale = MutableStateFlow(1.0f)
+    override val cardSpacingScale = MutableStateFlow(1.0f)
+    override val furiganaSizeScale = MutableStateFlow(1.0f)
+    override val cardInternalPaddingScale = MutableStateFlow(1.0f)
+    override val furiganaGapScale = MutableStateFlow(1.0f)
+    override fun getCardDetailDisplayMode(): String = "INLINE"
+    override fun setCardDetailDisplayMode(mode: String) = Unit
+    override val cardDetailDisplayMode = MutableStateFlow("INLINE")
 }
 
 private class FakeHistoryRepository(vararg initialRecords: AnalysisDomainRecord) : HistoryRepository {
