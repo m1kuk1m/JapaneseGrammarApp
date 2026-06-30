@@ -1,0 +1,6 @@
+v1.7.0 Release Notes
+- Settings & Customization: Added comprehensive word segment customization settings including font size, spacing, card internal padding, and furigana vertical gap scales, complete with localized strings (ZH/JA) and a real-time interactive preview.
+- Detail Display Modes: Added card detail display mode settings, allowing users to toggle between Inline view and Anchored Floating Dialog view.
+- Anchored Popup Enhancements: Refactored the floating card detail popup to be anchored and compact with a hybrid aesthetic, smart auto-positioning, smooth scale and fade transition animations, and custom soft shadows.
+- Navigation & Gestures: Fixed the system gesture exclusion bug on Android 10+ (API 29+), allowing system edge-swipe back navigation to pass through correctly when the floating dialog is visible.
+- Animation & Layout Polish: Optimized WorkspaceScreen exit/collapsing animations for better synchronization, added a top fade-out gradient to the history sidebar, and fixed sentence card top gap layout issues.
