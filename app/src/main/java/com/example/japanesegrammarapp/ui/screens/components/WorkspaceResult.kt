@@ -947,19 +947,20 @@ fun WorkspaceResultContent(
                 }
             }
             
-            if (showPopup && hasSelectedSegment) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Transparent)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            selectedSegmentIndex = -1
-                        }
-                )
-            }
+        }
+        
+        if (showPopup && hasSelectedSegment) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        selectedSegmentIndex = -1
+                    }
+            )
         }
     }
 }
