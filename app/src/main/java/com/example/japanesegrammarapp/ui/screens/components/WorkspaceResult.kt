@@ -73,9 +73,15 @@ import com.example.japanesegrammarapp.utils.DictionaryApp
 
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.platform.LocalDensity
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -414,8 +420,10 @@ fun WorkspaceResultContent(
                                                 }
 
                                                 if (showPopup && index == selectedSegmentIndex) {
+                                                    val density = LocalDensity.current
+                                                    val gapPx = remember(density) { with(density) { 8.dp.roundToPx() } }
                                                     Popup(
-                                                        alignment = Alignment.BottomCenter,
+                                                        popupPositionProvider = remember(gapPx) { SmartPopupPositionProvider(gapPx) },
                                                         onDismissRequest = { selectedSegmentIndex = -1 },
                                                         properties = PopupProperties(
                                                             focusable = true,
@@ -1056,166 +1064,184 @@ fun CompactSegmentDetailCard(
         shape = RoundedCornerShape(16.dp),
         shadowElevation = 8.dp,
         modifier = modifier
-            .widthIn(max = 280.dp)
+            .fillMaxWidth()
+            .widthIn(max = 600.dp)
+            .padding(horizontal = 16.dp)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier
+                .padding(16.dp)
+                .heightIn(max = 450.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = currentSegment.text ?: "",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = sumiInk
-                    )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = currentSegment.text ?: "",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = sumiInk
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        val isCurrentBookmarked = uiState.bookmarkedSegmentTexts.contains(currentSegment.text) || 
+                                uiState.bookmarkedSegmentTexts.contains(currentSegment.dictionaryForm ?: "")
+                        IconButton(
+                            onClick = { onToggleBookmark(currentSegment) },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isCurrentBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = null,
+                                tint = if (isCurrentBookmarked) Color(0xFFD4A017) else sumiInk.copy(alpha = 0.3f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                     if (!currentSegment.reading.isNullOrBlank() && currentSegment.reading != currentSegment.text) {
                         Text(
-                            text = currentSegment.reading,
-                            fontSize = 11.sp,
+                            text = "（${currentSegment.reading}）",
+                            fontSize = 12.sp,
                             color = sumiInk.copy(alpha = 0.5f)
                         )
                     }
                 }
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val isCurrentBookmarked = uiState.bookmarkedSegmentTexts.contains(currentSegment.text) || 
-                            uiState.bookmarkedSegmentTexts.contains(currentSegment.dictionaryForm ?: "")
-                    IconButton(
-                        onClick = { onToggleBookmark(currentSegment) },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isCurrentBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
-                            contentDescription = null,
-                            tint = if (isCurrentBookmarked) Color(0xFFD4A017) else sumiInk.copy(alpha = 0.3f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    IconButton(
-                        onClick = onCloseDetails,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = null,
-                            tint = sumiInk.copy(alpha = 0.4f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(6.dp))
-            
-            val tags = remember(currentSegment) {
-                buildList {
-                    currentSegment.partOfSpeech?.let { if (it.isNotBlank()) add("词性: $it") }
-                    currentSegment.dictionaryForm?.let { if (it.isNotBlank() && it != currentSegment.text) add("原形: $it") }
-                    currentSegment.inflection?.let { if (it.isNotBlank()) add("活用: $it") }
-                    currentSegment.role?.let { if (it.isNotBlank()) add("成分: $it") }
-                }
-            }
-            
-            if (tags.isNotEmpty()) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.fillMaxWidth()
+                IconButton(
+                    onClick = onCloseDetails,
+                    modifier = Modifier.size(24.dp)
                 ) {
-                    tags.forEach { tag ->
-                        Surface(
-                            color = sumiInk.copy(alpha = 0.05f),
-                            shape = RoundedCornerShape(4.dp),
-                            modifier = Modifier.padding(vertical = 1.dp)
-                        ) {
-                            Text(
-                                text = tag,
-                                fontSize = 10.sp,
-                                color = sumiInk.copy(alpha = 0.7f),
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = null,
+                        tint = sumiInk.copy(alpha = 0.4f),
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
-                Spacer(modifier = Modifier.height(6.dp))
+            }
+            
+            Divider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = sumiInk.copy(alpha = 0.08f)
+            )
+            
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (!currentSegment.partOfSpeech.isNullOrBlank()) {
+                    AlignedDetailRow(label = stringResource(R.string.pos), value = currentSegment.partOfSpeech)
+                }
+                if (!currentSegment.dictionaryForm.isNullOrBlank() && currentSegment.dictionaryForm != currentSegment.text) {
+                    AlignedDetailRow(label = stringResource(R.string.dictionary_form), value = currentSegment.dictionaryForm)
+                }
+                if (!currentSegment.inflection.isNullOrBlank()) {
+                    AlignedDetailRow(label = stringResource(R.string.inflection), value = currentSegment.inflection)
+                }
+                if (!currentSegment.role.isNullOrBlank()) {
+                    AlignedDetailRow(label = stringResource(R.string.role_in_sentence), value = currentSegment.role)
+                }
             }
             
             if (!currentSegment.meaning.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
                 Surface(
-                    color = KuriAmber.copy(alpha = 0.08f),
-                    shape = RoundedCornerShape(6.dp),
+                    color = KuriAmber.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = currentSegment.meaning,
-                            fontSize = 12.sp,
-                            color = sumiInk,
-                            lineHeight = 16.sp,
-                            modifier = Modifier.weight(1f).padding(end = 4.dp)
-                        )
-                        IconButton(
-                            onClick = { onEditWordSegment(currentSegment) },
-                            modifier = Modifier.size(20.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = null,
-                                tint = sumiInk.copy(alpha = 0.4f),
-                                modifier = Modifier.size(12.dp)
+                    SelectionContainer {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.meaning),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = KuriAmber.copy(alpha = 1.0f)
+                                )
+                                IconButton(
+                                    onClick = { onEditWordSegment(currentSegment) },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = null,
+                                        tint = sumiInk.copy(alpha = 0.4f),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = currentSegment.meaning,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = sumiInk,
+                                lineHeight = 18.sp
                             )
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(6.dp))
             }
             
             val queryWord = currentSegment.dictionaryQueryWord()
             if (queryWord.isNotBlank()) {
-                val context = LocalContext.current
-                val savedDict = remember {
-                    val dictName = uiPreferencesRepository.getLastDictionary(DictionaryApp.EUDIC.name)
-                    runCatching { DictionaryApp.valueOf(dictName) }.getOrDefault(DictionaryApp.EUDIC)
-                }
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(
-                        onClick = { savedDict.search(context, queryWord) },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        modifier = Modifier.height(28.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.textButtonColors(
-                            containerColor = sumiInk.copy(alpha = 0.05f),
-                            contentColor = sumiInk
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "${stringResource(R.string.search_in_dict)} (${stringResource(savedDict.nameResId)})",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                    DictionarySearchControls(
+                        queryWord = queryWord,
+                        uiPreferencesRepository = uiPreferencesRepository,
+                        sumiInk = sumiInk,
+                        surfaceColor = surfaceColor
+                    )
                 }
             }
         }
+    }
+}
+
+class SmartPopupPositionProvider(
+    private val gapPx: Int
+) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize
+    ): IntOffset {
+        // Horizontal centering relative to the window
+        val x = (windowSize.width - popupContentSize.width) / 2
+
+        // Determine vertical position:
+        // Try below the anchor first
+        val spaceBelow = windowSize.height - anchorBounds.bottom
+        val spaceAbove = anchorBounds.top
+        
+        val y = if (spaceBelow >= popupContentSize.height + gapPx || spaceBelow >= spaceAbove) {
+            // Place below anchor
+            anchorBounds.bottom + gapPx
+        } else {
+            // Place above anchor
+            anchorBounds.top - popupContentSize.height - gapPx
+        }
+        
+        // Clamp bounds to prevent drawing outside window bounds
+        val clampedX = x.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
+        val clampedY = y.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0))
+
+        return IntOffset(clampedX, clampedY)
     }
 }
 
