@@ -112,6 +112,11 @@ fun WorkspaceScreen(
     val isPlayingTts by viewModel.isPlayingTts.collectAsState(initial = false)
     var isResultScrolled by remember { mutableStateOf(false) }
     var topBoxHeight by remember { mutableStateOf(0.dp) }
+    var lastTextChangeTime by remember { mutableStateOf(0L) }
+
+    LaunchedEffect(uiState.currentOriginalText) {
+        lastTextChangeTime = System.currentTimeMillis()
+    }
 
     // Reset scroll and floating panel header states when selected record changes
     LaunchedEffect(uiState.selectedRecord?.id) {
@@ -484,7 +489,14 @@ fun WorkspaceScreen(
                                     .zIndex(1f)
                                     .onGloballyPositioned { coordinates ->
                                         val height = with(density) { coordinates.size.height.toDp() }
-                                        topBoxHeight = height
+                                        val timeSinceChange = System.currentTimeMillis() - lastTextChangeTime
+                                        if (timeSinceChange < 800L && !isResultScrolled) {
+                                            topBoxHeight = height
+                                        } else {
+                                            if (height > topBoxHeight) {
+                                                topBoxHeight = height
+                                            }
+                                        }
                                     }
                             ) {
                                 Surface(
