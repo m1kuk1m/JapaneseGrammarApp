@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -310,61 +311,83 @@ fun HistorySidebar(
                 )
             }
         } else {
-            LazyColumn(
-                state = listState,
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                reverseLayout = true
+                    .weight(1f)
+                    .fillMaxWidth()
             ) {
-                items(
-                    count = historyList.itemCount,
-                    key = historyList.itemKey { item ->
-                        when (item) {
-                            is HistoryListItem.DateHeader -> "date_${item.date}"
-                            is HistoryListItem.Record -> item.uiRecord.record.id.toString()
-                        }
-                    },
-                    contentType = historyList.itemContentType { item ->
-                        when (item) {
-                            is HistoryListItem.DateHeader -> "history_date_header"
-                            is HistoryListItem.Record -> "history_record_item"
-                        }
-                    }
-                ) { index ->
-                    val item = historyList[index]
-                    when (item) {
-                        is HistoryListItem.DateHeader -> {
-                            DateHeaderItem(label = item.label)
-                        }
-                        is HistoryListItem.Record -> {
-                            val uiRecord = item.uiRecord
-                            val record = uiRecord.record
-                            val isSelected = selectedRecord?.id == record.id
-                            val onSelect = {
-                                onSelectRecord(record)
-                                onCloseDrawer()
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp),
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    reverseLayout = true
+                ) {
+                    items(
+                        count = historyList.itemCount,
+                        key = historyList.itemKey { item ->
+                            when (item) {
+                                is HistoryListItem.DateHeader -> "date_${item.date}"
+                                is HistoryListItem.Record -> item.uiRecord.record.id.toString()
                             }
-                            val onDelete = { onDeleteRecord(record) }
-                            val onExport = { onExportRecord(record) }
-                            val onToggleBookmark = { onToggleBookmarkSentence(record) }
-        
-                            val isBookmarked = bookmarkedSentenceIds.contains(record.id)
-                            HistorySidebarItem(
-                                uiRecord = uiRecord,
-                                isSelected = isSelected,
-                                isBookmarked = isBookmarked,
-                                onClick = onSelect,
-                                onDeleteClick = onDelete,
-                                onExportClick = onExport,
-                                onLongClick = onToggleBookmark
-                            )
+                        },
+                        contentType = historyList.itemContentType { item ->
+                            when (item) {
+                                is HistoryListItem.DateHeader -> "history_date_header"
+                                is HistoryListItem.Record -> "history_record_item"
+                            }
                         }
-                        null -> {}
+                    ) { index ->
+                        val item = historyList[index]
+                        when (item) {
+                            is HistoryListItem.DateHeader -> {
+                                DateHeaderItem(label = item.label)
+                            }
+                            is HistoryListItem.Record -> {
+                                val uiRecord = item.uiRecord
+                                val record = uiRecord.record
+                                val isSelected = selectedRecord?.id == record.id
+                                val onSelect = {
+                                    onSelectRecord(record)
+                                    onCloseDrawer()
+                                }
+                                val onDelete = { onDeleteRecord(record) }
+                                val onExport = { onExportRecord(record) }
+                                val onToggleBookmark = { onToggleBookmarkSentence(record) }
+            
+                                val isBookmarked = bookmarkedSentenceIds.contains(record.id)
+                                HistorySidebarItem(
+                                    uiRecord = uiRecord,
+                                    isSelected = isSelected,
+                                    isBookmarked = isBookmarked,
+                                    onClick = onSelect,
+                                    onDeleteClick = onDelete,
+                                    onExportClick = onExport,
+                                    onLongClick = onToggleBookmark
+                                )
+                            }
+                            null -> {}
+                        }
                     }
                 }
+
+                // Top fade-out overlay
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(32.dp)
+                        .align(Alignment.TopCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    WashiBg,
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                )
             }
         }
     }
