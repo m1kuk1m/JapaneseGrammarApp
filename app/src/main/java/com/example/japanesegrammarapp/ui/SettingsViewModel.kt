@@ -142,6 +142,12 @@ class SettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(cardSpacingScale = scale) }
             }
         }
+
+        viewModelScope.launch {
+            settingsRepository.furiganaSizeScale.collect { scale ->
+                _uiState.update { it.copy(furiganaSizeScale = scale) }
+            }
+        }
     }
 
     fun getApiKey(provider: String): String = settingsRepository.getApiKey(provider)
@@ -668,6 +674,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setCardSpacingScale(scale: Float) {
         settingsRepository.setCardSpacingScale(scale)
+    }
+
+    fun setFuriganaSizeScale(scale: Float) {
+        settingsRepository.setFuriganaSizeScale(scale)
     }
 
     private companion object {

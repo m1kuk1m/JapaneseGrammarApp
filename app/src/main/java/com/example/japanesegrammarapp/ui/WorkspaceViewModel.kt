@@ -232,6 +232,24 @@ class WorkspaceViewModel @Inject constructor(
             }
         }
 
+        viewModelScope.launch {
+            settingsRepository.cardFontSizeScale.collect { scale ->
+                _uiState.update { it.copy(cardFontSizeScale = scale) }
+            }
+        }
+
+        viewModelScope.launch {
+            settingsRepository.cardSpacingScale.collect { scale ->
+                _uiState.update { it.copy(cardSpacingScale = scale) }
+            }
+        }
+
+        viewModelScope.launch {
+            settingsRepository.furiganaSizeScale.collect { scale ->
+                _uiState.update { it.copy(furiganaSizeScale = scale) }
+            }
+        }
+
         // Observe bookmarks for the currently selected record reactively
         viewModelScope.launch {
             _uiState

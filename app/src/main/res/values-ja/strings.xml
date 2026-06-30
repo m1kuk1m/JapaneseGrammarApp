@@ -652,10 +652,11 @@
 
 
     <!-- Card Customization -->
-    <string name="card_appearance">単語カードのカスタマイズ</string>
-    <string name="card_font_size">フォントサイズ</string>
+    <string name="card_appearance">成分カードのカスタマイズ</string>
+    <string name="card_font_size">漢字/かなのサイズ</string>
     <string name="card_spacing">余白と間隔</string>
+    <string name="furigana_size">ふりがなのサイズ</string>
     <string name="restore_defaults">デフォルトに戻す</string>
-    <string name="card_preview_title">プレビュー (タップで回転):</string>
+    <string name="card_preview_title">成分カードプレビュー：</string>
 </resources>
 

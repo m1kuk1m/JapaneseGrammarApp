@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoFixHigh
@@ -53,6 +54,10 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectorEngine
+import com.example.japanesegrammarapp.domain.model.WordSegment
+import com.example.japanesegrammarapp.ui.screens.components.SegmentChip
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import com.example.japanesegrammarapp.ui.SettingsUiState
 
 @Composable
@@ -506,26 +511,32 @@ private fun SettingsSwitchColors(
     uncheckedTrackColor = sumiInk.copy(alpha = 0.1f)
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsCardAppearanceSection(
     uiState: SettingsUiState,
     onFontSizeScaleChange: (Float) -> Unit,
-    onSpacingScaleChange: (Float) -> Unit
+    onSpacingScaleChange: (Float) -> Unit,
+    onFuriganaSizeScaleChange: (Float) -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
-    val mockCard = remember {
-        com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain(
-            recordId = 0,
-            segmentText = "日本語",
-            surfaceForm = "日本語",
-            reading = "にほんご",
-            partOfSpeech = "名詞",
-            posCategory = "NOUN",
-            meaning = "日语，日本语言",
-            sourceText = "私は日本語を勉強しています。"
+    val mockSegments = remember {
+        listOf(
+            WordSegment(text = "最後", reading = "さいご", partOfSpeech = "名詞", posCategory = "NOUN"),
+            WordSegment(text = "の", reading = "の", partOfSpeech = "助詞", posCategory = "PARTICLE"),
+            WordSegment(text = "ノルマ", reading = "ノルマ", partOfSpeech = "名詞", posCategory = "NOUN"),
+            WordSegment(text = "で", reading = "で", partOfSpeech = "助詞", posCategory = "PARTICLE"),
+            WordSegment(text = "、", reading = "、", partOfSpeech = "記号", posCategory = "SYMBOL"),
+            WordSegment(text = "その", reading = "その", partOfSpeech = "連体詞", posCategory = "PRE_NOUN_ADJECTIVAL"),
+            WordSegment(text = "、", reading = "、", partOfSpeech = "記号", posCategory = "SYMBOL"),
+            WordSegment(text = "から", reading = "から", partOfSpeech = "助詞", posCategory = "PARTICLE"),
+            WordSegment(text = "入る", reading = "はいる", partOfSpeech = "動詞", posCategory = "VERB"),
+            WordSegment(text = "の", reading = "の", partOfSpeech = "助詞", posCategory = "PARTICLE"),
+            WordSegment(text = "間違って", reading = "まちがって", partOfSpeech = "動詞", posCategory = "VERB"),
+            WordSegment(text = "ます", reading = "ます", partOfSpeech = "助動詞", posCategory = "AUXILIARY"),
+            WordSegment(text = "よ", reading = "よ", partOfSpeech = "助詞", posCategory = "PARTICLE")
         )
     }
-    var isFlipped by remember { mutableStateOf(false) }
 
     SettingsGroup(title = stringResource(R.string.card_appearance)) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -571,6 +582,28 @@ fun SettingsCardAppearanceSection(
                 )
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Slider for Furigana Size Scale
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "${stringResource(R.string.furigana_size)}: ${String.format(java.util.Locale.US, "%.1f", uiState.furiganaSizeScale)}x",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = sumiInk,
+                    modifier = Modifier.weight(1f)
+                )
+                Slider(
+                    value = uiState.furiganaSizeScale,
+                    onValueChange = onFuriganaSizeScaleChange,
+                    valueRange = 0.5f..2.0f,
+                    modifier = Modifier.width(180.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // Restore Defaults Button
@@ -582,6 +615,7 @@ fun SettingsCardAppearanceSection(
                     onClick = {
                         onFontSizeScaleChange(1.0f)
                         onSpacingScaleChange(1.0f)
+                        onFuriganaSizeScaleChange(1.0f)
                     }
                 ) {
                     Text(text = stringResource(R.string.restore_defaults))
@@ -601,22 +635,28 @@ fun SettingsCardAppearanceSection(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .clickable { isFlipped = !isFlipped }
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    .padding(16.dp)
             ) {
-                FlipCard(
-                    card = mockCard,
-                    isFlipped = isFlipped,
-                    studyMode = "ja_to_zh",
-                    onPlayTts = {},
-                    fontScale = uiState.cardFontSizeScale,
-                    spacingScale = uiState.cardSpacingScale,
-                    modifier = Modifier.fillMaxSize()
-                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp * uiState.cardSpacingScale),
+                    verticalArrangement = Arrangement.spacedBy(10.dp * uiState.cardSpacingScale)
+                ) {
+                    mockSegments.forEach { segment ->
+                        SegmentChip(
+                            segment = segment,
+                            isSelected = false,
+                            fontScale = uiState.cardFontSizeScale,
+                            spacingScale = uiState.cardSpacingScale,
+                            furiganaScale = uiState.furiganaSizeScale,
+                            onClick = {}
+                        )
+                    }
+                }
             }
         }
     }
 }
-
 

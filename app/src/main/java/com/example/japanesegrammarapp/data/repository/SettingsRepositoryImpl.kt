@@ -45,6 +45,7 @@ class SettingsRepositoryImpl @Inject constructor(
     @Volatile private var cachedWallpaperUri: String? = null
     @Volatile private var cachedCardFontSizeScale: Float? = null
     @Volatile private var cachedCardSpacingScale: Float? = null
+    @Volatile private var cachedFuriganaSizeScale: Float? = null
 
     private val _themeMode = kotlinx.coroutines.flow.MutableStateFlow("System")
     override val themeMode: kotlinx.coroutines.flow.StateFlow<String> = _themeMode.asStateFlow()
@@ -58,12 +59,16 @@ class SettingsRepositoryImpl @Inject constructor(
     private val _cardSpacingScale = kotlinx.coroutines.flow.MutableStateFlow(1.0f)
     override val cardSpacingScale: kotlinx.coroutines.flow.StateFlow<Float> = _cardSpacingScale.asStateFlow()
 
+    private val _furiganaSizeScale = kotlinx.coroutines.flow.MutableStateFlow(1.0f)
+    override val furiganaSizeScale: kotlinx.coroutines.flow.StateFlow<Float> = _furiganaSizeScale.asStateFlow()
+
     init {
         applicationScope.launch {
             _themeMode.value = settingPrefs.getString("theme_mode", "System") ?: "System"
             _wallpaperUri.value = settingPrefs.getString("wallpaper_uri", "") ?: ""
             _cardFontSizeScale.value = settingPrefs.getFloat("card_font_size_scale", 1.0f)
             _cardSpacingScale.value = settingPrefs.getFloat("card_spacing_scale", 1.0f)
+            _furiganaSizeScale.value = settingPrefs.getFloat("furigana_size_scale", 1.0f)
         }
     }
 
@@ -950,5 +955,22 @@ class SettingsRepositoryImpl @Inject constructor(
         cachedCardSpacingScale = scale
         settingPrefs.edit().putFloat("card_spacing_scale", scale).apply()
         _cardSpacingScale.value = scale
+    }
+
+    override fun getFuriganaSizeScale(): Float {
+        return cachedFuriganaSizeScale ?: synchronized(this) {
+            val cached = cachedFuriganaSizeScale
+            if (cached != null) cached else {
+                val value = settingPrefs.getFloat("furigana_size_scale", 1.0f)
+                cachedFuriganaSizeScale = value
+                value
+            }
+        }
+    }
+
+    override fun setFuriganaSizeScale(scale: Float) {
+        cachedFuriganaSizeScale = scale
+        settingPrefs.edit().putFloat("furigana_size_scale", scale).apply()
+        _furiganaSizeScale.value = scale
     }
 }

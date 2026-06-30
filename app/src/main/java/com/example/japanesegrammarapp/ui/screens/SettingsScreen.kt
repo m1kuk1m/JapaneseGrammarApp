@@ -514,7 +514,8 @@ fun SettingsScreen(
                                 SettingsCardAppearanceSection(
                                     uiState = uiState,
                                     onFontSizeScaleChange = viewModel::setCardFontSizeScale,
-                                    onSpacingScaleChange = viewModel::setCardSpacingScale
+                                    onSpacingScaleChange = viewModel::setCardSpacingScale,
+                                    onFuriganaSizeScaleChange = viewModel::setFuriganaSizeScale
                                 )
                             }
                             SettingsCategory.GENERAL -> {
