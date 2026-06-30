@@ -479,7 +479,7 @@ fun WorkspaceScreen(
                             val density = androidx.compose.ui.platform.LocalDensity.current
                             val outerVerticalPadding = 8.dp
                             val outerHorizontalPadding = 16.dp
-                            val shadowElevation by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 6.dp else 0.dp, animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "shadowElevation")
+                            val shadowElevation by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 6.dp else 0.dp, animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMedium), label = "shadowElevation")
                             val topCornerRadius = 0.dp
                             val innerHorizontalPadding = 12.dp
 
@@ -513,10 +513,10 @@ fun WorkspaceScreen(
                                     shadowElevation = shadowElevation,
                                     tonalElevation = 0.dp
                                 ) {
-                                    val innerBottomPadding by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 4.dp else 12.dp, animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), label = "innerBottomPadding")
+                                    val innerBottomPadding by androidx.compose.animation.core.animateDpAsState(targetValue = if (isResultScrolled) 4.dp else 12.dp, animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMedium), label = "innerBottomPadding")
                                     Column(
                                         modifier = Modifier
-                                            .animateContentSize(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
+                                            .animateContentSize(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMedium))
                                             .padding(start = innerHorizontalPadding, end = innerHorizontalPadding, top = 12.dp, bottom = innerBottomPadding)
                                     ) {
                                         val currentText = uiState.currentOriginalText
@@ -653,8 +653,8 @@ fun WorkspaceScreen(
 
                                         AnimatedVisibility(
                                             visible = !isResultScrolled,
-                                            enter = expandVertically(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow)) + fadeIn(animationSpec = tween(200)),
-                                            exit = shrinkVertically(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow)) + fadeOut(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
+                                            enter = expandVertically(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMedium)) + fadeIn(animationSpec = tween(150)),
+                                            exit = shrinkVertically(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMedium)) + fadeOut(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMedium))
                                         ) {
                                             androidx.compose.foundation.text.selection.SelectionContainer {
                                                 Text(
