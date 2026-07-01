@@ -34,7 +34,7 @@ import androidx.compose.material.icons.filled.SpaceBar
 import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Abc
 import androidx.compose.material.icons.filled.Height
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
@@ -600,7 +600,7 @@ fun SettingsCardAppearanceSection(
         var displayModeDropdownExpanded by remember { mutableStateOf(false) }
         Box {
             SettingsItem(
-                icon = Icons.Default.OpenInNew,
+                icon = Icons.Default.PictureInPictureAlt,
                 title = stringResource(R.string.card_detail_display_mode),
                 subtitle = when (uiState.cardDetailDisplayMode) {
                     "POPUP" -> stringResource(R.string.card_detail_popup)

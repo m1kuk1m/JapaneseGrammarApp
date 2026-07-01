@@ -46,6 +46,9 @@ interface BookmarkedSentenceDao {
     @Query("UPDATE bookmarked_sentences SET recordId = -1 WHERE recordId = :recordId")
     suspend fun detachFromRecord(recordId: Int)
 
+    @Query("SELECT * FROM bookmarked_sentences WHERE bookmarkedAt >= :startTime AND bookmarkedAt <= :endTime ORDER BY bookmarkedAt DESC")
+    suspend fun getBookmarksByTimeRange(startTime: Long, endTime: Long): List<BookmarkedSentence>
+
     @Transaction
     suspend fun toggleSentenceBookmark(
         recordId: Int,
