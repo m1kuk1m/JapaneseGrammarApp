@@ -163,6 +163,8 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             
             var recordToDelete by remember { mutableStateOf<AnalysisDomainRecord?>(null) }
             var showExportDialog by remember { mutableStateOf(false) }
+            // 记录悬浮词语卡片是否打开，用于屏蔽左右滑动
+            var isWordPopupOpen by remember { mutableStateOf(false) }
 
             val WashiBg = androidx.compose.material3.MaterialTheme.colorScheme.background
             val SumiInk = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
@@ -279,10 +281,18 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(pagerState.currentPage, fromBookmarks, drawerWidthPx) {
+                        .pointerInput(pagerState.currentPage, fromBookmarks, drawerWidthPx, isWordPopupOpen) {
                             if (pagerState.currentPage == 0) {
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
+                                    
+                                    // 悬浮卡片弹出时屏蔽右滑打开侧栏手势
+                                    if (isWordPopupOpen) {
+                                        do {
+                                            val event = awaitPointerEvent()
+                                        } while (event.changes.any { it.pressed })
+                                        return@awaitEachGesture
+                                    }
                                     
                                     val fabX = workspaceViewModel.uiPreferencesRepository.getFloatingActionBallX(defaultFabX)
                                     val fabY = workspaceViewModel.uiPreferencesRepository.getFloatingActionBallY(defaultFabY)
@@ -373,7 +383,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
-                        userScrollEnabled = !drawerVisible
+                        userScrollEnabled = !drawerVisible && !isWordPopupOpen
                     ) { page ->
                         when (page) {
                             0 -> {
@@ -388,7 +398,8 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                                         coroutineScope.launch {
                                             pagerState.animateScrollToPage(1)
                                         }
-                                    }
+                                    },
+                                    onPopupStateChange = { isOpen -> isWordPopupOpen = isOpen }
                                 )
                             }
                             1 -> {

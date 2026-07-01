@@ -32,10 +32,15 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.graphics.graphicsLayer
@@ -61,6 +66,7 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -96,6 +102,9 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -112,6 +121,7 @@ fun WorkspaceResultContent(
     uiPreferencesRepository: UiPreferencesRepository,
     onUserInteracted: () -> Unit = {},
     onScrollStateChange: (Boolean) -> Unit = {},
+    onPopupStateChange: (Boolean) -> Unit = {},
     topPadding: Dp = 0.dp
 ) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
@@ -192,8 +202,22 @@ fun WorkspaceResultContent(
         }
     } else {
         var selectedSegmentIndex by remember(uiState.selectedRecord?.id) { mutableStateOf(-1) }
+        var parentCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+        var selectedChipRect by remember { mutableStateOf<Rect?>(null) }
+        var selectedChipWindowBounds by remember { mutableStateOf<IntRect?>(null) }
+        var popupContentSize by remember { mutableStateOf(IntSize.Zero) }
+
         val showPopup = uiState.cardDetailDisplayMode == "POPUP"
         val hasSelectedSegment = selectedSegmentIndex in 0 until (data.segments?.size ?: 0)
+        val rootView = LocalView.current
+        val configuration = LocalConfiguration.current
+        val density = LocalDensity.current
+        val popupGapPx = remember(density) { with(density) { 8.dp.roundToPx() } }
+        val popupCardWidth = remember(configuration.screenWidthDp) {
+            (configuration.screenWidthDp.dp - 48.dp)
+                .coerceAtMost(600.dp)
+                .coerceAtLeast(1.dp)
+        }
         val contentAlpha by animateFloatAsState(
             targetValue = if (showPopup && hasSelectedSegment) 0.35f else 1.0f,
             animationSpec = tween(durationMillis = 200),
@@ -203,18 +227,77 @@ fun WorkspaceResultContent(
         val overscrollTop = remember(uiState.selectedRecord?.id) { Animatable(0f) }
         val overscrollBottom = remember(uiState.selectedRecord?.id) { Animatable(0f) }
         val coroutineScope = rememberCoroutineScope()
-        
-        BackHandler(enabled = showPopup && hasSelectedSegment) {
-            selectedSegmentIndex = -1
+
+        // closePopup: 统一关闭入口，直接重置 selectedSegmentIndex。
+        // 无需防抖——PopupProperties(dismissOnClickOutside=false) 已保证
+        // onDismissRequest 不会因外部点击自动触发，不存在双重关闭风险。
+        val closePopup: () -> Unit = { selectedSegmentIndex = -1 }
+
+        // Fix 2 (corrected): use rememberUpdatedState so the pointerInput lambda
+        // can safely read the latest popup state without needing to restart.
+        val isPopupOpen by rememberUpdatedState(showPopup && hasSelectedSegment)
+
+        // 悬浮窗状态变化时通知上层（用于 AppNavigation 屏蔽左右滑动）
+        LaunchedEffect(showPopup && hasSelectedSegment) {
+            onPopupStateChange(showPopup && hasSelectedSegment)
         }
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        LaunchedEffect(showPopup, selectedSegmentIndex, popupContentSize) {
+            if (!showPopup || !hasSelectedSegment || popupContentSize == IntSize.Zero) {
+                return@LaunchedEffect
+            }
+
+            repeat(2) {
+                var anchorBounds = selectedChipWindowBounds
+                var waitFrames = 0
+                while (anchorBounds == null && waitFrames < 3) {
+                    withFrameNanos { }
+                    anchorBounds = selectedChipWindowBounds
+                    waitFrames++
+                }
+
+                val windowSize = IntSize(rootView.width, rootView.height)
+                if (anchorBounds == null || windowSize.width <= 0 || windowSize.height <= 0) {
+                    return@LaunchedEffect
+                }
+
+                val delta = calculatePopupAvoidanceScrollDelta(
+                    anchorBounds = anchorBounds,
+                    windowSize = windowSize,
+                    popupContentSize = popupContentSize,
+                    currentScroll = scrollState.value,
+                    maxScroll = scrollState.maxValue,
+                    gapPx = popupGapPx
+                )
+
+                if (kotlin.math.abs(delta) <= 1) {
+                    return@LaunchedEffect
+                }
+
+                scrollState.animateScrollTo(
+                    value = (scrollState.value + delta).coerceIn(0, scrollState.maxValue),
+                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+                )
+                withFrameNanos { }
+            }
+        }
+
+        BackHandler(enabled = showPopup && hasSelectedSegment) {
+            closePopup()
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .onGloballyPositioned { parentCoordinates = it }
+        ) {
             Column(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(scrollState) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false)
+
                         var totalDx = 0f
                         var totalDy = 0f
                         var isDirectionLocked = false
@@ -273,14 +356,14 @@ fun WorkspaceResultContent(
                         } while (event.changes.any { it.pressed })
 
                         if (isDragging) {
-                            if (overscrollTop.value > 150f) {
+                            if (overscrollTop.value > 150f && !isPopupOpen) {
                                 // Reset scroll position immediately and synchronously before loading the new record,
                                 // so the outgoing page doesn't carry a non-zero scroll offset
                                 // into the AnimatedContent transition.
                                 scrollState.dispatchRawDelta(-scrollState.value.toFloat())
                                 onLoadOlder()
                             }
-                            if (overscrollBottom.value > 150f) {
+                            if (overscrollBottom.value > 150f && !isPopupOpen) {
                                 scrollState.dispatchRawDelta(-scrollState.value.toFloat())
                                 onLoadNewer()
                             }
@@ -428,7 +511,32 @@ fun WorkspaceResultContent(
                                                 animationSpec = tween(durationMillis = 200),
                                                 label = "chipAlpha"
                                             )
-                                            Box {
+                                            Box(
+                                                modifier = Modifier.onGloballyPositioned { coordinates ->
+                                                     if (isSelected) {
+                                                         parentCoordinates?.let { parent ->
+                                                             if (parent.isAttached && coordinates.isAttached) {
+                                                                 selectedChipRect = parent.localBoundingBoxOf(coordinates, clipBounds = false)
+                                                                 selectedChipWindowBounds = coordinates.boundsInWindow().toIntRect()
+                                                             }
+                                                         }
+                                                     }
+                                                 }
+                                            ) {
+                                                val isVisible = showPopup && index == selectedSegmentIndex
+                                                val transitionState = remember(segment) { MutableTransitionState(false) }
+                                                transitionState.targetState = isVisible
+
+                                                var hasBeenVisible by remember(segment) { mutableStateOf(false) }
+                                                if (isVisible) {
+                                                    hasBeenVisible = true
+                                                }
+                                                LaunchedEffect(transitionState.isIdle, isVisible) {
+                                                    if (transitionState.isIdle && !isVisible) {
+                                                        hasBeenVisible = false
+                                                    }
+                                                }
+
                                                 androidx.compose.animation.AnimatedVisibility(
                                                     visibleState = visibleState,
                                                     enter = if (isHistory) androidx.compose.animation.EnterTransition.None else (scaleIn(initialScale = 0.8f, animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 800f)) + fadeIn(animationSpec = tween(150))),
@@ -448,39 +556,49 @@ fun WorkspaceResultContent(
                                                         onClick = {
                                                             onUserInteracted()
                                                             if (!isThisSegmentLoading) {
-                                                                selectedSegmentIndex = if (selectedSegmentIndex == index) -1 else index
+                                                                if (showPopup && selectedSegmentIndex == index) {
+                                                                    // Do nothing, popup is already opening or open for this card.
+                                                                    // The overlay handles closing.
+                                                                } else {
+                                                                    popupContentSize = IntSize.Zero
+                                                                    selectedSegmentIndex = if (selectedSegmentIndex == index) -1 else index
+                                                                }
                                                             }
                                                         },
                                                         onLongClick = { onToggleBookmark(segment) }
                                                     )
                                                 }
 
-                                                val isVisible = showPopup && index == selectedSegmentIndex
-                                                val transitionState = remember(segment) { MutableTransitionState(false) }
-                                                transitionState.targetState = isVisible
-
-                                                if (transitionState.currentState || transitionState.targetState) {
-                                                    val density = LocalDensity.current
-                                                    val gapPx = remember(density) { with(density) { 8.dp.roundToPx() } }
+                                                if (hasBeenVisible) {
                                                     Popup(
-                                                        popupPositionProvider = remember(gapPx) { SmartPopupPositionProvider(gapPx) },
-                                                        onDismissRequest = { selectedSegmentIndex = -1 },
+                                                        popupPositionProvider = remember(popupGapPx) { SmartPopupPositionProvider(popupGapPx) },
+                                                        // Fix 3: 统一使用 closePopup()，防止与 overlay onTap 同时触发双重关闭
+                                                        onDismissRequest = { closePopup() },
                                                         properties = PopupProperties(
                                                             focusable = false,
                                                             dismissOnClickOutside = false,
                                                             dismissOnBackPress = false
                                                         )
                                                     ) {
-                                                        PopupAnimatedContent(visibleState = transitionState) {
+                                                        PopupAnimatedContent(
+                                                            visibleState = transitionState,
+                                                            modifier = Modifier.clearSystemGestureExclusionWhileAttached()
+                                                        ) {
                                                             CompactSegmentDetailCard(
                                                                 currentSegment = segment,
                                                                 uiState = uiState,
                                                                 onToggleBookmark = onToggleBookmark,
                                                                 onEditWordSegment = onEditWordSegment,
-                                                                onCloseDetails = { selectedSegmentIndex = -1 },
+                                                                // Fix 3: 统一使用 closePopup()
+                                                                onCloseDetails = { closePopup() },
                                                                 uiPreferencesRepository = uiPreferencesRepository,
                                                                 sumiInk = SumiInk,
-                                                                surfaceColor = SurfaceColor
+                                                                surfaceColor = SurfaceColor,
+                                                                modifier = Modifier
+                                                                    .width(popupCardWidth)
+                                                                    .onGloballyPositioned {
+                                                                        popupContentSize = it.size
+                                                                    }
                                                             )
                                                         }
                                                     }
@@ -522,7 +640,8 @@ fun WorkspaceResultContent(
                                     uiState = uiState,
                                     onToggleBookmark = onToggleBookmark,
                                     onEditWordSegment = onEditWordSegment,
-                                    onCloseDetails = { selectedSegmentIndex = -1 },
+                                    // Fix 3: 统一使用 closePopup()
+                                    onCloseDetails = { closePopup() },
                                     uiPreferencesRepository = uiPreferencesRepository,
                                     sumiInk = SumiInk,
                                     surfaceColor = SurfaceColor,
@@ -560,8 +679,8 @@ fun WorkspaceResultContent(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp)
-                                .graphicsLayer { alpha = contentAlpha },
+                                .graphicsLayer { alpha = contentAlpha; clip = false }
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
                             color = SurfaceColor,
                             shape = RoundedCornerShape(24.dp),
                             shadowElevation = 3.dp,
@@ -660,8 +779,8 @@ fun WorkspaceResultContent(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp)
-                                .graphicsLayer { alpha = contentAlpha },
+                                .graphicsLayer { alpha = contentAlpha; clip = false }
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
                             color = SurfaceColor,
                             shape = RoundedCornerShape(24.dp),
                             shadowElevation = 3.dp,
@@ -810,8 +929,8 @@ fun WorkspaceResultContent(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp)
-                                .graphicsLayer { alpha = contentAlpha },
+                                .graphicsLayer { alpha = contentAlpha; clip = false }
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
                             color = SurfaceColor,
                             shape = RoundedCornerShape(24.dp),
                             shadowElevation = 3.dp,
@@ -950,15 +1069,28 @@ fun WorkspaceResultContent(
         }
         
         if (showPopup && hasSelectedSegment) {
+            val haptic = LocalHapticFeedback.current
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Transparent)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        selectedSegmentIndex = -1
+                    .pointerInput(selectedChipRect) {
+                        detectTapGestures(
+                            // Fix 3: 使用 closePopup() 防止与 Popup onDismissRequest 同时触发双重关闭
+                            onTap = { offset ->
+                                closePopup()
+                            },
+                            onLongPress = { offset ->
+                                val rect = selectedChipRect
+                                if (rect != null && rect.contains(offset)) {
+                                    val segment = data.segments?.getOrNull(selectedSegmentIndex)
+                                    if (segment != null) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onToggleBookmark(segment)
+                                    }
+                                }
+                            }
+                        )
                     }
             )
         }
@@ -1138,19 +1270,10 @@ fun CompactSegmentDetailCard(
     Surface(
         color = surfaceColor,
         shape = RoundedCornerShape(16.dp),
-        shadowElevation = 0.dp,
+        shadowElevation = 6.dp,
         border = BorderStroke(1.dp, sumiInk.copy(alpha = 0.15f)),
         modifier = modifier
-            .fillMaxWidth()
-            .widthIn(max = 600.dp)
-            .padding(horizontal = 24.dp, vertical = 24.dp)
-            .fixSystemGestureExclusion()
-            .softShadow(
-                color = sumiInk.copy(alpha = 0.12f),
-                borderRadius = 16.dp,
-                blurRadius = 16.dp,
-                offsetY = 6.dp
-            )
+            .clearSystemGestureExclusionWhileAttached()
     ) {
         Column(
             modifier = Modifier
@@ -1288,7 +1411,8 @@ fun CompactSegmentDetailCard(
                         queryWord = queryWord,
                         uiPreferencesRepository = uiPreferencesRepository,
                         sumiInk = sumiInk,
-                        surfaceColor = surfaceColor
+                        surfaceColor = surfaceColor,
+                        useTextFieldAnchor = false
                     )
                 }
             }
@@ -1305,46 +1429,49 @@ class SmartPopupPositionProvider(
         layoutDirection: LayoutDirection,
         popupContentSize: IntSize
     ): IntOffset {
-        // Horizontal centering relative to the window
-        val x = (windowSize.width - popupContentSize.width) / 2
-
-        // Determine vertical position:
-        // Try below the anchor first
-        val spaceBelow = windowSize.height - anchorBounds.bottom
-        val spaceAbove = anchorBounds.top
-        
-        val y = if (spaceBelow >= popupContentSize.height + gapPx || spaceBelow >= spaceAbove) {
-            // Place below anchor
-            anchorBounds.bottom + gapPx
-        } else {
-            // Place above anchor
-            anchorBounds.top - popupContentSize.height - gapPx
-        }
-        
-        // Clamp bounds to prevent drawing outside window bounds
-        val clampedX = x.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
-        val clampedY = y.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0))
-
-        return IntOffset(clampedX, clampedY)
+        return calculateSmartPopupOffset(anchorBounds, windowSize, popupContentSize, gapPx)
     }
 }
 
 /**
- * Clears the system gesture exclusion rects for the current Android View (Window).
- * When applied inside a Compose [Popup] (which is `focusable = true`), the underlying
- * PopupWindow occupies a full-screen Window that can block Android's edge-swipe back gesture.
- * Calling [ViewCompat.setSystemGestureExclusionRects] with an empty list tells the system
- * that this Window does NOT exclude any area from gesture recognition, allowing the
- * edge-swipe back gesture to pass through on Android 10+ (API 29+).
+ * Keeps the current Popup window from excluding any system gesture area.
+ * Some text-selection and input-like Compose children can write gesture exclusion rects
+ * after the Popup content is first laid out, so clear them at composition, layout, and
+ * disposal time while the floating word card is present.
  */
 @Composable
-fun Modifier.fixSystemGestureExclusion(): Modifier {
+fun Modifier.clearSystemGestureExclusionWhileAttached(): Modifier {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return this
     val view = LocalView.current
+
+    fun clearExclusionRects() {
+        view.post {
+            ViewCompat.setSystemGestureExclusionRects(view, emptyList())
+        }
+    }
+
+    SideEffect {
+        clearExclusionRects()
+    }
+
+    DisposableEffect(view) {
+        clearExclusionRects()
+        onDispose {
+            clearExclusionRects()
+        }
+    }
+
     return this.onGloballyPositioned {
-        ViewCompat.setSystemGestureExclusionRects(view, emptyList())
+        clearExclusionRects()
     }
 }
+
+private fun Rect.toIntRect(): IntRect = IntRect(
+    left = left.roundToInt(),
+    top = top.roundToInt(),
+    right = right.roundToInt(),
+    bottom = bottom.roundToInt()
+)
 
 @Composable
 fun PopupAnimatedContent(
