@@ -142,7 +142,10 @@ fun HistorySidebar(
                 color = SumiInk
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onNavigateToStatistics) {
+                IconButton(
+                    onClick = onNavigateToStatistics,
+                    modifier = Modifier.testTag("history-statistics-button")
+                ) {
                     Icon(Icons.Default.BarChart, contentDescription = stringResource(R.string.statistics_title), tint = SumiInk)
                 }
                 var showMenu by remember { mutableStateOf(false) }

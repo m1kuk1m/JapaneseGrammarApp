@@ -318,7 +318,10 @@ fun WorkspaceScreen(
                                 Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = MaterialTheme.colorScheme.onSurface)
                             }
                         } else {
-                            IconButton(onClick = onOpenDrawer) {
+                            IconButton(
+                                onClick = onOpenDrawer,
+                                modifier = Modifier.testTag("workspace-history-button")
+                            ) {
                                 Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = MaterialTheme.colorScheme.onSurface)
                             }
                         }
@@ -387,7 +390,9 @@ fun WorkspaceScreen(
                             ) {
                                 IconButton(
                                     onClick = onOpenDrawer,
-                                    modifier = Modifier.size(40.dp)
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .testTag("workspace-history-button")
                                 ) {
                                     Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = SumiInk)
                                 }

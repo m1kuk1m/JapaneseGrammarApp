@@ -137,21 +137,9 @@ fun WorkspaceResultContent(
         androidx.compose.foundation.ScrollState(0)
     }
     LaunchedEffect(uiState.selectedRecord?.id) {
-        // Immediate reset
+        // Each record owns a fresh ScrollState, so initialize the incoming page at top
+        // without repeatedly mutating scroll during the page transition.
         scrollState.scrollTo(0)
-        // Monitor for scroll position drift during the AnimatedContent transition
-        // and layout re-measurements (topBoxHeight reset, detailedResult loading).
-        // Force scroll back to 0 if it drifts during this settlement window.
-        val settlementEndTime = System.currentTimeMillis() + 500L
-        while (System.currentTimeMillis() < settlementEndTime) {
-            if (scrollState.value != 0) {
-                scrollState.scrollTo(0)
-            }
-            kotlinx.coroutines.delay(16) // Check roughly every frame (60fps)
-        }
-        if (scrollState.value != 0) {
-            scrollState.scrollTo(0)
-        }
     }
 
     LaunchedEffect(scrollState.isScrollInProgress) {
@@ -228,14 +216,23 @@ fun WorkspaceResultContent(
         val overscrollBottom = remember(uiState.selectedRecord?.id) { Animatable(0f) }
         val coroutineScope = rememberCoroutineScope()
 
+        fun resetPopupState() {
+            popupContentSize = IntSize.Zero
+            selectedSegmentIndex = -1
+        }
+
         // closePopup: 统一关闭入口，直接重置 selectedSegmentIndex。
         // 无需防抖——PopupProperties(dismissOnClickOutside=false) 已保证
         // onDismissRequest 不会因外部点击自动触发，不存在双重关闭风险。
-        val closePopup: () -> Unit = { selectedSegmentIndex = -1 }
+        val closePopup: () -> Unit = { resetPopupState() }
 
         // Fix 2 (corrected): use rememberUpdatedState so the pointerInput lambda
         // can safely read the latest popup state without needing to restart.
         val isPopupOpen by rememberUpdatedState(showPopup && hasSelectedSegment)
+
+        LaunchedEffect(uiState.selectedRecord?.id, uiState.cardDetailDisplayMode) {
+            resetPopupState()
+        }
 
         // 悬浮窗状态变化时通知上层（用于 AppNavigation 屏蔽左右滑动）
         LaunchedEffect(showPopup && hasSelectedSegment) {
@@ -247,20 +244,16 @@ fun WorkspaceResultContent(
                 return@LaunchedEffect
             }
 
-            repeat(2) {
-                var anchorBounds = selectedChipWindowBounds
-                var waitFrames = 0
-                while (anchorBounds == null && waitFrames < 3) {
-                    withFrameNanos { }
-                    anchorBounds = selectedChipWindowBounds
-                    waitFrames++
-                }
+            var anchorBounds = selectedChipWindowBounds
+            var waitFrames = 0
+            while (anchorBounds == null && waitFrames < 3) {
+                withFrameNanos { }
+                anchorBounds = selectedChipWindowBounds
+                waitFrames++
+            }
 
-                val windowSize = IntSize(rootView.width, rootView.height)
-                if (anchorBounds == null || windowSize.width <= 0 || windowSize.height <= 0) {
-                    return@LaunchedEffect
-                }
-
+            val windowSize = IntSize(rootView.width, rootView.height)
+            if (anchorBounds != null && windowSize.width > 0 && windowSize.height > 0) {
                 val delta = calculatePopupAvoidanceScrollDelta(
                     anchorBounds = anchorBounds,
                     windowSize = windowSize,
@@ -270,15 +263,13 @@ fun WorkspaceResultContent(
                     gapPx = popupGapPx
                 )
 
-                if (kotlin.math.abs(delta) <= 1) {
-                    return@LaunchedEffect
+                if (kotlin.math.abs(delta) > 1) {
+                    scrollState.animateScrollTo(
+                        value = (scrollState.value + delta).coerceIn(0, scrollState.maxValue),
+                        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+                    )
+                    withFrameNanos { }
                 }
-
-                scrollState.animateScrollTo(
-                    value = (scrollState.value + delta).coerceIn(0, scrollState.maxValue),
-                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
-                )
-                withFrameNanos { }
             }
         }
 
@@ -356,19 +347,29 @@ fun WorkspaceResultContent(
                         } while (event.changes.any { it.pressed })
 
                         if (isDragging) {
-                            if (overscrollTop.value > 150f && !isPopupOpen) {
-                                // Reset scroll position immediately and synchronously before loading the new record,
-                                // so the outgoing page doesn't carry a non-zero scroll offset
-                                // into the AnimatedContent transition.
-                                scrollState.dispatchRawDelta(-scrollState.value.toFloat())
-                                onLoadOlder()
+                            val shouldLoadOlder = overscrollTop.value > 150f && !isPopupOpen
+                            val shouldLoadNewer = overscrollBottom.value > 150f && !isPopupOpen
+
+                            when {
+                                shouldLoadOlder -> {
+                                    coroutineScope.launch {
+                                        overscrollTop.snapTo(0f)
+                                        overscrollBottom.snapTo(0f)
+                                        onLoadOlder()
+                                    }
+                                }
+                                shouldLoadNewer -> {
+                                    coroutineScope.launch {
+                                        overscrollTop.snapTo(0f)
+                                        overscrollBottom.snapTo(0f)
+                                        onLoadNewer()
+                                    }
+                                }
+                                else -> {
+                                    coroutineScope.launch { overscrollTop.animateTo(0f) }
+                                    coroutineScope.launch { overscrollBottom.animateTo(0f) }
+                                }
                             }
-                            if (overscrollBottom.value > 150f && !isPopupOpen) {
-                                scrollState.dispatchRawDelta(-scrollState.value.toFloat())
-                                onLoadNewer()
-                            }
-                            coroutineScope.launch { overscrollTop.animateTo(0f) }
-                            coroutineScope.launch { overscrollBottom.animateTo(0f) }
                         }
                     }
                 }
@@ -560,8 +561,13 @@ fun WorkspaceResultContent(
                                                                     // Do nothing, popup is already opening or open for this card.
                                                                     // The overlay handles closing.
                                                                 } else {
-                                                                    popupContentSize = IntSize.Zero
-                                                                    selectedSegmentIndex = if (selectedSegmentIndex == index) -1 else index
+                                                                    if (showPopup) {
+                                                                        popupContentSize = IntSize.Zero
+                                                                        selectedSegmentIndex = index
+                                                                    } else {
+                                                                        popupContentSize = IntSize.Zero
+                                                                        selectedSegmentIndex = if (selectedSegmentIndex == index) -1 else index
+                                                                    }
                                                                 }
                                                             }
                                                         },
@@ -582,7 +588,8 @@ fun WorkspaceResultContent(
                                                     ) {
                                                         PopupAnimatedContent(
                                                             visibleState = transitionState,
-                                                            modifier = Modifier.clearSystemGestureExclusionWhileAttached()
+                                                            modifier = Modifier.clearSystemGestureExclusionWhileAttached(),
+                                                            onPositioned = { popupContentSize = it.size }
                                                         ) {
                                                             CompactSegmentDetailCard(
                                                                 currentSegment = segment,
@@ -596,9 +603,6 @@ fun WorkspaceResultContent(
                                                                 surfaceColor = SurfaceColor,
                                                                 modifier = Modifier
                                                                     .width(popupCardWidth)
-                                                                    .onGloballyPositioned {
-                                                                        popupContentSize = it.size
-                                                                    }
                                                             )
                                                         }
                                                     }
@@ -1094,6 +1098,7 @@ fun WorkspaceResultContent(
                     }
             )
         }
+
     }
 }
 }
@@ -1270,9 +1275,17 @@ fun CompactSegmentDetailCard(
     Surface(
         color = surfaceColor,
         shape = RoundedCornerShape(16.dp),
-        shadowElevation = 6.dp,
+        shadowElevation = 0.dp,
         border = BorderStroke(1.dp, sumiInk.copy(alpha = 0.15f)),
         modifier = modifier
+            .testTag("segment-detail-popup")
+            .softShadow(
+                color = Color.Black.copy(alpha = 0.18f),
+                borderRadius = 16.dp,
+                blurRadius = 18.dp,
+                offsetY = 6.dp,
+                spread = 1.dp
+            )
             .clearSystemGestureExclusionWhileAttached()
     ) {
         Column(
@@ -1323,11 +1336,13 @@ fun CompactSegmentDetailCard(
                 
                 IconButton(
                     onClick = onCloseDetails,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier
+                        .size(24.dp)
+                        .testTag("segment-detail-popup-close")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.close_details),
                         tint = sumiInk.copy(alpha = 0.4f),
                         modifier = Modifier.size(16.dp)
                     )
@@ -1477,6 +1492,7 @@ private fun Rect.toIntRect(): IntRect = IntRect(
 fun PopupAnimatedContent(
     visibleState: MutableTransitionState<Boolean>,
     modifier: Modifier = Modifier,
+    onPositioned: (LayoutCoordinates) -> Unit = {},
     content: @Composable () -> Unit
 ) {
     AnimatedVisibility(
@@ -1486,6 +1502,23 @@ fun PopupAnimatedContent(
                 scaleIn(initialScale = 0.9f, animationSpec = tween(250, easing = LinearOutSlowInEasing)),
         exit = fadeOut(tween(200)) + 
                scaleOut(targetScale = 0.9f, animationSpec = tween(200))
+    ) {
+        PopupContentFrame(onPositioned = onPositioned) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun PopupContentFrame(
+    modifier: Modifier = Modifier,
+    onPositioned: (LayoutCoordinates) -> Unit = {},
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .onGloballyPositioned(onPositioned)
+            .padding(horizontal = 24.dp, vertical = 22.dp)
     ) {
         content()
     }
