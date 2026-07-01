@@ -97,7 +97,8 @@ fun WorkspaceScreen(
         if (navController.currentDestination?.route == "workspace") {
             navController.navigate("settings")
         }
-    }
+    },
+    onPopupStateChange: (Boolean) -> Unit = {}
 ) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val WashiBg = MaterialTheme.colorScheme.background
@@ -317,7 +318,10 @@ fun WorkspaceScreen(
                                 Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back), tint = MaterialTheme.colorScheme.onSurface)
                             }
                         } else {
-                            IconButton(onClick = onOpenDrawer) {
+                            IconButton(
+                                onClick = onOpenDrawer,
+                                modifier = Modifier.testTag("workspace-history-button")
+                            ) {
                                 Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = MaterialTheme.colorScheme.onSurface)
                             }
                         }
@@ -386,7 +390,9 @@ fun WorkspaceScreen(
                             ) {
                                 IconButton(
                                     onClick = onOpenDrawer,
-                                    modifier = Modifier.size(40.dp)
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .testTag("workspace-history-button")
                                 ) {
                                     Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.history_menu_desc), tint = SumiInk)
                                 }
@@ -740,6 +746,7 @@ fun WorkspaceScreen(
                                                     uiPreferencesRepository = viewModel.uiPreferencesRepository,
                                                     onUserInteracted = { viewModel.markCurrentRecordAsRead() },
                                                     onScrollStateChange = { isResultScrolled = it },
+                                                    onPopupStateChange = onPopupStateChange,
                                                     topPadding = topBoxHeight
                                                 )
                                             }

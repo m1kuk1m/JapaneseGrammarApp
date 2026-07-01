@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -163,6 +164,9 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
             
             var recordToDelete by remember { mutableStateOf<AnalysisDomainRecord?>(null) }
             var showExportDialog by remember { mutableStateOf(false) }
+            var isNavigatingToStatistics by remember { mutableStateOf(false) }
+            // 记录悬浮词语卡片是否打开，用于屏蔽左右滑动
+            var isWordPopupOpen by remember { mutableStateOf(false) }
 
             val WashiBg = androidx.compose.material3.MaterialTheme.colorScheme.background
             val SumiInk = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
@@ -230,9 +234,9 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 }
             }
 
-            fun animateDrawerTo(targetOffset: Float, durationMillis: Int) {
+            fun animateDrawerTo(targetOffset: Float, durationMillis: Int): Job {
                 drawerAnimationJob?.cancel()
-                drawerAnimationJob = coroutineScope.launch {
+                val job = coroutineScope.launch {
                     drawerAnimationRunning = true
                     try {
                         drawerAnimation.snapTo(drawerOffsetPx)
@@ -247,6 +251,8 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                         drawerAnimationRunning = false
                     }
                 }
+                drawerAnimationJob = job
+                return job
             }
 
             fun settleDrawer(velocityX: Float) {
@@ -262,8 +268,8 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 animateDrawerTo(drawerWidthPx, 220)
             }
 
-            fun closeDrawer() {
-                animateDrawerTo(0f, 200)
+            fun closeDrawer(): Job {
+                return animateDrawerTo(0f, 200)
             }
 
             val drawerProgress = if (drawerWidthPx > 0f) {
@@ -279,10 +285,18 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(pagerState.currentPage, fromBookmarks, drawerWidthPx) {
+                        .pointerInput(pagerState.currentPage, fromBookmarks, drawerWidthPx, isWordPopupOpen) {
                             if (pagerState.currentPage == 0) {
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
+                                    
+                                    // 悬浮卡片弹出时屏蔽右滑打开侧栏手势
+                                    if (isWordPopupOpen) {
+                                        do {
+                                            val event = awaitPointerEvent()
+                                        } while (event.changes.any { it.pressed })
+                                        return@awaitEachGesture
+                                    }
                                     
                                     val fabX = workspaceViewModel.uiPreferencesRepository.getFloatingActionBallX(defaultFabX)
                                     val fabY = workspaceViewModel.uiPreferencesRepository.getFloatingActionBallY(defaultFabY)
@@ -373,7 +387,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
-                        userScrollEnabled = !drawerVisible
+                        userScrollEnabled = !drawerVisible && !isWordPopupOpen
                     ) { page ->
                         when (page) {
                             0 -> {
@@ -388,7 +402,8 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                                         coroutineScope.launch {
                                             pagerState.animateScrollToPage(1)
                                         }
-                                    }
+                                    },
+                                    onPopupStateChange = { isOpen -> isWordPopupOpen = isOpen }
                                 )
                             }
                             1 -> {
@@ -537,9 +552,20 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                             onImportHistory = { uri -> workspaceViewModel.importHistoryFromUri(uri) },
                             onToggleBookmarkSentence = { record -> workspaceViewModel.toggleSentenceBookmark(record) },
                             onNavigateToStatistics = {
-                                drawerAnimationJob?.cancel()
-                                drawerOffsetPx = 0f
-                                navController.navigate("statistics")
+                                if (!isNavigatingToStatistics) {
+                                    isNavigatingToStatistics = true
+                                    val closeJob = closeDrawer()
+                                    navController.navigate("statistics") {
+                                        launchSingleTop = true
+                                    }
+                                    coroutineScope.launch {
+                                        try {
+                                            closeJob.join()
+                                        } finally {
+                                            isNavigatingToStatistics = false
+                                        }
+                                    }
+                                }
                             }
                         )
                     }
@@ -900,13 +926,19 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 )
             }
         ) {
-            com.example.japanesegrammarapp.ui.statistics.StatisticsScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToHistory = { navController.navigate("bookmarks") },
-                onNavigateToRecord = { recordId, bookmarkId ->
-                    navController.navigate("bookmark_workspace?recordId=$recordId&bookmarkId=$bookmarkId")
-                }
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .testTag("statistics-screen")
+            ) {
+                com.example.japanesegrammarapp.ui.statistics.StatisticsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToHistory = { navController.navigate("bookmarks") },
+                    onNavigateToRecord = { recordId, bookmarkId ->
+                        navController.navigate("bookmark_workspace?recordId=$recordId&bookmarkId=$bookmarkId")
+                    }
+                )
+            }
         }
     }
 }

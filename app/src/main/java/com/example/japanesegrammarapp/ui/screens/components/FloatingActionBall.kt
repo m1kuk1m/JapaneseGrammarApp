@@ -61,8 +61,8 @@ fun FloatingActionBall(
     
     var isDragging by remember { mutableStateOf(false) }
     var currentMode by remember { 
-        val savedMode = uiPreferencesRepository.getFloatingActionBallMode(ActionMode.Text.name)
-        mutableStateOf(runCatching { ActionMode.valueOf(savedMode) }.getOrDefault(ActionMode.Text))
+        val savedMode = uiPreferencesRepository.getFloatingActionBallMode(ActionMode.Camera.name)
+        mutableStateOf(runCatching { ActionMode.valueOf(savedMode) }.getOrDefault(ActionMode.Camera))
     }
 
     val edgeMargin = with(density) { 8.dp.toPx() }

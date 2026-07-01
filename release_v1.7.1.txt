@@ -1,0 +1,5 @@
+v1.7.1 Release Notes
+- Smart Popup Positioning: Forced the sentence analysis floating window to always display below the anchor text, adjusting layout positioning to ensure accessibility and readability when space is tight.
+- Text Recognition (OCR): Upgraded image tokenizer prompts to support vertical reading order (from right-to-left, top-to-bottom) for Japanese text.
+- Statistics Screen: Improved navigation behavior from bookmarked sheets, resolved UI state transitions, and added testing tags for reliable automated smoke test coverage.
+- Automated Tests: Added a new UI smoke test (AppUiSmokeTest.kt) and test cases for popup avoidance math.
