@@ -7,21 +7,15 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
-internal fun calculateSmartPopupOffset(
+fun calculateSmartPopupOffset(
     anchorBounds: IntRect,
     windowSize: IntSize,
     popupContentSize: IntSize,
     gapPx: Int
 ): IntOffset {
     val x = (windowSize.width - popupContentSize.width) / 2
-    val spaceBelow = windowSize.height - anchorBounds.bottom
-    val spaceAbove = anchorBounds.top
-
-    val y = if (spaceBelow >= popupContentSize.height + gapPx || spaceBelow >= spaceAbove) {
-        anchorBounds.bottom + gapPx
-    } else {
-        anchorBounds.top - popupContentSize.height - gapPx
-    }
+    // 固定展开在 anchor 下方，空间不足时由外层滚动补偿逻辑处理
+    val y = anchorBounds.bottom + gapPx
 
     return IntOffset(
         x.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
@@ -29,7 +23,7 @@ internal fun calculateSmartPopupOffset(
     )
 }
 
-internal fun calculateSmartPopupBounds(
+fun calculateSmartPopupBounds(
     anchorBounds: IntRect,
     windowSize: IntSize,
     popupContentSize: IntSize,
@@ -44,7 +38,7 @@ internal fun calculateSmartPopupBounds(
     )
 }
 
-internal fun calculatePopupAvoidanceScrollDelta(
+fun calculatePopupAvoidanceScrollDelta(
     anchorBounds: IntRect,
     windowSize: IntSize,
     popupContentSize: IntSize,
@@ -91,19 +85,14 @@ internal fun calculatePopupAvoidanceScrollDelta(
     return rawCandidates
         .map { it.coerceIn(minDelta, maxDelta) }
         .toSet()
-        .map { delta -> AvoidanceCandidate(delta, overlapAfter(delta)) }
+        .map { delta -> delta to overlapAfter(delta) }
         .minWith(
-            compareBy<AvoidanceCandidate> { if (it.overlapArea == 0) 0 else 1 }
-                .thenBy { if (it.overlapArea == 0) abs(it.delta) else it.overlapArea }
-                .thenBy { abs(it.delta) }
+            compareBy<Pair<Int, Int>> { if (it.second == 0) 0 else 1 }
+                .thenBy { if (it.second == 0) abs(it.first) else it.second }
+                .thenBy { abs(it.first) }
         )
-        .delta
+        .first
 }
-
-private data class AvoidanceCandidate(
-    val delta: Int,
-    val overlapArea: Int
-)
 
 private fun overlapArea(a: IntRect, b: IntRect): Int {
     val overlapWidth = min(a.right, b.right) - max(a.left, b.left)

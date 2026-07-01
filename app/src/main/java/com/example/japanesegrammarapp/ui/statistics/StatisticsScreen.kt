@@ -36,6 +36,7 @@ import com.example.japanesegrammarapp.ui.screens.BookmarkGrammarCard
 import com.example.japanesegrammarapp.ui.screens.EditWordDialog
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.testTag
 import com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain
 import com.example.japanesegrammarapp.domain.model.effectivePosCategory
 import androidx.compose.ui.draw.rotate
@@ -57,9 +58,13 @@ import com.patrykandpatrick.vico.core.marker.Marker
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class StatisticsModalType { ANALYZED_SENTENCES, BOOKMARKED_SENTENCES, WORDS, GRAMMAR }
+
+private const val StatisticsSheetReturnRestoreDelayMs = 260L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,7 +99,8 @@ fun StatisticsScreen(
         ) {
             var transitionTarget by remember { mutableStateOf<Triple<StatisticsTimeRange, LocalDate, com.example.japanesegrammarapp.domain.StatisticsSummary>?>(null) }
             var activeModalType by rememberSaveable { mutableStateOf<StatisticsModalType?>(null) }
-            var returningFromNav by rememberSaveable { mutableStateOf(false) }
+            var isNavigatingFromSheet by rememberSaveable { mutableStateOf(false) }
+            var shouldRestoreSheetOnResume by rememberSaveable { mutableStateOf(false) }
             val coroutineScope = rememberCoroutineScope()
             val sentencesListState = rememberLazyListState()
             val sentenceBookmarksListState = rememberLazyListState()
@@ -364,27 +370,68 @@ fun StatisticsScreen(
                             } ?: targetSummary.bookmarkedGrammar
 
                             val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                            var restoreSheetJob by remember { mutableStateOf<Job?>(null) }
+                            val latestActiveModalType by rememberUpdatedState(activeModalType)
+                            val navigateFromSheet: (Int, Int) -> Unit = { recordId, bookmarkId ->
+                                if (!isNavigatingFromSheet) {
+                                    isNavigatingFromSheet = true
+                                    shouldRestoreSheetOnResume = true
+                                    coroutineScope.launch {
+                                        sheetState.hide()
+                                    }
+                                    onNavigateToRecord(recordId, bookmarkId)
+                                }
+                            }
                             
                             val lifecycleOwner = LocalLifecycleOwner.current
                             DisposableEffect(lifecycleOwner) {
                                 val observer = LifecycleEventObserver { _, event ->
-                                    if (event == Lifecycle.Event.ON_RESUME) {
-                                        if (returningFromNav) {
-                                            coroutineScope.launch {
-                                                sheetState.show()
-                                                returningFromNav = false
+                                    when (event) {
+                                        Lifecycle.Event.ON_RESUME -> {
+                                            if (shouldRestoreSheetOnResume && latestActiveModalType != null) {
+                                                restoreSheetJob?.cancel()
+                                                restoreSheetJob = coroutineScope.launch {
+                                                    delay(StatisticsSheetReturnRestoreDelayMs)
+                                                    if (
+                                                        shouldRestoreSheetOnResume &&
+                                                        latestActiveModalType != null &&
+                                                        lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+                                                    ) {
+                                                        sheetState.show()
+                                                        shouldRestoreSheetOnResume = false
+                                                        isNavigatingFromSheet = false
+                                                    } else if (latestActiveModalType == null) {
+                                                        shouldRestoreSheetOnResume = false
+                                                        isNavigatingFromSheet = false
+                                                    }
+                                                }
+                                            } else if (shouldRestoreSheetOnResume && latestActiveModalType == null) {
+                                                shouldRestoreSheetOnResume = false
+                                                isNavigatingFromSheet = false
                                             }
                                         }
+                                        Lifecycle.Event.ON_STOP,
+                                        Lifecycle.Event.ON_DESTROY -> {
+                                            restoreSheetJob?.cancel()
+                                            restoreSheetJob = null
+                                        }
+                                        else -> Unit
                                     }
                                 }
                                 lifecycleOwner.lifecycle.addObserver(observer)
                                 onDispose {
+                                    restoreSheetJob?.cancel()
+                                    restoreSheetJob = null
                                     lifecycleOwner.lifecycle.removeObserver(observer)
                                 }
                             }
 
                             ModalBottomSheet(
-                                onDismissRequest = { activeModalType = null },
+                                onDismissRequest = {
+                                    if (!isNavigatingFromSheet) {
+                                        activeModalType = null
+                                    }
+                                },
                                 sheetState = sheetState,
                                 containerColor = washiBg,
                                 dragHandle = { BottomSheetDefaults.DragHandle(color = sumiInk.copy(alpha = 0.4f)) }
@@ -393,6 +440,7 @@ fun StatisticsScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .fillMaxHeight(0.85f)
+                                        .testTag("statistics-detail-sheet")
                                         .padding(horizontal = 16.dp)
                                 ) {
                                     val title = when (activeModalType) {
@@ -439,13 +487,11 @@ fun StatisticsScreen(
                                                     DetailedSentenceItem(
                                                         record = record,
                                                         canNavigate = record.recordId > 0,
+                                                        modifier = Modifier.testTag("statistics-sheet-analyzed-sentence"),
+                                                        navigateButtonModifier = Modifier.testTag("statistics-sheet-analyzed-sentence-navigate"),
                                                         onClickNavigate = {
                                                             if (record.recordId > 0) {
-                                                                returningFromNav = true
-                                                                onNavigateToRecord(record.recordId, record.id)
-                                                                coroutineScope.launch {
-                                                                    sheetState.hide()
-                                                                }
+                                                                navigateFromSheet(record.recordId, record.id)
                                                             }
                                                         }
                                                     )
@@ -456,13 +502,11 @@ fun StatisticsScreen(
                                                     DetailedSentenceItem(
                                                         record = sentence,
                                                         canNavigate = sentence.recordId > 0,
+                                                        modifier = Modifier.testTag("statistics-sheet-bookmarked-sentence"),
+                                                        navigateButtonModifier = Modifier.testTag("statistics-sheet-bookmarked-sentence-navigate"),
                                                         onClickNavigate = {
                                                             if (sentence.recordId > 0) {
-                                                                returningFromNav = true
-                                                                onNavigateToRecord(sentence.recordId, sentence.id)
-                                                                coroutineScope.launch {
-                                                                    sheetState.hide()
-                                                                }
+                                                                navigateFromSheet(sentence.recordId, sentence.id)
                                                             }
                                                         }
                                                     )
@@ -473,13 +517,11 @@ fun StatisticsScreen(
                                                     ExpandableWordItem(
                                                         bookmark = bookmark,
                                                         canNavigate = bookmark.recordId > 0,
+                                                        modifier = Modifier.testTag("statistics-sheet-word"),
+                                                        navigateButtonModifier = Modifier.testTag("statistics-sheet-word-navigate"),
                                                         onClickNavigate = {
                                                             if (bookmark.recordId > 0) {
-                                                                returningFromNav = true
-                                                                onNavigateToRecord(bookmark.recordId, bookmark.id)
-                                                                coroutineScope.launch {
-                                                                    sheetState.hide()
-                                                                }
+                                                                navigateFromSheet(bookmark.recordId, bookmark.id)
                                                             }
                                                         }
                                                     )
@@ -490,13 +532,10 @@ fun StatisticsScreen(
                                                     DetailedGrammarItem(
                                                         grammar = grammar,
                                                         canNavigate = grammar.recordId > 0,
+                                                        modifier = Modifier.testTag("statistics-sheet-grammar"),
                                                         onClick = {
                                                             if (grammar.recordId > 0) {
-                                                                returningFromNav = true
-                                                                onNavigateToRecord(grammar.recordId, -1)
-                                                                coroutineScope.launch {
-                                                                    sheetState.hide()
-                                                                }
+                                                                navigateFromSheet(grammar.recordId, -1)
                                                             }
                                                         }
                                                     )
@@ -1043,6 +1082,8 @@ fun ViewAllButton(
 fun DetailedSentenceItem(
     record: com.example.japanesegrammarapp.domain.model.BookmarkedSentenceDomain,
     canNavigate: Boolean = true,
+    modifier: Modifier = Modifier,
+    navigateButtonModifier: Modifier = Modifier,
     onClickNavigate: () -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
@@ -1056,7 +1097,7 @@ fun DetailedSentenceItem(
     )
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable { isExpanded = !isExpanded },
         colors = CardDefaults.cardColors(containerColor = cardBg),
@@ -1096,7 +1137,7 @@ fun DetailedSentenceItem(
                     IconButton(
                         onClick = onClickNavigate,
                         enabled = canNavigate,
-                        modifier = Modifier.size(36.dp)
+                        modifier = navigateButtonModifier.size(36.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowForward,
@@ -1138,6 +1179,8 @@ fun DetailedSentenceItem(
 fun ExpandableWordItem(
     bookmark: com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain,
     canNavigate: Boolean = true,
+    modifier: Modifier = Modifier,
+    navigateButtonModifier: Modifier = Modifier,
     onClickNavigate: () -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
@@ -1151,7 +1194,7 @@ fun ExpandableWordItem(
     )
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable { isExpanded = !isExpanded },
         colors = CardDefaults.cardColors(containerColor = cardBg),
@@ -1215,7 +1258,7 @@ fun ExpandableWordItem(
                     IconButton(
                         onClick = onClickNavigate,
                         enabled = canNavigate,
-                        modifier = Modifier.size(36.dp)
+                        modifier = navigateButtonModifier.size(36.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowForward,
@@ -1271,13 +1314,14 @@ fun ExpandableWordItem(
 fun DetailedGrammarItem(
     grammar: com.example.japanesegrammarapp.domain.model.BookmarkedGrammarPointDomain,
     canNavigate: Boolean = true,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val cardBg = ZenThemeColors.cardBg()
     val sumiInk = ZenThemeColors.sumiInk()
     
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(enabled = canNavigate, onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = cardBg),

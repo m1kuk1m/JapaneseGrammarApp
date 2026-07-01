@@ -82,6 +82,29 @@ class PopupAvoidanceMathTest {
     }
 
     @Test
+    fun returnsZeroWhenPopupSizeIsUnknown() {
+        val zeroWidthDelta = calculatePopupAvoidanceScrollDelta(
+            anchorBounds = IntRect(80, 360, 220, 420),
+            windowSize = window,
+            popupContentSize = IntSize(width = 0, height = 500),
+            currentScroll = 300,
+            maxScroll = 1000,
+            gapPx = gap
+        )
+        val zeroHeightDelta = calculatePopupAvoidanceScrollDelta(
+            anchorBounds = IntRect(80, 360, 220, 420),
+            windowSize = window,
+            popupContentSize = IntSize(width = 320, height = 0),
+            currentScroll = 300,
+            maxScroll = 1000,
+            gapPx = gap
+        )
+
+        assertEquals(0, zeroWidthDelta)
+        assertEquals(0, zeroHeightDelta)
+    }
+
+    @Test
     fun returnsZeroWhenPopupAlreadyAvoidsAnchor() {
         val delta = calculatePopupAvoidanceScrollDelta(
             anchorBounds = IntRect(80, 720, 220, 760),
