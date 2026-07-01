@@ -97,7 +97,8 @@ fun WorkspaceScreen(
         if (navController.currentDestination?.route == "workspace") {
             navController.navigate("settings")
         }
-    }
+    },
+    onPopupStateChange: (Boolean) -> Unit = {}
 ) {
     val SumiInk = MaterialTheme.colorScheme.onBackground
     val WashiBg = MaterialTheme.colorScheme.background
@@ -740,6 +741,7 @@ fun WorkspaceScreen(
                                                     uiPreferencesRepository = viewModel.uiPreferencesRepository,
                                                     onUserInteracted = { viewModel.markCurrentRecordAsRead() },
                                                     onScrollStateChange = { isResultScrolled = it },
+                                                    onPopupStateChange = onPopupStateChange,
                                                     topPadding = topBoxHeight
                                                 )
                                             }
