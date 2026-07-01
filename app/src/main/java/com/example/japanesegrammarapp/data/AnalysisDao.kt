@@ -22,6 +22,11 @@ data class DailyTokenUsageEntity(
     val totalTokens: Int
 )
 
+data class DailyStudyCountEntity(
+    val date: String,
+    val count: Int
+)
+
 data class HistoryExportPreviewEntity(
     val id: Int,
     val originalText: String,
@@ -96,4 +101,7 @@ interface AnalysisDao {
 
     @Query("SELECT DISTINCT date(timestamp / 1000, 'unixepoch', 'localtime') as date FROM analysis_records WHERE status = 'COMPLETED' ORDER BY date ASC")
     suspend fun getDistinctStudyDates(): List<String>
+
+    @Query("SELECT date(timestamp / 1000, 'unixepoch', 'localtime') as date, COUNT(*) as count FROM analysis_records WHERE timestamp >= :startTime AND timestamp <= :endTime AND status = 'COMPLETED' GROUP BY date ORDER BY date ASC")
+    suspend fun getDailyStudyCounts(startTime: Long, endTime: Long): List<DailyStudyCountEntity>
 }

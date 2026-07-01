@@ -11,14 +11,14 @@ class UiPreferencesRepositoryImplTest {
 
         assertEquals(10f, repository.getFloatingActionBallX(10f), 0.001f)
         assertEquals(20f, repository.getFloatingActionBallY(20f), 0.001f)
-        assertEquals("Text", repository.getFloatingActionBallMode("Text"))
+        assertEquals("Camera", repository.getFloatingActionBallMode("Camera"))
 
         repository.saveFloatingActionBallPosition(42.5f, 88.25f)
-        repository.saveFloatingActionBallMode("Camera")
+        repository.saveFloatingActionBallMode("Text")
 
         assertEquals(42.5f, repository.getFloatingActionBallX(10f), 0.001f)
         assertEquals(88.25f, repository.getFloatingActionBallY(20f), 0.001f)
-        assertEquals("Camera", repository.getFloatingActionBallMode("Text"))
+        assertEquals("Text", repository.getFloatingActionBallMode("Camera"))
     }
 
     @Test

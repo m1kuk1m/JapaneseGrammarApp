@@ -54,19 +54,12 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.foundation.border
 import com.patrykandpatrick.vico.core.component.marker.MarkerComponent
 import com.patrykandpatrick.vico.core.marker.Marker
-import com.patrykandpatrick.vico.compose.component.shapeComponent
-import com.patrykandpatrick.vico.compose.component.textComponent
-import com.patrykandpatrick.vico.compose.component.lineComponent
-import com.patrykandpatrick.vico.core.component.shape.Shapes
-import com.patrykandpatrick.vico.core.context.DrawContext
-import android.graphics.RectF
-import com.patrykandpatrick.vico.compose.dimensions.dimensionsOf
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import kotlinx.coroutines.launch
 
-enum class StatisticsModalType { SENTENCES, WORDS, GRAMMAR }
+enum class StatisticsModalType { ANALYZED_SENTENCES, BOOKMARKED_SENTENCES, WORDS, GRAMMAR }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,7 +72,6 @@ fun StatisticsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val washiBg = ZenThemeColors.washiBg()
     val sumiInk = ZenThemeColors.sumiInk()
-    val cardBg = ZenThemeColors.cardBg()
 
     Scaffold(
         containerColor = washiBg,
@@ -105,6 +97,7 @@ fun StatisticsScreen(
             var returningFromNav by rememberSaveable { mutableStateOf(false) }
             val coroutineScope = rememberCoroutineScope()
             val sentencesListState = rememberLazyListState()
+            val sentenceBookmarksListState = rememberLazyListState()
             val wordsListState = rememberLazyListState()
             val grammarListState = rememberLazyListState()
             
@@ -115,8 +108,6 @@ fun StatisticsScreen(
                 }
             }
 
-            var pendingDeleteId by remember { mutableStateOf<Int?>(null) }
-            var expandedId by remember { mutableStateOf<Int?>(null) }
             var editingBookmark by remember { mutableStateOf<BookmarkedSegmentDomain?>(null) }
 
             if (uiState.isLoading && transitionTarget == null) {
@@ -129,8 +120,6 @@ fun StatisticsScreen(
                 }
             } else {
                 transitionTarget?.let { (currentTargetTimeRange, currentTargetDate, targetSummary) ->
-                    val isDaily = currentTargetTimeRange == StatisticsTimeRange.DAILY
-                    
                     Box(modifier = Modifier.fillMaxSize()) {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -188,6 +177,13 @@ fun StatisticsScreen(
                                     } ?: summary.analyzedSentences
                                     val displaySentences = allSentences.take(3)
 
+                                    val allSentenceBookmarks = selectedDate?.let { date ->
+                                        summary.bookmarkedSentences.filter {
+                                            java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
+                                        }
+                                    } ?: summary.bookmarkedSentences
+                                    val displaySentenceBookmarks = allSentenceBookmarks.take(3)
+
                                     val allBookmarks = selectedDate?.let { date ->
                                         summary.bookmarkedVocabulary.filter {
                                             java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
@@ -219,6 +215,7 @@ fun StatisticsScreen(
                                             ChartSection(
                                                 chartData = summary.chartData,
                                                 timeRange = targetTimeRange,
+                                                selectedDetailDate = uiState.selectedDetailDate,
                                                 onDateSelected = { viewModel.setSelectedDetailDate(it) }
                                             )
                                         }
@@ -236,14 +233,42 @@ fun StatisticsScreen(
                                                         text = record.originalText,
                                                         secondaryText = record.translation?.takeIf { it.isNotBlank() },
                                                         timestamp = record.bookmarkedAt,
-                                                        onClick = { onNavigateToRecord(record.recordId, record.id) }
+                                                        canNavigate = record.recordId > 0,
+                                                        onClick = { if (record.recordId > 0) onNavigateToRecord(record.recordId, record.id) }
                                                     )
                                                 }
                                                 if (allSentences.size > 3) {
                                                     Spacer(modifier = Modifier.height(8.dp))
                                                     ViewAllButton(
                                                         text = stringResource(R.string.view_all_sentences, allSentences.size),
-                                                        onClick = { activeModalType = StatisticsModalType.SENTENCES }
+                                                        onClick = { activeModalType = StatisticsModalType.ANALYZED_SENTENCES }
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        if (allSentenceBookmarks.isNotEmpty()) {
+                                            Column {
+                                                SectionHeader(
+                                                    title = if (uiState.selectedDetailDate != null) {
+                                                        uiState.selectedDetailDate!!.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + stringResource(R.string.statistics_section_bookmarked_sentences)
+                                                    } else if (targetTimeRange == StatisticsTimeRange.DAILY) stringResource(R.string.statistics_section_bookmarked_sentences) else stringResource(R.string.statistics_recent_activity) + " - " + stringResource(R.string.statistics_section_bookmarked_sentences),
+                                                    icon = Icons.Default.Star
+                                                )
+                                                displaySentenceBookmarks.forEach { sentence ->
+                                                    CompactActivityItem(
+                                                        text = sentence.originalText,
+                                                        secondaryText = sentence.translation?.takeIf { it.isNotBlank() },
+                                                        timestamp = sentence.bookmarkedAt,
+                                                        canNavigate = sentence.recordId > 0,
+                                                        onClick = { if (sentence.recordId > 0) onNavigateToRecord(sentence.recordId, sentence.id) }
+                                                    )
+                                                }
+                                                if (allSentenceBookmarks.size > 3) {
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    ViewAllButton(
+                                                        text = stringResource(R.string.view_all_bookmarked_sentences, allSentenceBookmarks.size),
+                                                        onClick = { activeModalType = StatisticsModalType.BOOKMARKED_SENTENCES }
                                                     )
                                                 }
                                             }
@@ -262,7 +287,8 @@ fun StatisticsScreen(
                                                         text = bookmark.segmentText,
                                                         secondaryText = bookmark.meaning,
                                                         timestamp = bookmark.bookmarkedAt,
-                                                        onClick = { onNavigateToRecord(bookmark.recordId, bookmark.id) }
+                                                        canNavigate = bookmark.recordId > 0,
+                                                        onClick = { if (bookmark.recordId > 0) onNavigateToRecord(bookmark.recordId, bookmark.id) }
                                                     )
                                                 }
                                                 if (allBookmarks.size > 3) {
@@ -288,7 +314,8 @@ fun StatisticsScreen(
                                                         text = grammar.pattern,
                                                         secondaryText = grammar.explanation,
                                                         timestamp = grammar.bookmarkedAt,
-                                                        onClick = { onNavigateToRecord(grammar.recordId, -1) }
+                                                        canNavigate = grammar.recordId > 0,
+                                                        onClick = { if (grammar.recordId > 0) onNavigateToRecord(grammar.recordId, -1) }
                                                     )
                                                 }
                                                 if (allGrammar.size > 3) {
@@ -301,7 +328,7 @@ fun StatisticsScreen(
                                             }
                                         }
                                         
-                                        if (allSentences.isEmpty() && allBookmarks.isEmpty() && allGrammar.isEmpty()) {
+                                        if (allSentences.isEmpty() && allSentenceBookmarks.isEmpty() && allBookmarks.isEmpty() && allGrammar.isEmpty()) {
                                             EmptyStateView()
                                         }
                                     }
@@ -317,6 +344,12 @@ fun StatisticsScreen(
                                     java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
                                 }
                             } ?: targetSummary.analyzedSentences
+
+                            val allSentenceBookmarks = selectedDate?.let { date ->
+                                targetSummary.bookmarkedSentences.filter {
+                                    java.time.Instant.ofEpochMilli(it.bookmarkedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == date
+                                }
+                            } ?: targetSummary.bookmarkedSentences
 
                             val allBookmarks = selectedDate?.let { date ->
                                 targetSummary.bookmarkedVocabulary.filter {
@@ -363,7 +396,8 @@ fun StatisticsScreen(
                                         .padding(horizontal = 16.dp)
                                 ) {
                                     val title = when (activeModalType) {
-                                        StatisticsModalType.SENTENCES -> stringResource(R.string.all_analyzed_sentences, allSentences.size)
+                                        StatisticsModalType.ANALYZED_SENTENCES -> stringResource(R.string.all_analyzed_sentences, allSentences.size)
+                                        StatisticsModalType.BOOKMARKED_SENTENCES -> stringResource(R.string.all_bookmarked_sentences, allSentenceBookmarks.size)
                                         StatisticsModalType.WORDS -> stringResource(R.string.all_bookmarked_words, allBookmarks.size)
                                         StatisticsModalType.GRAMMAR -> stringResource(R.string.all_learned_grammar, allGrammar.size)
                                         null -> ""
@@ -386,7 +420,8 @@ fun StatisticsScreen(
                                     }
                                     
                                     val listState = when (activeModalType) {
-                                        StatisticsModalType.SENTENCES -> sentencesListState
+                                        StatisticsModalType.ANALYZED_SENTENCES -> sentencesListState
+                                        StatisticsModalType.BOOKMARKED_SENTENCES -> sentenceBookmarksListState
                                         StatisticsModalType.WORDS -> wordsListState
                                         StatisticsModalType.GRAMMAR -> grammarListState
                                         null -> rememberLazyListState()
@@ -399,15 +434,35 @@ fun StatisticsScreen(
                                         contentPadding = PaddingValues(bottom = 32.dp)
                                     ) {
                                         when (activeModalType) {
-                                            StatisticsModalType.SENTENCES -> {
+                                            StatisticsModalType.ANALYZED_SENTENCES -> {
                                                 items(allSentences) { record ->
                                                     DetailedSentenceItem(
                                                         record = record,
+                                                        canNavigate = record.recordId > 0,
                                                         onClickNavigate = {
-                                                            returningFromNav = true
-                                                            onNavigateToRecord(record.recordId, record.id)
-                                                            coroutineScope.launch {
-                                                                sheetState.hide()
+                                                            if (record.recordId > 0) {
+                                                                returningFromNav = true
+                                                                onNavigateToRecord(record.recordId, record.id)
+                                                                coroutineScope.launch {
+                                                                    sheetState.hide()
+                                                                }
+                                                            }
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                            StatisticsModalType.BOOKMARKED_SENTENCES -> {
+                                                items(allSentenceBookmarks) { sentence ->
+                                                    DetailedSentenceItem(
+                                                        record = sentence,
+                                                        canNavigate = sentence.recordId > 0,
+                                                        onClickNavigate = {
+                                                            if (sentence.recordId > 0) {
+                                                                returningFromNav = true
+                                                                onNavigateToRecord(sentence.recordId, sentence.id)
+                                                                coroutineScope.launch {
+                                                                    sheetState.hide()
+                                                                }
                                                             }
                                                         }
                                                     )
@@ -417,11 +472,14 @@ fun StatisticsScreen(
                                                 items(allBookmarks) { bookmark ->
                                                     ExpandableWordItem(
                                                         bookmark = bookmark,
+                                                        canNavigate = bookmark.recordId > 0,
                                                         onClickNavigate = {
-                                                            returningFromNav = true
-                                                            onNavigateToRecord(bookmark.recordId, bookmark.id)
-                                                            coroutineScope.launch {
-                                                                sheetState.hide()
+                                                            if (bookmark.recordId > 0) {
+                                                                returningFromNav = true
+                                                                onNavigateToRecord(bookmark.recordId, bookmark.id)
+                                                                coroutineScope.launch {
+                                                                    sheetState.hide()
+                                                                }
                                                             }
                                                         }
                                                     )
@@ -431,11 +489,14 @@ fun StatisticsScreen(
                                                 items(allGrammar) { grammar ->
                                                     DetailedGrammarItem(
                                                         grammar = grammar,
+                                                        canNavigate = grammar.recordId > 0,
                                                         onClick = {
-                                                            returningFromNav = true
-                                                            onNavigateToRecord(grammar.recordId, -1)
-                                                            coroutineScope.launch {
-                                                                sheetState.hide()
+                                                            if (grammar.recordId > 0) {
+                                                                returningFromNav = true
+                                                                onNavigateToRecord(grammar.recordId, -1)
+                                                                coroutineScope.launch {
+                                                                    sheetState.hide()
+                                                                }
                                                             }
                                                         }
                                                     )
@@ -548,19 +609,7 @@ fun rememberMarker(onEntrySelected: (Int) -> Unit): Marker {
     )
 
     return remember(label, indicator, guideline) {
-        object : MarkerComponent(label, indicator, guideline) {
-            override fun draw(
-                context: DrawContext,
-                bounds: RectF,
-                markedEntries: List<Marker.EntryModel>,
-                chartValuesProvider: com.patrykandpatrick.vico.core.chart.values.ChartValuesProvider
-            ) {
-                super.draw(context, bounds, markedEntries, chartValuesProvider)
-                markedEntries.firstOrNull()?.let {
-                    onEntrySelected(it.index)
-                }
-            }
-        }
+        MarkerComponent(label, indicator, guideline)
     }
 }
 
@@ -727,6 +776,7 @@ fun SummaryCardItem(title: String, value: String, icon: androidx.compose.ui.grap
 fun ChartSection(
     chartData: List<com.example.japanesegrammarapp.domain.ChartDataPoint>,
     timeRange: StatisticsTimeRange,
+    selectedDetailDate: LocalDate? = null,
     onDateSelected: (LocalDate?) -> Unit = {}
 ) {
     if (chartData.isEmpty()) return
@@ -740,47 +790,109 @@ fun ChartSection(
         chartData.getOrNull(value.toInt())?.label ?: ""
     }
     
-    val marker = rememberMarker { index ->
-        val date = chartData.getOrNull(index)?.date
-        onDateSelected(date)
-    }
+    val marker = rememberMarker { }
 
     val sumiInk = ZenThemeColors.sumiInk()
     val aizomeIndigo = ZenColors.AizomeIndigo
 
-    Column(modifier = Modifier.fillMaxWidth().height(260.dp).padding(vertical = 16.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.BarChart, contentDescription = null, tint = aizomeIndigo, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(text = stringResource(R.string.statistics_analysis_count), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sumiInk)
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Chart(
-            chart = columnChart(
-                columns = listOf(
-                    LineComponent(
-                        color = aizomeIndigo.toArgb(),
-                        thicknessDp = 12f,
-                        shape = com.patrykandpatrick.vico.core.component.shape.Shapes.roundedCornerShape(topLeftPercent = 50, topRightPercent = 50)
+        Box(modifier = Modifier.fillMaxWidth().height(220.dp)) {
+            Chart(
+                chart = columnChart(
+                    columns = listOf(
+                        LineComponent(
+                            color = aizomeIndigo.toArgb(),
+                            thicknessDp = 12f,
+                            shape = com.patrykandpatrick.vico.core.component.shape.Shapes.roundedCornerShape(topLeftPercent = 50, topRightPercent = 50)
+                        )
                     )
-                )
-            ),
-            model = chartEntryModel,
-            startAxis = rememberStartAxis(
-                label = com.patrykandpatrick.vico.compose.component.textComponent(color = sumiInk.copy(alpha = 0.7f)),
-                axis = null,
-                tick = null,
-                guideline = com.patrykandpatrick.vico.compose.component.lineComponent(color = sumiInk.copy(alpha = 0.1f))
-            ),
-            bottomAxis = rememberBottomAxis(
-                valueFormatter = bottomAxisFormatter,
-                label = com.patrykandpatrick.vico.compose.component.textComponent(color = sumiInk.copy(alpha = 0.7f)),
-                axis = com.patrykandpatrick.vico.compose.component.lineComponent(color = sumiInk.copy(alpha = 0.1f)),
-                tick = null
-            ),
-            marker = marker,
-            modifier = Modifier.fillMaxSize()
+                ),
+                model = chartEntryModel,
+                startAxis = rememberStartAxis(
+                    label = com.patrykandpatrick.vico.compose.component.textComponent(color = sumiInk.copy(alpha = 0.7f)),
+                    axis = null,
+                    tick = null,
+                    guideline = com.patrykandpatrick.vico.compose.component.lineComponent(color = sumiInk.copy(alpha = 0.1f))
+                ),
+                bottomAxis = rememberBottomAxis(
+                    valueFormatter = bottomAxisFormatter,
+                    label = com.patrykandpatrick.vico.compose.component.textComponent(color = sumiInk.copy(alpha = 0.7f)),
+                    axis = com.patrykandpatrick.vico.compose.component.lineComponent(color = sumiInk.copy(alpha = 0.1f)),
+                    tick = null
+                ),
+                marker = marker,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+        ChartDateSelector(
+            chartData = chartData,
+            timeRange = timeRange,
+            selectedDetailDate = selectedDetailDate,
+            onDateSelected = onDateSelected
         )
+    }
+}
+
+@Composable
+fun ChartDateSelector(
+    chartData: List<com.example.japanesegrammarapp.domain.ChartDataPoint>,
+    timeRange: StatisticsTimeRange,
+    selectedDetailDate: LocalDate?,
+    onDateSelected: (LocalDate?) -> Unit
+) {
+    val selectablePoints = chartData.filter { it.date != null && it.analysisCount > 0 }
+    if (selectablePoints.isEmpty()) return
+
+    val formatter = when (timeRange) {
+        StatisticsTimeRange.DAILY -> DateTimeFormatter.ofPattern("MMM dd")
+        StatisticsTimeRange.WEEKLY -> DateTimeFormatter.ofPattern("EEE")
+        StatisticsTimeRange.MONTHLY -> DateTimeFormatter.ofPattern("d")
+        StatisticsTimeRange.YEARLY -> DateTimeFormatter.ofPattern("MMM")
+        StatisticsTimeRange.ALL_TIME -> DateTimeFormatter.ofPattern("MMM dd")
+    }
+
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 2.dp)
+    ) {
+        items(selectablePoints) { point ->
+            val date = point.date
+            val selected = selectedDetailDate == date
+            AssistChip(
+                onClick = { onDateSelected(if (selected) null else date) },
+                label = {
+                    Text(
+                        text = "${date!!.format(formatter)} (${point.analysisCount})",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                },
+                leadingIcon = if (selected) {
+                    {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                } else null,
+                colors = AssistChipDefaults.assistChipColors(
+                    containerColor = if (selected) ZenColors.AizomeIndigo.copy(alpha = 0.12f) else ZenThemeColors.pillBg(),
+                    labelColor = ZenThemeColors.sumiInk(),
+                    leadingIconContentColor = ZenColors.AizomeIndigo
+                ),
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = if (selected) ZenColors.AizomeIndigo else ZenThemeColors.divider()
+                )
+            )
+        }
     }
 }
 
@@ -859,6 +971,7 @@ fun CompactActivityItem(
     text: String,
     secondaryText: String?,
     timestamp: Long,
+    canNavigate: Boolean = true,
     onClick: () -> Unit
 ) {
     val date = java.time.Instant.ofEpochMilli(timestamp).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime()
@@ -867,7 +980,7 @@ fun CompactActivityItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = canNavigate, onClick = onClick)
             .padding(vertical = 6.dp),
         color = Color.Transparent
     ) {
@@ -929,6 +1042,7 @@ fun ViewAllButton(
 @Composable
 fun DetailedSentenceItem(
     record: com.example.japanesegrammarapp.domain.model.BookmarkedSentenceDomain,
+    canNavigate: Boolean = true,
     onClickNavigate: () -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
@@ -981,12 +1095,13 @@ fun DetailedSentenceItem(
                     }
                     IconButton(
                         onClick = onClickNavigate,
+                        enabled = canNavigate,
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowForward,
                             contentDescription = stringResource(R.string.view_record),
-                            tint = ZenColors.AizomeIndigo,
+                            tint = if (canNavigate) ZenColors.AizomeIndigo else sumiInk.copy(alpha = 0.25f),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1022,6 +1137,7 @@ fun DetailedSentenceItem(
 @Composable
 fun ExpandableWordItem(
     bookmark: com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain,
+    canNavigate: Boolean = true,
     onClickNavigate: () -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
@@ -1098,12 +1214,13 @@ fun ExpandableWordItem(
                     }
                     IconButton(
                         onClick = onClickNavigate,
+                        enabled = canNavigate,
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowForward,
                             contentDescription = stringResource(R.string.view_related_record),
-                            tint = ZenColors.AizomeIndigo,
+                            tint = if (canNavigate) ZenColors.AizomeIndigo else sumiInk.copy(alpha = 0.25f),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1153,6 +1270,7 @@ fun ExpandableWordItem(
 @Composable
 fun DetailedGrammarItem(
     grammar: com.example.japanesegrammarapp.domain.model.BookmarkedGrammarPointDomain,
+    canNavigate: Boolean = true,
     onClick: () -> Unit
 ) {
     val cardBg = ZenThemeColors.cardBg()
@@ -1161,7 +1279,7 @@ fun DetailedGrammarItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(enabled = canNavigate, onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = cardBg),
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, sumiInk.copy(alpha = 0.08f))
@@ -1192,12 +1310,12 @@ fun DetailedGrammarItem(
                 Text(
                     text = stringResource(R.string.view_related_analysis),
                     style = MaterialTheme.typography.labelMedium,
-                    color = ZenColors.AizomeIndigo
+                    color = if (canNavigate) ZenColors.AizomeIndigo else sumiInk.copy(alpha = 0.35f)
                 )
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = ZenColors.AizomeIndigo,
+                    tint = if (canNavigate) ZenColors.AizomeIndigo else sumiInk.copy(alpha = 0.35f),
                     modifier = Modifier.size(16.dp)
                 )
             }
