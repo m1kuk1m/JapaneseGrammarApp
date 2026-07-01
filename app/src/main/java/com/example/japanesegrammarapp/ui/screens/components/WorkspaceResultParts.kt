@@ -1,5 +1,6 @@
 package com.example.japanesegrammarapp.ui.screens.components
 
+import kotlinx.coroutines.launch
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -103,12 +104,19 @@ fun SegmentChip(
 
     var wasBookmarked by remember { mutableStateOf(isBookmarked) }
     var starScale by remember { mutableFloatStateOf(1f) }
+    val glow = remember { Animatable(0f) }
     LaunchedEffect(isBookmarked) {
         if (isBookmarked && !wasBookmarked) {
-            val pulse = Animatable(1f)
-            pulse.animateTo(1.3f, animationSpec = tween(120, easing = FastOutSlowInEasing))
-            pulse.animateTo(1.0f, animationSpec = tween(150, easing = FastOutSlowInEasing))
-            starScale = 1f
+            launch {
+                val pulse = Animatable(1f)
+                pulse.animateTo(1.3f, animationSpec = tween(120, easing = FastOutSlowInEasing))
+                pulse.animateTo(1.0f, animationSpec = tween(150, easing = FastOutSlowInEasing))
+                starScale = 1f
+            }
+            launch {
+                glow.snapTo(0.4f)
+                glow.animateTo(0f, animationSpec = tween(600, easing = EaseInOutCubic))
+            }
         }
         wasBookmarked = isBookmarked
     }
@@ -131,10 +139,12 @@ fun SegmentChip(
             isBookmarked -> 2.dp
             else -> 1.5.dp
         },
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
         label = "borderWidth"
     )
     val shadowElevation by animateDpAsState(
         targetValue = if (isSelected) 4.dp else 0.dp,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
         label = "shadowElevation"
     )
     val infiniteTransition = rememberInfiniteTransition(label = "chipShimmer")
@@ -166,15 +176,7 @@ fun SegmentChip(
     )
     val chipTextColor = if (ZenThemeColors.isDark()) Color(0xFFE0E0E0) else Color(0xFF1E1E1E)
 
-    var showGlowAnimation by remember { mutableStateOf(false) }
-    val glow = remember { Animatable(0f) }
-    LaunchedEffect(isBookmarked) {
-        if (isBookmarked && showGlowAnimation) {
-            glow.snapTo(0.4f)
-            glow.animateTo(0f, animationSpec = tween(600, easing = EaseInOutCubic))
-            showGlowAnimation = false
-        }
-    }
+
 
     Box {
         Surface(
@@ -190,9 +192,6 @@ fun SegmentChip(
                     onClick = onClick,
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        if (!isBookmarked) {
-                            showGlowAnimation = true
-                        }
                         onLongClick()
                     }
                 )

@@ -639,6 +639,7 @@
     <string name="statistics_tab_yearly">Yearly</string>
     <string name="statistics_tab_all_time">Total</string>
     <string name="statistics_section_analyzed_sentences">Analyzed Sentences</string>
+    <string name="statistics_section_bookmarked_sentences">Bookmarked Sentences</string>
     <string name="statistics_section_bookmarked_vocabulary">Bookmarked Vocabulary</string>
     <string name="statistics_total_analyses">Total Analyses</string>
     <string name="statistics_total_tokens">Total Tokens</string>
@@ -649,9 +650,11 @@
     <string name="statistics_heatmap_title">Learning Consistency</string>
     <string name="statistics_empty_state_title">No study data yet for this period. Start analyzing a sentence!</string>
     <string name="view_all_sentences">View all %1$d sentences →</string>
+    <string name="view_all_bookmarked_sentences">View all %1$d bookmarked sentences →</string>
     <string name="view_all_words">View all %1$d words →</string>
     <string name="view_all_grammar">View all %1$d grammar points →</string>
     <string name="all_analyzed_sentences">All Analyzed Sentences (%1$d)</string>
+    <string name="all_bookmarked_sentences">All Bookmarked Sentences (%1$d)</string>
     <string name="all_bookmarked_words">All Bookmarked Words (%1$d)</string>
     <string name="all_learned_grammar">All Learned Grammar (%1$d)</string>
     <string name="view_record">View Record</string>

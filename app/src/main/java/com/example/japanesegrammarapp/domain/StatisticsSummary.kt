@@ -10,6 +10,7 @@ data class StatisticsSummary(
     val totalTokens: Int,
     val totalBookmarks: Int,
     val analyzedSentences: List<BookmarkedSentenceDomain>,
+    val bookmarkedSentences: List<BookmarkedSentenceDomain> = emptyList(),
     val bookmarkedVocabulary: List<BookmarkedSegmentDomain>,
     val bookmarkedGrammar: List<BookmarkedGrammarPointDomain> = emptyList(),
     val chartData: List<ChartDataPoint>,

@@ -2,6 +2,8 @@ package com.example.japanesegrammarapp.data.repository
 
 import com.example.japanesegrammarapp.data.AnalysisDao
 import com.example.japanesegrammarapp.data.BookmarkDao
+import com.example.japanesegrammarapp.data.BookmarkedSentenceDao
+import com.example.japanesegrammarapp.data.mapper.toDomain
 import com.example.japanesegrammarapp.domain.ChartDataPoint
 import com.example.japanesegrammarapp.domain.StatisticsSummary
 import com.example.japanesegrammarapp.domain.StatisticsTimeRange
@@ -16,6 +18,7 @@ import javax.inject.Inject
 class StatisticsRepository @Inject constructor(
     private val analysisDao: AnalysisDao,
     private val bookmarkDao: BookmarkDao,
+    private val sentenceDao: BookmarkedSentenceDao,
     private val grammarPointDao: com.example.japanesegrammarapp.data.BookmarkedGrammarPointDao
 ) {
     suspend fun getStatisticsSummary(
@@ -28,17 +31,18 @@ class StatisticsRepository @Inject constructor(
         val endMillis = if (timeRange == StatisticsTimeRange.ALL_TIME) Long.MAX_VALUE else endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
 
         val records = analysisDao.getRecordsByTimeRange(startMillis, endMillis)
+        val sentenceBookmarks = sentenceDao.getBookmarksByTimeRange(startMillis, endMillis)
         val bookmarks = bookmarkDao.getBookmarksByTimeRange(startMillis, endMillis)
         val grammarPoints = grammarPointDao.getBookmarksByTimeRange(startMillis, endMillis)
         
         val totalAnalyses = records.size
         val totalTokens = records.sumOf { it.consumedTokens }
-        val totalBookmarks = bookmarks.size + grammarPoints.size
+        val totalBookmarks = sentenceBookmarks.size + bookmarks.size + grammarPoints.size
 
         val chartData = buildChartData(timeRange, startDate, endDate, records)
         
         val heatmapData = if (timeRange == StatisticsTimeRange.YEARLY) {
-            buildHeatmapData(startDate, endDate)
+            buildHeatmapData(startMillis, endMillis)
         } else {
             emptyMap()
         }
@@ -54,6 +58,8 @@ class StatisticsRepository @Inject constructor(
                 bookmarkedAt = it.timestamp
             )
         }
+
+        val sentenceBookmarksDomain = sentenceBookmarks.map { it.toDomain() }
 
         val vocabularyDomain = bookmarks.map {
             com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain(
@@ -92,6 +98,7 @@ class StatisticsRepository @Inject constructor(
             totalTokens = totalTokens,
             totalBookmarks = totalBookmarks,
             analyzedSentences = sentencesDomain,
+            bookmarkedSentences = sentenceBookmarksDomain,
             bookmarkedVocabulary = vocabularyDomain,
             bookmarkedGrammar = grammarDomain,
             chartData = chartData,
@@ -201,17 +208,13 @@ class StatisticsRepository @Inject constructor(
         }
     }
     
-    private suspend fun buildHeatmapData(startDate: LocalDate, endDate: LocalDate): Map<LocalDate, Int> {
-        val dates = analysisDao.getDistinctStudyDates()
+    private suspend fun buildHeatmapData(startMillis: Long, endMillis: Long): Map<LocalDate, Int> {
+        val counts = analysisDao.getDailyStudyCounts(startMillis, endMillis)
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
         val map = mutableMapOf<LocalDate, Int>()
-        dates.forEach { dateString ->
+        counts.forEach { daily ->
             try {
-                val date = LocalDate.parse(dateString, formatter)
-                if ((date.isEqual(startDate) || date.isAfter(startDate)) && 
-                    (date.isEqual(endDate) || date.isBefore(endDate))) {
-                    map[date] = 1 
-                }
+                map[LocalDate.parse(daily.date, formatter)] = daily.count
             } catch (e: Exception) {
                 // ignore parsing error
             }
