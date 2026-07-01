@@ -26,7 +26,7 @@ class PopupAvoidanceMathTest {
     }
 
     @Test
-    fun overlappingPopupChoosesDownwardScrollWhenCloser() {
+    fun overlappingPopupFitsBelowWithUpwardScroll() {
         val delta = calculatePopupAvoidanceScrollDelta(
             anchorBounds = IntRect(80, 380, 220, 440),
             windowSize = window,
@@ -36,7 +36,7 @@ class PopupAvoidanceMathTest {
             gapPx = gap
         )
 
-        assertEquals(-127, delta)
+        assertEquals(147, delta)
     }
 
     @Test
@@ -107,7 +107,7 @@ class PopupAvoidanceMathTest {
     @Test
     fun returnsZeroWhenPopupAlreadyAvoidsAnchor() {
         val delta = calculatePopupAvoidanceScrollDelta(
-            anchorBounds = IntRect(80, 720, 220, 760),
+            anchorBounds = IntRect(80, 100, 220, 140),
             windowSize = window,
             popupContentSize = IntSize(width = 320, height = 200),
             currentScroll = 200,
