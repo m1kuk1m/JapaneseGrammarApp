@@ -183,6 +183,33 @@ fun SettingsScreen(
         }
     }
 
+    // ── Prompt Preset Import state ───────────────────────────────────────────
+    var pendingImportJson by remember { mutableStateOf("") }
+    var showImportConflictDialog by remember { mutableStateOf(false) }
+
+    val importPresetLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val json = ctx.contentResolver.openInputStream(uri)
+                    ?.bufferedReader()
+                    ?.readText()
+                    .orEmpty()
+                if (json.isNotBlank()) {
+                    pendingImportJson = json
+                    showImportConflictDialog = true
+                }
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(
+                    ctx,
+                    ctx.getString(R.string.import_failed_invalid),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
     val currentLangLabel = remember {
         val currentLocales = androidx.appcompat.app.AppCompatDelegate.getApplicationLocales()
         val currentLangTag = if (currentLocales.isEmpty) "" else currentLocales.get(0)?.toLanguageTag() ?: ""
@@ -667,8 +694,69 @@ fun SettingsScreen(
         onSelectPreset = { id ->
             viewModel.setActivePromptPreset(id)
             promptText = viewModel.getCustomPrompt(selectedPromptKey)
-        }
+        },
+        onExportActivePreset = { viewModel.exportActivePreset() },
+        onExportAllPresets = { viewModel.exportAllPresets() },
+        onImportPresetsClick = { importPresetLauncher.launch("application/json") }
     )
+
+    // ── Import conflict dialog ───────────────────────────────────────────────
+    if (showImportConflictDialog) {
+        AlertDialog(
+            onDismissRequest = { showImportConflictDialog = false },
+            title = {
+                Text(
+                    text = stringResource(R.string.import_conflict_title),
+                    fontWeight = FontWeight.Bold,
+                    color = SumiInk
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.import_conflict_body),
+                    color = SumiInk
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.importPresetsFromJson(
+                            pendingImportJson,
+                            com.example.japanesegrammarapp.ui.SettingsViewModel.ImportConflictStrategy.RENAME
+                        )
+                        showImportConflictDialog = false
+                        pendingImportJson = ""
+                        promptText = viewModel.getCustomPrompt(selectedPromptKey)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text(stringResource(R.string.import_conflict_rename), color = MaterialTheme.colorScheme.onPrimary)
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = {
+                        viewModel.importPresetsFromJson(
+                            pendingImportJson,
+                            com.example.japanesegrammarapp.ui.SettingsViewModel.ImportConflictStrategy.SKIP
+                        )
+                        showImportConflictDialog = false
+                        pendingImportJson = ""
+                        promptText = viewModel.getCustomPrompt(selectedPromptKey)
+                    }) {
+                        Text(stringResource(R.string.import_conflict_skip), color = SumiInk)
+                    }
+                    TextButton(onClick = {
+                        showImportConflictDialog = false
+                        pendingImportJson = ""
+                    }) {
+                        Text(stringResource(R.string.cancel), color = SumiInk)
+                    }
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
 
     if (showTokenDialog) {
         val formatCount: (Int) -> String = { count ->

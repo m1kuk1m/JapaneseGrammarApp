@@ -28,6 +28,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
@@ -35,15 +38,20 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +60,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -78,7 +87,10 @@ fun SettingsPromptEditor(
     onCreatePreset: (String, Boolean) -> Unit,
     onRenamePreset: (String, String) -> Unit,
     onDeletePreset: (String) -> Unit,
-    onSelectPreset: (String) -> Unit
+    onSelectPreset: (String) -> Unit,
+    onExportActivePreset: () -> Unit = {},
+    onExportAllPresets: () -> Unit = {},
+    onImportPresetsClick: () -> Unit = {}
 ) {
     var showResetConfirm by remember { mutableStateOf(false) }
     var showResetAllConfirm by remember { mutableStateOf(false) }
@@ -129,6 +141,9 @@ fun SettingsPromptEditor(
                     onCreatePreset = onCreatePreset,
                     onRenamePreset = onRenamePreset,
                     onDeletePreset = onDeletePreset,
+                    onExportActivePreset = onExportActivePreset,
+                    onExportAllPresets = onExportAllPresets,
+                    onImportPresetsClick = onImportPresetsClick,
                     sumiInk = sumiInk,
                     surfaceColor = surfaceColor,
                     primaryColor = primaryColor,
@@ -314,6 +329,9 @@ private fun PromptPresetSelector(
     onCreatePreset: (String, Boolean) -> Unit,
     onRenamePreset: (String, String) -> Unit,
     onDeletePreset: (String) -> Unit,
+    onExportActivePreset: () -> Unit,
+    onExportAllPresets: () -> Unit,
+    onImportPresetsClick: () -> Unit,
     sumiInk: Color,
     surfaceColor: Color,
     primaryColor: Color,
@@ -334,15 +352,19 @@ private fun PromptPresetSelector(
         color = sumiInk.copy(alpha = 0.5f)
     )
     Spacer(modifier = Modifier.height(4.dp))
-    
-    Row(verticalAlignment = Alignment.CenterVertically) {
+
+    // Preset dropdown + import/export icon buttons on the same row
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
         Box(
             modifier = Modifier
                 .weight(1f)
                 .background(surfaceColor, RoundedCornerShape(8.dp))
                 .border(BorderStroke(1.dp, sumiInk.copy(alpha = 0.1f)), RoundedCornerShape(8.dp))
                 .clickable { dropdownExpanded = true }
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -350,8 +372,9 @@ private fun PromptPresetSelector(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (isDefaultPreset) stringResource(R.string.preset_default) else activePreset?.name ?: stringResource(R.string.preset_default), 
-                    color = sumiInk, 
+                    text = if (isDefaultPreset) stringResource(R.string.preset_default)
+                           else activePreset?.name ?: stringResource(R.string.preset_default),
+                    color = sumiInk,
                     fontWeight = FontWeight.Medium
                 )
                 Icon(Icons.Default.KeyboardArrowDown, null, tint = sumiInk.copy(alpha = 0.5f))
@@ -362,7 +385,8 @@ private fun PromptPresetSelector(
                 modifier = Modifier.fillMaxWidth(0.8f)
             ) {
                 promptPresets.forEach { preset ->
-                    val displayName = if (preset.id == PromptPreset.DEFAULT_PRESET_ID) stringResource(R.string.preset_default) else preset.name
+                    val displayName = if (preset.id == PromptPreset.DEFAULT_PRESET_ID)
+                        stringResource(R.string.preset_default) else preset.name
                     DropdownMenuItem(
                         text = { Text(displayName) },
                         onClick = {
@@ -373,9 +397,34 @@ private fun PromptPresetSelector(
                 }
             }
         }
+
+        // Export current preset
+        PromptPresetTooltipIconButton(
+            icon = Icons.Default.IosShare,
+            label = stringResource(R.string.export_preset),
+            tint = sumiInk.copy(alpha = 0.7f),
+            onClick = onExportActivePreset
+        )
+
+        // Export all presets
+        PromptPresetTooltipIconButton(
+            icon = Icons.Default.FileUpload,
+            label = stringResource(R.string.export_all_presets),
+            tint = sumiInk.copy(alpha = 0.7f),
+            onClick = onExportAllPresets
+        )
+
+        // Import presets
+        PromptPresetTooltipIconButton(
+            icon = Icons.Default.FileDownload,
+            label = stringResource(R.string.import_presets),
+            tint = sumiInk.copy(alpha = 0.7f),
+            onClick = onImportPresetsClick
+        )
     }
-    
+
     Spacer(modifier = Modifier.height(8.dp))
+    // Preset lifecycle actions row
     Row(
         modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -461,6 +510,35 @@ private fun PromptPresetSelector(
             },
             containerColor = surfaceColor
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PromptPresetTooltipIconButton(
+    icon: ImageVector,
+    label: String,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        tooltip = {
+            PlainTooltip {
+                Text(label)
+            }
+        },
+        state = rememberTooltipState(),
+        enableUserInput = true
+    ) {
+        IconButton(onClick = onClick) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = tint,
+                modifier = Modifier.size(22.dp)
+            )
+        }
     }
 }
 

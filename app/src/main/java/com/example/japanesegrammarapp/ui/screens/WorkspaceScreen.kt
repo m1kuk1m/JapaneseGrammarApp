@@ -40,6 +40,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.AnalysisDomainRecord
 import com.example.japanesegrammarapp.domain.model.AnalysisStatus
+import com.example.japanesegrammarapp.domain.model.derivePosCategory
 import com.example.japanesegrammarapp.ui.WorkspaceViewModel
 import com.example.japanesegrammarapp.ui.UiEvent
 import com.example.japanesegrammarapp.ui.screens.components.FloatingActionBall
@@ -870,18 +871,21 @@ fun WorkspaceScreen(
         EditWordDialog(
             initialDictionaryForm = segment.dictionaryForm ?: segment.text ?: "",
             initialReading = segment.reading ?: "",
+            initialDictionaryFormReading = segment.dictionaryFormReading ?: segment.reading ?: "",
             initialMeaning = segment.meaning ?: "",
             initialPartOfSpeech = segment.partOfSpeech ?: "",
             onDismiss = { editingSegment = null },
-            onSave = { updatedDict, updatedReading, updatedMeaning, updatedPos ->
+            onSave = { updatedDict, updatedReading, updatedDictReading, updatedMeaning, updatedPos ->
                 val record = uiState.selectedRecord
                 val index = uiState.detailedResult?.segments?.indexOf(segment) ?: -1
                 if (record != null && index != -1) {
                     val updatedSegment = segment.copy(
                         dictionaryForm = updatedDict,
                         reading = updatedReading,
+                        dictionaryFormReading = updatedDictReading,
                         meaning = updatedMeaning,
-                        partOfSpeech = updatedPos
+                        partOfSpeech = updatedPos,
+                        posCategory = derivePosCategory(updatedPos)
                     )
                     viewModel.updateWordSegment(index, updatedSegment)
                 }

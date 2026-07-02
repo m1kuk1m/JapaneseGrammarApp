@@ -81,7 +81,7 @@ class BookmarkViewModel @Inject constructor(
             if (!segments.isNullOrEmpty()) {
                 val readingText = segments.joinToString("") { segment ->
                     val text = segment.text ?: ""
-                    val isPunctuation = text.matches(Regex("^[、。！？!?，．…\\s]+$")) || (segment.partOfSpeech?.contains("補助記号") == true)
+                    val isPunctuation = segment.isPunctuation()
                     
                     if (isPunctuation) {
                         text

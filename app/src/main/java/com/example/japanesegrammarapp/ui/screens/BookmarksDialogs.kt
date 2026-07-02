@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
@@ -437,13 +439,15 @@ fun ConflictResolutionDialog(
 fun EditWordDialog(
     initialDictionaryForm: String,
     initialReading: String,
+    initialDictionaryFormReading: String,
     initialMeaning: String,
     initialPartOfSpeech: String,
     onDismiss: () -> Unit,
-    onSave: (dictionaryForm: String, reading: String, meaning: String, partOfSpeech: String) -> Unit
+    onSave: (dictionaryForm: String, reading: String, dictionaryFormReading: String, meaning: String, partOfSpeech: String) -> Unit
 ) {
     var dictForm by remember { mutableStateOf(initialDictionaryForm) }
     var reading by remember { mutableStateOf(initialReading) }
+    var dictFormReading by remember { mutableStateOf(initialDictionaryFormReading) }
     var meaning by remember { mutableStateOf(initialMeaning) }
     var pos by remember { mutableStateOf(initialPartOfSpeech) }
 
@@ -461,7 +465,10 @@ fun EditWordDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
                 androidx.compose.material3.OutlinedTextField(
                     value = dictForm,
                     onValueChange = { dictForm = it },
@@ -472,6 +479,12 @@ fun EditWordDialog(
                     value = reading,
                     onValueChange = { reading = it },
                     label = { Text(stringResource(R.string.reading)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = dictFormReading,
+                    onValueChange = { dictFormReading = it },
+                    label = { Text(stringResource(R.string.dictionary_form_reading)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 androidx.compose.material3.OutlinedTextField(
@@ -490,7 +503,7 @@ fun EditWordDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onSave(dictForm, reading, meaning, pos) },
+                onClick = { onSave(dictForm, reading, dictFormReading, meaning, pos) },
                 colors = ButtonDefaults.buttonColors(containerColor = sumiInk, contentColor = surfaceColor)
             ) {
                 Text(stringResource(R.string.save))

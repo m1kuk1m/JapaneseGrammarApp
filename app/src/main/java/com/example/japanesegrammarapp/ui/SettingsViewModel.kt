@@ -686,6 +686,143 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    // ── Prompt Preset Export ─────────────────────────────────────────────────
+
+    /** Exports only the currently active [PromptPreset] to a JSON share sheet. */
+    fun exportActivePreset() {
+        val preset = _uiState.value.run {
+            promptPresets.find { it.id == activePromptPresetId } ?: return
+        }
+        exportPresetsToShare(listOf(preset))
+    }
+
+    /** Exports all [PromptPreset]s to a JSON share sheet. */
+    fun exportAllPresets() {
+        val presets = _uiState.value.promptPresets
+        if (presets.isEmpty()) return
+        exportPresetsToShare(presets)
+    }
+
+    private fun exportPresetsToShare(presets: List<PromptPreset>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Enrich each preset with the full resolved prompt values.
+                // PromptPreset.prompts only stores user-modified keys; keys that
+                // are still at their built-in default are absent from the map.
+                // We call settingsRepository.getCustomPrompt() for every known
+                // key so the export file always contains all 8 prompts.
+                val allKeys = listOf(
+                    "prompt_translation",
+                    "prompt_segments",
+                    "prompt_clauses",
+                    "prompt_grammar",
+                    "prompt_tokenizer",
+                    "prompt_tokenizer_ocr",
+                    "prompt_tokenizer_image",
+                    "prompt_tokenizer_image_repair"
+                )
+
+                // Switch the active preset to each target preset temporarily so
+                // getCustomPrompt() resolves against the correct preset's storage.
+                // This is safer than trying to reach into per-preset storage directly.
+                val currentActiveId = settingsRepository.getActivePromptPresetId()
+                val enrichedPresets = presets.map { preset ->
+                    settingsRepository.setActivePromptPresetId(preset.id)
+                    val fullPrompts = allKeys.associateWith { key ->
+                        settingsRepository.getCustomPrompt(key)
+                    }
+                    preset.copy(prompts = fullPrompts)
+                }
+                // Restore the original active preset
+                settingsRepository.setActivePromptPresetId(currentActiveId)
+
+                val json = com.example.japanesegrammarapp.utils.PromptPresetExporter.exportToJson(enrichedPresets)
+                val tempFile = java.io.File(application.cacheDir, "exports/prompt_presets.json")
+                tempFile.parentFile?.mkdirs()
+                tempFile.writeText(json)
+
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    application,
+                    "${application.packageName}.fileprovider",
+                    tempFile
+                )
+                _uiEvent.emit(
+                    UiEvent.ShareFileEvent(
+                        uri = uri,
+                        mimeType = "application/json",
+                        chooserTitleResId = R.string.export_preset_chooser
+                    )
+                )
+            } catch (e: Exception) {
+                AppLogger.e("SETTINGS", "Failed to export prompt presets", e)
+                _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.unknown_error))
+            }
+        }
+    }
+
+    // ── Prompt Preset Import ─────────────────────────────────────────────────
+
+    enum class ImportConflictStrategy { RENAME, SKIP }
+
+    /**
+     * Parses [json] and saves the contained presets according to [strategy]:
+     * - [ImportConflictStrategy.RENAME] – appends " (1)", " (2)" … to duplicate names
+     * - [ImportConflictStrategy.SKIP]   – silently drops presets whose name already exists
+     */
+    fun importPresetsFromJson(json: String, strategy: ImportConflictStrategy) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = com.example.japanesegrammarapp.utils.PromptPresetExporter.importFromJson(json)
+            result.onFailure { e ->
+                val resId = if (e is com.example.japanesegrammarapp.utils.PromptPresetExporter.ImportException
+                    && e.message?.contains("no valid") == true
+                ) R.string.import_failed_empty else R.string.import_failed_invalid
+                _uiEvent.emit(UiEvent.ShowLocalizedError(resId))
+                return@launch
+            }
+
+            val parsed = result.getOrNull() ?: return@launch
+            val existingNames = _uiState.value.promptPresets.map { it.name.lowercase() }.toMutableSet()
+            var savedCount = 0
+
+            for (preset in parsed) {
+                // The default preset merges directly without name-conflict checks
+                if (preset.id == PromptPreset.DEFAULT_PRESET_ID) {
+                    settingsRepository.savePromptPreset(preset)
+                    savedCount++
+                    continue
+                }
+
+                val nameLower = preset.name.lowercase()
+                when {
+                    !existingNames.contains(nameLower) -> {
+                        settingsRepository.savePromptPreset(preset)
+                        existingNames += nameLower
+                        savedCount++
+                    }
+                    strategy == ImportConflictStrategy.SKIP -> { /* drop */ }
+                    strategy == ImportConflictStrategy.RENAME -> {
+                        var suffix = 1
+                        var candidate = "${preset.name} ($suffix)"
+                        while (existingNames.contains(candidate.lowercase())) {
+                            suffix++
+                            candidate = "${preset.name} ($suffix)"
+                        }
+                        val renamed = preset.copy(
+                            id = java.util.UUID.randomUUID().toString(),
+                            name = candidate
+                        )
+                        settingsRepository.savePromptPreset(renamed)
+                        existingNames += candidate.lowercase()
+                        savedCount++
+                    }
+                }
+            }
+
+            _uiState.update { it.copy(promptPresets = settingsRepository.getPromptPresets()) }
+            _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.import_preset_success, listOf(savedCount)))
+        }
+    }
+
     fun setCardFontSizeScale(scale: Float) {
         settingsRepository.setCardFontSizeScale(scale)
     }
