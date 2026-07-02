@@ -848,6 +848,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                             append("...")
                         }
                     }
+                    progressStore.finish(recordId)
                     saveAnalysisRecordUseCase.update(
                         currentRecord.copy(
                             status = AnalysisStatus.FAILED,
