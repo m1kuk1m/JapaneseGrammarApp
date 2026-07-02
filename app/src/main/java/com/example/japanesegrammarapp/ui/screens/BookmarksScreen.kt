@@ -691,19 +691,21 @@ fun BookmarksScreen(
         EditWordDialog(
             initialDictionaryForm = bm.dictionaryForm ?: "",
             initialReading = bm.reading ?: "",
+            initialDictionaryFormReading = bm.dictionaryFormReading ?: bm.reading ?: "",
             initialMeaning = bm.meaning ?: "",
             initialPartOfSpeech = bm.partOfSpeech ?: "",
             onDismiss = { editingBookmark = null },
-            onSave = { dictForm, reading, meaning, pos ->
+            onSave = { dictForm, reading, dictFormReading, meaning, pos ->
                 val normalizedDictForm = dictForm.takeIf { it.isNotBlank() } ?: bm.segmentText
                 viewModel.updateWordBookmark(
                     bm.copy(
                         segmentText = normalizedDictForm,
                         dictionaryForm = normalizedDictForm,
                         reading = reading,
+                        dictionaryFormReading = dictFormReading,
                         meaning = meaning,
                         partOfSpeech = pos,
-                        posCategory = bm.posCategory.takeIf { pos == bm.partOfSpeech } ?: "OTHER"
+                        posCategory = derivePosCategory(pos)
                     )
                 )
                 editingBookmark = null

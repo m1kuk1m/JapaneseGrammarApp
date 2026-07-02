@@ -17,6 +17,7 @@
     <string name="segmenting_text">テキストを形態素に分割中...</string>
     <string name="pos">品詞</string>
     <string name="dictionary_form">辞書形</string>
+    <string name="dictionary_form_reading">辞書形の読み</string>
     <string name="inflection">構成・活用</string>
     <string name="role_in_sentence">文中の役割</string>
     <string name="meaning">中国語の訳・意味</string>
@@ -666,5 +667,18 @@
     <string name="card_detail_inline">インライン</string>
     <string name="card_detail_popup">フローティングダイアログ</string>
     <string name="card_preview_title">成分カードプレビュー：</string>
+
+    <!-- Prompt Preset Import / Export -->
+    <string name="export_preset">現在のプリセットをエクスポート</string>
+    <string name="export_all_presets">全プリセットをエクスポート</string>
+    <string name="import_presets">プリセットをインポート</string>
+    <string name="export_preset_chooser">Promptプリセットを共有</string>
+    <string name="import_conflict_title">インポート — 競合処理</string>
+    <string name="import_conflict_body">同名のプリセットはどう処理しますか？</string>
+    <string name="import_conflict_rename">同名を自動リネーム</string>
+    <string name="import_conflict_skip">同名をスキップ</string>
+    <string name="import_preset_success">%1$d 件のプリセットをインポートしました</string>
+    <string name="import_failed_invalid">ファイル形式が無効です</string>
+    <string name="import_failed_empty">ファイルに有効なプリセットがありません</string>
 </resources>
 

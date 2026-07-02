@@ -17,6 +17,7 @@
     <string name="segmenting_text">正在进行形态素拆分...</string>
     <string name="pos">词性</string>
     <string name="dictionary_form">字典形</string>
+    <string name="dictionary_form_reading">字典形读音</string>
     <string name="inflection">构成/活用</string>
     <string name="role_in_sentence">句中作用</string>
     <string name="meaning">中文释义</string>
@@ -667,5 +668,18 @@
     <string name="card_detail_inline">行内</string>
     <string name="card_detail_popup">浮动对话框</string>
     <string name="card_preview_title">成分卡片预览：</string>
+
+    <!-- Prompt Preset Import / Export -->
+    <string name="export_preset">导出当前预设</string>
+    <string name="export_all_presets">导出全部预设</string>
+    <string name="import_presets">导入预设</string>
+    <string name="export_preset_chooser">分享 Prompt 预设</string>
+    <string name="import_conflict_title">导入 — 冲突处理</string>
+    <string name="import_conflict_body">同名预设如何处理？</string>
+    <string name="import_conflict_rename">同名自动重命名</string>
+    <string name="import_conflict_skip">跳过同名</string>
+    <string name="import_preset_success">成功导入 %1$d 个预设</string>
+    <string name="import_failed_invalid">文件格式无效</string>
+    <string name="import_failed_empty">文件中未找到有效预设</string>
 </resources>
 

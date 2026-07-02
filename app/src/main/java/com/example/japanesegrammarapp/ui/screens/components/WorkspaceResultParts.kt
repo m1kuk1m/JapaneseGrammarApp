@@ -28,10 +28,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
@@ -58,6 +60,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.japanesegrammarapp.domain.model.WordSegment
+import com.example.japanesegrammarapp.domain.model.derivePosCategory
+import com.example.japanesegrammarapp.domain.model.isPunctuation
 import com.example.japanesegrammarapp.ui.theme.ZenThemeColors
 
 @Composable
@@ -203,12 +207,14 @@ fun SegmentChip(
                 ),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                val isPunctuation = segment.partOfSpeech?.contains("記号") == true || segment.posCategory == "symbol" || segment.text?.matches(Regex("^[\\p{Punct}、。！？「」『』（）]+$")) == true
-                val displayReading = if (isPunctuation) "\u200B" else (segment.reading?.takeIf { it.isNotBlank() } ?: "\u200B")
+                val isPunctuation = segment.isPunctuation()
+                // A real reading to display (null/blank → no furigana row text).
+                val displayReading = if (isPunctuation) null
+                    else segment.reading?.takeIf { it.isNotBlank() }
 
                 AnimatedContent(
                     targetState = Pair(displayReading, segment.text ?: ""),
-                    transitionSpec = { 
+                    transitionSpec = {
                         (fadeIn(tween(150)) togetherWith fadeOut(tween(150))).using(
                             SizeTransform(clip = false)
                         )
@@ -216,17 +222,29 @@ fun SegmentChip(
                     label = "textReveal"
                 ) { (targetReading, targetText) ->
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = targetReading,
-                            fontSize = 9.9.sp * furiganaScale,
-                            lineHeight = 11.sp * furiganaScale,
-                            color = chipTextColor.copy(
-                                alpha = if (isLoading || targetReading == "\u200B") 0.0f else 0.6f
-                            )
-                        )
-                        if (targetReading != "\u200B") {
-                            Spacer(modifier = Modifier.height(2.dp * furiganaGapScale))
+                        // Use a minimum-height Box for the furigana slot so that
+                        // ALL chip types (words with readings, words without
+                        // readings, and punctuation) share the exact same layout
+                        // height while leaving room for Android Japanese font metrics.
+                        val furiganaRowHeight = 14.dp * furiganaScale
+                        Box(
+                            modifier = Modifier
+                                .heightIn(min = furiganaRowHeight)
+                                .wrapContentHeight(Alignment.CenterVertically),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (targetReading != null && !isLoading) {
+                                Text(
+                                    text = targetReading,
+                                    fontSize = 9.9.sp * furiganaScale,
+                                    lineHeight = 13.sp * furiganaScale,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    color = chipTextColor.copy(alpha = 0.6f)
+                                )
+                            }
                         }
+                        Spacer(modifier = Modifier.height(2.dp * furiganaGapScale))
                         Text(
                             text = targetText,
                             fontSize = 16.sp * fontScale,
@@ -289,24 +307,7 @@ private fun getChipColorForPos(segment: WordSegment): Color {
     val resolvedCategory = if (category != null && category != "OTHER") {
         category
     } else {
-        val pos = segment.partOfSpeech ?: ""
-        val primaryPos = pos.split("-").firstOrNull() ?: ""
-        when {
-            primaryPos.contains("代名詞") -> "PRONOUN"
-            primaryPos.contains("感動詞") -> "INTERJECTION"
-            primaryPos.contains("助動詞") -> "AUXILIARY"
-            primaryPos.contains("形容") || primaryPos.contains("形状") -> "ADJECTIVE"
-            primaryPos.contains("名詞") || primaryPos.contains("数詞") -> "NOUN"
-            primaryPos.contains("動詞") -> "VERB"
-            primaryPos.contains("助詞") -> "PARTICLE"
-            primaryPos.contains("副詞") || primaryPos.contains("擬態語") -> "ADVERB"
-            primaryPos.contains("接続詞") -> "CONJUNCTION"
-            primaryPos.contains("連体詞") -> "PRE_NOUN_ADJECTIVAL"
-            primaryPos.contains("記号") -> "SYMBOL"
-            primaryPos.contains("接尾辞") || primaryPos.contains("接頭辞") -> "AFFIX"
-            primaryPos.contains("連語") || primaryPos.contains("慣用句") -> "PHRASE"
-            else -> "OTHER"
-        }
+        derivePosCategory(segment.partOfSpeech)
     }
     return ZenThemeColors.getChipColor(resolvedCategory)
 }

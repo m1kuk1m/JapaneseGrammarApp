@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
 import com.example.japanesegrammarapp.domain.model.BookmarkedSegmentDomain
+import com.example.japanesegrammarapp.domain.model.derivePosCategory
 import com.example.japanesegrammarapp.domain.model.effectivePosCategory
 import androidx.compose.ui.draw.rotate
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
@@ -552,15 +553,18 @@ fun StatisticsScreen(
                             EditWordDialog(
                                 initialDictionaryForm = bm.dictionaryForm ?: "",
                                 initialReading = bm.reading ?: "",
+                                initialDictionaryFormReading = bm.dictionaryFormReading ?: bm.reading ?: "",
                                 initialMeaning = bm.meaning ?: "",
                                 initialPartOfSpeech = bm.partOfSpeech ?: "",
                                 onDismiss = { editingBookmark = null },
-                                onSave = { dictionaryForm, reading, meaning, partOfSpeech ->
+                                onSave = { dictionaryForm, reading, dictionaryFormReading, meaning, partOfSpeech ->
                                     val updatedBookmark = bm.copy(
                                         dictionaryForm = dictionaryForm.takeIf { it.isNotBlank() },
                                         reading = reading.takeIf { it.isNotBlank() },
+                                        dictionaryFormReading = dictionaryFormReading.takeIf { it.isNotBlank() },
                                         meaning = meaning.takeIf { it.isNotBlank() },
-                                        partOfSpeech = partOfSpeech.takeIf { it.isNotBlank() }
+                                        partOfSpeech = partOfSpeech.takeIf { it.isNotBlank() },
+                                        posCategory = derivePosCategory(partOfSpeech)
                                     )
                                     viewModel.updateWordBookmark(updatedBookmark)
                                     editingBookmark = null

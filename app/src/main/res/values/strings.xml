@@ -17,6 +17,7 @@
     <string name="segmenting_text">Segmenting text into morphemes...</string>
     <string name="pos">Part of Speech</string>
     <string name="dictionary_form">Dictionary Form</string>
+    <string name="dictionary_form_reading">Dictionary Form Reading</string>
     <string name="inflection">Inflection</string>
     <string name="role_in_sentence">Role</string>
     <string name="meaning">Meaning</string>
@@ -675,5 +676,18 @@
     <string name="card_detail_popup">Floating Dialog</string>
     <string name="restore_defaults">Restore Defaults</string>
     <string name="card_preview_title">Word Segment Preview:</string>
+
+    <!-- Prompt Preset Import / Export -->
+    <string name="export_preset">Export Current</string>
+    <string name="export_all_presets">Export All</string>
+    <string name="import_presets">Import</string>
+    <string name="export_preset_chooser">Share Prompt Preset</string>
+    <string name="import_conflict_title">Import — Conflict Handling</string>
+    <string name="import_conflict_body">How should presets with the same name be handled?</string>
+    <string name="import_conflict_rename">Auto-rename duplicates</string>
+    <string name="import_conflict_skip">Skip duplicates</string>
+    <string name="import_preset_success">Imported %1$d preset(s) successfully</string>
+    <string name="import_failed_invalid">Invalid file format</string>
+    <string name="import_failed_empty">No valid presets found in file</string>
 </resources>
 
