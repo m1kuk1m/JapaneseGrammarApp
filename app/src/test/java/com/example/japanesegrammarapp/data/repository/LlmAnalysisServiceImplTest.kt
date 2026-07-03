@@ -16,6 +16,84 @@ import org.junit.Test
 
 class LlmAnalysisServiceImplTest {
     @Test
+    fun executeTokenizerSplitsSafePunctuationOutOfMixedTokens() = runBlocking {
+        val repository = FakeLlmRepository(
+            response = """
+                か…必ずしも…はっ歓迎…て事じゃ…ない…だろう…し…
+                か…
+                必ずしも…
+                はっ
+                歓迎…
+                て
+                事
+                じゃ…
+                ない…
+                だろう…
+                し…
+            """.trimIndent()
+        )
+        val service = LlmAnalysisServiceImpl(
+            llmRepository = repository,
+            settingsRepository = FakeSettingsRepository,
+            gson = Gson()
+        )
+
+        val (result, _) = service.executeTokenizer(
+            text = "",
+            imageBase64 = "image",
+            mimeType = "image/jpeg",
+            isOcrMode = false,
+            imageTokenizerMode = "repair",
+            primaryConfigs = listOf(testConfig),
+            backupConfigs = emptyList()
+        ).last()
+
+        val expectedTokens = listOf(
+            "か", "…",
+            "必ずしも", "…",
+            "はっ",
+            "歓迎", "…",
+            "て",
+            "事",
+            "じゃ", "…",
+            "ない", "…",
+            "だろう", "…",
+            "し", "…"
+        )
+        assertEquals(expectedTokens, result?.tokens)
+        assertEquals(result?.recognizedText, result?.tokens?.joinToString(""))
+    }
+
+    @Test
+    fun executeSegmentsPreservesOriginalTokenSurfaceWhenAnalyzerDropsPunctuation() = runBlocking {
+        val repository = FakeLlmRepository(
+            response = """
+                か|か|吗/或者|副助詞||||
+                必ずしも|かならずしも|未必|副詞||||
+                歓迎|かんげい|欢迎|名詞||||
+                じゃ|じゃ|不是|助動詞||||
+            """.trimIndent()
+        )
+        val service = LlmAnalysisServiceImpl(
+            llmRepository = repository,
+            settingsRepository = FakeSettingsRepository,
+            gson = Gson()
+        )
+
+        val tokens = listOf("か…", "必ずしも…", "歓迎…", "じゃ…")
+        val (result, _) = service.executeSegments(
+            text = tokens.joinToString(""),
+            tokens = tokens,
+            imageBase64 = null,
+            mimeType = null,
+            primaryConfigs = listOf(testConfig),
+            backupConfigs = emptyList()
+        ).last()
+
+        assertEquals(tokens, result?.segments?.map { it.text })
+    }
+
+    @Test
     fun executeSegmentsTreatsMultiCharacterEllipsisAsPunctuation() = runBlocking {
         assertEllipsisTokenIsKeptOutOfDetailedAnalysis("……")
         assertEllipsisTokenIsKeptOutOfDetailedAnalysis("......")

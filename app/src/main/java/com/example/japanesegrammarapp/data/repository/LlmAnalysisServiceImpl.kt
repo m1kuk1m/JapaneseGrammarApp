@@ -27,6 +27,12 @@ class LlmAnalysisServiceImpl @Inject constructor(
     private companion object {
         const val DEFAULT_STEP_TIMEOUT_MS = 150_000L
         const val GRAMMAR_STEP_TIMEOUT_MS = 120_000L
+        val TOKENIZER_BOUNDARY_PUNCTUATION_CHARS = setOf(
+            '。', '、', '・', '？', '！', '「', '」', '『', '』', '（', '）',
+            '〔', '〕', '［', '］', '｛', '｝', '〜', '～', '…', '：', '；',
+            '―', '—', '【', '】', '《', '》', '〈', '〉', '〝', '〟',
+            '?', '!', '(', ')', '[', ']', '{', '}', ':', ';'
+        )
     }
 
     override suspend fun executeTokenizer(
@@ -76,14 +82,14 @@ class LlmAnalysisServiceImpl @Inject constructor(
             } else {
                 if (imageBase64 != null || isOcrMode) {
                     val firstLine = lines.firstOrNull() ?: ""
-                    val tokens = if (lines.size > 1) lines.drop(1) else emptyList()
+                    val tokens = if (lines.size > 1) normalizeTokenizerTokens(lines.drop(1)) else emptyList()
                     if (isOcrMode) {
                         TokenizationResult(correctedText = firstLine, tokens = tokens)
                     } else {
                         TokenizationResult(recognizedText = firstLine, tokens = tokens)
                     }
                 } else {
-                    TokenizationResult(tokens = lines)
+                    TokenizationResult(tokens = normalizeTokenizerTokens(lines))
                 }
             }
         }
@@ -294,7 +300,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
                     finalSegments.add(getPunctuationSegment(token))
                 } else {
                     if (returnedIdx < returnedSegments.size) {
-                        finalSegments.add(returnedSegments[returnedIdx])
+                        finalSegments.add(returnedSegments[returnedIdx].copy(text = token))
                         returnedIdx++
                     } else {
                         finalSegments.add(WordSegment(text = token))
@@ -444,6 +450,58 @@ class LlmAnalysisServiceImpl @Inject constructor(
                block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS ||
                block == Character.UnicodeBlock.HIRAGANA ||
                block == Character.UnicodeBlock.KATAKANA
+    }
+
+    private fun normalizeTokenizerTokens(tokens: List<String>): List<String> {
+        return tokens.flatMap { splitTokenizerToken(it.trim()) }.filter { it.isNotBlank() }
+    }
+
+    private fun splitTokenizerToken(token: String): List<String> {
+        if (token.isBlank()) return emptyList()
+        if (isPunctuation(token)) return listOf(token)
+
+        val parts = mutableListOf<String>()
+        val buffer = StringBuilder()
+        var index = 0
+
+        fun flushBuffer() {
+            if (buffer.isNotEmpty()) {
+                parts.add(buffer.toString())
+                buffer.clear()
+            }
+        }
+
+        while (index < token.length) {
+            val char = token[index]
+            val dotRunLength = if (char == '.') countDotRun(token, index) else 0
+            if (dotRunLength >= 2) {
+                flushBuffer()
+                parts.add(token.substring(index, index + dotRunLength))
+                index += dotRunLength
+            } else if (isTokenizerBoundaryPunctuation(char)) {
+                flushBuffer()
+                parts.add(char.toString())
+                index++
+            } else {
+                buffer.append(char)
+                index++
+            }
+        }
+        flushBuffer()
+
+        return parts.ifEmpty { listOf(token) }
+    }
+
+    private fun countDotRun(token: String, start: Int): Int {
+        var end = start
+        while (end < token.length && token[end] == '.') {
+            end++
+        }
+        return end - start
+    }
+
+    private fun isTokenizerBoundaryPunctuation(c: Char): Boolean {
+        return c in TOKENIZER_BOUNDARY_PUNCTUATION_CHARS
     }
 
     private fun isPunctuation(token: String): Boolean {
