@@ -28,6 +28,8 @@ data class ApiDebugLog(
     val consumedTokens: Int = 0,
     val inputTokens: Int = 0,
     val outputTokens: Int = 0,
+    val reasoningContent: String? = null,
+    val reasoningTokens: Int? = null,
     val recordId: Int? = null,
     val stepName: String? = null,
     val attempt: Int? = null,
@@ -134,6 +136,8 @@ object AppLogger {
         consumedTokens: Int,
         inputTokens: Int,
         outputTokens: Int,
+        reasoningContent: String? = null,
+        reasoningTokens: Int? = null,
         recordId: Int? = null,
         stepName: String? = null,
         attempt: Int? = null,
@@ -153,13 +157,15 @@ object AppLogger {
             consumedTokens = consumedTokens,
             inputTokens = inputTokens,
             outputTokens = outputTokens,
+            reasoningContent = reasoningContent?.safeForLog(12000),
+            reasoningTokens = reasoningTokens,
             recordId = recordId,
             stepName = stepName,
             attempt = attempt,
             elapsedMs = elapsedMs
         )
         val updatedLogs = appendApiLog(entry)
-        d("API_DEBUG", "[$apiTypeLabel] success via $provider/$model, tokens=$consumedTokens, image=$hasImage, record=$recordId, step=$stepName, elapsed=${elapsedMs ?: 0}ms")
+        d("API_DEBUG", "[$apiTypeLabel] success via $provider/$model, tokens=$consumedTokens, reasoningTokens=${reasoningTokens ?: 0}, image=$hasImage, record=$recordId, step=$stepName, elapsed=${elapsedMs ?: 0}ms")
         writeApiLogsToFile(updatedLogs)
     }
 

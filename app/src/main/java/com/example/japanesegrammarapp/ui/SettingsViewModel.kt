@@ -15,6 +15,8 @@ import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectorEngine
 import com.example.japanesegrammarapp.domain.model.PromptPreset
+import com.example.japanesegrammarapp.domain.model.ReasoningLevel
+import com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.utils.ApiDebugLog
 import com.example.japanesegrammarapp.utils.ApiLogExportFormatter
@@ -59,12 +61,21 @@ class SettingsViewModel @Inject constructor(
             val providerModels = allProviders.associateWith { settingsRepository.getModelsForProvider(it) }
             val activeModel = settingsRepository.getActiveModel(activeProvider)
             val useOcr = settingsRepository.getUseOcr()
+            val reasoningLevel = settingsRepository.getReasoningLevel()
             val autoNavigateResult = settingsRepository.getAutoNavigateResult()
+            val removeAccidentalSpaces = settingsRepository.getRemoveAccidentalSpaces()
             val autoDeskewAfterCapture = settingsRepository.getAutoDeskewAfterCapture()
             val imageTokenizerMode = settingsRepository.getImageTokenizerMode()
             val ocrBoxDetectionSettings = settingsRepository.getOcrBoxDetectionSettings()
             val backupProvider = settingsRepository.getBackupProvider()
             val backupModel = settingsRepository.getBackupModel()
+            val useBackupApi = settingsRepository.getUseBackupApi()
+            val autoRetryOnError = settingsRepository.getAutoRetryOnError()
+            val failoverToNextEndpoint = settingsRepository.getFailoverToNextEndpoint()
+            val componentLabels = listOf("単語分割", "翻訳", "文節解析", "文法解説", "詳細文法解析")
+            val componentReasoningLevels = componentLabels.associateWith {
+                settingsRepository.getComponentReasoningLevel(it)
+            }
 
             val models = providerModels[activeProvider] ?: emptyList()
             val finalActiveModel = if (activeModel.isBlank() && models.isNotEmpty()) models.first() else activeModel
@@ -90,11 +101,18 @@ class SettingsViewModel @Inject constructor(
 
             _uiState.update {
                 it.copy(
+                    reasoningLevel = reasoningLevel,
+                    componentReasoningLevels = componentReasoningLevels,
                     activeProvider = activeProvider,
                     activeModel = finalActiveModel,
                     useOcr = useOcr,
                     autoNavigateResult = autoNavigateResult,
+                    removeAccidentalSpaces = removeAccidentalSpaces,
+                    useBackupApi = useBackupApi,
+                    autoRetryOnError = autoRetryOnError,
+                    failoverToNextEndpoint = failoverToNextEndpoint,
                     autoDeskewAfterCapture = autoDeskewAfterCapture,
+
                     imageTokenizerMode = imageTokenizerMode,
                     ocrBoxDetectionSettings = ocrBoxDetectionSettings,
                     providerModels = providerModels,
@@ -304,6 +322,12 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setAutoNavigateResult(value)
         _uiState.update { it.copy(autoNavigateResult = value) }
     }
+
+    fun setRemoveAccidentalSpaces(value: Boolean) {
+        settingsRepository.setRemoveAccidentalSpaces(value)
+        _uiState.update { it.copy(removeAccidentalSpaces = value) }
+    }
+
 
     fun setAutoDeskewAfterCapture(value: Boolean) {
         settingsRepository.setAutoDeskewAfterCapture(value)
@@ -845,6 +869,36 @@ class SettingsViewModel @Inject constructor(
 
     fun setCardDetailDisplayMode(mode: String) {
         settingsRepository.setCardDetailDisplayMode(mode)
+    }
+
+    fun setReasoningLevel(level: ReasoningLevel) {
+        settingsRepository.setReasoningLevel(level)
+        _uiState.update { it.copy(reasoningLevel = level) }
+    }
+
+    fun setComponentReasoningLevel(apiTypeLabel: String, level: ComponentReasoningLevel) {
+        settingsRepository.setComponentReasoningLevel(apiTypeLabel, level)
+        _uiState.update { state ->
+            val updated = state.componentReasoningLevels.toMutableMap().apply {
+                this[apiTypeLabel] = level
+            }
+            state.copy(componentReasoningLevels = updated)
+        }
+    }
+
+    fun setUseBackupApi(value: Boolean) {
+        settingsRepository.setUseBackupApi(value)
+        _uiState.update { it.copy(useBackupApi = value) }
+    }
+
+    fun setAutoRetryOnError(value: Boolean) {
+        settingsRepository.setAutoRetryOnError(value)
+        _uiState.update { it.copy(autoRetryOnError = value) }
+    }
+
+    fun setFailoverToNextEndpoint(value: Boolean) {
+        settingsRepository.setFailoverToNextEndpoint(value)
+        _uiState.update { it.copy(failoverToNextEndpoint = value) }
     }
 
     private companion object {

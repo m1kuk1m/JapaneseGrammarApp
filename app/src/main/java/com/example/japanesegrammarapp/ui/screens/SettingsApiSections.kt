@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -34,6 +35,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,6 +51,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
+import com.example.japanesegrammarapp.domain.model.ReasoningLevel
+import com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel
 import com.example.japanesegrammarapp.ui.SettingsUiState
 
 @Composable
@@ -58,9 +63,16 @@ fun SettingsApiPrioritySection(
     onActiveProviderChange: (String) -> Unit,
     onActiveModelChange: (String) -> Unit,
     onBackupProviderChange: (String) -> Unit,
-    onBackupModelChange: (String) -> Unit
+    onBackupModelChange: (String) -> Unit,
+    onUseBackupApiChange: (Boolean) -> Unit,
+    onAutoRetryOnErrorChange: (Boolean) -> Unit,
+    onFailoverToNextEndpointChange: (Boolean) -> Unit,
+    onReasoningLevelChange: (ReasoningLevel) -> Unit,
+    onComponentReasoningLevelChange: (String, ComponentReasoningLevel) -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
     val activeProvider = uiState.activeProvider
 
     SettingsGroup(title = stringResource(R.string.api_config)) {
@@ -123,62 +135,241 @@ fun SettingsApiPrioritySection(
 
         SettingsDivider()
 
-        var backupProviderExpanded by remember { mutableStateOf(false) }
-        SettingsItem(
-            icon = Icons.Default.Backup,
-            title = stringResource(R.string.backup_api),
-            subtitle = uiState.backupProvider,
-            onClick = { backupProviderExpanded = true },
-            trailingContent = {
-                Box {
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = sumiInk.copy(alpha = 0.5f))
-                    DropdownMenu(
-                        expanded = backupProviderExpanded,
-                        onDismissRequest = { backupProviderExpanded = false }
-                    ) {
-                        providers.forEach { provider ->
-                            DropdownMenuItem(
-                                text = { Text(provider) },
-                                onClick = {
-                                    onBackupProviderChange(provider)
-                                    backupProviderExpanded = false
-                                }
-                            )
-                        }
-                    }
+        val globalSliderValue = when (uiState.reasoningLevel) {
+            ReasoningLevel.OFF -> 0f
+            ReasoningLevel.AUTO -> 1f
+            ReasoningLevel.LOW -> 2f
+            ReasoningLevel.MEDIUM -> 3f
+            ReasoningLevel.HIGH -> 4f
+        }
+        val globalValueLabel = when (uiState.reasoningLevel) {
+            ReasoningLevel.OFF -> stringResource(R.string.cot_level_off)
+            ReasoningLevel.AUTO -> stringResource(R.string.cot_level_auto)
+            ReasoningLevel.LOW -> stringResource(R.string.cot_level_low)
+            ReasoningLevel.MEDIUM -> stringResource(R.string.cot_level_medium)
+            ReasoningLevel.HIGH -> stringResource(R.string.cot_level_high)
+        }
+
+        SettingsSliderItem(
+            icon = Icons.Default.Tune,
+            title = stringResource(R.string.reasoning_level),
+            value = globalSliderValue,
+            valueRange = 0f..4f,
+            steps = 3,
+            onValueChange = { floatVal ->
+                val level = when (floatVal.toInt()) {
+                    0 -> ReasoningLevel.OFF
+                    1 -> ReasoningLevel.AUTO
+                    2 -> ReasoningLevel.LOW
+                    3 -> ReasoningLevel.MEDIUM
+                    4 -> ReasoningLevel.HIGH
+                    else -> ReasoningLevel.AUTO
                 }
+                onReasoningLevelChange(level)
+            },
+            valueLabel = globalValueLabel
+        )
+
+        SettingsDivider()
+
+        var advancedCotExpanded by remember { mutableStateOf(false) }
+        SettingsItem(
+            icon = Icons.Default.Tune,
+            title = stringResource(R.string.advanced_component_cot),
+            subtitle = stringResource(R.string.advanced_component_cot_desc),
+            onClick = { advancedCotExpanded = !advancedCotExpanded },
+            trailingContent = {
+                Icon(
+                    if (advancedCotExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = sumiInk.copy(alpha = 0.5f)
+                )
+            }
+        )
+
+        AnimatedVisibility(
+            visible = advancedCotExpanded,
+            enter = fadeIn(animationSpec = tween(300)) + expandVertically(),
+            exit = fadeOut(animationSpec = tween(300)) + shrinkVertically()
+        ) {
+            Column(modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)) {
+                val components = listOf(
+                    "単語分割" to stringResource(R.string.cot_word_segmentation),
+                    "翻訳" to stringResource(R.string.cot_translation),
+                    "文節解析" to stringResource(R.string.cot_clause_analysis),
+                    "文法解説" to stringResource(R.string.cot_grammar_explanation),
+                    "詳細文法解析" to stringResource(R.string.cot_detailed_analysis)
+                )
+
+                components.forEach { (apiLabel, displayTitle) ->
+                    val componentLevel = uiState.componentReasoningLevels[apiLabel] ?: ComponentReasoningLevel.GLOBAL
+                    val sliderVal = when (componentLevel) {
+                        ComponentReasoningLevel.GLOBAL -> 0f
+                        ComponentReasoningLevel.OFF -> 1f
+                        ComponentReasoningLevel.AUTO -> 2f
+                        ComponentReasoningLevel.LOW -> 3f
+                        ComponentReasoningLevel.MEDIUM -> 4f
+                        ComponentReasoningLevel.HIGH -> 5f
+                    }
+                    val label = when (componentLevel) {
+                        ComponentReasoningLevel.GLOBAL -> stringResource(R.string.cot_level_global) + " ($globalValueLabel)"
+                        ComponentReasoningLevel.OFF -> stringResource(R.string.cot_level_off)
+                        ComponentReasoningLevel.AUTO -> stringResource(R.string.cot_level_auto)
+                        ComponentReasoningLevel.LOW -> stringResource(R.string.cot_level_low)
+                        ComponentReasoningLevel.MEDIUM -> stringResource(R.string.cot_level_medium)
+                        ComponentReasoningLevel.HIGH -> stringResource(R.string.cot_level_high)
+                    }
+
+                    SettingsSliderItem(
+                        icon = Icons.Default.Tune,
+                        title = displayTitle,
+                        value = sliderVal,
+                        valueRange = 0f..5f,
+                        steps = 4,
+                        onValueChange = { floatVal ->
+                            val level = when (floatVal.toInt()) {
+                                0 -> ComponentReasoningLevel.GLOBAL
+                                1 -> ComponentReasoningLevel.OFF
+                                2 -> ComponentReasoningLevel.AUTO
+                                3 -> ComponentReasoningLevel.LOW
+                                4 -> ComponentReasoningLevel.MEDIUM
+                                5 -> ComponentReasoningLevel.HIGH
+                                else -> ComponentReasoningLevel.GLOBAL
+                            }
+                            onComponentReasoningLevelChange(apiLabel, level)
+                        },
+                        valueLabel = label
+                    )
+                }
+            }
+        }
+
+        SettingsDivider()
+
+        SettingsItem(
+            icon = Icons.Default.Tune,
+            title = stringResource(R.string.auto_retry_on_error),
+            subtitle = stringResource(R.string.auto_retry_on_error_desc),
+            trailingContent = {
+                Switch(
+                    checked = uiState.autoRetryOnError,
+                    onCheckedChange = onAutoRetryOnErrorChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = onPrimaryColor,
+                        checkedTrackColor = primaryColor,
+                        uncheckedThumbColor = sumiInk.copy(alpha = 0.4f),
+                        uncheckedTrackColor = sumiInk.copy(alpha = 0.1f)
+                    )
+                )
             }
         )
 
         SettingsDivider()
 
-        var backupModelExpanded by remember { mutableStateOf(false) }
-        val backupModels = providerModels[uiState.backupProvider].orEmpty()
         SettingsItem(
-            icon = Icons.Default.AutoAwesome,
-            title = stringResource(R.string.backup_model),
-            subtitle = uiState.backupModel.ifBlank { stringResource(R.string.unselected) },
-            onClick = { backupModelExpanded = true },
+            icon = Icons.Default.Tune,
+            title = stringResource(R.string.failover_to_next_endpoint),
+            subtitle = stringResource(R.string.failover_to_next_endpoint_desc),
             trailingContent = {
-                Box {
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = sumiInk.copy(alpha = 0.5f))
-                    DropdownMenu(
-                        expanded = backupModelExpanded,
-                        onDismissRequest = { backupModelExpanded = false }
-                    ) {
-                        backupModels.forEach { model ->
-                            DropdownMenuItem(
-                                text = { Text(model) },
-                                onClick = {
-                                    onBackupModelChange(model)
-                                    backupModelExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
+                Switch(
+                    checked = uiState.failoverToNextEndpoint,
+                    onCheckedChange = onFailoverToNextEndpointChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = onPrimaryColor,
+                        checkedTrackColor = primaryColor,
+                        uncheckedThumbColor = sumiInk.copy(alpha = 0.4f),
+                        uncheckedTrackColor = sumiInk.copy(alpha = 0.1f)
+                    )
+                )
             }
         )
+
+        SettingsDivider()
+
+        SettingsItem(
+            icon = Icons.Default.Backup,
+            title = stringResource(R.string.use_backup_api),
+            subtitle = stringResource(R.string.use_backup_api_desc),
+            trailingContent = {
+                Switch(
+                    checked = uiState.useBackupApi,
+                    onCheckedChange = onUseBackupApiChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = onPrimaryColor,
+                        checkedTrackColor = primaryColor,
+                        uncheckedThumbColor = sumiInk.copy(alpha = 0.4f),
+                        uncheckedTrackColor = sumiInk.copy(alpha = 0.1f)
+                    )
+                )
+            }
+        )
+
+        AnimatedVisibility(
+            visible = uiState.useBackupApi,
+            enter = fadeIn(animationSpec = tween(300)) + expandVertically(),
+            exit = fadeOut(animationSpec = tween(300)) + shrinkVertically()
+        ) {
+            Column {
+                SettingsDivider()
+
+                var backupProviderExpanded by remember { mutableStateOf(false) }
+                SettingsItem(
+                    icon = Icons.Default.Backup,
+                    title = stringResource(R.string.backup_api),
+                    subtitle = uiState.backupProvider,
+                    onClick = { backupProviderExpanded = true },
+                    trailingContent = {
+                        Box {
+                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = sumiInk.copy(alpha = 0.5f))
+                            DropdownMenu(
+                                expanded = backupProviderExpanded,
+                                onDismissRequest = { backupProviderExpanded = false }
+                            ) {
+                                providers.forEach { provider ->
+                                    DropdownMenuItem(
+                                        text = { Text(provider) },
+                                        onClick = {
+                                            onBackupProviderChange(provider)
+                                            backupProviderExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                )
+
+                SettingsDivider()
+
+                var backupModelExpanded by remember { mutableStateOf(false) }
+                val backupModels = providerModels[uiState.backupProvider].orEmpty()
+                SettingsItem(
+                    icon = Icons.Default.AutoAwesome,
+                    title = stringResource(R.string.backup_model),
+                    subtitle = uiState.backupModel.ifBlank { stringResource(R.string.unselected) },
+                    onClick = { backupModelExpanded = true },
+                    trailingContent = {
+                        Box {
+                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = sumiInk.copy(alpha = 0.5f))
+                            DropdownMenu(
+                                expanded = backupModelExpanded,
+                                onDismissRequest = { backupModelExpanded = false }
+                            ) {
+                                backupModels.forEach { model ->
+                                    DropdownMenuItem(
+                                        text = { Text(model) },
+                                        onClick = {
+                                            onBackupModelChange(model)
+                                            backupModelExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                )
+            }
+        }
     }
 }
 
@@ -310,4 +501,67 @@ fun SettingsCredentialsSection(
 private fun SettingsDivider() {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     Divider(color = sumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+}
+
+@Composable
+fun SettingsSliderItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    onValueChange: (Float) -> Unit,
+    valueLabel: String
+) {
+    val sumiInk = MaterialTheme.colorScheme.onBackground
+    val primaryColor = MaterialTheme.colorScheme.primary
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = sumiInk.copy(alpha = 0.6f),
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = sumiInk
+                )
+                Text(
+                    text = valueLabel,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = primaryColor
+                )
+            }
+            androidx.compose.material3.Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = valueRange,
+                steps = steps,
+                colors = androidx.compose.material3.SliderDefaults.colors(
+                    thumbColor = primaryColor,
+                    activeTrackColor = primaryColor,
+                    inactiveTrackColor = sumiInk.copy(alpha = 0.1f)
+                ),
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+            )
+        }
+    }
 }

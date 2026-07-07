@@ -71,6 +71,9 @@
     <string name="local_ocr_desc">オフにすると、画像を直接AIに送信して分析します。</string>
     <string name="auto_navigate_result">分析結果へ自動ジャンプ</string>
     <string name="auto_navigate_result_desc">アップロード後、自動で結果画面に移動します。オフ時はバックグラウンドで分析し、履歴から確認できます。</string>
+    <string name="remove_accidental_spaces">誤追加されたスペースを自動削除</string>
+    <string name="remove_accidental_spaces_desc">AI分析を実行する前に、日本語の文字间にある不要なスペースを自動的に削除し、トークン化エラーを防ぎます。</string>
+
     <string name="token_usage">APIトークン消費量（累計）</string>
     <string name="token_usage_desc">すべての分析で消費されたトークンの合計です。</string>
     <string name="input_tokens">入力トークン</string>
@@ -81,6 +84,27 @@
     <string name="in_out_ratio">入出力比率</string>
 
     <string name="api_config">API優先度設定</string>
+    <string name="reasoning_level">思考の深さ (思考プロセス)</string>
+    <string name="reasoning_level_desc">生成品質と速度のバランスを考慮して思考の深さを設定します。</string>
+    <string name="use_backup_api">予備APIを有効にする</string>
+    <string name="use_backup_api_desc">メインAPIが完全に失敗した場合、設定された予備APIに切り替えます。</string>
+    <string name="auto_retry_on_error">エラー時に自動再試行</string>
+    <string name="auto_retry_on_error_desc">リクエストが失敗した場合、同じAPIエンドポイントを自動的に再試行します。</string>
+    <string name="failover_to_next_endpoint">エラー時に次のエンドポイントを試す</string>
+    <string name="failover_to_next_endpoint_desc">現在のエンドポイントが失敗した場合、同じプロバイダの別の利用可能なエンドポイントを自动的に試します。</string>
+    <string name="cot_level_global">グローバルに従う</string>
+    <string name="cot_level_off">オフ</string>
+    <string name="cot_level_auto">自動</string>
+    <string name="cot_level_low">低</string>
+    <string name="cot_level_medium">中</string>
+    <string name="cot_level_high">高</string>
+    <string name="advanced_component_cot">詳細コンポーネント思考プロセス設定</string>
+    <string name="advanced_component_cot_desc">個別機能の思考プロセスの深さをカスタマイズします</string>
+    <string name="cot_word_segmentation">単語分割</string>
+    <string name="cot_translation">翻訳</string>
+    <string name="cot_clause_analysis">文節解析</string>
+    <string name="cot_grammar_explanation">文法解説</string>
+    <string name="cot_detailed_analysis">詳細文法解析</string>
     <string name="ocr_scanning">OCRとスキャン</string>
     <string name="llm_prompts">LLMとプロンプト</string>
     <string name="advanced_debug">詳細とデバッグ</string>
@@ -478,6 +502,9 @@
     <string name="api_log_model">モデル名：%1$s</string>
     <string name="api_log_status">ステータス：%1$s</string>
     <string name="api_log_tokens">トークン消費量：%1$d (入力: %2$d, 出力: %3$d)</string>
+    <string name="api_log_tokens_reasoning">トークン消費量：%1$d (入力: %2$d, 出力: %3$d, 推論: %4$d)</string>
+    <string name="api_details_reasoning">推論プロセス</string>
+    <string name="api_log_copy_reasoning">推論をコピー</string>
     <string name="api_log_has_image">画像添付：%1$b</string>
     <string name="api_log_record">レコード：%1$s</string>
     <string name="api_log_step">ステップ：%1$s</string>

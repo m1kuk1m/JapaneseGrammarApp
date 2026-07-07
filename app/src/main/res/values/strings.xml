@@ -70,6 +70,9 @@
     <string name="local_ocr_desc">If off, images are sent directly to AI for analysis.</string>
     <string name="auto_navigate_result">Auto Navigate to Result</string>
     <string name="auto_navigate_result_desc">When using the floating button, jump to the result page automatically. If off, it runs in the background.</string>
+    <string name="remove_accidental_spaces">Remove Accidental Spaces</string>
+    <string name="remove_accidental_spaces_desc">Automatically removes accidental spaces in Japanese text before analysis to prevent tokenization issues.</string>
+
     <string name="token_usage">API Token Usage</string>
     <string name="token_usage_desc">Total tokens consumed across all analyses.</string>
     <string name="input_tokens">Input Tokens</string>
@@ -80,6 +83,27 @@
     <string name="in_out_ratio">In/Out Ratio</string>
 
     <string name="api_config">API Configuration</string>
+    <string name="reasoning_level">Reasoning Depth (CoT)</string>
+    <string name="reasoning_level_desc">Configure the model\'s reasoning depth to balance speed and quality.</string>
+    <string name="use_backup_api">Enable Backup API</string>
+    <string name="use_backup_api_desc">Fallback to the backup API if the main API fails completely.</string>
+    <string name="auto_retry_on_error">Auto Retry on Error</string>
+    <string name="auto_retry_on_error_desc">Automatically retry the same endpoint if a request fails.</string>
+    <string name="failover_to_next_endpoint">Try Next Endpoint on Error</string>
+    <string name="failover_to_next_endpoint_desc">If an endpoint fails, try the next available endpoint in the pool.</string>
+    <string name="cot_level_global">Follow Global</string>
+    <string name="cot_level_off">OFF</string>
+    <string name="cot_level_auto">AUTO</string>
+    <string name="cot_level_low">LOW</string>
+    <string name="cot_level_medium">MEDIUM</string>
+    <string name="cot_level_high">HIGH</string>
+    <string name="advanced_component_cot">Advanced Component CoT Settings</string>
+    <string name="advanced_component_cot_desc">Customize reasoning depth for individual features</string>
+    <string name="cot_word_segmentation">Word Segmentation</string>
+    <string name="cot_translation">Translation</string>
+    <string name="cot_clause_analysis">Clause Analysis</string>
+    <string name="cot_grammar_explanation">Grammar Explanation</string>
+    <string name="cot_detailed_analysis">Detailed Grammar Analysis</string>
     <string name="ocr_scanning">OCR &amp; Scanning</string>
     <string name="llm_prompts">LLM &amp; Prompts</string>
     <string name="advanced_debug">Advanced &amp; Debug</string>
@@ -495,6 +519,9 @@
     <string name="api_log_model">Model: %1$s</string>
     <string name="api_log_status">Status: %1$s</string>
     <string name="api_log_tokens">Tokens: %1$d (Input: %2$d, Output: %3$d)</string>
+    <string name="api_log_tokens_reasoning">Tokens: %1$d (Input: %2$d, Output: %3$d, Reasoning: %4$d)</string>
+    <string name="api_details_reasoning">Reasoning Process</string>
+    <string name="api_log_copy_reasoning">Copy Reasoning</string>
     <string name="api_log_has_image">Has Image: %1$b</string>
     <string name="api_log_record">Record: %1$s</string>
     <string name="api_log_step">Step: %1$s</string>

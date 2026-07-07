@@ -71,6 +71,9 @@
     <string name="local_ocr_desc">关闭时，图片将直接发送给 AI 进行分析。</string>
     <string name="auto_navigate_result">自动跳转分析结果</string>
     <string name="auto_navigate_result_desc">开启后，拍照或使用悬浮球将自动跳转至结果页。关闭时则在后台静默分析。</string>
+    <string name="remove_accidental_spaces">自动去除误添加的空格</string>
+    <string name="remove_accidental_spaces_desc">在将文本提交给 AI 分析前，自动去除日语字符间多余的空格，以避免分词错误。</string>
+
     <string name="token_usage">API Token 消耗量</string>
     <string name="token_usage_desc">所有分析消耗的 Token 总计</string>
     <string name="input_tokens">输入 Token</string>
@@ -81,6 +84,27 @@
     <string name="in_out_ratio">输入输出占比</string>
 
     <string name="api_config">API 优先级设置</string>
+    <string name="reasoning_level">推理深度 (思维链)</string>
+    <string name="reasoning_level_desc">设置大模型的思考深度以平衡生成质量与速度。</string>
+    <string name="use_backup_api">启用备用 API</string>
+    <string name="use_backup_api_desc">当主 API 彻底失败时，切换到配置的备用 API。</string>
+    <string name="auto_retry_on_error">报错时自动重试</string>
+    <string name="auto_retry_on_error_desc">请求失败时，自动重试当前的 API 端点。</string>
+    <string name="failover_to_next_endpoint">报错时尝试下一个端点</string>
+    <string name="failover_to_next_endpoint_desc">当前端点失败时，自动尝试同一提供商的其他可用端点。</string>
+    <string name="cot_level_global">跟随全局</string>
+    <string name="cot_level_off">关闭</string>
+    <string name="cot_level_auto">自动</string>
+    <string name="cot_level_low">低</string>
+    <string name="cot_level_medium">中</string>
+    <string name="cot_level_high">高</string>
+    <string name="advanced_component_cot">高级组件思维链设置</string>
+    <string name="advanced_component_cot_desc">自定义各个独立功能的思维链深度</string>
+    <string name="cot_word_segmentation">单词分割</string>
+    <string name="cot_translation">翻译</string>
+    <string name="cot_clause_analysis">文节解析</string>
+    <string name="cot_grammar_explanation">语法讲解</string>
+    <string name="cot_detailed_analysis">详细语法解析</string>
     <string name="ocr_scanning">OCR与扫描</string>
     <string name="llm_prompts">大模型与提示词</string>
     <string name="advanced_debug">高级与调试</string>
@@ -490,6 +514,9 @@
     <string name="api_log_model">模型名称：%1$s</string>
     <string name="api_log_status">接口状态：%1$s</string>
     <string name="api_log_tokens">Token消耗：%1$d (输入: %2$d, 输出: %3$d)</string>
+    <string name="api_log_tokens_reasoning">Token消耗：%1$d (输入: %2$d, 输出: %3$d, 推理: %4$d)</string>
+    <string name="api_details_reasoning">推理过程</string>
+    <string name="api_log_copy_reasoning">复制推理过程</string>
     <string name="api_log_has_image">附带图片：%1$b</string>
     <string name="api_log_record">记录：%1$s</string>
     <string name="api_log_step">步骤：%1$s</string>

@@ -170,7 +170,8 @@ fun SettingsAppearanceSection(
 fun SettingsGeneralSection(
     uiState: SettingsUiState,
     currentLangLabel: String,
-    onAutoNavigateResultChange: (Boolean) -> Unit
+    onAutoNavigateResultChange: (Boolean) -> Unit,
+    onRemoveAccidentalSpacesChange: (Boolean) -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -251,8 +252,24 @@ fun SettingsGeneralSection(
                 )
             }
         )
+
+        SettingsDivider()
+
+        SettingsItem(
+            icon = Icons.Default.AutoFixHigh,
+            title = stringResource(R.string.remove_accidental_spaces),
+            subtitle = stringResource(R.string.remove_accidental_spaces_desc),
+            trailingContent = {
+                Switch(
+                    checked = uiState.removeAccidentalSpaces,
+                    onCheckedChange = onRemoveAccidentalSpacesChange,
+                    colors = SettingsSwitchColors(onPrimaryColor, primaryColor, sumiInk)
+                )
+            }
+        )
     }
 }
+
 
 @Composable
 fun SettingsOcrSection(

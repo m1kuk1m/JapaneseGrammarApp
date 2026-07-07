@@ -3,14 +3,23 @@ package com.example.japanesegrammarapp.ui
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.domain.model.PromptPreset
+import com.example.japanesegrammarapp.domain.model.ReasoningLevel
+import com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel
 
 data class SettingsUiState(
+    val reasoningLevel: ReasoningLevel = ReasoningLevel.AUTO,
+    val componentReasoningLevels: Map<String, ComponentReasoningLevel> = emptyMap(),
     val activeProvider: String = "Gemini",
     val activeModel: String = "",
     val availableModels: List<String> = emptyList(),
     val providerModels: Map<String, List<String>> = emptyMap(),
     val useOcr: Boolean = false,
     val autoNavigateResult: Boolean = true,
+    val removeAccidentalSpaces: Boolean = true,
+    val useBackupApi: Boolean = false,
+    val autoRetryOnError: Boolean = false,
+    val failoverToNextEndpoint: Boolean = false,
+
     val autoDeskewAfterCapture: Boolean = false,
     val imageTokenizerMode: String = "faithful",
     val ocrBoxDetectionSettings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT,

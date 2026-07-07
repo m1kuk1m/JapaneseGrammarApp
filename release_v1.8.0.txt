@@ -1,0 +1,9 @@
+v1.8.0 Release Notes
+- LLM Chain-of-Thought (CoT) Enhancements:
+  - Added component-specific CoT depth sliders in settings.
+  - Captured and logged AI reasoning processes and token usage in API logs.
+  - Automatically extracted and cleaned inline <think> tags from model responses.
+  - Supported capturing reasoning text from Gemini requests via includeThoughts and handled implicit reasoning token scenarios.
+- Input Processing: Added a new setting to automatically strip accidental spaces in Japanese input prior to AI analysis.
+- Network & API Resiliency: Made backup API usage, automatic retry, and endpoint failover optional and fully localized in settings.
+- Model Configuration: Fixed modelUsed tracking on retry/re-analysis and added reasoning level configuration.

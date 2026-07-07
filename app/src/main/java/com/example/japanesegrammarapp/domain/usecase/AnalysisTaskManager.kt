@@ -3,7 +3,9 @@ package com.example.japanesegrammarapp.domain.usecase
 import com.example.japanesegrammarapp.domain.model.*
 import com.example.japanesegrammarapp.domain.repository.*
 import com.example.japanesegrammarapp.domain.ApplicationScope
+import com.example.japanesegrammarapp.utils.TextCleaner
 import kotlinx.coroutines.*
+
 import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -59,7 +61,13 @@ class DefaultAnalysisTaskManager @Inject constructor(
         baseUrl: String,
         apiKey: String
     ): Int {
-        if (text.isBlank() && imageUri.isNullOrBlank()) {
+        val cleanText = if (settingsRepository.getRemoveAccidentalSpaces()) {
+            TextCleaner.removeAccidentalSpaces(text)
+        } else {
+            text
+        }
+
+        if (cleanText.isBlank() && imageUri.isNullOrBlank()) {
             throw IllegalArgumentException("Please enter text or capture an image.")
         }
         val configuredPrimaryEndpoints = settingsRepository.buildLlmApiConfigs(provider, modelName)
@@ -69,15 +77,22 @@ class DefaultAnalysisTaskManager @Inject constructor(
         }
 
         // Prevent duplicate concurrent analysis for the same text
-        if (text.isNotBlank()) {
-            val duplicate = saveAnalysisRecordUseCase.getByOriginalText(text)
+        if (cleanText.isNotBlank()) {
+            val duplicate = saveAnalysisRecordUseCase.getByOriginalText(cleanText)
             if (duplicate != null) {
                 val isRunning = activeJobs.containsKey(duplicate.id)
                 if (isRunning) {
                     return duplicate.id
                 } else if (duplicate.status == AnalysisStatus.FAILED || duplicate.status == AnalysisStatus.PENDING) {
                     // Zombie PENDING or FAILED record: restart background analysis
-                    executeRetry(duplicate.id, text, duplicate.imageUri)
+                    saveAnalysisRecordUseCase.update(
+                        duplicate.copy(
+                            status = AnalysisStatus.PENDING,
+                            errorMessage = null,
+                            modelUsed = "$provider: $modelName"
+                        )
+                    )
+                    executeRetry(duplicate.id, cleanText, duplicate.imageUri)
                     return duplicate.id
                 } else if (duplicate.status == AnalysisStatus.COMPLETED) {
                     return duplicate.id
@@ -86,7 +101,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
         }
 
         val record = AnalysisDomainRecord(
-            originalText = text.ifBlank { "" },
+            originalText = cleanText.ifBlank { "" },
             imageUri = imageUri,
             analysisResult = null,
             modelUsed = "$provider: $modelName",
@@ -94,7 +109,8 @@ class DefaultAnalysisTaskManager @Inject constructor(
         )
         val recordId = saveAnalysisRecordUseCase.insert(record).toInt()
 
-        val job = launchBackgroundAnalysis(recordId, text, imageUri)
+        val job = launchBackgroundAnalysis(recordId, cleanText, imageUri)
+
         activeJobs[recordId] = job
         job.invokeOnCompletion { activeJobs.remove(recordId) }
 
@@ -102,10 +118,16 @@ class DefaultAnalysisTaskManager @Inject constructor(
     }
 
     override suspend fun executeRetry(recordId: Int, text: String, imageUri: String?) {
-        val job = launchBackgroundAnalysis(recordId, text, imageUri)
+        val cleanText = if (settingsRepository.getRemoveAccidentalSpaces()) {
+            TextCleaner.removeAccidentalSpaces(text)
+        } else {
+            text
+        }
+        val job = launchBackgroundAnalysis(recordId, cleanText, imageUri)
         activeJobs[recordId] = job
         job.invokeOnCompletion { activeJobs.remove(recordId) }
     }
+
 
     override fun cancel(recordId: Int) {
         val job = activeJobs.remove(recordId)
@@ -143,7 +165,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
 
                 val backupProvider = settingsRepository.getBackupProvider()
                 val backupModel = settingsRepository.getBackupModel()
-                val backupConfigs = if (backupProvider.isNotBlank() && backupModel.isNotBlank()) {
+                val backupConfigs = if (settingsRepository.getUseBackupApi() && backupProvider.isNotBlank() && backupModel.isNotBlank()) {
                     settingsRepository.buildLlmApiConfigs(backupProvider, backupModel)
                 } else {
                     emptyList()
@@ -155,9 +177,15 @@ class DefaultAnalysisTaskManager @Inject constructor(
                 val ocrResult = getOcrTextUseCase.execute(text, imageUri, isOcrEnabled, recordId)
 
                 val isOcrMode = ocrResult.isOcrMode
-                val ocrText = ocrResult.ocrText
+                val rawOcrText = ocrResult.ocrText
+                val ocrText = if (settingsRepository.getRemoveAccidentalSpaces()) {
+                    TextCleaner.removeAccidentalSpaces(rawOcrText)
+                } else {
+                    rawOcrText
+                }
                 val imageBase64 = ocrResult.imagePayload?.base64Data
                 val mimeType = ocrResult.imagePayload?.mimeType
+
 
                 val getRetryListener = { step: AnalysisStep ->
                     { attempt: Int ->
@@ -462,6 +490,10 @@ class DefaultAnalysisTaskManager @Inject constructor(
                         } else if (tokens.isNotEmpty()) {
                             effectiveText = tokens.joinToString("")
                         }
+                        if (settingsRepository.getRemoveAccidentalSpaces()) {
+                            effectiveText = TextCleaner.removeAccidentalSpaces(effectiveText)
+                        }
+
 
                         val duplicateRecord = saveAnalysisRecordUseCase.getByOriginalText(effectiveText)
                         if (duplicateRecord != null && duplicateRecord.id != recordId) {
@@ -828,7 +860,8 @@ class DefaultAnalysisTaskManager @Inject constructor(
                         status = AnalysisStatus.COMPLETED,
                         consumedTokens = finalResultSnapshot.consumedTokens,
                         inputTokens = finalResultSnapshot.inputTokens,
-                        outputTokens = finalResultSnapshot.outputTokens
+                        outputTokens = finalResultSnapshot.outputTokens,
+                        modelUsed = "$primaryProvider: $primaryModel"
                     )
                     saveAnalysisRecordUseCase.update(updatedRecord)
 

@@ -2,8 +2,17 @@ package com.example.japanesegrammarapp.domain.repository
 
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
+import com.example.japanesegrammarapp.domain.model.ReasoningLevel
+import com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel
 
 interface SettingsRepository {
+    fun getReasoningLevel(): ReasoningLevel
+    fun setReasoningLevel(level: ReasoningLevel)
+
+    fun getComponentReasoningLevel(apiTypeLabel: String): ComponentReasoningLevel
+    fun setComponentReasoningLevel(apiTypeLabel: String, level: ComponentReasoningLevel)
+    fun getEffectiveReasoningLevel(apiTypeLabel: String): ReasoningLevel
+
     fun getAllProviders(): List<String>
     fun getBaseProviderType(providerId: String): String
 
@@ -41,6 +50,12 @@ interface SettingsRepository {
     fun setBackupProvider(provider: String)
     fun getBackupModel(): String
     fun setBackupModel(model: String)
+    fun getUseBackupApi(): Boolean
+    fun setUseBackupApi(value: Boolean)
+    fun getAutoRetryOnError(): Boolean
+    fun setAutoRetryOnError(value: Boolean)
+    fun getFailoverToNextEndpoint(): Boolean
+    fun setFailoverToNextEndpoint(value: Boolean)
 
     fun getThemeMode(): String
     fun setThemeMode(mode: String)
@@ -96,5 +111,9 @@ interface SettingsRepository {
     fun getCardDetailDisplayMode(): String
     fun setCardDetailDisplayMode(mode: String)
     val cardDetailDisplayMode: kotlinx.coroutines.flow.StateFlow<String>
+
+    fun getRemoveAccidentalSpaces(): Boolean
+    fun setRemoveAccidentalSpaces(value: Boolean)
 }
+
 

@@ -6,6 +6,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import com.example.japanesegrammarapp.network.*
 import com.example.japanesegrammarapp.domain.model.LlmConfig
+import com.example.japanesegrammarapp.domain.model.ReasoningLevel
 import com.example.japanesegrammarapp.domain.repository.LlmRepository
 import com.example.japanesegrammarapp.domain.repository.LlmResult
 import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
@@ -71,7 +72,8 @@ class LlmRepositoryImpl @Inject constructor(
         baseProvider: String,
         modelName: String,
         effectiveUrl: String,
-        apiKey: String
+        apiKey: String,
+        apiTypeLabel: String
     ): LlmResult {
         return when (baseProvider) {
             "OpenAI", "DeepSeek", "OpenAI Compatible", "Qwen" -> {
@@ -90,25 +92,52 @@ class LlmRepositoryImpl @Inject constructor(
                     userPrompt
                 }
 
+                val reasoningLevel = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel)
+                val isO1OrO3 = modelName.contains("o1", ignoreCase = true) || modelName.contains("o3", ignoreCase = true)
+                val reasoningEffort = if (isO1OrO3) {
+                    when (reasoningLevel) {
+                        ReasoningLevel.LOW -> "low"
+                        ReasoningLevel.MEDIUM -> "medium"
+                        ReasoningLevel.HIGH -> "high"
+                        else -> null
+                    }
+                } else null
+
                 val request = OpenAiRequest(
                     model = modelName,
                     messages = listOf(
                         OpenAiMessage(role = "system", content = systemPrompt),
                         OpenAiMessage(role = "user", content = userContent)
                     ),
-                    temperature = 0.1,
-                    response_format = OpenAiResponseFormat("json_object")
+                    temperature = if (isO1OrO3) null else 0.1,
+                    response_format = OpenAiResponseFormat("json_object"),
+                    reasoning_effort = reasoningEffort
                 )
                 val response = llmService.generateOpenAiCompatible(url, "Bearer ${apiKey.trim()}", request)
-                val text = response.choices.firstOrNull()?.message?.content ?: throw Exception("No response from model")
+                val message = response.choices.firstOrNull()?.message
+                val rawText = message?.content ?: throw Exception("No response from model")
+                val rawReasoningText = message.reasoning_content
+                
+                val thinkingRegex = Regex("<think>([\\s\\S]*?)(?:</think>|$)", RegexOption.DOT_MATCHES_ALL)
+                val text: String
+                val reasoningText: String?
+                if (rawReasoningText.isNullOrBlank() && thinkingRegex.containsMatchIn(rawText)) {
+                    reasoningText = thinkingRegex.find(rawText)?.groupValues?.getOrNull(1)?.trim()
+                    text = rawText.replace(thinkingRegex, "").trim()
+                } else {
+                    text = rawText
+                    reasoningText = rawReasoningText
+                }
+
                 val tokens = response.usage?.total_tokens ?: 0
                 var inputTokens = response.usage?.prompt_tokens ?: 0
                 var outputTokens = response.usage?.completion_tokens ?: 0
+                val reasoningTokens = response.usage?.completion_tokens_details?.reasoning_tokens ?: 0
                 if (tokens > 0 && inputTokens == 0 && outputTokens == 0) {
                     inputTokens = tokens * 6 / 10
                     outputTokens = tokens - inputTokens
                 }
-                LlmResult(text, tokens, inputTokens, outputTokens, provider, modelName)
+                LlmResult(text, tokens, inputTokens, outputTokens, provider, modelName, reasoningText = reasoningText, reasoningTokens = reasoningTokens)
 
             }
             "Gemini", "Vertex AI" -> {
@@ -128,12 +157,46 @@ class LlmRepositoryImpl @Inject constructor(
                     GeminiSafetySetting("HARM_CATEGORY_DANGEROUS_CONTENT", "BLOCK_NONE")
                 )
 
+                val reasoningLevel = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel)
+                val thinkingConfig = when (reasoningLevel) {
+                    ReasoningLevel.AUTO -> null
+                    ReasoningLevel.OFF -> {
+                        if (modelName.contains("gemini-3")) {
+                            GeminiThinkingConfig(thinkingLevel = "minimal", includeThoughts = false)
+                        } else {
+                            GeminiThinkingConfig(thinkingBudget = 0, includeThoughts = false)
+                        }
+                    }
+                    ReasoningLevel.LOW -> {
+                        if (modelName.contains("gemini-3")) {
+                            GeminiThinkingConfig(thinkingLevel = "low", includeThoughts = true)
+                        } else {
+                            GeminiThinkingConfig(thinkingBudget = 1024, includeThoughts = true)
+                        }
+                    }
+                    ReasoningLevel.MEDIUM -> {
+                        if (modelName.contains("gemini-3")) {
+                            GeminiThinkingConfig(thinkingLevel = "medium", includeThoughts = true)
+                        } else {
+                            GeminiThinkingConfig(thinkingBudget = 4096, includeThoughts = true)
+                        }
+                    }
+                    ReasoningLevel.HIGH -> {
+                        if (modelName.contains("gemini-3")) {
+                            GeminiThinkingConfig(thinkingLevel = "high", includeThoughts = true)
+                        } else {
+                            GeminiThinkingConfig(thinkingBudget = 8192, includeThoughts = true)
+                        }
+                    }
+                }
+
                 val request = GeminiRequest(
                     contents = listOf(GeminiContent(role = "user", parts = parts)),
                     systemInstruction = GeminiSystemInstruction(parts = listOf(GeminiPart(text = systemPrompt))),
                     generationConfig = GeminiGenerationConfig(
                         temperature = 0.1,
-                        responseMimeType = "application/json"
+                        responseMimeType = "application/json",
+                        thinkingConfig = thinkingConfig
                     ),
                     safetySettings = safetySettings
                 )
@@ -142,21 +205,46 @@ class LlmRepositoryImpl @Inject constructor(
                 } catch (e: retrofit2.HttpException) {
                     throw Exception(formatHttpError(e), e)
                 }
-                val text = response.candidates
-                    ?.firstOrNull()
-                    ?.content
-                    ?.parts
-                    ?.firstOrNull { !it.text.isNullOrBlank() }
-                    ?.text
+                val candidateContent = response.candidates?.firstOrNull()?.content
+                val rawText = candidateContent?.parts
+                    ?.filter { it.thought != true }
+                    ?.mapNotNull { it.text }
+                    ?.joinToString("")
+                    ?.takeIf { it.isNotBlank() }
                     ?: throw Exception(buildGeminiNoTextMessage(response))
+                val rawReasoningText = candidateContent?.parts
+                    ?.filter { it.thought == true }
+                    ?.mapNotNull { it.text }
+                    ?.joinToString("")
+                    ?.takeIf { it.isNotBlank() }
+
+                val thinkingRegex = Regex("<think>([\\s\\S]*?)(?:</think>|$)", RegexOption.DOT_MATCHES_ALL)
+                val text: String
+                val reasoningText: String?
+                if (rawReasoningText.isNullOrBlank() && thinkingRegex.containsMatchIn(rawText)) {
+                    reasoningText = thinkingRegex.find(rawText)?.groupValues?.getOrNull(1)?.trim()
+                    text = rawText.replace(thinkingRegex, "").trim()
+                } else {
+                    text = rawText
+                    reasoningText = rawReasoningText
+                }
+
                 val tokens = response.usageMetadata?.totalTokenCount ?: 0
                 var inputTokens = response.usageMetadata?.promptTokenCount ?: 0
                 var outputTokens = response.usageMetadata?.candidatesTokenCount ?: 0
+                val reasoningTokens = response.usageMetadata?.thoughtsTokenCount ?: 0
                 if (tokens > 0 && inputTokens == 0 && outputTokens == 0) {
                     inputTokens = tokens * 6 / 10
                     outputTokens = tokens - inputTokens
                 }
-                LlmResult(text, tokens, inputTokens, outputTokens, provider, modelName)
+                // 若模型进行了内部推理（thoughtsTokenCount > 0）但 API 未返回明文 thought text，
+                // 则插入占位提示（"隐式思考"场景，如 gemini-3.1-flash-lite）
+                val finalReasoningText = if (reasoningText.isNullOrBlank() && reasoningTokens > 0) {
+                    "[モデルは内部推論を行いました (${reasoningTokens} tokens 消費)。このモデルはAPIに思考テキストを返しません]"
+                } else {
+                    reasoningText
+                }
+                LlmResult(text, tokens, inputTokens, outputTokens, provider, modelName, reasoningText = finalReasoningText, reasoningTokens = reasoningTokens)
             }
             else -> throw Exception("Unsupported provider")
         }
@@ -260,7 +348,7 @@ class LlmRepositoryImpl @Inject constructor(
         val backupBaseProvider = backupConfig?.baseProvider ?: ""
 
         var attempt = 0
-        val maxRetries = 2
+        val maxRetries = if (settingsRepository.getAutoRetryOnError()) 2 else 0
         var lastException: Exception? = null
 
         while (attempt <= maxRetries) {
@@ -289,7 +377,8 @@ class LlmRepositoryImpl @Inject constructor(
                     baseProvider = primaryBaseProvider,
                     modelName = primaryModel,
                     effectiveUrl = primaryUrl,
-                    apiKey = primaryKey
+                    apiKey = primaryKey,
+                    apiTypeLabel = apiTypeLabel
                 )
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -388,7 +477,8 @@ class LlmRepositoryImpl @Inject constructor(
                 baseProvider = backupBaseProvider,
                 modelName = backupModel,
                 effectiveUrl = backupUrl,
-                apiKey = backupKey
+                apiKey = backupKey,
+                apiTypeLabel = apiTypeLabel
             )
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -553,7 +643,8 @@ class LlmRepositoryImpl @Inject constructor(
                     baseProvider = config.baseProvider,
                     modelName = config.modelName,
                     effectiveUrl = config.url,
-                    apiKey = config.key
+                    apiKey = config.key,
+                    apiTypeLabel = apiTypeLabel
                 )
                 if (config.endpointId.isNotBlank()) {
                     settingsRepository.markEndpointSuccess(config.provider, config.endpointId)
@@ -583,7 +674,8 @@ class LlmRepositoryImpl @Inject constructor(
                     e
                 )
 
-                if (index < configs.lastIndex) {
+                val shouldTryNext = settingsRepository.getFailoverToNextEndpoint() && index < configs.lastIndex
+                if (shouldTryNext) {
                     AppLogger.apiEvent(
                         apiTypeLabel = apiTypeLabel,
                         provider = config.provider,
@@ -615,6 +707,7 @@ class LlmRepositoryImpl @Inject constructor(
                         attempt = attemptNumber,
                         elapsedMs = elapsedMs
                     )
+                    return PoolAttempt(null, lastException)
                 }
             }
         }
@@ -713,15 +806,28 @@ class LlmRepositoryImpl @Inject constructor(
                             } else {
                                 userPrompt
                             }
+                            
+                            val reasoningLevel = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel)
+                            val isO1OrO3 = config.modelName.contains("o1", ignoreCase = true) || config.modelName.contains("o3", ignoreCase = true)
+                            val reasoningEffort = if (isO1OrO3) {
+                                when (reasoningLevel) {
+                                    ReasoningLevel.LOW -> "low"
+                                    ReasoningLevel.MEDIUM -> "medium"
+                                    ReasoningLevel.HIGH -> "high"
+                                    else -> null
+                                }
+                            } else null
+
                             val request = OpenAiRequest(
                                 model = config.modelName,
                                 messages = listOf(
                                     OpenAiMessage(role = "system", content = systemPrompt),
                                     OpenAiMessage(role = "user", content = userContent)
                                 ),
-                                temperature = 0.1,
+                                temperature = if (isO1OrO3) null else 0.1,
                                 stream = true,
-                                stream_options = mapOf("include_usage" to true)
+                                stream_options = mapOf("include_usage" to true),
+                                reasoning_effort = reasoningEffort
                             )
                             requestBodyStr = gson.toJson(request)
                         }
@@ -742,11 +848,45 @@ class LlmRepositoryImpl @Inject constructor(
                                 GeminiSafetySetting("HARM_CATEGORY_DANGEROUS_CONTENT", "BLOCK_NONE")
                             )
 
+                            val reasoningLevel = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel)
+                            val thinkingConfig = when (reasoningLevel) {
+                                ReasoningLevel.AUTO -> null
+                                ReasoningLevel.OFF -> {
+                                    if (config.modelName.contains("gemini-3")) {
+                                        GeminiThinkingConfig(thinkingLevel = "minimal", includeThoughts = false)
+                                    } else {
+                                        GeminiThinkingConfig(thinkingBudget = 0, includeThoughts = false)
+                                    }
+                                }
+                                ReasoningLevel.LOW -> {
+                                    if (config.modelName.contains("gemini-3")) {
+                                        GeminiThinkingConfig(thinkingLevel = "low", includeThoughts = true)
+                                    } else {
+                                        GeminiThinkingConfig(thinkingBudget = 1024, includeThoughts = true)
+                                    }
+                                }
+                                ReasoningLevel.MEDIUM -> {
+                                    if (config.modelName.contains("gemini-3")) {
+                                        GeminiThinkingConfig(thinkingLevel = "medium", includeThoughts = true)
+                                    } else {
+                                        GeminiThinkingConfig(thinkingBudget = 4096, includeThoughts = true)
+                                    }
+                                }
+                                ReasoningLevel.HIGH -> {
+                                    if (config.modelName.contains("gemini-3")) {
+                                        GeminiThinkingConfig(thinkingLevel = "high", includeThoughts = true)
+                                    } else {
+                                        GeminiThinkingConfig(thinkingBudget = 8192, includeThoughts = true)
+                                    }
+                                }
+                            }
+
                             val request = GeminiRequest(
                                 contents = listOf(GeminiContent(role = "user", parts = parts)),
                                 systemInstruction = GeminiSystemInstruction(parts = listOf(GeminiPart(text = systemPrompt))),
                                 generationConfig = GeminiGenerationConfig(
-                                    temperature = 0.1
+                                    temperature = 0.1,
+                                    thinkingConfig = thinkingConfig
                                 ),
                                 safetySettings = safetySettings
                             )
@@ -776,20 +916,27 @@ class LlmRepositoryImpl @Inject constructor(
                         override fun onEvent(eventSource: okhttp3.sse.EventSource, id: String?, type: String?, data: String) {
                             if (data == "[DONE]") return
                             try {
-                                var textChunk = ""
                                 if (config.baseProvider in listOf("OpenAI", "DeepSeek", "OpenAI Compatible", "Qwen")) {
                                     val response = gson.fromJson(data, OpenAiResponse::class.java)
                                     val choice = response.choices?.firstOrNull()
                                     if (choice?.finish_reason == "content_filter") {
                                         throw Exception("OpenAI API Blocked: Content filter triggered (finish_reason=content_filter)")
                                     }
-                                    textChunk = choice?.delta?.content ?: ""
+                                    val textChunk = choice?.delta?.content ?: ""
+                                    val reasoningChunk = choice?.delta?.reasoning_content ?: ""
                                     response.usage?.let { u ->
                                         currentUsage = com.example.japanesegrammarapp.domain.repository.LlmResultMetadata(
                                             consumedTokens = u.total_tokens ?: 0,
                                             inputTokens = u.prompt_tokens ?: 0,
-                                            outputTokens = u.completion_tokens ?: 0
+                                            outputTokens = u.completion_tokens ?: 0,
+                                            reasoningTokens = u.completion_tokens_details?.reasoning_tokens ?: 0
                                         )
+                                    }
+                                    if (reasoningChunk.isNotEmpty()) {
+                                        trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.ThoughtChunk(reasoningChunk))
+                                    }
+                                    if (textChunk.isNotEmpty()) {
+                                        trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Chunk(textChunk))
                                     }
                                 } else {
                                     val response = gson.fromJson(data, GeminiResponse::class.java)
@@ -801,17 +948,26 @@ class LlmRepositoryImpl @Inject constructor(
                                     if (finishReason != null && finishReason != "STOP" && finishReason != "MAX_TOKENS") {
                                         throw Exception(buildGeminiNoTextMessage(response))
                                     }
-                                    textChunk = candidate?.content?.parts?.firstOrNull()?.text ?: ""
+                                    val parts = candidate?.content?.parts ?: emptyList()
                                     response.usageMetadata?.let { u ->
                                         currentUsage = com.example.japanesegrammarapp.domain.repository.LlmResultMetadata(
                                             consumedTokens = u.totalTokenCount ?: 0,
                                             inputTokens = u.promptTokenCount ?: 0,
-                                            outputTokens = u.candidatesTokenCount ?: 0
+                                            outputTokens = u.candidatesTokenCount ?: 0,
+                                            reasoningTokens = u.thoughtsTokenCount ?: 0
                                         )
                                     }
-                                }
-                                if (textChunk.isNotEmpty()) {
-                                    trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Chunk(textChunk))
+                                    for (part in parts) {
+                                        val chunk = part.text ?: ""
+                                        if (part.thought == true) {
+                                            // thought part：只有文本非空时才向流发送（thoughtSignature 场景 text 为空，静默跳过）
+                                            if (chunk.isNotEmpty()) {
+                                                trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.ThoughtChunk(chunk))
+                                            }
+                                        } else if (chunk.isNotEmpty()) {
+                                            trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Chunk(chunk))
+                                        }
+                                    }
                                 }
                             } catch (e: Exception) {
                                 AppLogger.e("LLM_API", "Error parsing SSE chunk: $data", e)
@@ -868,7 +1024,12 @@ class LlmRepositoryImpl @Inject constructor(
                     )
                 }
                 com.example.japanesegrammarapp.utils.AppLogger.e("LLM_API", "Streaming attempt $attemptNumber failed via ${config.provider}", e)
-                if (index < configs.lastIndex) {
+                val nextIndex = index + 1
+                val shouldTryNext = nextIndex < configs.size && (
+                    nextIndex == primaryConfigs.size || // Switch from primary pool to backup
+                    settingsRepository.getFailoverToNextEndpoint()
+                )
+                if (shouldTryNext) {
                     com.example.japanesegrammarapp.utils.AppLogger.apiEvent(
                         apiTypeLabel = apiTypeLabel,
                         provider = config.provider,
@@ -885,6 +1046,8 @@ class LlmRepositoryImpl @Inject constructor(
                     )
                     onRetry(attemptNumber)
                     kotlinx.coroutines.delay(600L)
+                } else {
+                    throw lastException ?: e
                 }
             }
         }

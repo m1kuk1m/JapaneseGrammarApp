@@ -8,6 +8,8 @@ import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.domain.model.PromptPreset
+import com.example.japanesegrammarapp.domain.model.ReasoningLevel
+import com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel
 import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.example.japanesegrammarapp.network.PromptManager
@@ -28,13 +30,20 @@ class SettingsRepositoryImpl @Inject constructor(
 ) : SettingsRepository {
 
     // Thread-safe in-memory cache for ultra-fast, non-blocking UI interactions
+    @Volatile private var cachedReasoningLevel: ReasoningLevel? = null
     @Volatile private var cachedActiveProvider: String? = null
     @Volatile private var cachedUseOcr: Boolean? = null
+    @Volatile private var cachedRemoveAccidentalSpaces: Boolean? = null
+
     @Volatile private var cachedImageTokenizerMode: String? = null
+    @Volatile private var cachedUseBackupApi: Boolean? = null
+    @Volatile private var cachedAutoRetryOnError: Boolean? = null
+    @Volatile private var cachedFailoverToNextEndpoint: Boolean? = null
     @Volatile private var cachedOcrBoxDetectionSettings: OcrBoxDetectionSettings? = null
     @Volatile private var cachedBackupProvider: String? = null
     @Volatile private var cachedBackupModel: String? = null
     private val cachedActiveModels = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val cachedComponentReasoningLevels = java.util.concurrent.ConcurrentHashMap<String, ComponentReasoningLevel>()
     private val cachedModelsList = java.util.concurrent.ConcurrentHashMap<String, List<String>>()
     private val cachedApiKeys = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val cachedApiUrls = java.util.concurrent.ConcurrentHashMap<String, String>()
@@ -85,6 +94,51 @@ class SettingsRepositoryImpl @Inject constructor(
             _furiganaGapScale.value = settingPrefs.getFloat("furigana_gap_scale", 1.0f)
             _cardDetailDisplayMode.value = settingPrefs.getString("card_detail_display_mode", "POPUP") ?: "POPUP"
         }
+    }
+
+    override fun getReasoningLevel(): ReasoningLevel {
+        cachedReasoningLevel?.let { return it }
+        val name = settingPrefs.getString("reasoning_level", ReasoningLevel.AUTO.name)
+        val level = ReasoningLevel.fromString(name)
+        cachedReasoningLevel = level
+        return level
+    }
+
+    override fun setReasoningLevel(level: ReasoningLevel) {
+        cachedReasoningLevel = level
+        settingPrefs.edit().putString("reasoning_level", level.name).apply()
+    }
+
+    private fun getComponentPrefsKey(apiTypeLabel: String): String {
+        return when (apiTypeLabel) {
+            "単語分割" -> "cot_level_word_segmentation"
+            "翻訳" -> "cot_level_translation"
+            "文節解析" -> "cot_level_clause_analysis"
+            "文法解説" -> "cot_level_grammar_explanation"
+            "詳細文法解析" -> "cot_level_detailed_analysis"
+            else -> "cot_level_" + apiTypeLabel
+        }
+    }
+
+    override fun getComponentReasoningLevel(apiTypeLabel: String): ComponentReasoningLevel {
+        val cached = cachedComponentReasoningLevels[apiTypeLabel]
+        if (cached != null) return cached
+        val key = getComponentPrefsKey(apiTypeLabel)
+        val name = settingPrefs.getString(key, ComponentReasoningLevel.GLOBAL.name)
+        val level = ComponentReasoningLevel.fromString(name)
+        cachedComponentReasoningLevels[apiTypeLabel] = level
+        return level
+    }
+
+    override fun setComponentReasoningLevel(apiTypeLabel: String, level: ComponentReasoningLevel) {
+        cachedComponentReasoningLevels[apiTypeLabel] = level
+        val key = getComponentPrefsKey(apiTypeLabel)
+        settingPrefs.edit().putString(key, level.name).apply()
+    }
+
+    override fun getEffectiveReasoningLevel(apiTypeLabel: String): ReasoningLevel {
+        val level = getComponentReasoningLevel(apiTypeLabel)
+        return level.toReasoningLevel(getReasoningLevel())
     }
 
     override fun getAllProviders(): List<String> {
@@ -1038,5 +1092,77 @@ class SettingsRepositoryImpl @Inject constructor(
         cachedCardDetailDisplayMode = mode
         settingPrefs.edit().putString("card_detail_display_mode", mode).apply()
         _cardDetailDisplayMode.value = mode
+    }
+
+    override fun getRemoveAccidentalSpaces(): Boolean {
+        return cachedRemoveAccidentalSpaces ?: synchronized(this) {
+            val cached = cachedRemoveAccidentalSpaces
+            if (cached != null) {
+                cached
+            } else {
+                val value = settingPrefs.getBoolean("remove_accidental_spaces", true)
+                cachedRemoveAccidentalSpaces = value
+                value
+            }
+        }
+    }
+
+    override fun setRemoveAccidentalSpaces(value: Boolean) {
+        cachedRemoveAccidentalSpaces = value
+        settingPrefs.edit().putBoolean("remove_accidental_spaces", value).apply()
+    }
+
+    override fun getUseBackupApi(): Boolean {
+        return cachedUseBackupApi ?: synchronized(this) {
+            val cached = cachedUseBackupApi
+            if (cached != null) {
+                cached
+            } else {
+                val value = settingPrefs.getBoolean("use_backup_api", false)
+                cachedUseBackupApi = value
+                value
+            }
+        }
+    }
+
+    override fun setUseBackupApi(value: Boolean) {
+        cachedUseBackupApi = value
+        settingPrefs.edit().putBoolean("use_backup_api", value).apply()
+    }
+
+    override fun getAutoRetryOnError(): Boolean {
+        return cachedAutoRetryOnError ?: synchronized(this) {
+            val cached = cachedAutoRetryOnError
+            if (cached != null) {
+                cached
+            } else {
+                val value = settingPrefs.getBoolean("auto_retry_on_error", false)
+                cachedAutoRetryOnError = value
+                value
+            }
+        }
+    }
+
+    override fun setAutoRetryOnError(value: Boolean) {
+        cachedAutoRetryOnError = value
+        settingPrefs.edit().putBoolean("auto_retry_on_error", value).apply()
+    }
+
+    override fun getFailoverToNextEndpoint(): Boolean {
+        return cachedFailoverToNextEndpoint ?: synchronized(this) {
+            val cached = cachedFailoverToNextEndpoint
+            if (cached != null) {
+                cached
+            } else {
+                val value = settingPrefs.getBoolean("failover_to_next_endpoint", false)
+                cachedFailoverToNextEndpoint = value
+                value
+            }
+        }
+    }
+
+    override fun setFailoverToNextEndpoint(value: Boolean) {
+        cachedFailoverToNextEndpoint = value
+        settingPrefs.edit().putBoolean("failover_to_next_endpoint", value).apply()
     }
 }
