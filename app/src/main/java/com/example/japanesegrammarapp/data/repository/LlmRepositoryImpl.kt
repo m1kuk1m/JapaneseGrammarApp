@@ -150,30 +150,30 @@ class LlmRepositoryImpl @Inject constructor(
                     ReasoningLevel.AUTO -> null
                     ReasoningLevel.OFF -> {
                         if (modelName.contains("gemini-3")) {
-                            GeminiThinkingConfig(thinkingLevel = "minimal")
+                            GeminiThinkingConfig(thinkingLevel = "minimal", includeThoughts = false)
                         } else {
-                            GeminiThinkingConfig(thinkingBudget = 0)
+                            GeminiThinkingConfig(thinkingBudget = 0, includeThoughts = false)
                         }
                     }
                     ReasoningLevel.LOW -> {
                         if (modelName.contains("gemini-3")) {
-                            GeminiThinkingConfig(thinkingLevel = "low")
+                            GeminiThinkingConfig(thinkingLevel = "low", includeThoughts = true)
                         } else {
-                            GeminiThinkingConfig(thinkingBudget = 1024)
+                            GeminiThinkingConfig(thinkingBudget = 1024, includeThoughts = true)
                         }
                     }
                     ReasoningLevel.MEDIUM -> {
                         if (modelName.contains("gemini-3")) {
-                            GeminiThinkingConfig(thinkingLevel = "medium")
+                            GeminiThinkingConfig(thinkingLevel = "medium", includeThoughts = true)
                         } else {
-                            GeminiThinkingConfig(thinkingBudget = 4096)
+                            GeminiThinkingConfig(thinkingBudget = 4096, includeThoughts = true)
                         }
                     }
                     ReasoningLevel.HIGH -> {
                         if (modelName.contains("gemini-3")) {
-                            GeminiThinkingConfig(thinkingLevel = "high")
+                            GeminiThinkingConfig(thinkingLevel = "high", includeThoughts = true)
                         } else {
-                            GeminiThinkingConfig(thinkingBudget = 8192)
+                            GeminiThinkingConfig(thinkingBudget = 8192, includeThoughts = true)
                         }
                     }
                 }
@@ -822,30 +822,30 @@ class LlmRepositoryImpl @Inject constructor(
                                 ReasoningLevel.AUTO -> null
                                 ReasoningLevel.OFF -> {
                                     if (config.modelName.contains("gemini-3")) {
-                                        GeminiThinkingConfig(thinkingLevel = "minimal")
+                                        GeminiThinkingConfig(thinkingLevel = "minimal", includeThoughts = false)
                                     } else {
-                                        GeminiThinkingConfig(thinkingBudget = 0)
+                                        GeminiThinkingConfig(thinkingBudget = 0, includeThoughts = false)
                                     }
                                 }
                                 ReasoningLevel.LOW -> {
                                     if (config.modelName.contains("gemini-3")) {
-                                        GeminiThinkingConfig(thinkingLevel = "low")
+                                        GeminiThinkingConfig(thinkingLevel = "low", includeThoughts = true)
                                     } else {
-                                        GeminiThinkingConfig(thinkingBudget = 1024)
+                                        GeminiThinkingConfig(thinkingBudget = 1024, includeThoughts = true)
                                     }
                                 }
                                 ReasoningLevel.MEDIUM -> {
                                     if (config.modelName.contains("gemini-3")) {
-                                        GeminiThinkingConfig(thinkingLevel = "medium")
+                                        GeminiThinkingConfig(thinkingLevel = "medium", includeThoughts = true)
                                     } else {
-                                        GeminiThinkingConfig(thinkingBudget = 4096)
+                                        GeminiThinkingConfig(thinkingBudget = 4096, includeThoughts = true)
                                     }
                                 }
                                 ReasoningLevel.HIGH -> {
                                     if (config.modelName.contains("gemini-3")) {
-                                        GeminiThinkingConfig(thinkingLevel = "high")
+                                        GeminiThinkingConfig(thinkingLevel = "high", includeThoughts = true)
                                     } else {
-                                        GeminiThinkingConfig(thinkingBudget = 8192)
+                                        GeminiThinkingConfig(thinkingBudget = 8192, includeThoughts = true)
                                     }
                                 }
                             }

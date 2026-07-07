@@ -45,7 +45,8 @@ data class OpenAiModel(val id: String)
 // Gemini Models
 data class GeminiThinkingConfig(
     val thinkingBudget: Int? = null,
-    val thinkingLevel: String? = null
+    val thinkingLevel: String? = null,
+    val includeThoughts: Boolean? = null
 )
 
 data class GeminiGenerationConfig(
