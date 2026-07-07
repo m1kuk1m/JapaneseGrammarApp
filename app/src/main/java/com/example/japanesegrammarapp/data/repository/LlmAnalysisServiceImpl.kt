@@ -33,6 +33,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
             '―', '—', '【', '】', '《', '》', '〈', '〉', '〝', '〟',
             '?', '!', '(', ')', '[', ']', '{', '}', ':', ';'
         )
+        val THINKING_REGEX = Regex("<think>([\\s\\S]*?)(?:</think>|$)", RegexOption.DOT_MATCHES_ALL)
     }
 
     override suspend fun executeTokenizer(
@@ -359,7 +360,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
                     when (event) {
                         is com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Chunk -> {
                             accumulatedText += event.text
-                            val parsed = parser(accumulatedText)
+                            val cleanText = accumulatedText.replace(THINKING_REGEX, "").trimStart()
+                            val parsed = parser(cleanText)
                             emit(Pair(parsed, currentMetadata))
                         }
                         is com.example.japanesegrammarapp.domain.model.LlmStreamEvent.ThoughtChunk -> {
@@ -369,12 +371,35 @@ class LlmAnalysisServiceImpl @Inject constructor(
                             providerLabel = event.provider
                             modelLabel = event.modelName
                             currentMetadata = event.usage
-                            val parsed = parser(accumulatedText)
+                            val cleanText = accumulatedText.replace(THINKING_REGEX, "").trimStart()
+                            val parsed = parser(cleanText)
                             emit(Pair(parsed, currentMetadata))
                         }
                     }
                 }
             }
+            val thinkMatches = THINKING_REGEX.findAll(accumulatedText)
+            val extractedThink = thinkMatches.map { it.groupValues.getOrNull(1)?.trim() ?: "" }
+                .filter { it.isNotBlank() }
+                .joinToString("\n")
+                .trim()
+            val finalRawResponse = accumulatedText.replace(THINKING_REGEX, "").trimStart()
+            
+            val finalReasoningContent = if (accumulatedThoughtText.isNotBlank()) {
+                if (extractedThink.isNotBlank()) {
+                    "$accumulatedThoughtText\n$extractedThink"
+                } else {
+                    accumulatedThoughtText
+                }
+            } else if (extractedThink.isNotBlank()) {
+                extractedThink
+            } else if (currentMetadata.reasoningTokens > 0) {
+                // 模型进行了内部推理但 API 未返回明文 thought text（隐式思考场景，如 gemini-3.1-flash-lite）
+                "[モデルは内部推論を行いました (${currentMetadata.reasoningTokens} tokens 消費)。このモデルはAPIに思考テキストを返しません]"
+            } else {
+                null
+            }
+
             AppLogger.apiSuccess(
                 apiTypeLabel = apiTypeLabel,
                 provider = providerLabel,
@@ -382,12 +407,12 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 hasImage = imageBase64 != null,
                 userPrompt = userPrompt,
                 systemPrompt = systemPrompt,
-                rawResponse = accumulatedText,
-                parsedPreview = accumulatedText.take(100).replace("\n", " "),
+                rawResponse = finalRawResponse,
+                parsedPreview = finalRawResponse.take(100).replace("\n", " "),
                 consumedTokens = currentMetadata.consumedTokens,
                 inputTokens = currentMetadata.inputTokens,
                 outputTokens = currentMetadata.outputTokens,
-                reasoningContent = accumulatedThoughtText.takeIf { it.isNotBlank() },
+                reasoningContent = finalReasoningContent,
                 reasoningTokens = currentMetadata.reasoningTokens,
                 recordId = recordId,
                 stepName = stepName,
@@ -396,6 +421,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
         } catch (e: TimeoutCancellationException) {
             val elapsedMs = System.currentTimeMillis() - stepStartMs
             val message = "Step timed out after ${timeoutMs / 1000}s"
+            val cleanRawResponse = accumulatedText.replace(THINKING_REGEX, "").trimStart()
             AppLogger.apiError(
                 apiTypeLabel = apiTypeLabel,
                 provider = providerLabel,
@@ -405,7 +431,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 systemPrompt = systemPrompt,
                 message = message,
                 throwable = e,
-                rawResponse = accumulatedText,
+                rawResponse = cleanRawResponse,
                 recordId = recordId,
                 stepName = stepName,
                 elapsedMs = elapsedMs
@@ -432,6 +458,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
             throw Exception(message, e)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            val cleanRawResponse = accumulatedText.replace(THINKING_REGEX, "").trimStart()
             AppLogger.apiError(
                 apiTypeLabel = apiTypeLabel,
                 provider = providerLabel,
@@ -441,7 +468,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 systemPrompt = systemPrompt,
                 message = e.localizedMessage ?: "Unknown LLM step error",
                 throwable = e,
-                rawResponse = accumulatedText,
+                rawResponse = cleanRawResponse,
                 recordId = recordId,
                 stepName = stepName,
                 elapsedMs = System.currentTimeMillis() - stepStartMs

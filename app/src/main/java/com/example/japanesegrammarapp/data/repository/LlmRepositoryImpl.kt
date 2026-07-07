@@ -115,8 +115,20 @@ class LlmRepositoryImpl @Inject constructor(
                 )
                 val response = llmService.generateOpenAiCompatible(url, "Bearer ${apiKey.trim()}", request)
                 val message = response.choices.firstOrNull()?.message
-                val text = message?.content ?: throw Exception("No response from model")
-                val reasoningText = message.reasoning_content
+                val rawText = message?.content ?: throw Exception("No response from model")
+                val rawReasoningText = message.reasoning_content
+                
+                val thinkingRegex = Regex("<think>([\\s\\S]*?)(?:</think>|$)", RegexOption.DOT_MATCHES_ALL)
+                val text: String
+                val reasoningText: String?
+                if (rawReasoningText.isNullOrBlank() && thinkingRegex.containsMatchIn(rawText)) {
+                    reasoningText = thinkingRegex.find(rawText)?.groupValues?.getOrNull(1)?.trim()
+                    text = rawText.replace(thinkingRegex, "").trim()
+                } else {
+                    text = rawText
+                    reasoningText = rawReasoningText
+                }
+
                 val tokens = response.usage?.total_tokens ?: 0
                 var inputTokens = response.usage?.prompt_tokens ?: 0
                 var outputTokens = response.usage?.completion_tokens ?: 0
@@ -194,17 +206,29 @@ class LlmRepositoryImpl @Inject constructor(
                     throw Exception(formatHttpError(e), e)
                 }
                 val candidateContent = response.candidates?.firstOrNull()?.content
-                val text = candidateContent?.parts
+                val rawText = candidateContent?.parts
                     ?.filter { it.thought != true }
                     ?.mapNotNull { it.text }
                     ?.joinToString("")
                     ?.takeIf { it.isNotBlank() }
                     ?: throw Exception(buildGeminiNoTextMessage(response))
-                val reasoningText = candidateContent?.parts
+                val rawReasoningText = candidateContent?.parts
                     ?.filter { it.thought == true }
                     ?.mapNotNull { it.text }
                     ?.joinToString("")
                     ?.takeIf { it.isNotBlank() }
+
+                val thinkingRegex = Regex("<think>([\\s\\S]*?)(?:</think>|$)", RegexOption.DOT_MATCHES_ALL)
+                val text: String
+                val reasoningText: String?
+                if (rawReasoningText.isNullOrBlank() && thinkingRegex.containsMatchIn(rawText)) {
+                    reasoningText = thinkingRegex.find(rawText)?.groupValues?.getOrNull(1)?.trim()
+                    text = rawText.replace(thinkingRegex, "").trim()
+                } else {
+                    text = rawText
+                    reasoningText = rawReasoningText
+                }
+
                 val tokens = response.usageMetadata?.totalTokenCount ?: 0
                 var inputTokens = response.usageMetadata?.promptTokenCount ?: 0
                 var outputTokens = response.usageMetadata?.candidatesTokenCount ?: 0
@@ -213,7 +237,14 @@ class LlmRepositoryImpl @Inject constructor(
                     inputTokens = tokens * 6 / 10
                     outputTokens = tokens - inputTokens
                 }
-                LlmResult(text, tokens, inputTokens, outputTokens, provider, modelName, reasoningText = reasoningText, reasoningTokens = reasoningTokens)
+                // 若模型进行了内部推理（thoughtsTokenCount > 0）但 API 未返回明文 thought text，
+                // 则插入占位提示（"隐式思考"场景，如 gemini-3.1-flash-lite）
+                val finalReasoningText = if (reasoningText.isNullOrBlank() && reasoningTokens > 0) {
+                    "[モデルは内部推論を行いました (${reasoningTokens} tokens 消費)。このモデルはAPIに思考テキストを返しません]"
+                } else {
+                    reasoningText
+                }
+                LlmResult(text, tokens, inputTokens, outputTokens, provider, modelName, reasoningText = finalReasoningText, reasoningTokens = reasoningTokens)
             }
             else -> throw Exception("Unsupported provider")
         }
@@ -928,12 +959,13 @@ class LlmRepositoryImpl @Inject constructor(
                                     }
                                     for (part in parts) {
                                         val chunk = part.text ?: ""
-                                        if (chunk.isNotEmpty()) {
-                                            if (part.thought == true) {
+                                        if (part.thought == true) {
+                                            // thought part：只有文本非空时才向流发送（thoughtSignature 场景 text 为空，静默跳过）
+                                            if (chunk.isNotEmpty()) {
                                                 trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.ThoughtChunk(chunk))
-                                            } else {
-                                                trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Chunk(chunk))
                                             }
+                                        } else if (chunk.isNotEmpty()) {
+                                            trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Chunk(chunk))
                                         }
                                     }
                                 }
