@@ -2,6 +2,8 @@ package com.example.japanesegrammarapp.data.repository
 
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
+import com.example.japanesegrammarapp.domain.model.ReasoningLevel
+import com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel
 import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
 import com.example.japanesegrammarapp.domain.repository.LlmRepository
 import com.example.japanesegrammarapp.domain.repository.LlmResult
@@ -259,7 +261,8 @@ private class FakeLlmRepository(
         baseProvider: String,
         modelName: String,
         effectiveUrl: String,
-        apiKey: String
+        apiKey: String,
+        apiTypeLabel: String
     ): LlmResult {
         error("Not used")
     }
@@ -307,6 +310,18 @@ private class FakeLlmRepository(
 }
 
 private object FakeSettingsRepository : SettingsRepository {
+    override fun getReasoningLevel(): ReasoningLevel = ReasoningLevel.AUTO
+    override fun setReasoningLevel(level: ReasoningLevel) = Unit
+    override fun getComponentReasoningLevel(apiTypeLabel: String): ComponentReasoningLevel = ComponentReasoningLevel.GLOBAL
+    override fun setComponentReasoningLevel(apiTypeLabel: String, level: ComponentReasoningLevel) = Unit
+    override fun getEffectiveReasoningLevel(apiTypeLabel: String): ReasoningLevel = ReasoningLevel.AUTO
+    override fun getUseBackupApi(): Boolean = false
+    override fun setUseBackupApi(value: Boolean) = Unit
+    override fun getAutoRetryOnError(): Boolean = false
+    override fun setAutoRetryOnError(value: Boolean) = Unit
+    override fun getFailoverToNextEndpoint(): Boolean = false
+    override fun setFailoverToNextEndpoint(value: Boolean) = Unit
+
     override fun getAllProviders(): List<String> = listOf("Gemini")
     override fun getBaseProviderType(providerId: String): String = providerId
     override fun getApiKey(provider: String): String = "key"

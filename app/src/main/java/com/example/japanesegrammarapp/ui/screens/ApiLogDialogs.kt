@@ -564,6 +564,13 @@ fun ApiLogDetailDialog(
                         ) {
                             ApiLogMetadataCard(log = log, sumiInk = sumiInk)
                             ApiLogPromptSection(log = log, context = context, sumiInk = sumiInk)
+                            if (!log.reasoningContent.isNullOrBlank()) {
+                                ApiLogReasoningSection(
+                                    reasoningContent = log.reasoningContent,
+                                    context = context,
+                                    sumiInk = sumiInk
+                                )
+                            }
                             if (!log.rawResponse.isNullOrBlank()) {
                                 ApiLogResponseSection(
                                     formattedResponse = formattedResponse,
@@ -604,7 +611,11 @@ private fun ApiLogMetadataCard(log: ApiDebugLog, sumiInk: Color) {
             Text(stringResource(R.string.api_log_provider, log.provider), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
             Text(stringResource(R.string.api_log_model, log.model), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
             Text(stringResource(R.string.api_log_status, apiStatusLabel(log.status)), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = apiStatusColor(log.status))
-            Text(stringResource(R.string.api_log_tokens, log.consumedTokens, log.inputTokens, log.outputTokens), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
+            if (log.reasoningTokens != null && log.reasoningTokens > 0) {
+                Text(stringResource(R.string.api_log_tokens_reasoning, log.consumedTokens, log.inputTokens, log.outputTokens, log.reasoningTokens), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
+            } else {
+                Text(stringResource(R.string.api_log_tokens, log.consumedTokens, log.inputTokens, log.outputTokens), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
+            }
             Text(stringResource(R.string.api_log_has_image, log.hasImage), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
             if (log.recordId != null || !log.stepName.isNullOrBlank() || log.attempt != null || log.elapsedMs != null) {
                 val unknown = stringResource(R.string.api_log_unknown_value)
@@ -680,6 +691,36 @@ private fun ApiLogResponseSection(
         }
         Divider(color = sumiInk.copy(alpha = 0.1f))
         ApiLogCodeBlock(text = formattedResponse, color = sumiInk, background = sumiInk.copy(alpha = 0.05f))
+    }
+}
+
+@Composable
+private fun ApiLogReasoningSection(
+    reasoningContent: String,
+    context: Context,
+    sumiInk: Color
+) {
+    val clipboardManager = LocalClipboardManager.current
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(stringResource(R.string.api_details_reasoning), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = sumiInk)
+            TextButton(
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(reasoningContent))
+                    showCopyToast(context)
+                },
+                modifier = Modifier.height(24.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+            ) {
+                Text(stringResource(R.string.api_log_copy_reasoning), fontSize = 10.sp)
+            }
+        }
+        Divider(color = sumiInk.copy(alpha = 0.1f))
+        ApiLogCodeBlock(text = reasoningContent, color = sumiInk, background = sumiInk.copy(alpha = 0.05f))
     }
 }
 

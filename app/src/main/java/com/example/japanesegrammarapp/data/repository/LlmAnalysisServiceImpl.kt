@@ -338,6 +338,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
         }
         val stepStartMs = System.currentTimeMillis()
         var accumulatedText = ""
+        var accumulatedThoughtText = ""
         var currentMetadata = LlmResultMetadata(0, 0, 0)
         try {
             
@@ -361,6 +362,9 @@ class LlmAnalysisServiceImpl @Inject constructor(
                             val parsed = parser(accumulatedText)
                             emit(Pair(parsed, currentMetadata))
                         }
+                        is com.example.japanesegrammarapp.domain.model.LlmStreamEvent.ThoughtChunk -> {
+                            accumulatedThoughtText += event.text
+                        }
                         is com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Metadata -> {
                             providerLabel = event.provider
                             modelLabel = event.modelName
@@ -383,6 +387,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 consumedTokens = currentMetadata.consumedTokens,
                 inputTokens = currentMetadata.inputTokens,
                 outputTokens = currentMetadata.outputTokens,
+                reasoningContent = accumulatedThoughtText.takeIf { it.isNotBlank() },
+                reasoningTokens = currentMetadata.reasoningTokens,
                 recordId = recordId,
                 stepName = stepName,
                 elapsedMs = System.currentTimeMillis() - stepStartMs

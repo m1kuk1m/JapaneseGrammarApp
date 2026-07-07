@@ -72,5 +72,6 @@ interface LlmAnalysisService {
 data class LlmResultMetadata(
     val consumedTokens: Int,
     val inputTokens: Int,
-    val outputTokens: Int
+    val outputTokens: Int,
+    val reasoningTokens: Int = 0
 )

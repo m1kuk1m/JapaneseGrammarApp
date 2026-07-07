@@ -502,6 +502,9 @@
     <string name="api_log_model">モデル名：%1$s</string>
     <string name="api_log_status">ステータス：%1$s</string>
     <string name="api_log_tokens">トークン消費量：%1$d (入力: %2$d, 出力: %3$d)</string>
+    <string name="api_log_tokens_reasoning">トークン消費量：%1$d (入力: %2$d, 出力: %3$d, 推論: %4$d)</string>
+    <string name="api_details_reasoning">推論プロセス</string>
+    <string name="api_log_copy_reasoning">推論をコピー</string>
     <string name="api_log_has_image">画像添付：%1$b</string>
     <string name="api_log_record">レコード：%1$s</string>
     <string name="api_log_step">ステップ：%1$s</string>

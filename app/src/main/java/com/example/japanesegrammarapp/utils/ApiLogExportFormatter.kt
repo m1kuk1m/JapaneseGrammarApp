@@ -15,7 +15,10 @@ object ApiLogExportFormatter {
                 appendLine("Attempt: ${log.attempt ?: "-"}")
                 appendLine("Elapsed: ${log.elapsedMs ?: "-"}ms")
                 appendLine("Image: ${log.hasImage}")
-                appendLine("Tokens: ${log.consumedTokens} (in=${log.inputTokens}, out=${log.outputTokens})")
+                val reasoningTokensStr = if (log.reasoningTokens != null && log.reasoningTokens > 0) {
+                    ", reasoning=${log.reasoningTokens}"
+                } else ""
+                appendLine("Tokens: ${log.consumedTokens} (in=${log.inputTokens}, out=${log.outputTokens}$reasoningTokensStr)")
                 if (!log.errorMessage.isNullOrBlank()) {
                     appendLine("Error: ${log.errorMessage.safe()}")
                 }
@@ -25,6 +28,10 @@ object ApiLogExportFormatter {
                     appendLine(log.systemPromptPreview.safe())
                     appendLine("User Prompt:")
                     appendLine(log.userPrompt.safe())
+                    if (!log.reasoningContent.isNullOrBlank()) {
+                        appendLine("Reasoning Process (CoT):")
+                        appendLine(log.reasoningContent.safe())
+                    }
                     if (!log.rawResponse.isNullOrBlank()) {
                         appendLine("Raw Response:")
                         appendLine(log.rawResponse.safe())

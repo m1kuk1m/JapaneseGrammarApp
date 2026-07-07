@@ -514,6 +514,9 @@
     <string name="api_log_model">模型名称：%1$s</string>
     <string name="api_log_status">接口状态：%1$s</string>
     <string name="api_log_tokens">Token消耗：%1$d (输入: %2$d, 输出: %3$d)</string>
+    <string name="api_log_tokens_reasoning">Token消耗：%1$d (输入: %2$d, 输出: %3$d, 推理: %4$d)</string>
+    <string name="api_details_reasoning">推理过程</string>
+    <string name="api_log_copy_reasoning">复制推理过程</string>
     <string name="api_log_has_image">附带图片：%1$b</string>
     <string name="api_log_record">记录：%1$s</string>
     <string name="api_log_step">步骤：%1$s</string>

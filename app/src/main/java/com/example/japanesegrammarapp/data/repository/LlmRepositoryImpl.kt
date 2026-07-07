@@ -114,15 +114,18 @@ class LlmRepositoryImpl @Inject constructor(
                     reasoning_effort = reasoningEffort
                 )
                 val response = llmService.generateOpenAiCompatible(url, "Bearer ${apiKey.trim()}", request)
-                val text = response.choices.firstOrNull()?.message?.content ?: throw Exception("No response from model")
+                val message = response.choices.firstOrNull()?.message
+                val text = message?.content ?: throw Exception("No response from model")
+                val reasoningText = message.reasoning_content
                 val tokens = response.usage?.total_tokens ?: 0
                 var inputTokens = response.usage?.prompt_tokens ?: 0
                 var outputTokens = response.usage?.completion_tokens ?: 0
+                val reasoningTokens = response.usage?.completion_tokens_details?.reasoning_tokens ?: 0
                 if (tokens > 0 && inputTokens == 0 && outputTokens == 0) {
                     inputTokens = tokens * 6 / 10
                     outputTokens = tokens - inputTokens
                 }
-                LlmResult(text, tokens, inputTokens, outputTokens, provider, modelName)
+                LlmResult(text, tokens, inputTokens, outputTokens, provider, modelName, reasoningText = reasoningText, reasoningTokens = reasoningTokens)
 
             }
             "Gemini", "Vertex AI" -> {
@@ -190,21 +193,27 @@ class LlmRepositoryImpl @Inject constructor(
                 } catch (e: retrofit2.HttpException) {
                     throw Exception(formatHttpError(e), e)
                 }
-                val text = response.candidates
-                    ?.firstOrNull()
-                    ?.content
-                    ?.parts
-                    ?.firstOrNull { !it.text.isNullOrBlank() }
-                    ?.text
+                val candidateContent = response.candidates?.firstOrNull()?.content
+                val text = candidateContent?.parts
+                    ?.filter { it.thought != true }
+                    ?.mapNotNull { it.text }
+                    ?.joinToString("")
+                    ?.takeIf { it.isNotBlank() }
                     ?: throw Exception(buildGeminiNoTextMessage(response))
+                val reasoningText = candidateContent?.parts
+                    ?.filter { it.thought == true }
+                    ?.mapNotNull { it.text }
+                    ?.joinToString("")
+                    ?.takeIf { it.isNotBlank() }
                 val tokens = response.usageMetadata?.totalTokenCount ?: 0
                 var inputTokens = response.usageMetadata?.promptTokenCount ?: 0
                 var outputTokens = response.usageMetadata?.candidatesTokenCount ?: 0
+                val reasoningTokens = response.usageMetadata?.thoughtsTokenCount ?: 0
                 if (tokens > 0 && inputTokens == 0 && outputTokens == 0) {
                     inputTokens = tokens * 6 / 10
                     outputTokens = tokens - inputTokens
                 }
-                LlmResult(text, tokens, inputTokens, outputTokens, provider, modelName)
+                LlmResult(text, tokens, inputTokens, outputTokens, provider, modelName, reasoningText = reasoningText, reasoningTokens = reasoningTokens)
             }
             else -> throw Exception("Unsupported provider")
         }
@@ -876,20 +885,27 @@ class LlmRepositoryImpl @Inject constructor(
                         override fun onEvent(eventSource: okhttp3.sse.EventSource, id: String?, type: String?, data: String) {
                             if (data == "[DONE]") return
                             try {
-                                var textChunk = ""
                                 if (config.baseProvider in listOf("OpenAI", "DeepSeek", "OpenAI Compatible", "Qwen")) {
                                     val response = gson.fromJson(data, OpenAiResponse::class.java)
                                     val choice = response.choices?.firstOrNull()
                                     if (choice?.finish_reason == "content_filter") {
                                         throw Exception("OpenAI API Blocked: Content filter triggered (finish_reason=content_filter)")
                                     }
-                                    textChunk = choice?.delta?.content ?: ""
+                                    val textChunk = choice?.delta?.content ?: ""
+                                    val reasoningChunk = choice?.delta?.reasoning_content ?: ""
                                     response.usage?.let { u ->
                                         currentUsage = com.example.japanesegrammarapp.domain.repository.LlmResultMetadata(
                                             consumedTokens = u.total_tokens ?: 0,
                                             inputTokens = u.prompt_tokens ?: 0,
-                                            outputTokens = u.completion_tokens ?: 0
+                                            outputTokens = u.completion_tokens ?: 0,
+                                            reasoningTokens = u.completion_tokens_details?.reasoning_tokens ?: 0
                                         )
+                                    }
+                                    if (reasoningChunk.isNotEmpty()) {
+                                        trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.ThoughtChunk(reasoningChunk))
+                                    }
+                                    if (textChunk.isNotEmpty()) {
+                                        trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Chunk(textChunk))
                                     }
                                 } else {
                                     val response = gson.fromJson(data, GeminiResponse::class.java)
@@ -901,17 +917,25 @@ class LlmRepositoryImpl @Inject constructor(
                                     if (finishReason != null && finishReason != "STOP" && finishReason != "MAX_TOKENS") {
                                         throw Exception(buildGeminiNoTextMessage(response))
                                     }
-                                    textChunk = candidate?.content?.parts?.firstOrNull()?.text ?: ""
+                                    val parts = candidate?.content?.parts ?: emptyList()
                                     response.usageMetadata?.let { u ->
                                         currentUsage = com.example.japanesegrammarapp.domain.repository.LlmResultMetadata(
                                             consumedTokens = u.totalTokenCount ?: 0,
                                             inputTokens = u.promptTokenCount ?: 0,
-                                            outputTokens = u.candidatesTokenCount ?: 0
+                                            outputTokens = u.candidatesTokenCount ?: 0,
+                                            reasoningTokens = u.thoughtsTokenCount ?: 0
                                         )
                                     }
-                                }
-                                if (textChunk.isNotEmpty()) {
-                                    trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Chunk(textChunk))
+                                    for (part in parts) {
+                                        val chunk = part.text ?: ""
+                                        if (chunk.isNotEmpty()) {
+                                            if (part.thought == true) {
+                                                trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.ThoughtChunk(chunk))
+                                            } else {
+                                                trySend(com.example.japanesegrammarapp.domain.model.LlmStreamEvent.Chunk(chunk))
+                                            }
+                                        }
+                                    }
                                 }
                             } catch (e: Exception) {
                                 AppLogger.e("LLM_API", "Error parsing SSE chunk: $data", e)

@@ -519,6 +519,9 @@
     <string name="api_log_model">Model: %1$s</string>
     <string name="api_log_status">Status: %1$s</string>
     <string name="api_log_tokens">Tokens: %1$d (Input: %2$d, Output: %3$d)</string>
+    <string name="api_log_tokens_reasoning">Tokens: %1$d (Input: %2$d, Output: %3$d, Reasoning: %4$d)</string>
+    <string name="api_details_reasoning">Reasoning Process</string>
+    <string name="api_log_copy_reasoning">Copy Reasoning</string>
     <string name="api_log_has_image">Has Image: %1$b</string>
     <string name="api_log_record">Record: %1$s</string>
     <string name="api_log_step">Step: %1$s</string>

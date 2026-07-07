@@ -8,7 +8,9 @@ data class LlmResult(
     val provider: String? = null,
     val modelName: String? = null,
     val endpointId: String? = null,
-    val endpointName: String? = null
+    val endpointName: String? = null,
+    val reasoningText: String? = null,
+    val reasoningTokens: Int = 0
 )
 
 data class LlmApiConfig(

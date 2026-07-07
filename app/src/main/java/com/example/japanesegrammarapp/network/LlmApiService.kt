@@ -28,9 +28,17 @@ data class OpenAiImageUrl(
     val url: String // "data:image/jpeg;base64,{base64}"
 )
 data class OpenAiResponse(val choices: List<OpenAiChoice>, val usage: OpenAiUsage? = null)
-data class OpenAiUsage(val total_tokens: Int? = null, val prompt_tokens: Int? = null, val completion_tokens: Int? = null)
+data class OpenAiUsage(
+    val total_tokens: Int? = null,
+    val prompt_tokens: Int? = null,
+    val completion_tokens: Int? = null,
+    val completion_tokens_details: OpenAiCompletionTokensDetails? = null
+)
+data class OpenAiCompletionTokensDetails(
+    val reasoning_tokens: Int? = null
+)
 data class OpenAiChoice(val message: OpenAiResponseMessage?, val delta: OpenAiResponseMessage? = null, val finish_reason: String? = null)
-data class OpenAiResponseMessage(val role: String? = null, val content: String? = null) // Responses are always textual content
+data class OpenAiResponseMessage(val role: String? = null, val content: String? = null, val reasoning_content: String? = null) // Responses are always textual content
 data class OpenAiModelListResponse(val data: List<OpenAiModel>)
 data class OpenAiModel(val id: String)
 
@@ -60,14 +68,19 @@ data class GeminiRequest(
     val safetySettings: List<GeminiSafetySetting>? = null
 )
 data class GeminiContent(val role: String = "user", val parts: List<GeminiPart>)
-data class GeminiPart(val text: String? = null, val inlineData: GeminiInlineData? = null)
+data class GeminiPart(val text: String? = null, val inlineData: GeminiInlineData? = null, val thought: Boolean? = null)
 data class GeminiInlineData(val mimeType: String, val data: String) // Base64 data
 data class GeminiResponse(
     val candidates: List<GeminiCandidate>?,
     val usageMetadata: GeminiUsageMetadata? = null,
     val promptFeedback: GeminiPromptFeedback? = null
 )
-data class GeminiUsageMetadata(val totalTokenCount: Int? = null, val promptTokenCount: Int? = null, val candidatesTokenCount: Int? = null)
+data class GeminiUsageMetadata(
+    val totalTokenCount: Int? = null,
+    val promptTokenCount: Int? = null,
+    val candidatesTokenCount: Int? = null,
+    val thoughtsTokenCount: Int? = null
+)
 data class GeminiCandidate(
     val content: GeminiContent?,
     val finishReason: String? = null,

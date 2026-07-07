@@ -263,6 +263,18 @@ class BookmarkViewModelFilterTest {
     }
 
     private object FakeSettingsRepository : SettingsRepository {
+        override fun getReasoningLevel(): com.example.japanesegrammarapp.domain.model.ReasoningLevel = com.example.japanesegrammarapp.domain.model.ReasoningLevel.AUTO
+        override fun setReasoningLevel(level: com.example.japanesegrammarapp.domain.model.ReasoningLevel) = Unit
+        override fun getComponentReasoningLevel(apiTypeLabel: String): com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel = com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel.GLOBAL
+        override fun setComponentReasoningLevel(apiTypeLabel: String, level: com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel) = Unit
+        override fun getEffectiveReasoningLevel(apiTypeLabel: String): com.example.japanesegrammarapp.domain.model.ReasoningLevel = com.example.japanesegrammarapp.domain.model.ReasoningLevel.AUTO
+        override fun getUseBackupApi(): Boolean = false
+        override fun setUseBackupApi(value: Boolean) = Unit
+        override fun getAutoRetryOnError(): Boolean = false
+        override fun setAutoRetryOnError(value: Boolean) = Unit
+        override fun getFailoverToNextEndpoint(): Boolean = false
+        override fun setFailoverToNextEndpoint(value: Boolean) = Unit
+
         override fun getAllProviders(): List<String> = listOf("Gemini")
         override fun getBaseProviderType(providerId: String): String = providerId
         override fun getApiKey(provider: String): String = "key"
