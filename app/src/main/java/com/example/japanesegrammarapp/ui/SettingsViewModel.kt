@@ -15,6 +15,7 @@ import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectorEngine
 import com.example.japanesegrammarapp.domain.model.PromptPreset
+import com.example.japanesegrammarapp.domain.model.ReasoningLevel
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.utils.ApiDebugLog
 import com.example.japanesegrammarapp.utils.ApiLogExportFormatter
@@ -59,6 +60,7 @@ class SettingsViewModel @Inject constructor(
             val providerModels = allProviders.associateWith { settingsRepository.getModelsForProvider(it) }
             val activeModel = settingsRepository.getActiveModel(activeProvider)
             val useOcr = settingsRepository.getUseOcr()
+            val reasoningLevel = settingsRepository.getReasoningLevel()
             val autoNavigateResult = settingsRepository.getAutoNavigateResult()
             val removeAccidentalSpaces = settingsRepository.getRemoveAccidentalSpaces()
             val autoDeskewAfterCapture = settingsRepository.getAutoDeskewAfterCapture()
@@ -94,6 +96,7 @@ class SettingsViewModel @Inject constructor(
 
             _uiState.update {
                 it.copy(
+                    reasoningLevel = reasoningLevel,
                     activeProvider = activeProvider,
                     activeModel = finalActiveModel,
                     useOcr = useOcr,
@@ -860,6 +863,11 @@ class SettingsViewModel @Inject constructor(
 
     fun setCardDetailDisplayMode(mode: String) {
         settingsRepository.setCardDetailDisplayMode(mode)
+    }
+
+    fun setReasoningLevel(level: ReasoningLevel) {
+        settingsRepository.setReasoningLevel(level)
+        _uiState.update { it.copy(reasoningLevel = level) }
     }
 
     fun setUseBackupApi(value: Boolean) {

@@ -2,8 +2,12 @@ package com.example.japanesegrammarapp.domain.repository
 
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
+import com.example.japanesegrammarapp.domain.model.ReasoningLevel
 
 interface SettingsRepository {
+    fun getReasoningLevel(): ReasoningLevel
+    fun setReasoningLevel(level: ReasoningLevel)
+
     fun getAllProviders(): List<String>
     fun getBaseProviderType(providerId: String): String
 

@@ -84,6 +84,8 @@
     <string name="in_out_ratio">输入输出占比</string>
 
     <string name="api_config">API 优先级设置</string>
+    <string name="reasoning_level">推理深度 (思维链)</string>
+    <string name="reasoning_level_desc">设置大模型的思考深度以平衡生成质量与速度。</string>
     <string name="use_backup_api">启用备用 API</string>
     <string name="use_backup_api_desc">当主 API 彻底失败时，切换到配置的备用 API。</string>
     <string name="auto_retry_on_error">报错时自动重试</string>

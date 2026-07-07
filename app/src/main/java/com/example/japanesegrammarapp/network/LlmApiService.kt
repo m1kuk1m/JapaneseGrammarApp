@@ -15,7 +15,8 @@ data class OpenAiRequest(
     val temperature: Double? = null,
     val response_format: OpenAiResponseFormat? = null,
     val stream: Boolean? = null,
-    val stream_options: Map<String, Boolean>? = null
+    val stream_options: Map<String, Boolean>? = null,
+    val reasoning_effort: String? = null
 )
 data class OpenAiMessage(val role: String, val content: Any) // content can be String or List<OpenAiContentPart>
 data class OpenAiContentPart(
@@ -34,9 +35,15 @@ data class OpenAiModelListResponse(val data: List<OpenAiModel>)
 data class OpenAiModel(val id: String)
 
 // Gemini Models
+data class GeminiThinkingConfig(
+    val thinkingBudget: Int? = null,
+    val thinkingLevel: String? = null
+)
+
 data class GeminiGenerationConfig(
     val temperature: Double? = null,
-    val responseMimeType: String? = null
+    val responseMimeType: String? = null,
+    val thinkingConfig: GeminiThinkingConfig? = null
 )
 
 data class GeminiSystemInstruction(val parts: List<GeminiPart>)

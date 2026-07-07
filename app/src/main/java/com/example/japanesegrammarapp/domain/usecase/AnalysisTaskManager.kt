@@ -85,6 +85,13 @@ class DefaultAnalysisTaskManager @Inject constructor(
                     return duplicate.id
                 } else if (duplicate.status == AnalysisStatus.FAILED || duplicate.status == AnalysisStatus.PENDING) {
                     // Zombie PENDING or FAILED record: restart background analysis
+                    saveAnalysisRecordUseCase.update(
+                        duplicate.copy(
+                            status = AnalysisStatus.PENDING,
+                            errorMessage = null,
+                            modelUsed = "$provider: $modelName"
+                        )
+                    )
                     executeRetry(duplicate.id, cleanText, duplicate.imageUri)
                     return duplicate.id
                 } else if (duplicate.status == AnalysisStatus.COMPLETED) {
@@ -853,7 +860,8 @@ class DefaultAnalysisTaskManager @Inject constructor(
                         status = AnalysisStatus.COMPLETED,
                         consumedTokens = finalResultSnapshot.consumedTokens,
                         inputTokens = finalResultSnapshot.inputTokens,
-                        outputTokens = finalResultSnapshot.outputTokens
+                        outputTokens = finalResultSnapshot.outputTokens,
+                        modelUsed = "$primaryProvider: $primaryModel"
                     )
                     saveAnalysisRecordUseCase.update(updatedRecord)
 

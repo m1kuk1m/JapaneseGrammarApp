@@ -3,8 +3,10 @@ package com.example.japanesegrammarapp.ui
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.domain.model.PromptPreset
+import com.example.japanesegrammarapp.domain.model.ReasoningLevel
 
 data class SettingsUiState(
+    val reasoningLevel: ReasoningLevel = ReasoningLevel.AUTO,
     val activeProvider: String = "Gemini",
     val activeModel: String = "",
     val availableModels: List<String> = emptyList(),

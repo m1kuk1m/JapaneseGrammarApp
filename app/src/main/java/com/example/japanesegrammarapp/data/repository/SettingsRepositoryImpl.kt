@@ -8,6 +8,7 @@ import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.domain.model.PromptPreset
+import com.example.japanesegrammarapp.domain.model.ReasoningLevel
 import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.example.japanesegrammarapp.network.PromptManager
@@ -28,6 +29,7 @@ class SettingsRepositoryImpl @Inject constructor(
 ) : SettingsRepository {
 
     // Thread-safe in-memory cache for ultra-fast, non-blocking UI interactions
+    @Volatile private var cachedReasoningLevel: ReasoningLevel? = null
     @Volatile private var cachedActiveProvider: String? = null
     @Volatile private var cachedUseOcr: Boolean? = null
     @Volatile private var cachedRemoveAccidentalSpaces: Boolean? = null
@@ -90,6 +92,19 @@ class SettingsRepositoryImpl @Inject constructor(
             _furiganaGapScale.value = settingPrefs.getFloat("furigana_gap_scale", 1.0f)
             _cardDetailDisplayMode.value = settingPrefs.getString("card_detail_display_mode", "POPUP") ?: "POPUP"
         }
+    }
+
+    override fun getReasoningLevel(): ReasoningLevel {
+        cachedReasoningLevel?.let { return it }
+        val name = settingPrefs.getString("reasoning_level", ReasoningLevel.AUTO.name)
+        val level = ReasoningLevel.fromString(name)
+        cachedReasoningLevel = level
+        return level
+    }
+
+    override fun setReasoningLevel(level: ReasoningLevel) {
+        cachedReasoningLevel = level
+        settingPrefs.edit().putString("reasoning_level", level.name).apply()
     }
 
     override fun getAllProviders(): List<String> {

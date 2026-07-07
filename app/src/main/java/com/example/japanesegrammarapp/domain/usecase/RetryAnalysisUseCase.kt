@@ -14,14 +14,15 @@ class RetryAnalysisUseCase @Inject constructor(
 ) {
     suspend fun execute(recordId: Int): Int {
         val record = historyRepository.getRecordById(recordId) ?: throw IllegalArgumentException("Record not found")
-        historyRepository.updateRecord(record.copy(status = AnalysisStatus.PENDING, errorMessage = null))
-
-        val providerAndModel = record.modelUsed.split(": ")
-        val provider = providerAndModel.getOrNull(0) ?: "Gemini"
-        val modelName = providerAndModel.getOrNull(1) ?: "default"
-
-        val key = settingsRepository.getApiKey(provider)
-        val url = settingsRepository.getApiUrl(provider)
+        val activeProvider = settingsRepository.getActiveProvider()
+        val activeModel = settingsRepository.getActiveModel(activeProvider)
+        historyRepository.updateRecord(
+            record.copy(
+                status = AnalysisStatus.PENDING,
+                errorMessage = null,
+                modelUsed = "$activeProvider: $activeModel"
+            )
+        )
 
         analyzeTextUseCase.executeRetry(
             recordId = recordId,

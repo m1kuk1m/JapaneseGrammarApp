@@ -6,6 +6,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import com.example.japanesegrammarapp.network.*
 import com.example.japanesegrammarapp.domain.model.LlmConfig
+import com.example.japanesegrammarapp.domain.model.ReasoningLevel
 import com.example.japanesegrammarapp.domain.repository.LlmRepository
 import com.example.japanesegrammarapp.domain.repository.LlmResult
 import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
@@ -90,14 +91,26 @@ class LlmRepositoryImpl @Inject constructor(
                     userPrompt
                 }
 
+                val reasoningLevel = settingsRepository.getReasoningLevel()
+                val isO1OrO3 = modelName.contains("o1", ignoreCase = true) || modelName.contains("o3", ignoreCase = true)
+                val reasoningEffort = if (isO1OrO3) {
+                    when (reasoningLevel) {
+                        ReasoningLevel.LOW -> "low"
+                        ReasoningLevel.MEDIUM -> "medium"
+                        ReasoningLevel.HIGH -> "high"
+                        else -> null
+                    }
+                } else null
+
                 val request = OpenAiRequest(
                     model = modelName,
                     messages = listOf(
                         OpenAiMessage(role = "system", content = systemPrompt),
                         OpenAiMessage(role = "user", content = userContent)
                     ),
-                    temperature = 0.1,
-                    response_format = OpenAiResponseFormat("json_object")
+                    temperature = if (isO1OrO3) null else 0.1,
+                    response_format = OpenAiResponseFormat("json_object"),
+                    reasoning_effort = reasoningEffort
                 )
                 val response = llmService.generateOpenAiCompatible(url, "Bearer ${apiKey.trim()}", request)
                 val text = response.choices.firstOrNull()?.message?.content ?: throw Exception("No response from model")
@@ -128,12 +141,46 @@ class LlmRepositoryImpl @Inject constructor(
                     GeminiSafetySetting("HARM_CATEGORY_DANGEROUS_CONTENT", "BLOCK_NONE")
                 )
 
+                val reasoningLevel = settingsRepository.getReasoningLevel()
+                val thinkingConfig = when (reasoningLevel) {
+                    ReasoningLevel.AUTO -> null
+                    ReasoningLevel.OFF -> {
+                        if (modelName.contains("gemini-3")) {
+                            GeminiThinkingConfig(thinkingLevel = "minimal")
+                        } else {
+                            GeminiThinkingConfig(thinkingBudget = 0)
+                        }
+                    }
+                    ReasoningLevel.LOW -> {
+                        if (modelName.contains("gemini-3")) {
+                            GeminiThinkingConfig(thinkingLevel = "low")
+                        } else {
+                            GeminiThinkingConfig(thinkingBudget = 1024)
+                        }
+                    }
+                    ReasoningLevel.MEDIUM -> {
+                        if (modelName.contains("gemini-3")) {
+                            GeminiThinkingConfig(thinkingLevel = "medium")
+                        } else {
+                            GeminiThinkingConfig(thinkingBudget = 4096)
+                        }
+                    }
+                    ReasoningLevel.HIGH -> {
+                        if (modelName.contains("gemini-3")) {
+                            GeminiThinkingConfig(thinkingLevel = "high")
+                        } else {
+                            GeminiThinkingConfig(thinkingBudget = 8192)
+                        }
+                    }
+                }
+
                 val request = GeminiRequest(
                     contents = listOf(GeminiContent(role = "user", parts = parts)),
                     systemInstruction = GeminiSystemInstruction(parts = listOf(GeminiPart(text = systemPrompt))),
                     generationConfig = GeminiGenerationConfig(
                         temperature = 0.1,
-                        responseMimeType = "application/json"
+                        responseMimeType = "application/json",
+                        thinkingConfig = thinkingConfig
                     ),
                     safetySettings = safetySettings
                 )
@@ -715,15 +762,28 @@ class LlmRepositoryImpl @Inject constructor(
                             } else {
                                 userPrompt
                             }
+                            
+                            val reasoningLevel = settingsRepository.getReasoningLevel()
+                            val isO1OrO3 = config.modelName.contains("o1", ignoreCase = true) || config.modelName.contains("o3", ignoreCase = true)
+                            val reasoningEffort = if (isO1OrO3) {
+                                when (reasoningLevel) {
+                                    ReasoningLevel.LOW -> "low"
+                                    ReasoningLevel.MEDIUM -> "medium"
+                                    ReasoningLevel.HIGH -> "high"
+                                    else -> null
+                                }
+                            } else null
+
                             val request = OpenAiRequest(
                                 model = config.modelName,
                                 messages = listOf(
                                     OpenAiMessage(role = "system", content = systemPrompt),
                                     OpenAiMessage(role = "user", content = userContent)
                                 ),
-                                temperature = 0.1,
+                                temperature = if (isO1OrO3) null else 0.1,
                                 stream = true,
-                                stream_options = mapOf("include_usage" to true)
+                                stream_options = mapOf("include_usage" to true),
+                                reasoning_effort = reasoningEffort
                             )
                             requestBodyStr = gson.toJson(request)
                         }
@@ -744,11 +804,45 @@ class LlmRepositoryImpl @Inject constructor(
                                 GeminiSafetySetting("HARM_CATEGORY_DANGEROUS_CONTENT", "BLOCK_NONE")
                             )
 
+                            val reasoningLevel = settingsRepository.getReasoningLevel()
+                            val thinkingConfig = when (reasoningLevel) {
+                                ReasoningLevel.AUTO -> null
+                                ReasoningLevel.OFF -> {
+                                    if (config.modelName.contains("gemini-3")) {
+                                        GeminiThinkingConfig(thinkingLevel = "minimal")
+                                    } else {
+                                        GeminiThinkingConfig(thinkingBudget = 0)
+                                    }
+                                }
+                                ReasoningLevel.LOW -> {
+                                    if (config.modelName.contains("gemini-3")) {
+                                        GeminiThinkingConfig(thinkingLevel = "low")
+                                    } else {
+                                        GeminiThinkingConfig(thinkingBudget = 1024)
+                                    }
+                                }
+                                ReasoningLevel.MEDIUM -> {
+                                    if (config.modelName.contains("gemini-3")) {
+                                        GeminiThinkingConfig(thinkingLevel = "medium")
+                                    } else {
+                                        GeminiThinkingConfig(thinkingBudget = 4096)
+                                    }
+                                }
+                                ReasoningLevel.HIGH -> {
+                                    if (config.modelName.contains("gemini-3")) {
+                                        GeminiThinkingConfig(thinkingLevel = "high")
+                                    } else {
+                                        GeminiThinkingConfig(thinkingBudget = 8192)
+                                    }
+                                }
+                            }
+
                             val request = GeminiRequest(
                                 contents = listOf(GeminiContent(role = "user", parts = parts)),
                                 systemInstruction = GeminiSystemInstruction(parts = listOf(GeminiPart(text = systemPrompt))),
                                 generationConfig = GeminiGenerationConfig(
-                                    temperature = 0.1
+                                    temperature = 0.1,
+                                    thinkingConfig = thinkingConfig
                                 ),
                                 safetySettings = safetySettings
                             )

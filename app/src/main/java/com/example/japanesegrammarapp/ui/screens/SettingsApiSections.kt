@@ -51,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
+import com.example.japanesegrammarapp.domain.model.ReasoningLevel
 import com.example.japanesegrammarapp.ui.SettingsUiState
 
 @Composable
@@ -64,7 +65,8 @@ fun SettingsApiPrioritySection(
     onBackupModelChange: (String) -> Unit,
     onUseBackupApiChange: (Boolean) -> Unit,
     onAutoRetryOnErrorChange: (Boolean) -> Unit,
-    onFailoverToNextEndpointChange: (Boolean) -> Unit
+    onFailoverToNextEndpointChange: (Boolean) -> Unit,
+    onReasoningLevelChange: (ReasoningLevel) -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -121,6 +123,35 @@ fun SettingsApiPrioritySection(
                                 onClick = {
                                     onActiveModelChange(model)
                                     mainModelExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        )
+
+        SettingsDivider()
+
+        var reasoningExpanded by remember { mutableStateOf(false) }
+        SettingsItem(
+            icon = Icons.Default.Tune,
+            title = stringResource(R.string.reasoning_level),
+            subtitle = uiState.reasoningLevel.name,
+            onClick = { reasoningExpanded = true },
+            trailingContent = {
+                Box {
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = sumiInk.copy(alpha = 0.5f))
+                    DropdownMenu(
+                        expanded = reasoningExpanded,
+                        onDismissRequest = { reasoningExpanded = false }
+                    ) {
+                        ReasoningLevel.entries.forEach { level ->
+                            DropdownMenuItem(
+                                text = { Text(level.name) },
+                                onClick = {
+                                    onReasoningLevelChange(level)
+                                    reasoningExpanded = false
                                 }
                             )
                         }

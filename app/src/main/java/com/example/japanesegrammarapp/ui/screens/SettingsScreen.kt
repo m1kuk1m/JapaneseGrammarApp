@@ -46,6 +46,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
+import com.example.japanesegrammarapp.domain.model.ReasoningLevel
 import com.example.japanesegrammarapp.ui.SettingsViewModel
 import com.example.japanesegrammarapp.ui.UiEvent
 import com.example.japanesegrammarapp.ui.theme.ZenColors
@@ -585,7 +586,8 @@ fun SettingsScreen(
                                     onBackupModelChange = viewModel::setBackupModel,
                                     onUseBackupApiChange = viewModel::setUseBackupApi,
                                     onAutoRetryOnErrorChange = viewModel::setAutoRetryOnError,
-                                    onFailoverToNextEndpointChange = viewModel::setFailoverToNextEndpoint
+                                    onFailoverToNextEndpointChange = viewModel::setFailoverToNextEndpoint,
+                                    onReasoningLevelChange = viewModel::setReasoningLevel
                                 )
 
                                 SettingsCredentialsSection(
