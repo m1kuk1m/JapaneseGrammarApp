@@ -33,6 +33,9 @@ class SettingsRepositoryImpl @Inject constructor(
     @Volatile private var cachedRemoveAccidentalSpaces: Boolean? = null
 
     @Volatile private var cachedImageTokenizerMode: String? = null
+    @Volatile private var cachedUseBackupApi: Boolean? = null
+    @Volatile private var cachedAutoRetryOnError: Boolean? = null
+    @Volatile private var cachedFailoverToNextEndpoint: Boolean? = null
     @Volatile private var cachedOcrBoxDetectionSettings: OcrBoxDetectionSettings? = null
     @Volatile private var cachedBackupProvider: String? = null
     @Volatile private var cachedBackupModel: String? = null
@@ -1058,5 +1061,59 @@ class SettingsRepositoryImpl @Inject constructor(
     override fun setRemoveAccidentalSpaces(value: Boolean) {
         cachedRemoveAccidentalSpaces = value
         settingPrefs.edit().putBoolean("remove_accidental_spaces", value).apply()
+    }
+
+    override fun getUseBackupApi(): Boolean {
+        return cachedUseBackupApi ?: synchronized(this) {
+            val cached = cachedUseBackupApi
+            if (cached != null) {
+                cached
+            } else {
+                val value = settingPrefs.getBoolean("use_backup_api", false)
+                cachedUseBackupApi = value
+                value
+            }
+        }
+    }
+
+    override fun setUseBackupApi(value: Boolean) {
+        cachedUseBackupApi = value
+        settingPrefs.edit().putBoolean("use_backup_api", value).apply()
+    }
+
+    override fun getAutoRetryOnError(): Boolean {
+        return cachedAutoRetryOnError ?: synchronized(this) {
+            val cached = cachedAutoRetryOnError
+            if (cached != null) {
+                cached
+            } else {
+                val value = settingPrefs.getBoolean("auto_retry_on_error", false)
+                cachedAutoRetryOnError = value
+                value
+            }
+        }
+    }
+
+    override fun setAutoRetryOnError(value: Boolean) {
+        cachedAutoRetryOnError = value
+        settingPrefs.edit().putBoolean("auto_retry_on_error", value).apply()
+    }
+
+    override fun getFailoverToNextEndpoint(): Boolean {
+        return cachedFailoverToNextEndpoint ?: synchronized(this) {
+            val cached = cachedFailoverToNextEndpoint
+            if (cached != null) {
+                cached
+            } else {
+                val value = settingPrefs.getBoolean("failover_to_next_endpoint", false)
+                cachedFailoverToNextEndpoint = value
+                value
+            }
+        }
+    }
+
+    override fun setFailoverToNextEndpoint(value: Boolean) {
+        cachedFailoverToNextEndpoint = value
+        settingPrefs.edit().putBoolean("failover_to_next_endpoint", value).apply()
     }
 }

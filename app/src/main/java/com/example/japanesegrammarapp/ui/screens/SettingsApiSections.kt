@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -34,6 +35,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,9 +61,14 @@ fun SettingsApiPrioritySection(
     onActiveProviderChange: (String) -> Unit,
     onActiveModelChange: (String) -> Unit,
     onBackupProviderChange: (String) -> Unit,
-    onBackupModelChange: (String) -> Unit
+    onBackupModelChange: (String) -> Unit,
+    onUseBackupApiChange: (Boolean) -> Unit,
+    onAutoRetryOnErrorChange: (Boolean) -> Unit,
+    onFailoverToNextEndpointChange: (Boolean) -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
     val activeProvider = uiState.activeProvider
 
     SettingsGroup(title = stringResource(R.string.api_config)) {
@@ -123,62 +131,130 @@ fun SettingsApiPrioritySection(
 
         SettingsDivider()
 
-        var backupProviderExpanded by remember { mutableStateOf(false) }
         SettingsItem(
-            icon = Icons.Default.Backup,
-            title = stringResource(R.string.backup_api),
-            subtitle = uiState.backupProvider,
-            onClick = { backupProviderExpanded = true },
+            icon = Icons.Default.Tune,
+            title = stringResource(R.string.auto_retry_on_error),
+            subtitle = stringResource(R.string.auto_retry_on_error_desc),
             trailingContent = {
-                Box {
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = sumiInk.copy(alpha = 0.5f))
-                    DropdownMenu(
-                        expanded = backupProviderExpanded,
-                        onDismissRequest = { backupProviderExpanded = false }
-                    ) {
-                        providers.forEach { provider ->
-                            DropdownMenuItem(
-                                text = { Text(provider) },
-                                onClick = {
-                                    onBackupProviderChange(provider)
-                                    backupProviderExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
+                Switch(
+                    checked = uiState.autoRetryOnError,
+                    onCheckedChange = onAutoRetryOnErrorChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = onPrimaryColor,
+                        checkedTrackColor = primaryColor,
+                        uncheckedThumbColor = sumiInk.copy(alpha = 0.4f),
+                        uncheckedTrackColor = sumiInk.copy(alpha = 0.1f)
+                    )
+                )
             }
         )
 
         SettingsDivider()
 
-        var backupModelExpanded by remember { mutableStateOf(false) }
-        val backupModels = providerModels[uiState.backupProvider].orEmpty()
         SettingsItem(
-            icon = Icons.Default.AutoAwesome,
-            title = stringResource(R.string.backup_model),
-            subtitle = uiState.backupModel.ifBlank { stringResource(R.string.unselected) },
-            onClick = { backupModelExpanded = true },
+            icon = Icons.Default.Tune,
+            title = stringResource(R.string.failover_to_next_endpoint),
+            subtitle = stringResource(R.string.failover_to_next_endpoint_desc),
             trailingContent = {
-                Box {
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = sumiInk.copy(alpha = 0.5f))
-                    DropdownMenu(
-                        expanded = backupModelExpanded,
-                        onDismissRequest = { backupModelExpanded = false }
-                    ) {
-                        backupModels.forEach { model ->
-                            DropdownMenuItem(
-                                text = { Text(model) },
-                                onClick = {
-                                    onBackupModelChange(model)
-                                    backupModelExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
+                Switch(
+                    checked = uiState.failoverToNextEndpoint,
+                    onCheckedChange = onFailoverToNextEndpointChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = onPrimaryColor,
+                        checkedTrackColor = primaryColor,
+                        uncheckedThumbColor = sumiInk.copy(alpha = 0.4f),
+                        uncheckedTrackColor = sumiInk.copy(alpha = 0.1f)
+                    )
+                )
             }
         )
+
+        SettingsDivider()
+
+        SettingsItem(
+            icon = Icons.Default.Backup,
+            title = stringResource(R.string.use_backup_api),
+            subtitle = stringResource(R.string.use_backup_api_desc),
+            trailingContent = {
+                Switch(
+                    checked = uiState.useBackupApi,
+                    onCheckedChange = onUseBackupApiChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = onPrimaryColor,
+                        checkedTrackColor = primaryColor,
+                        uncheckedThumbColor = sumiInk.copy(alpha = 0.4f),
+                        uncheckedTrackColor = sumiInk.copy(alpha = 0.1f)
+                    )
+                )
+            }
+        )
+
+        AnimatedVisibility(
+            visible = uiState.useBackupApi,
+            enter = fadeIn(animationSpec = tween(300)) + expandVertically(),
+            exit = fadeOut(animationSpec = tween(300)) + shrinkVertically()
+        ) {
+            Column {
+                SettingsDivider()
+
+                var backupProviderExpanded by remember { mutableStateOf(false) }
+                SettingsItem(
+                    icon = Icons.Default.Backup,
+                    title = stringResource(R.string.backup_api),
+                    subtitle = uiState.backupProvider,
+                    onClick = { backupProviderExpanded = true },
+                    trailingContent = {
+                        Box {
+                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = sumiInk.copy(alpha = 0.5f))
+                            DropdownMenu(
+                                expanded = backupProviderExpanded,
+                                onDismissRequest = { backupProviderExpanded = false }
+                            ) {
+                                providers.forEach { provider ->
+                                    DropdownMenuItem(
+                                        text = { Text(provider) },
+                                        onClick = {
+                                            onBackupProviderChange(provider)
+                                            backupProviderExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                )
+
+                SettingsDivider()
+
+                var backupModelExpanded by remember { mutableStateOf(false) }
+                val backupModels = providerModels[uiState.backupProvider].orEmpty()
+                SettingsItem(
+                    icon = Icons.Default.AutoAwesome,
+                    title = stringResource(R.string.backup_model),
+                    subtitle = uiState.backupModel.ifBlank { stringResource(R.string.unselected) },
+                    onClick = { backupModelExpanded = true },
+                    trailingContent = {
+                        Box {
+                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = sumiInk.copy(alpha = 0.5f))
+                            DropdownMenu(
+                                expanded = backupModelExpanded,
+                                onDismissRequest = { backupModelExpanded = false }
+                            ) {
+                                backupModels.forEach { model ->
+                                    DropdownMenuItem(
+                                        text = { Text(model) },
+                                        onClick = {
+                                            onBackupModelChange(model)
+                                            backupModelExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                )
+            }
+        }
     }
 }
 

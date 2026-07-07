@@ -158,7 +158,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
 
                 val backupProvider = settingsRepository.getBackupProvider()
                 val backupModel = settingsRepository.getBackupModel()
-                val backupConfigs = if (backupProvider.isNotBlank() && backupModel.isNotBlank()) {
+                val backupConfigs = if (settingsRepository.getUseBackupApi() && backupProvider.isNotBlank() && backupModel.isNotBlank()) {
                     settingsRepository.buildLlmApiConfigs(backupProvider, backupModel)
                 } else {
                     emptyList()

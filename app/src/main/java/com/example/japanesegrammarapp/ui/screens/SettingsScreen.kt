@@ -582,7 +582,10 @@ fun SettingsScreen(
                                     onActiveProviderChange = viewModel::setActiveProvider,
                                     onActiveModelChange = viewModel::setActiveModel,
                                     onBackupProviderChange = viewModel::setBackupProvider,
-                                    onBackupModelChange = viewModel::setBackupModel
+                                    onBackupModelChange = viewModel::setBackupModel,
+                                    onUseBackupApiChange = viewModel::setUseBackupApi,
+                                    onAutoRetryOnErrorChange = viewModel::setAutoRetryOnError,
+                                    onFailoverToNextEndpointChange = viewModel::setFailoverToNextEndpoint
                                 )
 
                                 SettingsCredentialsSection(

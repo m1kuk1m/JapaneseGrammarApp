@@ -260,7 +260,7 @@ class LlmRepositoryImpl @Inject constructor(
         val backupBaseProvider = backupConfig?.baseProvider ?: ""
 
         var attempt = 0
-        val maxRetries = 2
+        val maxRetries = if (settingsRepository.getAutoRetryOnError()) 2 else 0
         var lastException: Exception? = null
 
         while (attempt <= maxRetries) {
@@ -583,7 +583,8 @@ class LlmRepositoryImpl @Inject constructor(
                     e
                 )
 
-                if (index < configs.lastIndex) {
+                val shouldTryNext = settingsRepository.getFailoverToNextEndpoint() && index < configs.lastIndex
+                if (shouldTryNext) {
                     AppLogger.apiEvent(
                         apiTypeLabel = apiTypeLabel,
                         provider = config.provider,
@@ -615,6 +616,7 @@ class LlmRepositoryImpl @Inject constructor(
                         attempt = attemptNumber,
                         elapsedMs = elapsedMs
                     )
+                    return PoolAttempt(null, lastException)
                 }
             }
         }
@@ -868,7 +870,12 @@ class LlmRepositoryImpl @Inject constructor(
                     )
                 }
                 com.example.japanesegrammarapp.utils.AppLogger.e("LLM_API", "Streaming attempt $attemptNumber failed via ${config.provider}", e)
-                if (index < configs.lastIndex) {
+                val nextIndex = index + 1
+                val shouldTryNext = nextIndex < configs.size && (
+                    nextIndex == primaryConfigs.size || // Switch from primary pool to backup
+                    settingsRepository.getFailoverToNextEndpoint()
+                )
+                if (shouldTryNext) {
                     com.example.japanesegrammarapp.utils.AppLogger.apiEvent(
                         apiTypeLabel = apiTypeLabel,
                         provider = config.provider,
@@ -885,6 +892,8 @@ class LlmRepositoryImpl @Inject constructor(
                     )
                     onRetry(attemptNumber)
                     kotlinx.coroutines.delay(600L)
+                } else {
+                    throw lastException ?: e
                 }
             }
         }

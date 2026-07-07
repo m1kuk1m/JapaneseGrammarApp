@@ -83,6 +83,12 @@
     <string name="in_out_ratio">In/Out Ratio</string>
 
     <string name="api_config">API Configuration</string>
+    <string name="use_backup_api">Enable Backup API</string>
+    <string name="use_backup_api_desc">Fallback to the backup API if the main API fails completely.</string>
+    <string name="auto_retry_on_error">Auto Retry on Error</string>
+    <string name="auto_retry_on_error_desc">Automatically retry the same endpoint if a request fails.</string>
+    <string name="failover_to_next_endpoint">Try Next Endpoint on Error</string>
+    <string name="failover_to_next_endpoint_desc">If an endpoint fails, try the next available endpoint in the pool.</string>
     <string name="ocr_scanning">OCR &amp; Scanning</string>
     <string name="llm_prompts">LLM &amp; Prompts</string>
     <string name="advanced_debug">Advanced &amp; Debug</string>

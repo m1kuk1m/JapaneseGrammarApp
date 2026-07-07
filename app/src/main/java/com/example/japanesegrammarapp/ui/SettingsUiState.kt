@@ -12,6 +12,9 @@ data class SettingsUiState(
     val useOcr: Boolean = false,
     val autoNavigateResult: Boolean = true,
     val removeAccidentalSpaces: Boolean = true,
+    val useBackupApi: Boolean = false,
+    val autoRetryOnError: Boolean = false,
+    val failoverToNextEndpoint: Boolean = false,
 
     val autoDeskewAfterCapture: Boolean = false,
     val imageTokenizerMode: String = "faithful",

@@ -66,6 +66,9 @@ class SettingsViewModel @Inject constructor(
             val ocrBoxDetectionSettings = settingsRepository.getOcrBoxDetectionSettings()
             val backupProvider = settingsRepository.getBackupProvider()
             val backupModel = settingsRepository.getBackupModel()
+            val useBackupApi = settingsRepository.getUseBackupApi()
+            val autoRetryOnError = settingsRepository.getAutoRetryOnError()
+            val failoverToNextEndpoint = settingsRepository.getFailoverToNextEndpoint()
 
             val models = providerModels[activeProvider] ?: emptyList()
             val finalActiveModel = if (activeModel.isBlank() && models.isNotEmpty()) models.first() else activeModel
@@ -96,6 +99,9 @@ class SettingsViewModel @Inject constructor(
                     useOcr = useOcr,
                     autoNavigateResult = autoNavigateResult,
                     removeAccidentalSpaces = removeAccidentalSpaces,
+                    useBackupApi = useBackupApi,
+                    autoRetryOnError = autoRetryOnError,
+                    failoverToNextEndpoint = failoverToNextEndpoint,
                     autoDeskewAfterCapture = autoDeskewAfterCapture,
 
                     imageTokenizerMode = imageTokenizerMode,
@@ -854,6 +860,21 @@ class SettingsViewModel @Inject constructor(
 
     fun setCardDetailDisplayMode(mode: String) {
         settingsRepository.setCardDetailDisplayMode(mode)
+    }
+
+    fun setUseBackupApi(value: Boolean) {
+        settingsRepository.setUseBackupApi(value)
+        _uiState.update { it.copy(useBackupApi = value) }
+    }
+
+    fun setAutoRetryOnError(value: Boolean) {
+        settingsRepository.setAutoRetryOnError(value)
+        _uiState.update { it.copy(autoRetryOnError = value) }
+    }
+
+    fun setFailoverToNextEndpoint(value: Boolean) {
+        settingsRepository.setFailoverToNextEndpoint(value)
+        _uiState.update { it.copy(failoverToNextEndpoint = value) }
     }
 
     private companion object {

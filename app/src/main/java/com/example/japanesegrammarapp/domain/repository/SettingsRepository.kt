@@ -41,6 +41,12 @@ interface SettingsRepository {
     fun setBackupProvider(provider: String)
     fun getBackupModel(): String
     fun setBackupModel(model: String)
+    fun getUseBackupApi(): Boolean
+    fun setUseBackupApi(value: Boolean)
+    fun getAutoRetryOnError(): Boolean
+    fun setAutoRetryOnError(value: Boolean)
+    fun getFailoverToNextEndpoint(): Boolean
+    fun setFailoverToNextEndpoint(value: Boolean)
 
     fun getThemeMode(): String
     fun setThemeMode(mode: String)
