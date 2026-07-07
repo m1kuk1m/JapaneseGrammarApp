@@ -32,7 +32,8 @@ interface LlmRepository {
         baseProvider: String,
         modelName: String,
         effectiveUrl: String,
-        apiKey: String
+        apiKey: String,
+        apiTypeLabel: String = ""
     ): LlmResult
 
     suspend fun executeWithFailover(

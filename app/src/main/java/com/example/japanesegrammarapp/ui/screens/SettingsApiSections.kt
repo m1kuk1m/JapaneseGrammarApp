@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.ReasoningLevel
+import com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel
 import com.example.japanesegrammarapp.ui.SettingsUiState
 
 @Composable
@@ -66,7 +67,8 @@ fun SettingsApiPrioritySection(
     onUseBackupApiChange: (Boolean) -> Unit,
     onAutoRetryOnErrorChange: (Boolean) -> Unit,
     onFailoverToNextEndpointChange: (Boolean) -> Unit,
-    onReasoningLevelChange: (ReasoningLevel) -> Unit
+    onReasoningLevelChange: (ReasoningLevel) -> Unit,
+    onComponentReasoningLevelChange: (String, ComponentReasoningLevel) -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -133,32 +135,114 @@ fun SettingsApiPrioritySection(
 
         SettingsDivider()
 
-        var reasoningExpanded by remember { mutableStateOf(false) }
-        SettingsItem(
+        val globalSliderValue = when (uiState.reasoningLevel) {
+            ReasoningLevel.OFF -> 0f
+            ReasoningLevel.AUTO -> 1f
+            ReasoningLevel.LOW -> 2f
+            ReasoningLevel.MEDIUM -> 3f
+            ReasoningLevel.HIGH -> 4f
+        }
+        val globalValueLabel = when (uiState.reasoningLevel) {
+            ReasoningLevel.OFF -> stringResource(R.string.cot_level_off)
+            ReasoningLevel.AUTO -> stringResource(R.string.cot_level_auto)
+            ReasoningLevel.LOW -> stringResource(R.string.cot_level_low)
+            ReasoningLevel.MEDIUM -> stringResource(R.string.cot_level_medium)
+            ReasoningLevel.HIGH -> stringResource(R.string.cot_level_high)
+        }
+
+        SettingsSliderItem(
             icon = Icons.Default.Tune,
             title = stringResource(R.string.reasoning_level),
-            subtitle = uiState.reasoningLevel.name,
-            onClick = { reasoningExpanded = true },
-            trailingContent = {
-                Box {
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = sumiInk.copy(alpha = 0.5f))
-                    DropdownMenu(
-                        expanded = reasoningExpanded,
-                        onDismissRequest = { reasoningExpanded = false }
-                    ) {
-                        ReasoningLevel.entries.forEach { level ->
-                            DropdownMenuItem(
-                                text = { Text(level.name) },
-                                onClick = {
-                                    onReasoningLevelChange(level)
-                                    reasoningExpanded = false
-                                }
-                            )
-                        }
-                    }
+            value = globalSliderValue,
+            valueRange = 0f..4f,
+            steps = 3,
+            onValueChange = { floatVal ->
+                val level = when (floatVal.toInt()) {
+                    0 -> ReasoningLevel.OFF
+                    1 -> ReasoningLevel.AUTO
+                    2 -> ReasoningLevel.LOW
+                    3 -> ReasoningLevel.MEDIUM
+                    4 -> ReasoningLevel.HIGH
+                    else -> ReasoningLevel.AUTO
                 }
+                onReasoningLevelChange(level)
+            },
+            valueLabel = globalValueLabel
+        )
+
+        SettingsDivider()
+
+        var advancedCotExpanded by remember { mutableStateOf(false) }
+        SettingsItem(
+            icon = Icons.Default.Tune,
+            title = stringResource(R.string.advanced_component_cot),
+            subtitle = stringResource(R.string.advanced_component_cot_desc),
+            onClick = { advancedCotExpanded = !advancedCotExpanded },
+            trailingContent = {
+                Icon(
+                    if (advancedCotExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = sumiInk.copy(alpha = 0.5f)
+                )
             }
         )
+
+        AnimatedVisibility(
+            visible = advancedCotExpanded,
+            enter = fadeIn(animationSpec = tween(300)) + expandVertically(),
+            exit = fadeOut(animationSpec = tween(300)) + shrinkVertically()
+        ) {
+            Column(modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)) {
+                val components = listOf(
+                    "単語分割" to stringResource(R.string.cot_word_segmentation),
+                    "翻訳" to stringResource(R.string.cot_translation),
+                    "文節解析" to stringResource(R.string.cot_clause_analysis),
+                    "文法解説" to stringResource(R.string.cot_grammar_explanation),
+                    "詳細文法解析" to stringResource(R.string.cot_detailed_analysis)
+                )
+
+                components.forEach { (apiLabel, displayTitle) ->
+                    val componentLevel = uiState.componentReasoningLevels[apiLabel] ?: ComponentReasoningLevel.GLOBAL
+                    val sliderVal = when (componentLevel) {
+                        ComponentReasoningLevel.GLOBAL -> 0f
+                        ComponentReasoningLevel.OFF -> 1f
+                        ComponentReasoningLevel.AUTO -> 2f
+                        ComponentReasoningLevel.LOW -> 3f
+                        ComponentReasoningLevel.MEDIUM -> 4f
+                        ComponentReasoningLevel.HIGH -> 5f
+                    }
+                    val label = when (componentLevel) {
+                        ComponentReasoningLevel.GLOBAL -> stringResource(R.string.cot_level_global) + " ($globalValueLabel)"
+                        ComponentReasoningLevel.OFF -> stringResource(R.string.cot_level_off)
+                        ComponentReasoningLevel.AUTO -> stringResource(R.string.cot_level_auto)
+                        ComponentReasoningLevel.LOW -> stringResource(R.string.cot_level_low)
+                        ComponentReasoningLevel.MEDIUM -> stringResource(R.string.cot_level_medium)
+                        ComponentReasoningLevel.HIGH -> stringResource(R.string.cot_level_high)
+                    }
+
+                    SettingsSliderItem(
+                        icon = Icons.Default.Tune,
+                        title = displayTitle,
+                        value = sliderVal,
+                        valueRange = 0f..5f,
+                        steps = 4,
+                        onValueChange = { floatVal ->
+                            val level = when (floatVal.toInt()) {
+                                0 -> ComponentReasoningLevel.GLOBAL
+                                1 -> ComponentReasoningLevel.OFF
+                                2 -> ComponentReasoningLevel.AUTO
+                                3 -> ComponentReasoningLevel.LOW
+                                4 -> ComponentReasoningLevel.MEDIUM
+                                5 -> ComponentReasoningLevel.HIGH
+                                else -> ComponentReasoningLevel.GLOBAL
+                            }
+                            onComponentReasoningLevelChange(apiLabel, level)
+                        },
+                        valueLabel = label
+                    )
+                }
+            }
+        }
 
         SettingsDivider()
 
@@ -417,4 +501,67 @@ fun SettingsCredentialsSection(
 private fun SettingsDivider() {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     Divider(color = sumiInk.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 16.dp))
+}
+
+@Composable
+fun SettingsSliderItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    onValueChange: (Float) -> Unit,
+    valueLabel: String
+) {
+    val sumiInk = MaterialTheme.colorScheme.onBackground
+    val primaryColor = MaterialTheme.colorScheme.primary
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = sumiInk.copy(alpha = 0.6f),
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = sumiInk
+                )
+                Text(
+                    text = valueLabel,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = primaryColor
+                )
+            }
+            androidx.compose.material3.Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = valueRange,
+                steps = steps,
+                colors = androidx.compose.material3.SliderDefaults.colors(
+                    thumbColor = primaryColor,
+                    activeTrackColor = primaryColor,
+                    inactiveTrackColor = sumiInk.copy(alpha = 0.1f)
+                ),
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+            )
+        }
+    }
 }

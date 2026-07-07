@@ -3,10 +3,15 @@ package com.example.japanesegrammarapp.domain.repository
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.domain.model.ReasoningLevel
+import com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel
 
 interface SettingsRepository {
     fun getReasoningLevel(): ReasoningLevel
     fun setReasoningLevel(level: ReasoningLevel)
+
+    fun getComponentReasoningLevel(apiTypeLabel: String): ComponentReasoningLevel
+    fun setComponentReasoningLevel(apiTypeLabel: String, level: ComponentReasoningLevel)
+    fun getEffectiveReasoningLevel(apiTypeLabel: String): ReasoningLevel
 
     fun getAllProviders(): List<String>
     fun getBaseProviderType(providerId: String): String

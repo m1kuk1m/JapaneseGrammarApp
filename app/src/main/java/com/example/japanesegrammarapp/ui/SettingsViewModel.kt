@@ -16,6 +16,7 @@ import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectorEngine
 import com.example.japanesegrammarapp.domain.model.PromptPreset
 import com.example.japanesegrammarapp.domain.model.ReasoningLevel
+import com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.utils.ApiDebugLog
 import com.example.japanesegrammarapp.utils.ApiLogExportFormatter
@@ -71,6 +72,10 @@ class SettingsViewModel @Inject constructor(
             val useBackupApi = settingsRepository.getUseBackupApi()
             val autoRetryOnError = settingsRepository.getAutoRetryOnError()
             val failoverToNextEndpoint = settingsRepository.getFailoverToNextEndpoint()
+            val componentLabels = listOf("単語分割", "翻訳", "文節解析", "文法解説", "詳細文法解析")
+            val componentReasoningLevels = componentLabels.associateWith {
+                settingsRepository.getComponentReasoningLevel(it)
+            }
 
             val models = providerModels[activeProvider] ?: emptyList()
             val finalActiveModel = if (activeModel.isBlank() && models.isNotEmpty()) models.first() else activeModel
@@ -97,6 +102,7 @@ class SettingsViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     reasoningLevel = reasoningLevel,
+                    componentReasoningLevels = componentReasoningLevels,
                     activeProvider = activeProvider,
                     activeModel = finalActiveModel,
                     useOcr = useOcr,
@@ -868,6 +874,16 @@ class SettingsViewModel @Inject constructor(
     fun setReasoningLevel(level: ReasoningLevel) {
         settingsRepository.setReasoningLevel(level)
         _uiState.update { it.copy(reasoningLevel = level) }
+    }
+
+    fun setComponentReasoningLevel(apiTypeLabel: String, level: ComponentReasoningLevel) {
+        settingsRepository.setComponentReasoningLevel(apiTypeLabel, level)
+        _uiState.update { state ->
+            val updated = state.componentReasoningLevels.toMutableMap().apply {
+                this[apiTypeLabel] = level
+            }
+            state.copy(componentReasoningLevels = updated)
+        }
     }
 
     fun setUseBackupApi(value: Boolean) {

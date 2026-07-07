@@ -72,7 +72,8 @@ class LlmRepositoryImpl @Inject constructor(
         baseProvider: String,
         modelName: String,
         effectiveUrl: String,
-        apiKey: String
+        apiKey: String,
+        apiTypeLabel: String
     ): LlmResult {
         return when (baseProvider) {
             "OpenAI", "DeepSeek", "OpenAI Compatible", "Qwen" -> {
@@ -91,7 +92,7 @@ class LlmRepositoryImpl @Inject constructor(
                     userPrompt
                 }
 
-                val reasoningLevel = settingsRepository.getReasoningLevel()
+                val reasoningLevel = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel)
                 val isO1OrO3 = modelName.contains("o1", ignoreCase = true) || modelName.contains("o3", ignoreCase = true)
                 val reasoningEffort = if (isO1OrO3) {
                     when (reasoningLevel) {
@@ -141,7 +142,7 @@ class LlmRepositoryImpl @Inject constructor(
                     GeminiSafetySetting("HARM_CATEGORY_DANGEROUS_CONTENT", "BLOCK_NONE")
                 )
 
-                val reasoningLevel = settingsRepository.getReasoningLevel()
+                val reasoningLevel = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel)
                 val thinkingConfig = when (reasoningLevel) {
                     ReasoningLevel.AUTO -> null
                     ReasoningLevel.OFF -> {
@@ -336,7 +337,8 @@ class LlmRepositoryImpl @Inject constructor(
                     baseProvider = primaryBaseProvider,
                     modelName = primaryModel,
                     effectiveUrl = primaryUrl,
-                    apiKey = primaryKey
+                    apiKey = primaryKey,
+                    apiTypeLabel = apiTypeLabel
                 )
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -435,7 +437,8 @@ class LlmRepositoryImpl @Inject constructor(
                 baseProvider = backupBaseProvider,
                 modelName = backupModel,
                 effectiveUrl = backupUrl,
-                apiKey = backupKey
+                apiKey = backupKey,
+                apiTypeLabel = apiTypeLabel
             )
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -600,7 +603,8 @@ class LlmRepositoryImpl @Inject constructor(
                     baseProvider = config.baseProvider,
                     modelName = config.modelName,
                     effectiveUrl = config.url,
-                    apiKey = config.key
+                    apiKey = config.key,
+                    apiTypeLabel = apiTypeLabel
                 )
                 if (config.endpointId.isNotBlank()) {
                     settingsRepository.markEndpointSuccess(config.provider, config.endpointId)
@@ -763,7 +767,7 @@ class LlmRepositoryImpl @Inject constructor(
                                 userPrompt
                             }
                             
-                            val reasoningLevel = settingsRepository.getReasoningLevel()
+                            val reasoningLevel = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel)
                             val isO1OrO3 = config.modelName.contains("o1", ignoreCase = true) || config.modelName.contains("o3", ignoreCase = true)
                             val reasoningEffort = if (isO1OrO3) {
                                 when (reasoningLevel) {
@@ -804,7 +808,7 @@ class LlmRepositoryImpl @Inject constructor(
                                 GeminiSafetySetting("HARM_CATEGORY_DANGEROUS_CONTENT", "BLOCK_NONE")
                             )
 
-                            val reasoningLevel = settingsRepository.getReasoningLevel()
+                            val reasoningLevel = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel)
                             val thinkingConfig = when (reasoningLevel) {
                                 ReasoningLevel.AUTO -> null
                                 ReasoningLevel.OFF -> {

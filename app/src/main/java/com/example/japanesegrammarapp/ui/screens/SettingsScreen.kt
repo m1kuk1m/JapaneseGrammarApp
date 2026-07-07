@@ -587,7 +587,8 @@ fun SettingsScreen(
                                     onUseBackupApiChange = viewModel::setUseBackupApi,
                                     onAutoRetryOnErrorChange = viewModel::setAutoRetryOnError,
                                     onFailoverToNextEndpointChange = viewModel::setFailoverToNextEndpoint,
-                                    onReasoningLevelChange = viewModel::setReasoningLevel
+                                    onReasoningLevelChange = viewModel::setReasoningLevel,
+                                    onComponentReasoningLevelChange = viewModel::setComponentReasoningLevel
                                 )
 
                                 SettingsCredentialsSection(
