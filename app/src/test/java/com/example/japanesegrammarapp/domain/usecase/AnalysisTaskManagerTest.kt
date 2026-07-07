@@ -329,7 +329,10 @@ private class FakeSettingsRepository(
     override fun getCardDetailDisplayMode(): String = "POPUP"
     override fun setCardDetailDisplayMode(mode: String) = Unit
     override val cardDetailDisplayMode = MutableStateFlow("POPUP")
+    override fun getRemoveAccidentalSpaces(): Boolean = true
+    override fun setRemoveAccidentalSpaces(value: Boolean) = Unit
 }
+
 
 private class FakeHistoryRepository(vararg initialRecords: AnalysisDomainRecord) : HistoryRepository {
     private val records = linkedMapOf<Int, AnalysisDomainRecord>()

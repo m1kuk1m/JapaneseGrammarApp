@@ -552,9 +552,11 @@ fun SettingsScreen(
                                 SettingsGeneralSection(
                                     uiState = uiState,
                                     currentLangLabel = currentLangLabel,
-                                    onAutoNavigateResultChange = viewModel::setAutoNavigateResult
+                                    onAutoNavigateResultChange = viewModel::setAutoNavigateResult,
+                                    onRemoveAccidentalSpacesChange = viewModel::setRemoveAccidentalSpaces
                                 )
                             }
+
                             SettingsCategory.OCR_SCANNING -> {
                                 SettingsOcrSection(
                                     uiState = uiState,

@@ -11,6 +11,8 @@ data class SettingsUiState(
     val providerModels: Map<String, List<String>> = emptyMap(),
     val useOcr: Boolean = false,
     val autoNavigateResult: Boolean = true,
+    val removeAccidentalSpaces: Boolean = true,
+
     val autoDeskewAfterCapture: Boolean = false,
     val imageTokenizerMode: String = "faithful",
     val ocrBoxDetectionSettings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT,

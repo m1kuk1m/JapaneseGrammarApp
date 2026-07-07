@@ -343,5 +343,8 @@ class BookmarkViewModelFilterTest {
         override fun getCardDetailDisplayMode(): String = "POPUP"
         override fun setCardDetailDisplayMode(mode: String) = Unit
         override val cardDetailDisplayMode = MutableStateFlow("POPUP")
+        override fun getRemoveAccidentalSpaces(): Boolean = true
+        override fun setRemoveAccidentalSpaces(value: Boolean) = Unit
     }
 }
+

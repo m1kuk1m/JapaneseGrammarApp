@@ -96,5 +96,9 @@ interface SettingsRepository {
     fun getCardDetailDisplayMode(): String
     fun setCardDetailDisplayMode(mode: String)
     val cardDetailDisplayMode: kotlinx.coroutines.flow.StateFlow<String>
+
+    fun getRemoveAccidentalSpaces(): Boolean
+    fun setRemoveAccidentalSpaces(value: Boolean)
 }
+
 

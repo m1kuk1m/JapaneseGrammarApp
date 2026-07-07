@@ -70,6 +70,9 @@
     <string name="local_ocr_desc">If off, images are sent directly to AI for analysis.</string>
     <string name="auto_navigate_result">Auto Navigate to Result</string>
     <string name="auto_navigate_result_desc">When using the floating button, jump to the result page automatically. If off, it runs in the background.</string>
+    <string name="remove_accidental_spaces">Remove Accidental Spaces</string>
+    <string name="remove_accidental_spaces_desc">Automatically removes accidental spaces in Japanese text before analysis to prevent tokenization issues.</string>
+
     <string name="token_usage">API Token Usage</string>
     <string name="token_usage_desc">Total tokens consumed across all analyses.</string>
     <string name="input_tokens">Input Tokens</string>

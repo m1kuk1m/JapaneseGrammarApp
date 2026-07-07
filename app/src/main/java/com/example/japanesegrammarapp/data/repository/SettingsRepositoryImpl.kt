@@ -30,6 +30,8 @@ class SettingsRepositoryImpl @Inject constructor(
     // Thread-safe in-memory cache for ultra-fast, non-blocking UI interactions
     @Volatile private var cachedActiveProvider: String? = null
     @Volatile private var cachedUseOcr: Boolean? = null
+    @Volatile private var cachedRemoveAccidentalSpaces: Boolean? = null
+
     @Volatile private var cachedImageTokenizerMode: String? = null
     @Volatile private var cachedOcrBoxDetectionSettings: OcrBoxDetectionSettings? = null
     @Volatile private var cachedBackupProvider: String? = null
@@ -1038,5 +1040,23 @@ class SettingsRepositoryImpl @Inject constructor(
         cachedCardDetailDisplayMode = mode
         settingPrefs.edit().putString("card_detail_display_mode", mode).apply()
         _cardDetailDisplayMode.value = mode
+    }
+
+    override fun getRemoveAccidentalSpaces(): Boolean {
+        return cachedRemoveAccidentalSpaces ?: synchronized(this) {
+            val cached = cachedRemoveAccidentalSpaces
+            if (cached != null) {
+                cached
+            } else {
+                val value = settingPrefs.getBoolean("remove_accidental_spaces", true)
+                cachedRemoveAccidentalSpaces = value
+                value
+            }
+        }
+    }
+
+    override fun setRemoveAccidentalSpaces(value: Boolean) {
+        cachedRemoveAccidentalSpaces = value
+        settingPrefs.edit().putBoolean("remove_accidental_spaces", value).apply()
     }
 }

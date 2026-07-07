@@ -71,6 +71,9 @@
     <string name="local_ocr_desc">オフにすると、画像を直接AIに送信して分析します。</string>
     <string name="auto_navigate_result">分析結果へ自動ジャンプ</string>
     <string name="auto_navigate_result_desc">アップロード後、自動で結果画面に移動します。オフ時はバックグラウンドで分析し、履歴から確認できます。</string>
+    <string name="remove_accidental_spaces">誤追加されたスペースを自動削除</string>
+    <string name="remove_accidental_spaces_desc">AI分析を実行する前に、日本語の文字间にある不要なスペースを自動的に削除し、トークン化エラーを防ぎます。</string>
+
     <string name="token_usage">APIトークン消費量（累計）</string>
     <string name="token_usage_desc">すべての分析で消費されたトークンの合計です。</string>
     <string name="input_tokens">入力トークン</string>
