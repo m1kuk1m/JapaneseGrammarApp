@@ -31,6 +31,17 @@ class MainActivity : AppCompatActivity() {
     private val intentChannel = Channel<Intent>(Channel.BUFFERED)
     val intentFlow = intentChannel.receiveAsFlow()
 
+    var onVolumeKeyDownListener: (() -> Boolean)? = null
+
+    override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent?): Boolean {
+        if (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP || keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) {
+            if (onVolumeKeyDownListener?.invoke() == true) {
+                return true
+            }
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
     @androidx.compose.foundation.ExperimentalFoundationApi
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
