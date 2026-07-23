@@ -110,7 +110,6 @@ class LlmRepositoryImpl @Inject constructor(
                         OpenAiMessage(role = "user", content = userContent)
                     ),
                     temperature = if (isO1OrO3) null else 0.1,
-                    response_format = OpenAiResponseFormat("json_object"),
                     reasoning_effort = reasoningEffort
                 )
                 val response = llmService.generateOpenAiCompatible(url, "Bearer ${apiKey.trim()}", request)
