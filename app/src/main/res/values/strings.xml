@@ -157,6 +157,10 @@
     <string name="settings_auto_deskew_desc">Automatically adjust image skew after capturing a photo.</string>
     <string name="fetching">Fetching...</string>
     <string name="fetch_models">Fetch Models</string>
+    <string name="refresh_provider_models">Refresh Models</string>
+    <string name="fetch_models_success">Successfully updated model list (%1$d models)</string>
+    <string name="fetch_models_empty">No models returned from provider</string>
+    <string name="fetch_models_no_endpoint">Please configure and enable an API Endpoint or API Key first</string>
     <string name="add_custom_model">Add Custom Model</string>
     <string name="custom_hex">Custom Hex (e.g. #FF5722)</string>
     <string name="main_model">Main Model</string>

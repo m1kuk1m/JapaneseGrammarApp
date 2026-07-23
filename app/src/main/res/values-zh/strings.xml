@@ -157,6 +157,10 @@
     <string name="settings_auto_deskew_desc">拍照后自动校准图片倾斜度并进行后续操作。</string>
     <string name="fetching">获取中...</string>
     <string name="fetch_models">获取可用模型</string>
+    <string name="refresh_provider_models">刷新模型</string>
+    <string name="fetch_models_success">已成功刷新模型列表，共 %1$d 个模型</string>
+    <string name="fetch_models_empty">获取成功，但未发现可用模型</string>
+    <string name="fetch_models_no_endpoint">请先配置并启用 API Endpoint 或设置 API Key</string>
     <string name="add_custom_model">添加自定义模型</string>
     <string name="custom_hex">自定义 Hex (如 #FF5722)</string>
     <string name="main_model">主模型</string>

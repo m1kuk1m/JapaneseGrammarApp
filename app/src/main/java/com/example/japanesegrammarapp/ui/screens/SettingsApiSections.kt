@@ -27,16 +27,23 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -331,6 +338,7 @@ fun SettingsCredentialsSection(
     onDeleteEndpoint: (LlmEndpoint) -> Unit,
     onToggleEndpoint: (String, LlmEndpoint, Boolean) -> Unit,
     onFetchModels: (String, LlmEndpoint) -> Unit,
+    onFetchModelsForProvider: (String) -> Unit,
     onCustomModelInputChange: (String, String) -> Unit,
     onAddCustomModel: (String, List<String>) -> Unit
 ) {
@@ -388,6 +396,36 @@ fun SettingsCredentialsSection(
                     exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(160))
                 ) {
                     Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+                        val isFetchingProvider = uiState.isFetchingModels && uiState.fetchingProvider == provider && uiState.fetchingEndpointId == null
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = { onFetchModelsForProvider(provider) },
+                                enabled = !uiState.isFetchingModels,
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                if (isFetchingProvider) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = primaryColor,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(stringResource(R.string.fetching), fontSize = 12.sp)
+                                } else {
+                                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(stringResource(R.string.refresh_provider_models), fontSize = 12.sp)
+                                }
+                            }
+                        }
+
                         EndpointPoolSection(
                             endpoints = uiState.providerEndpoints[provider].orEmpty(),
                             endpointHasKeys = uiState.endpointHasKeys,

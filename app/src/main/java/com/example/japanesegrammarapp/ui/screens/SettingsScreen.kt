@@ -609,6 +609,7 @@ fun SettingsScreen(
                                     onFetchModels = { provider, endpoint ->
                                         viewModel.fetchModelsForEndpoint(provider, endpoint.id)
                                     },
+                                    onFetchModelsForProvider = viewModel::fetchModelsForProvider,
                                     onCustomModelInputChange = { provider, value ->
                                         customModelInputs = customModelInputs.toMutableMap().apply { put(provider, value) }
                                     },

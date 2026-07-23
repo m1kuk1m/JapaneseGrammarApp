@@ -157,6 +157,10 @@
     <string name="settings_auto_deskew_desc">写真を撮った後、画像の傾きを自動的に補正します。</string>
     <string name="fetching">取得中...</string>
     <string name="fetch_models">モデルを取得</string>
+    <string name="refresh_provider_models">モデル更新</string>
+    <string name="fetch_models_success">モデル一覧を更新しました（%1$d件）</string>
+    <string name="fetch_models_empty">利用可能なモデルが見つかりませんでした</string>
+    <string name="fetch_models_no_endpoint">有効な API エンドポイントまたは API キーを先に設定してください</string>
     <string name="add_custom_model">カスタムモデルを追加</string>
     <string name="custom_hex">カスタムHex (例 #FF5722)</string>
     <string name="main_model">メインモデル</string>
