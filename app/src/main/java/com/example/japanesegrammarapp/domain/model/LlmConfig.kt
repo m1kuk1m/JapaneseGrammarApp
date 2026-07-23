@@ -37,4 +37,15 @@ object LlmConfig {
         "gemini-1.5-flash",
         "gemini-1.5-pro"
     )
+
+    fun isGeminiReasoningModel(modelName: String): Boolean {
+        val clean = modelName.removePrefix("models/").lowercase()
+        if (clean.contains("gemini-1.5")) return false
+        return clean.contains("gemini-2.5") || clean.contains("gemini-3") || clean.contains("flash-lite")
+    }
+
+    fun isGemini3Model(modelName: String): Boolean {
+        val clean = modelName.removePrefix("models/").lowercase()
+        return clean.contains("gemini-3")
+    }
 }

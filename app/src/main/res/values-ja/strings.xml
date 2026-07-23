@@ -98,6 +98,15 @@
     <string name="cot_level_low">低</string>
     <string name="cot_level_medium">中</string>
     <string name="cot_level_high">高</string>
+    <string name="cot_dialog_title">思考プロセスの深さ設定</string>
+    <string name="cot_dialog_desc">各機能モジュールのAI思考プロセスの深さを調整します</string>
+    <string name="cot_quick_presets">クイックプリセット</string>
+    <string name="cot_preset_all_auto">すべて自動</string>
+    <string name="cot_preset_all_off">すべてオフ</string>
+    <string name="cot_preset_all_low">すべて低</string>
+    <string name="cot_preset_all_medium">すべて中</string>
+    <string name="cot_preset_all_high">すべて高</string>
+    <string name="cot_done">完了</string>
     <string name="advanced_component_cot">詳細コンポーネント思考プロセス設定</string>
     <string name="advanced_component_cot_desc">個別機能の思考プロセスの深さをカスタマイズします</string>
     <string name="cot_word_segmentation">単語分割</string>

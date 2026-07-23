@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
@@ -68,7 +70,8 @@ fun SettingsApiPrioritySection(
     onAutoRetryOnErrorChange: (Boolean) -> Unit,
     onFailoverToNextEndpointChange: (Boolean) -> Unit,
     onReasoningLevelChange: (ReasoningLevel) -> Unit,
-    onComponentReasoningLevelChange: (String, ComponentReasoningLevel) -> Unit
+    onComponentReasoningLevelChange: (String, ComponentReasoningLevel) -> Unit,
+    onOpenCotDialog: () -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -135,114 +138,56 @@ fun SettingsApiPrioritySection(
 
         SettingsDivider()
 
-        val globalSliderValue = when (uiState.reasoningLevel) {
-            ReasoningLevel.OFF -> 0f
-            ReasoningLevel.AUTO -> 1f
-            ReasoningLevel.LOW -> 2f
-            ReasoningLevel.MEDIUM -> 3f
-            ReasoningLevel.HIGH -> 4f
-        }
-        val globalValueLabel = when (uiState.reasoningLevel) {
-            ReasoningLevel.OFF -> stringResource(R.string.cot_level_off)
-            ReasoningLevel.AUTO -> stringResource(R.string.cot_level_auto)
-            ReasoningLevel.LOW -> stringResource(R.string.cot_level_low)
-            ReasoningLevel.MEDIUM -> stringResource(R.string.cot_level_medium)
-            ReasoningLevel.HIGH -> stringResource(R.string.cot_level_high)
-        }
+        // 思考链 (CoT) 思考深度 - 弹窗式单独配置
+        val strOff = stringResource(R.string.cot_level_off)
+        val strAuto = stringResource(R.string.cot_level_auto)
+        val strLow = stringResource(R.string.cot_level_low)
+        val strMedium = stringResource(R.string.cot_level_medium)
+        val strHigh = stringResource(R.string.cot_level_high)
+        val strDesc = stringResource(R.string.cot_dialog_desc)
 
-        SettingsSliderItem(
-            icon = Icons.Default.Tune,
-            title = stringResource(R.string.reasoning_level),
-            value = globalSliderValue,
-            valueRange = 0f..4f,
-            steps = 3,
-            onValueChange = { floatVal ->
-                val level = when (floatVal.toInt()) {
-                    0 -> ReasoningLevel.OFF
-                    1 -> ReasoningLevel.AUTO
-                    2 -> ReasoningLevel.LOW
-                    3 -> ReasoningLevel.MEDIUM
-                    4 -> ReasoningLevel.HIGH
-                    else -> ReasoningLevel.AUTO
+        val componentLabels = listOf("単語分割", "翻訳", "文節解析", "文法解説", "詳細文法解析")
+        val levelCounts = componentLabels.map { uiState.componentReasoningLevels[it] ?: ComponentReasoningLevel.GLOBAL }
+            .groupingBy { it }
+            .eachCount()
+
+        val summaryText = if (levelCounts.size == 1) {
+            val singleLevel = levelCounts.keys.first()
+            val levelLabel = when (singleLevel) {
+                ComponentReasoningLevel.OFF -> strOff
+                ComponentReasoningLevel.AUTO, ComponentReasoningLevel.GLOBAL -> strAuto
+                ComponentReasoningLevel.LOW -> strLow
+                ComponentReasoningLevel.MEDIUM -> strMedium
+                ComponentReasoningLevel.HIGH -> strHigh
+            }
+            "$strDesc ($levelLabel)"
+        } else {
+            val details = levelCounts.entries.joinToString(", ") { (level, count) ->
+                val name = when (level) {
+                    ComponentReasoningLevel.OFF -> strOff
+                    ComponentReasoningLevel.AUTO, ComponentReasoningLevel.GLOBAL -> strAuto
+                    ComponentReasoningLevel.LOW -> strLow
+                    ComponentReasoningLevel.MEDIUM -> strMedium
+                    ComponentReasoningLevel.HIGH -> strHigh
                 }
-                onReasoningLevelChange(level)
-            },
-            valueLabel = globalValueLabel
-        )
+                "$name: $count"
+            }
+            details
+        }
 
-        SettingsDivider()
-
-        var advancedCotExpanded by remember { mutableStateOf(false) }
         SettingsItem(
-            icon = Icons.Default.Tune,
-            title = stringResource(R.string.advanced_component_cot),
-            subtitle = stringResource(R.string.advanced_component_cot_desc),
-            onClick = { advancedCotExpanded = !advancedCotExpanded },
+            icon = Icons.Default.Psychology,
+            title = stringResource(R.string.reasoning_level),
+            subtitle = summaryText,
+            onClick = onOpenCotDialog,
             trailingContent = {
                 Icon(
-                    if (advancedCotExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    Icons.Default.ChevronRight,
                     contentDescription = null,
                     tint = sumiInk.copy(alpha = 0.5f)
                 )
             }
         )
-
-        AnimatedVisibility(
-            visible = advancedCotExpanded,
-            enter = fadeIn(animationSpec = tween(300)) + expandVertically(),
-            exit = fadeOut(animationSpec = tween(300)) + shrinkVertically()
-        ) {
-            Column(modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)) {
-                val components = listOf(
-                    "単語分割" to stringResource(R.string.cot_word_segmentation),
-                    "翻訳" to stringResource(R.string.cot_translation),
-                    "文節解析" to stringResource(R.string.cot_clause_analysis),
-                    "文法解説" to stringResource(R.string.cot_grammar_explanation),
-                    "詳細文法解析" to stringResource(R.string.cot_detailed_analysis)
-                )
-
-                components.forEach { (apiLabel, displayTitle) ->
-                    val componentLevel = uiState.componentReasoningLevels[apiLabel] ?: ComponentReasoningLevel.GLOBAL
-                    val sliderVal = when (componentLevel) {
-                        ComponentReasoningLevel.GLOBAL -> 0f
-                        ComponentReasoningLevel.OFF -> 1f
-                        ComponentReasoningLevel.AUTO -> 2f
-                        ComponentReasoningLevel.LOW -> 3f
-                        ComponentReasoningLevel.MEDIUM -> 4f
-                        ComponentReasoningLevel.HIGH -> 5f
-                    }
-                    val label = when (componentLevel) {
-                        ComponentReasoningLevel.GLOBAL -> stringResource(R.string.cot_level_global) + " ($globalValueLabel)"
-                        ComponentReasoningLevel.OFF -> stringResource(R.string.cot_level_off)
-                        ComponentReasoningLevel.AUTO -> stringResource(R.string.cot_level_auto)
-                        ComponentReasoningLevel.LOW -> stringResource(R.string.cot_level_low)
-                        ComponentReasoningLevel.MEDIUM -> stringResource(R.string.cot_level_medium)
-                        ComponentReasoningLevel.HIGH -> stringResource(R.string.cot_level_high)
-                    }
-
-                    SettingsSliderItem(
-                        icon = Icons.Default.Tune,
-                        title = displayTitle,
-                        value = sliderVal,
-                        valueRange = 0f..5f,
-                        steps = 4,
-                        onValueChange = { floatVal ->
-                            val level = when (floatVal.toInt()) {
-                                0 -> ComponentReasoningLevel.GLOBAL
-                                1 -> ComponentReasoningLevel.OFF
-                                2 -> ComponentReasoningLevel.AUTO
-                                3 -> ComponentReasoningLevel.LOW
-                                4 -> ComponentReasoningLevel.MEDIUM
-                                5 -> ComponentReasoningLevel.HIGH
-                                else -> ComponentReasoningLevel.GLOBAL
-                            }
-                            onComponentReasoningLevelChange(apiLabel, level)
-                        },
-                        valueLabel = label
-                    )
-                }
-            }
-        }
 
         SettingsDivider()
 

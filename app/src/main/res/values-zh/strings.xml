@@ -98,6 +98,15 @@
     <string name="cot_level_low">低</string>
     <string name="cot_level_medium">中</string>
     <string name="cot_level_high">高</string>
+    <string name="cot_dialog_title">思维链思考深度设置</string>
+    <string name="cot_dialog_desc">统一调整各功能模块的 AI 思考推理深度</string>
+    <string name="cot_quick_presets">快速预设</string>
+    <string name="cot_preset_all_auto">全自动</string>
+    <string name="cot_preset_all_off">全关闭</string>
+    <string name="cot_preset_all_low">全低深度</string>
+    <string name="cot_preset_all_medium">全中深度</string>
+    <string name="cot_preset_all_high">全高深度</string>
+    <string name="cot_done">完成</string>
     <string name="advanced_component_cot">高级组件思维链设置</string>
     <string name="advanced_component_cot_desc">自定义各个独立功能的思维链深度</string>
     <string name="cot_word_segmentation">单词分割</string>

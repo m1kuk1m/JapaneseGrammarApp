@@ -97,6 +97,15 @@
     <string name="cot_level_low">LOW</string>
     <string name="cot_level_medium">MEDIUM</string>
     <string name="cot_level_high">HIGH</string>
+    <string name="cot_dialog_title">Reasoning Depth Settings</string>
+    <string name="cot_dialog_desc">Customize CoT reasoning depth for each module</string>
+    <string name="cot_quick_presets">Quick Presets</string>
+    <string name="cot_preset_all_auto">All AUTO</string>
+    <string name="cot_preset_all_off">All OFF</string>
+    <string name="cot_preset_all_low">All LOW</string>
+    <string name="cot_preset_all_medium">All MEDIUM</string>
+    <string name="cot_preset_all_high">All HIGH</string>
+    <string name="cot_done">Done</string>
     <string name="advanced_component_cot">Advanced Component CoT Settings</string>
     <string name="advanced_component_cot_desc">Customize reasoning depth for individual features</string>
     <string name="cot_word_segmentation">Word Segmentation</string>

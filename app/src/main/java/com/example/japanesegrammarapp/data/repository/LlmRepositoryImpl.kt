@@ -158,34 +158,38 @@ class LlmRepositoryImpl @Inject constructor(
                 )
 
                 val reasoningLevel = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel)
-                val thinkingConfig = when (reasoningLevel) {
-                    ReasoningLevel.AUTO -> null
-                    ReasoningLevel.OFF -> {
-                        if (modelName.contains("gemini-3")) {
-                            GeminiThinkingConfig(thinkingLevel = "minimal", includeThoughts = false)
-                        } else {
-                            GeminiThinkingConfig(thinkingBudget = 0, includeThoughts = false)
+                val thinkingConfig = if (!LlmConfig.isGeminiReasoningModel(modelName)) {
+                    null
+                } else {
+                    when (reasoningLevel) {
+                        ReasoningLevel.AUTO -> null
+                        ReasoningLevel.OFF -> {
+                            if (LlmConfig.isGemini3Model(modelName)) {
+                                GeminiThinkingConfig(thinkingLevel = "MINIMAL", includeThoughts = false)
+                            } else {
+                                GeminiThinkingConfig(thinkingBudget = 0, includeThoughts = false)
+                            }
                         }
-                    }
-                    ReasoningLevel.LOW -> {
-                        if (modelName.contains("gemini-3")) {
-                            GeminiThinkingConfig(thinkingLevel = "low", includeThoughts = true)
-                        } else {
-                            GeminiThinkingConfig(thinkingBudget = 1024, includeThoughts = true)
+                        ReasoningLevel.LOW -> {
+                            if (LlmConfig.isGemini3Model(modelName)) {
+                                GeminiThinkingConfig(thinkingLevel = "LOW", includeThoughts = true)
+                            } else {
+                                GeminiThinkingConfig(thinkingBudget = 1024, includeThoughts = true)
+                            }
                         }
-                    }
-                    ReasoningLevel.MEDIUM -> {
-                        if (modelName.contains("gemini-3")) {
-                            GeminiThinkingConfig(thinkingLevel = "medium", includeThoughts = true)
-                        } else {
-                            GeminiThinkingConfig(thinkingBudget = 4096, includeThoughts = true)
+                        ReasoningLevel.MEDIUM -> {
+                            if (LlmConfig.isGemini3Model(modelName)) {
+                                GeminiThinkingConfig(thinkingLevel = "MEDIUM", includeThoughts = true)
+                            } else {
+                                GeminiThinkingConfig(thinkingBudget = 4096, includeThoughts = true)
+                            }
                         }
-                    }
-                    ReasoningLevel.HIGH -> {
-                        if (modelName.contains("gemini-3")) {
-                            GeminiThinkingConfig(thinkingLevel = "high", includeThoughts = true)
-                        } else {
-                            GeminiThinkingConfig(thinkingBudget = 8192, includeThoughts = true)
+                        ReasoningLevel.HIGH -> {
+                            if (LlmConfig.isGemini3Model(modelName)) {
+                                GeminiThinkingConfig(thinkingLevel = "HIGH", includeThoughts = true)
+                            } else {
+                                GeminiThinkingConfig(thinkingBudget = 8192, includeThoughts = true)
+                            }
                         }
                     }
                 }
@@ -849,34 +853,38 @@ class LlmRepositoryImpl @Inject constructor(
                             )
 
                             val reasoningLevel = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel)
-                            val thinkingConfig = when (reasoningLevel) {
-                                ReasoningLevel.AUTO -> null
-                                ReasoningLevel.OFF -> {
-                                    if (config.modelName.contains("gemini-3")) {
-                                        GeminiThinkingConfig(thinkingLevel = "minimal", includeThoughts = false)
-                                    } else {
-                                        GeminiThinkingConfig(thinkingBudget = 0, includeThoughts = false)
+                            val thinkingConfig = if (!LlmConfig.isGeminiReasoningModel(config.modelName)) {
+                                null
+                            } else {
+                                when (reasoningLevel) {
+                                    ReasoningLevel.AUTO -> null
+                                    ReasoningLevel.OFF -> {
+                                        if (LlmConfig.isGemini3Model(config.modelName)) {
+                                            GeminiThinkingConfig(thinkingLevel = "MINIMAL", includeThoughts = false)
+                                        } else {
+                                            GeminiThinkingConfig(thinkingBudget = 0, includeThoughts = false)
+                                        }
                                     }
-                                }
-                                ReasoningLevel.LOW -> {
-                                    if (config.modelName.contains("gemini-3")) {
-                                        GeminiThinkingConfig(thinkingLevel = "low", includeThoughts = true)
-                                    } else {
-                                        GeminiThinkingConfig(thinkingBudget = 1024, includeThoughts = true)
+                                    ReasoningLevel.LOW -> {
+                                        if (LlmConfig.isGemini3Model(config.modelName)) {
+                                            GeminiThinkingConfig(thinkingLevel = "LOW", includeThoughts = true)
+                                        } else {
+                                            GeminiThinkingConfig(thinkingBudget = 1024, includeThoughts = true)
+                                        }
                                     }
-                                }
-                                ReasoningLevel.MEDIUM -> {
-                                    if (config.modelName.contains("gemini-3")) {
-                                        GeminiThinkingConfig(thinkingLevel = "medium", includeThoughts = true)
-                                    } else {
-                                        GeminiThinkingConfig(thinkingBudget = 4096, includeThoughts = true)
+                                    ReasoningLevel.MEDIUM -> {
+                                        if (LlmConfig.isGemini3Model(config.modelName)) {
+                                            GeminiThinkingConfig(thinkingLevel = "MEDIUM", includeThoughts = true)
+                                        } else {
+                                            GeminiThinkingConfig(thinkingBudget = 4096, includeThoughts = true)
+                                        }
                                     }
-                                }
-                                ReasoningLevel.HIGH -> {
-                                    if (config.modelName.contains("gemini-3")) {
-                                        GeminiThinkingConfig(thinkingLevel = "high", includeThoughts = true)
-                                    } else {
-                                        GeminiThinkingConfig(thinkingBudget = 8192, includeThoughts = true)
+                                    ReasoningLevel.HIGH -> {
+                                        if (LlmConfig.isGemini3Model(config.modelName)) {
+                                            GeminiThinkingConfig(thinkingLevel = "HIGH", includeThoughts = true)
+                                        } else {
+                                            GeminiThinkingConfig(thinkingBudget = 8192, includeThoughts = true)
+                                        }
                                     }
                                 }
                             }
@@ -886,6 +894,7 @@ class LlmRepositoryImpl @Inject constructor(
                                 systemInstruction = GeminiSystemInstruction(parts = listOf(GeminiPart(text = systemPrompt))),
                                 generationConfig = GeminiGenerationConfig(
                                     temperature = 0.1,
+                                    responseMimeType = "application/json",
                                     thinkingConfig = thinkingConfig
                                 ),
                                 safetySettings = safetySettings
