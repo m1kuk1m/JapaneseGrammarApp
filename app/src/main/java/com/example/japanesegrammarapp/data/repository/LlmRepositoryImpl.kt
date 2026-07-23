@@ -199,7 +199,6 @@ class LlmRepositoryImpl @Inject constructor(
                     systemInstruction = GeminiSystemInstruction(parts = listOf(GeminiPart(text = systemPrompt))),
                     generationConfig = GeminiGenerationConfig(
                         temperature = 0.1,
-                        responseMimeType = "application/json",
                         thinkingConfig = thinkingConfig
                     ),
                     safetySettings = safetySettings
@@ -894,7 +893,6 @@ class LlmRepositoryImpl @Inject constructor(
                                 systemInstruction = GeminiSystemInstruction(parts = listOf(GeminiPart(text = systemPrompt))),
                                 generationConfig = GeminiGenerationConfig(
                                     temperature = 0.1,
-                                    responseMimeType = "application/json",
                                     thinkingConfig = thinkingConfig
                                 ),
                                 safetySettings = safetySettings
