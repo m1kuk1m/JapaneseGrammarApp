@@ -70,6 +70,10 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.PromptPreset
 
@@ -125,6 +129,18 @@ fun SettingsPromptEditor(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp)
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                if (event.type == PointerEventType.Release && event.changes.all { !it.pressed }) {
+                                    if (textFieldValue.selection.length > 0) {
+                                        textFieldValue = textFieldValue.copy()
+                                    }
+                                }
+                            }
+                        }
+                    }
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -181,7 +197,18 @@ fun SettingsPromptEditor(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .clipToBounds()
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    if (event.type == PointerEventType.Release && event.changes.all { !it.pressed }) {
+                                        textFieldValue = textFieldValue.copy()
+                                    }
+                                }
+                            }
+                        },
                     textStyle = TextStyle(
                         fontFamily = FontFamily.Monospace,
                         fontSize = 11.sp,
