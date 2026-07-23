@@ -397,34 +397,6 @@ fun SettingsCredentialsSection(
                 ) {
                     Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
                         val isFetchingProvider = uiState.isFetchingModels && uiState.fetchingProvider == provider && uiState.fetchingEndpointId == null
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedButton(
-                                onClick = { onFetchModelsForProvider(provider) },
-                                enabled = !uiState.isFetchingModels,
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                if (isFetchingProvider) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        color = primaryColor,
-                                        strokeWidth = 2.dp
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(stringResource(R.string.fetching), fontSize = 12.sp)
-                                } else {
-                                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(stringResource(R.string.refresh_provider_models), fontSize = 12.sp)
-                                }
-                            }
-                        }
 
                         EndpointPoolSection(
                             endpoints = uiState.providerEndpoints[provider].orEmpty(),
@@ -438,7 +410,10 @@ fun SettingsCredentialsSection(
                             },
                             onFetchModels = { endpoint ->
                                 onFetchModels(provider, endpoint)
-                            }
+                            },
+                            onFetchModelsForProvider = { onFetchModelsForProvider(provider) },
+                            isFetchingProvider = isFetchingProvider,
+                            isFetchingAnyModel = uiState.isFetchingModels
                         )
 
                         Spacer(modifier = Modifier.size(12.dp))
@@ -467,8 +442,7 @@ fun SettingsCredentialsSection(
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.padding(top = 8.dp)
+                                shape = RoundedCornerShape(8.dp)
                             ) {
                                 Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp), tint = onPrimaryColor)
                             }
