@@ -52,6 +52,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,9 +66,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.PromptPreset
 
@@ -100,6 +106,16 @@ fun SettingsPromptEditor(
     val primaryColor = MaterialTheme.colorScheme.primary
     val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
 
+    var textFieldValue by remember(selectedPromptKey, activePromptPresetId) {
+        mutableStateOf(TextFieldValue(text = promptText))
+    }
+
+    LaunchedEffect(promptText) {
+        if (promptText != textFieldValue.text) {
+            textFieldValue = textFieldValue.copy(text = promptText)
+        }
+    }
+
     AnimatedVisibility(
         visible = visible,
         enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(300)) + fadeIn(animationSpec = tween(300)),
@@ -113,6 +129,18 @@ fun SettingsPromptEditor(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp)
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                if (event.type == PointerEventType.Release && event.changes.all { !it.pressed }) {
+                                    if (textFieldValue.selection.length > 0) {
+                                        textFieldValue = textFieldValue.copy()
+                                    }
+                                }
+                            }
+                        }
+                    }
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -160,11 +188,27 @@ fun SettingsPromptEditor(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
-                    value = promptText,
-                    onValueChange = onPromptTextChange,
+                    value = textFieldValue,
+                    onValueChange = { newValue ->
+                        textFieldValue = newValue
+                        if (newValue.text != promptText) {
+                            onPromptTextChange(newValue.text)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .clipToBounds()
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    if (event.type == PointerEventType.Release && event.changes.all { !it.pressed }) {
+                                        textFieldValue = textFieldValue.copy()
+                                    }
+                                }
+                            }
+                        },
                     textStyle = TextStyle(
                         fontFamily = FontFamily.Monospace,
                         fontSize = 11.sp,

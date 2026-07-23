@@ -30,6 +30,7 @@ data class ApiDebugLog(
     val outputTokens: Int = 0,
     val reasoningContent: String? = null,
     val reasoningTokens: Int? = null,
+    val reasoningLevel: String? = null,
     val recordId: Int? = null,
     val stepName: String? = null,
     val attempt: Int? = null,
@@ -138,6 +139,7 @@ object AppLogger {
         outputTokens: Int,
         reasoningContent: String? = null,
         reasoningTokens: Int? = null,
+        reasoningLevel: String? = null,
         recordId: Int? = null,
         stepName: String? = null,
         attempt: Int? = null,
@@ -159,13 +161,14 @@ object AppLogger {
             outputTokens = outputTokens,
             reasoningContent = reasoningContent?.safeForLog(12000),
             reasoningTokens = reasoningTokens,
+            reasoningLevel = reasoningLevel,
             recordId = recordId,
             stepName = stepName,
             attempt = attempt,
             elapsedMs = elapsedMs
         )
         val updatedLogs = appendApiLog(entry)
-        d("API_DEBUG", "[$apiTypeLabel] success via $provider/$model, tokens=$consumedTokens, reasoningTokens=${reasoningTokens ?: 0}, image=$hasImage, record=$recordId, step=$stepName, elapsed=${elapsedMs ?: 0}ms")
+        d("API_DEBUG", "[$apiTypeLabel] success via $provider/$model, reasoningLevel=${reasoningLevel ?: "N/A"}, tokens=$consumedTokens, reasoningTokens=${reasoningTokens ?: 0}, image=$hasImage, record=$recordId, step=$stepName, elapsed=${elapsedMs ?: 0}ms")
         writeApiLogsToFile(updatedLogs)
     }
 
@@ -178,6 +181,7 @@ object AppLogger {
         userPrompt: String,
         systemPrompt: String,
         message: String,
+        reasoningLevel: String? = null,
         recordId: Int? = null,
         stepName: String? = null,
         attempt: Int? = null,
@@ -193,13 +197,14 @@ object AppLogger {
             userPrompt = userPrompt.safeForLog(),
             systemPromptPreview = systemPrompt.safeForLog(1200),
             errorMessage = message.safeForLog(4000),
+            reasoningLevel = reasoningLevel,
             recordId = recordId,
             stepName = stepName,
             attempt = attempt,
             elapsedMs = elapsedMs
         )
         val updatedLogs = appendApiLog(entry)
-        d("API_DEBUG", "[$apiTypeLabel] $status via $provider/$model, record=$recordId, step=$stepName, attempt=${attempt ?: 0}, elapsed=${elapsedMs ?: 0}ms: $message")
+        d("API_DEBUG", "[$apiTypeLabel] $status via $provider/$model, reasoningLevel=${reasoningLevel ?: "N/A"}, record=$recordId, step=$stepName, attempt=${attempt ?: 0}, elapsed=${elapsedMs ?: 0}ms: $message")
         writeApiLogsToFile(updatedLogs)
     }
 
@@ -213,6 +218,7 @@ object AppLogger {
         message: String,
         throwable: Throwable? = null,
         rawResponse: String? = null,
+        reasoningLevel: String? = null,
         recordId: Int? = null,
         stepName: String? = null,
         attempt: Int? = null,
@@ -230,13 +236,14 @@ object AppLogger {
             rawResponse = rawResponse?.safeForLog(12000),
             errorMessage = message.safeForLog(4000),
             stackTrace = throwable?.stackTraceToString()?.safeForLog(12000),
+            reasoningLevel = reasoningLevel,
             recordId = recordId,
             stepName = stepName,
             attempt = attempt,
             elapsedMs = elapsedMs
         )
         val updatedLogs = appendApiLog(entry)
-        e("API_DEBUG", "[$apiTypeLabel] failed via $provider/$model, image=$hasImage, record=$recordId, step=$stepName, elapsed=${elapsedMs ?: 0}ms: $message", throwable)
+        e("API_DEBUG", "[$apiTypeLabel] failed via $provider/$model, reasoningLevel=${reasoningLevel ?: "N/A"}, image=$hasImage, record=$recordId, step=$stepName, elapsed=${elapsedMs ?: 0}ms: $message", throwable)
         writeApiLogsToFile(updatedLogs)
     }
 

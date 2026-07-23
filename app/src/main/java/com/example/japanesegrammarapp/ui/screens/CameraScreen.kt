@@ -198,6 +198,64 @@ fun CameraScreen(
             permissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
+
+    val performCapture: () -> Boolean = remember(imageCapture, deviceOrientation, isCapturing) {
+        {
+            if (!isCapturing) {
+                captureDeviceOrientation = deviceOrientation
+                isCapturing = true
+                val file = createCameraCaptureFile(context)
+                val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
+
+                imageCapture.takePicture(
+                    outputOptions,
+                    ContextCompat.getMainExecutor(context),
+                    object : ImageCapture.OnImageSavedCallback {
+                        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                            scope.launch(Dispatchers.IO) {
+                                val result = processCapturedImageFile(context, file)
+                                if (result != null) {
+                                    val processedBitmap = applyAutoDeskewIfEnabled(result.bitmap, autoDeskewAfterCapture)
+
+                                    withContext(Dispatchers.Main) {
+                                        replaceCapturedBitmap(processedBitmap)
+                                        wasImageRotatedToPortrait = result.wasRotatedToPortrait
+                                        tempFileUriString = result.savedUri?.toString()
+                                        screenMode = CameraScreenMode.CROP_REVIEW
+                                        isCapturing = false
+                                    }
+                                } else {
+                                    withContext(Dispatchers.Main) {
+                                        isCapturing = false
+                                    }
+                                }
+                            }
+                        }
+
+                        override fun onError(exception: ImageCaptureException) {
+                            AppLogger.e("CAMERA", "Capture failed: ${exception.message}", exception)
+                            isCapturing = false
+                        }
+                    }
+                )
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    DisposableEffect(screenMode, hasCameraPermission, performCapture) {
+        val mainActivity = context as? com.example.japanesegrammarapp.MainActivity
+        if (mainActivity != null && screenMode == CameraScreenMode.CAPTURE && hasCameraPermission) {
+            mainActivity.onVolumeKeyDownListener = { performCapture() }
+        }
+        onDispose {
+            (context as? com.example.japanesegrammarapp.MainActivity)?.let {
+                it.onVolumeKeyDownListener = null
+            }
+        }
+    }
     
     Scaffold(
         containerColor = SumiInk
@@ -231,50 +289,7 @@ fun CameraScreen(
                                 imageCapture.flashMode = flashMode
                             },
                             isCapturing = isCapturing,
-                            onCapture = {
-                                captureDeviceOrientation = deviceOrientation
-                                isCapturing = true
-                                val file = createCameraCaptureFile(context)
-                                val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
-                                
-                                imageCapture.takePicture(
-                                    outputOptions,
-                                    ContextCompat.getMainExecutor(context),
-                                    object : ImageCapture.OnImageSavedCallback {
-                                        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                                            scope.launch(Dispatchers.IO) {
-                                                // Load the bitmap with EXIF rotation applied,
-                                                // but do NOT pre-crop to screen aspect ratio.
-                                                // The ImageCropReviewLayout handles any image shape
-                                                // correctly, and pre-cropping here causes display
-                                                // errors when the user rotates back to portrait after
-                                                // a landscape capture.
-                                                val result = processCapturedImageFile(context, file)
-                                                if (result != null) {
-                                                    val processedBitmap = applyAutoDeskewIfEnabled(result.bitmap, autoDeskewAfterCapture)
-                                                    
-                                                    withContext(Dispatchers.Main) {
-                                                        replaceCapturedBitmap(processedBitmap)
-                                                        wasImageRotatedToPortrait = result.wasRotatedToPortrait
-                                                        tempFileUriString = result.savedUri?.toString()
-                                                        screenMode = CameraScreenMode.CROP_REVIEW
-                                                        isCapturing = false
-                                                    }
-                                                } else {
-                                                    withContext(Dispatchers.Main) {
-                                                        isCapturing = false
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        
-                                        override fun onError(exception: ImageCaptureException) {
-                                            AppLogger.e("CAMERA", "Capture failed: ${exception.message}", exception)
-                                            isCapturing = false
-                                        }
-                                    }
-                                )
-                            },
+                            onCapture = { performCapture() },
                             onBack = {
                                 navController.popBackStack()
                             },

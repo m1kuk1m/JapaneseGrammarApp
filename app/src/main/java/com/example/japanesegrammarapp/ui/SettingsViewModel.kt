@@ -448,6 +448,52 @@ class SettingsViewModel @Inject constructor(
                 val fetchedModels = llmRepository.fetchModels(provider, baseUrl, apiKey)
                 settingsRepository.saveApiUrl(provider, baseUrl)
                 saveModelsForProvider(provider, fetchedModels)
+                if (fetchedModels.isNotEmpty()) {
+                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.fetch_models_success, listOf(fetchedModels.size)))
+                } else {
+                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.fetch_models_empty))
+                }
+            } catch (e: IllegalArgumentException) {
+                if (e.message == "Please configure API Key in Settings first.") {
+                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.err_missing_api_key))
+                } else {
+                    _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: "Unknown Error"))
+                }
+            } catch (e: Exception) {
+                _uiEvent.emit(UiEvent.ShowError(e.localizedMessage ?: "Unknown Error"))
+            } finally {
+                _uiState.update { it.copy(isFetchingModels = false, fetchingProvider = null) }
+            }
+        }
+    }
+
+    fun fetchModelsForProvider(provider: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isFetchingModels = true, fetchingProvider = provider) }
+            try {
+                val endpoints = settingsRepository.getEndpoints(provider)
+                val activeEndpoint = endpoints
+                    .filter { it.enabled && settingsRepository.getApiKeyForEndpoint(it.id).isNotBlank() && EndpointUrlValidator.isValidHttpUrl(it.baseUrl) }
+                    .maxByOrNull { it.priority }
+
+                val (targetUrl, targetKey) = if (activeEndpoint != null) {
+                    activeEndpoint.baseUrl to settingsRepository.getApiKeyForEndpoint(activeEndpoint.id)
+                } else {
+                    val key = settingsRepository.getApiKey(provider)
+                    val url = settingsRepository.getApiUrl(provider).ifBlank { LlmConfig.defaultUrls[provider] ?: "" }
+                    if (key.isBlank()) {
+                        throw IllegalArgumentException(application.getString(R.string.fetch_models_no_endpoint))
+                    }
+                    url to key
+                }
+
+                val fetchedModels = llmRepository.fetchModels(provider, targetUrl, targetKey)
+                saveModelsForProvider(provider, fetchedModels)
+                if (fetchedModels.isNotEmpty()) {
+                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.fetch_models_success, listOf(fetchedModels.size)))
+                } else {
+                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.fetch_models_empty))
+                }
             } catch (e: IllegalArgumentException) {
                 if (e.message == "Please configure API Key in Settings first.") {
                     _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.err_missing_api_key))
@@ -483,6 +529,11 @@ class SettingsViewModel @Inject constructor(
                 }
                 val fetchedModels = llmRepository.fetchModels(provider, endpoint.baseUrl, apiKey)
                 saveModelsForProvider(provider, fetchedModels)
+                if (fetchedModels.isNotEmpty()) {
+                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.fetch_models_success, listOf(fetchedModels.size)))
+                } else {
+                    _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.fetch_models_empty))
+                }
             } catch (e: IllegalArgumentException) {
                 if (e.message == "Please configure API Key in Settings first.") {
                     _uiEvent.emit(UiEvent.ShowLocalizedError(R.string.err_missing_api_key))

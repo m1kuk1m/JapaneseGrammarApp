@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -57,7 +59,7 @@ import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.domain.model.EndpointUrlValidator
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
 
-@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun EndpointPoolSection(
     endpoints: List<LlmEndpoint>,
@@ -67,7 +69,10 @@ fun EndpointPoolSection(
     onEditEndpoint: (LlmEndpoint) -> Unit,
     onDeleteEndpoint: (LlmEndpoint) -> Unit,
     onToggleEndpoint: (LlmEndpoint, Boolean) -> Unit,
-    onFetchModels: (LlmEndpoint) -> Unit
+    onFetchModels: (LlmEndpoint) -> Unit,
+    onFetchModelsForProvider: (() -> Unit)? = null,
+    isFetchingProvider: Boolean = false,
+    isFetchingAnyModel: Boolean = false
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -75,25 +80,69 @@ fun EndpointPoolSection(
     val now = System.currentTimeMillis()
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = stringResource(R.string.api_endpoints_manage),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = sumiInk
+                color = sumiInk,
+                modifier = Modifier.padding(vertical = 4.dp)
             )
-            OutlinedButton(
-                onClick = onAddEndpoint,
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(vertical = 4.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(stringResource(R.string.add), fontSize = 12.sp)
+                if (onFetchModelsForProvider != null) {
+                    OutlinedButton(
+                        onClick = onFetchModelsForProvider,
+                        enabled = !isFetchingAnyModel,
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        if (isFetchingProvider) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                color = primaryColor,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.fetching),
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        } else {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.refresh_provider_models),
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                    }
+                }
+                OutlinedButton(
+                    onClick = onAddEndpoint,
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.add),
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
             }
         }
 
@@ -147,7 +196,7 @@ fun EndpointPoolSection(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Top
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(

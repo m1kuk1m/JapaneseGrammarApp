@@ -97,6 +97,15 @@
     <string name="cot_level_low">LOW</string>
     <string name="cot_level_medium">MEDIUM</string>
     <string name="cot_level_high">HIGH</string>
+    <string name="cot_dialog_title">Reasoning Depth Settings</string>
+    <string name="cot_dialog_desc">Customize CoT reasoning depth for each module</string>
+    <string name="cot_quick_presets">Quick Presets</string>
+    <string name="cot_preset_all_auto">All AUTO</string>
+    <string name="cot_preset_all_off">All OFF</string>
+    <string name="cot_preset_all_low">All LOW</string>
+    <string name="cot_preset_all_medium">All MEDIUM</string>
+    <string name="cot_preset_all_high">All HIGH</string>
+    <string name="cot_done">Done</string>
     <string name="advanced_component_cot">Advanced Component CoT Settings</string>
     <string name="advanced_component_cot_desc">Customize reasoning depth for individual features</string>
     <string name="cot_word_segmentation">Word Segmentation</string>
@@ -148,6 +157,10 @@
     <string name="settings_auto_deskew_desc">Automatically adjust image skew after capturing a photo.</string>
     <string name="fetching">Fetching...</string>
     <string name="fetch_models">Fetch Models</string>
+    <string name="refresh_provider_models">Refresh Models</string>
+    <string name="fetch_models_success">Successfully updated model list (%1$d models)</string>
+    <string name="fetch_models_empty">No models returned from provider</string>
+    <string name="fetch_models_no_endpoint">Please configure and enable an API Endpoint or API Key first</string>
     <string name="add_custom_model">Add Custom Model</string>
     <string name="custom_hex">Custom Hex (e.g. #FF5722)</string>
     <string name="main_model">Main Model</string>
@@ -518,6 +531,7 @@
     <string name="api_log_provider">Provider: %1$s</string>
     <string name="api_log_model">Model: %1$s</string>
     <string name="api_log_status">Status: %1$s</string>
+    <string name="api_log_reasoning_level">Reasoning Level: %1$s</string>
     <string name="api_log_tokens">Tokens: %1$d (Input: %2$d, Output: %3$d)</string>
     <string name="api_log_tokens_reasoning">Tokens: %1$d (Input: %2$d, Output: %3$d, Reasoning: %4$d)</string>
     <string name="api_details_reasoning">Reasoning Process</string>

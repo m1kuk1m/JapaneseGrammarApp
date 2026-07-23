@@ -400,6 +400,8 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 null
             }
 
+            val reasoningLevel = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel).name
+
             AppLogger.apiSuccess(
                 apiTypeLabel = apiTypeLabel,
                 provider = providerLabel,
@@ -414,6 +416,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 outputTokens = currentMetadata.outputTokens,
                 reasoningContent = finalReasoningContent,
                 reasoningTokens = currentMetadata.reasoningTokens,
+                reasoningLevel = reasoningLevel,
                 recordId = recordId,
                 stepName = stepName,
                 elapsedMs = System.currentTimeMillis() - stepStartMs
@@ -422,6 +425,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
             val elapsedMs = System.currentTimeMillis() - stepStartMs
             val message = "Step timed out after ${timeoutMs / 1000}s"
             val cleanRawResponse = accumulatedText.replace(THINKING_REGEX, "").trimStart()
+            val reasoningLevel = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel).name
             AppLogger.apiError(
                 apiTypeLabel = apiTypeLabel,
                 provider = providerLabel,
@@ -432,6 +436,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 message = message,
                 throwable = e,
                 rawResponse = cleanRawResponse,
+                reasoningLevel = reasoningLevel,
                 recordId = recordId,
                 stepName = stepName,
                 elapsedMs = elapsedMs
@@ -441,6 +446,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
             val body = e.response()?.errorBody()?.string() ?: ""
             val safeBody = if (body.length > 200) body.take(200) + "..." else body
             val message = "HTTP ${e.code()}: ${e.message()}\n$safeBody"
+            val reasoningLevel = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel).name
             AppLogger.apiError(
                 apiTypeLabel = apiTypeLabel,
                 provider = providerLabel,
@@ -451,6 +457,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 message = message,
                 throwable = e,
                 rawResponse = body,
+                reasoningLevel = reasoningLevel,
                 recordId = recordId,
                 stepName = stepName,
                 elapsedMs = System.currentTimeMillis() - stepStartMs
@@ -459,6 +466,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             val cleanRawResponse = accumulatedText.replace(THINKING_REGEX, "").trimStart()
+            val reasoningLevel = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel).name
             AppLogger.apiError(
                 apiTypeLabel = apiTypeLabel,
                 provider = providerLabel,
@@ -469,6 +477,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
                 message = e.localizedMessage ?: "Unknown LLM step error",
                 throwable = e,
                 rawResponse = cleanRawResponse,
+                reasoningLevel = reasoningLevel,
                 recordId = recordId,
                 stepName = stepName,
                 elapsedMs = System.currentTimeMillis() - stepStartMs

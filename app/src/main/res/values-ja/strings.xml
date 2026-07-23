@@ -98,6 +98,15 @@
     <string name="cot_level_low">低</string>
     <string name="cot_level_medium">中</string>
     <string name="cot_level_high">高</string>
+    <string name="cot_dialog_title">思考プロセスの深さ設定</string>
+    <string name="cot_dialog_desc">各機能モジュールのAI思考プロセスの深さを調整します</string>
+    <string name="cot_quick_presets">クイックプリセット</string>
+    <string name="cot_preset_all_auto">すべて自動</string>
+    <string name="cot_preset_all_off">すべてオフ</string>
+    <string name="cot_preset_all_low">すべて低</string>
+    <string name="cot_preset_all_medium">すべて中</string>
+    <string name="cot_preset_all_high">すべて高</string>
+    <string name="cot_done">完了</string>
     <string name="advanced_component_cot">詳細コンポーネント思考プロセス設定</string>
     <string name="advanced_component_cot_desc">個別機能の思考プロセスの深さをカスタマイズします</string>
     <string name="cot_word_segmentation">単語分割</string>
@@ -148,6 +157,10 @@
     <string name="settings_auto_deskew_desc">写真を撮った後、画像の傾きを自動的に補正します。</string>
     <string name="fetching">取得中...</string>
     <string name="fetch_models">モデルを取得</string>
+    <string name="refresh_provider_models">モデル更新</string>
+    <string name="fetch_models_success">モデル一覧を更新しました（%1$d件）</string>
+    <string name="fetch_models_empty">利用可能なモデルが見つかりませんでした</string>
+    <string name="fetch_models_no_endpoint">有効な API エンドポイントまたは API キーを先に設定してください</string>
     <string name="add_custom_model">カスタムモデルを追加</string>
     <string name="custom_hex">カスタムHex (例 #FF5722)</string>
     <string name="main_model">メインモデル</string>

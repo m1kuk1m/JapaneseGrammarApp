@@ -52,6 +52,27 @@ class AppLoggerTest {
     }
 
     @Test
+    fun apiSuccessStoresReasoningLevel() {
+        AppLogger.apiSuccess(
+            apiTypeLabel = "Grammar",
+            provider = "Gemini",
+            model = "gemini-3.5-flash",
+            hasImage = false,
+            userPrompt = "hello",
+            systemPrompt = "system",
+            rawResponse = "response",
+            parsedPreview = "preview",
+            consumedTokens = 10,
+            inputTokens = 5,
+            outputTokens = 5,
+            reasoningLevel = "HIGH"
+        )
+
+        val stored = AppLogger.apiLogs.value.single()
+        org.junit.Assert.assertEquals("HIGH", stored.reasoningLevel)
+    }
+
+    @Test
     fun apiErrorSanitizesMessageResponseAndStackTrace() {
         AppLogger.apiError(
             apiTypeLabel = "Grammar",

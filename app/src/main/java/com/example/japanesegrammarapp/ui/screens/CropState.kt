@@ -12,6 +12,10 @@ enum class DragHandle {
     TOP_RIGHT,
     BOTTOM_LEFT,
     BOTTOM_RIGHT,
+    TOP,
+    BOTTOM,
+    LEFT,
+    RIGHT,
     CENTER
 }
 
@@ -94,11 +98,51 @@ class CropState(
             bestHandle = DragHandle.BOTTOM_RIGHT
         }
 
-        activeHandle = if (bestHandle != DragHandle.NONE) {
-            bestHandle
-        } else {
-            DragHandle.NONE
+        // If no corner was hit, check 4 edges
+        if (bestHandle == DragHandle.NONE) {
+            val edgeTolerance = minTolerancePx * 0.8f
+            val extendedLeft = cropLeft - edgeTolerance
+            val extendedRight = cropRight + edgeTolerance
+            val extendedTop = cropTop - edgeTolerance
+            val extendedBottom = cropBottom + edgeTolerance
+
+            var minEdgeDist = edgeTolerance
+
+            // TOP edge
+            if (x in extendedLeft..extendedRight) {
+                val distTop = kotlin.math.abs(y - cropTop)
+                if (distTop < minEdgeDist) {
+                    minEdgeDist = distTop
+                    bestHandle = DragHandle.TOP
+                }
+            }
+            // BOTTOM edge
+            if (x in extendedLeft..extendedRight) {
+                val distBottom = kotlin.math.abs(y - cropBottom)
+                if (distBottom < minEdgeDist) {
+                    minEdgeDist = distBottom
+                    bestHandle = DragHandle.BOTTOM
+                }
+            }
+            // LEFT edge
+            if (y in extendedTop..extendedBottom) {
+                val distLeft = kotlin.math.abs(x - cropLeft)
+                if (distLeft < minEdgeDist) {
+                    minEdgeDist = distLeft
+                    bestHandle = DragHandle.LEFT
+                }
+            }
+            // RIGHT edge
+            if (y in extendedTop..extendedBottom) {
+                val distRight = kotlin.math.abs(x - cropRight)
+                if (distRight < minEdgeDist) {
+                    minEdgeDist = distRight
+                    bestHandle = DragHandle.RIGHT
+                }
+            }
         }
+
+        activeHandle = bestHandle
     }
 
     fun onDrag(dragAmount: Offset, minSizePx: Float) {
@@ -130,6 +174,18 @@ class CropState(
             DragHandle.BOTTOM_RIGHT -> {
                 cropRight = (cropRight + dx).coerceIn(cropLeft + minSizePx, imgOffsetX + imgDispWidth)
                 cropBottom = (cropBottom + dy).coerceIn(cropTop + minSizePx, imgOffsetY + imgDispHeight)
+            }
+            DragHandle.TOP -> {
+                cropTop = (cropTop + dy).coerceIn(imgOffsetY, cropBottom - minSizePx)
+            }
+            DragHandle.BOTTOM -> {
+                cropBottom = (cropBottom + dy).coerceIn(cropTop + minSizePx, imgOffsetY + imgDispHeight)
+            }
+            DragHandle.LEFT -> {
+                cropLeft = (cropLeft + dx).coerceIn(imgOffsetX, cropRight - minSizePx)
+            }
+            DragHandle.RIGHT -> {
+                cropRight = (cropRight + dx).coerceIn(cropLeft + minSizePx, imgOffsetX + imgDispWidth)
             }
             DragHandle.NONE -> {}
         }

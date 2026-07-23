@@ -98,6 +98,15 @@
     <string name="cot_level_low">低</string>
     <string name="cot_level_medium">中</string>
     <string name="cot_level_high">高</string>
+    <string name="cot_dialog_title">思维链思考深度设置</string>
+    <string name="cot_dialog_desc">统一调整各功能模块的 AI 思考推理深度</string>
+    <string name="cot_quick_presets">快速预设</string>
+    <string name="cot_preset_all_auto">全自动</string>
+    <string name="cot_preset_all_off">全关闭</string>
+    <string name="cot_preset_all_low">全低深度</string>
+    <string name="cot_preset_all_medium">全中深度</string>
+    <string name="cot_preset_all_high">全高深度</string>
+    <string name="cot_done">完成</string>
     <string name="advanced_component_cot">高级组件思维链设置</string>
     <string name="advanced_component_cot_desc">自定义各个独立功能的思维链深度</string>
     <string name="cot_word_segmentation">单词分割</string>
@@ -148,6 +157,10 @@
     <string name="settings_auto_deskew_desc">拍照后自动校准图片倾斜度并进行后续操作。</string>
     <string name="fetching">获取中...</string>
     <string name="fetch_models">获取可用模型</string>
+    <string name="refresh_provider_models">刷新模型</string>
+    <string name="fetch_models_success">已成功刷新模型列表，共 %1$d 个模型</string>
+    <string name="fetch_models_empty">获取成功，但未发现可用模型</string>
+    <string name="fetch_models_no_endpoint">请先配置并启用 API Endpoint 或设置 API Key</string>
     <string name="add_custom_model">添加自定义模型</string>
     <string name="custom_hex">自定义 Hex (如 #FF5722)</string>
     <string name="main_model">主模型</string>

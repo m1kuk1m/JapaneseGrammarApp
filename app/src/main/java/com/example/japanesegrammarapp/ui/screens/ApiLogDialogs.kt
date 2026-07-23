@@ -611,6 +611,9 @@ private fun ApiLogMetadataCard(log: ApiDebugLog, sumiInk: Color) {
             Text(stringResource(R.string.api_log_provider, log.provider), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
             Text(stringResource(R.string.api_log_model, log.model), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
             Text(stringResource(R.string.api_log_status, apiStatusLabel(log.status)), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = apiStatusColor(log.status))
+            if (!log.reasoningLevel.isNullOrBlank()) {
+                Text(stringResource(R.string.api_log_reasoning_level, log.reasoningLevel), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
+            }
             if (log.reasoningTokens != null && log.reasoningTokens > 0) {
                 Text(stringResource(R.string.api_log_tokens_reasoning, log.consumedTokens, log.inputTokens, log.outputTokens, log.reasoningTokens), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
             } else {

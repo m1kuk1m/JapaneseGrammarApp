@@ -883,6 +883,45 @@ fun ImageCropReviewLayout(
                             radius = handleRadius,
                             center = Offset(cropState.cropRight, cropState.cropBottom)
                         )
+
+                        // Draw 4 edge handles (centered subtle caps)
+                        val edgeHandleLength = 20.dp.toPx()
+                        val edgeHandleStroke = 3.dp.toPx()
+                        val midX = (cropState.cropLeft + cropState.cropRight) / 2f
+                        val midY = (cropState.cropTop + cropState.cropBottom) / 2f
+
+                        // Top Edge Handle
+                        drawLine(
+                            color = if (cropState.activeHandle == DragHandle.TOP) activeColor else defaultColor,
+                            start = Offset(midX - edgeHandleLength / 2f, cropState.cropTop),
+                            end = Offset(midX + edgeHandleLength / 2f, cropState.cropTop),
+                            strokeWidth = edgeHandleStroke,
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round
+                        )
+                        // Bottom Edge Handle
+                        drawLine(
+                            color = if (cropState.activeHandle == DragHandle.BOTTOM) activeColor else defaultColor,
+                            start = Offset(midX - edgeHandleLength / 2f, cropState.cropBottom),
+                            end = Offset(midX + edgeHandleLength / 2f, cropState.cropBottom),
+                            strokeWidth = edgeHandleStroke,
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round
+                        )
+                        // Left Edge Handle
+                        drawLine(
+                            color = if (cropState.activeHandle == DragHandle.LEFT) activeColor else defaultColor,
+                            start = Offset(cropState.cropLeft, midY - edgeHandleLength / 2f),
+                            end = Offset(cropState.cropLeft, midY + edgeHandleLength / 2f),
+                            strokeWidth = edgeHandleStroke,
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round
+                        )
+                        // Right Edge Handle
+                        drawLine(
+                            color = if (cropState.activeHandle == DragHandle.RIGHT) activeColor else defaultColor,
+                            start = Offset(cropState.cropRight, midY - edgeHandleLength / 2f),
+                            end = Offset(cropState.cropRight, midY + edgeHandleLength / 2f),
+                            strokeWidth = edgeHandleStroke,
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round
+                        )
                     } else {
                         if (detectedBoxes.isNotEmpty()) {
                             val imageLeft = cropState.imgOffsetX

@@ -174,6 +174,7 @@ fun SettingsScreen(
 
 
     var expandedProvider by remember { mutableStateOf<String?>(null) }
+    var showCotDepthDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     var customModelInputs by remember { mutableStateOf(providers.associateWith { "" }) }
@@ -588,7 +589,8 @@ fun SettingsScreen(
                                     onAutoRetryOnErrorChange = viewModel::setAutoRetryOnError,
                                     onFailoverToNextEndpointChange = viewModel::setFailoverToNextEndpoint,
                                     onReasoningLevelChange = viewModel::setReasoningLevel,
-                                    onComponentReasoningLevelChange = viewModel::setComponentReasoningLevel
+                                    onComponentReasoningLevelChange = viewModel::setComponentReasoningLevel,
+                                    onOpenCotDialog = { showCotDepthDialog = true }
                                 )
 
                                 SettingsCredentialsSection(
@@ -607,6 +609,7 @@ fun SettingsScreen(
                                     onFetchModels = { provider, endpoint ->
                                         viewModel.fetchModelsForEndpoint(provider, endpoint.id)
                                     },
+                                    onFetchModelsForProvider = viewModel::fetchModelsForProvider,
                                     onCustomModelInputChange = { provider, value ->
                                         customModelInputs = customModelInputs.toMutableMap().apply { put(provider, value) }
                                     },
@@ -1020,6 +1023,14 @@ fun SettingsScreen(
                 }
             },
             containerColor = WashiBg
+        )
+    }
+
+    if (showCotDepthDialog) {
+        CotDepthDialog(
+            componentReasoningLevels = uiState.componentReasoningLevels,
+            onComponentReasoningLevelChange = viewModel::setComponentReasoningLevel,
+            onDismiss = { showCotDepthDialog = false }
         )
     }
 
