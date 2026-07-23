@@ -10,6 +10,9 @@ object ApiLogExportFormatter {
                 appendLine("[${log.apiTypeLabel.safe()}] ${log.provider.safe()} - ${log.model.safe()}")
                 appendLine("Time: ${log.time.safe()}")
                 appendLine("Status: ${log.status.safe()}")
+                if (!log.reasoningLevel.isNullOrBlank()) {
+                    appendLine("Reasoning Level: ${log.reasoningLevel.safe()}")
+                }
                 appendLine("Record: ${log.recordId ?: "-"}")
                 appendLine("Step: ${log.stepName?.safe() ?: "-"}")
                 appendLine("Attempt: ${log.attempt ?: "-"}")

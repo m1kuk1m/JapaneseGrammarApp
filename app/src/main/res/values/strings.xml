@@ -531,6 +531,7 @@
     <string name="api_log_provider">Provider: %1$s</string>
     <string name="api_log_model">Model: %1$s</string>
     <string name="api_log_status">Status: %1$s</string>
+    <string name="api_log_reasoning_level">Reasoning Level: %1$s</string>
     <string name="api_log_tokens">Tokens: %1$d (Input: %2$d, Output: %3$d)</string>
     <string name="api_log_tokens_reasoning">Tokens: %1$d (Input: %2$d, Output: %3$d, Reasoning: %4$d)</string>
     <string name="api_details_reasoning">Reasoning Process</string>

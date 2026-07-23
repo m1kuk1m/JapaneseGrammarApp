@@ -356,6 +356,7 @@ class LlmRepositoryImpl @Inject constructor(
         while (attempt <= maxRetries) {
             val attemptNumber = attempt + 1
             val attemptStartMs = System.currentTimeMillis()
+            val reasoningLevelStr = settingsRepository.getEffectiveReasoningLevel(apiTypeLabel).name
             try {
                 AppLogger.apiEvent(
                     apiTypeLabel = apiTypeLabel,
@@ -366,6 +367,7 @@ class LlmRepositoryImpl @Inject constructor(
                     userPrompt = userPrompt,
                     systemPrompt = systemPrompt,
                     message = "Primary request attempt $attemptNumber started",
+                    reasoningLevel = reasoningLevelStr,
                     recordId = recordId,
                     stepName = stepName,
                     attempt = attemptNumber
@@ -402,6 +404,7 @@ class LlmRepositoryImpl @Inject constructor(
                         userPrompt = userPrompt,
                         systemPrompt = systemPrompt,
                         message = "Primary attempt $attemptNumber failed after ${elapsedMs}ms: ${e.localizedMessage ?: "Unknown error"}. Retrying attempt ${attempt + 1}.",
+                        reasoningLevel = reasoningLevelStr,
                         recordId = recordId,
                         stepName = stepName,
                         attempt = attemptNumber,
@@ -419,6 +422,7 @@ class LlmRepositoryImpl @Inject constructor(
                         systemPrompt = systemPrompt,
                         message = "Primary attempt $attemptNumber failed after ${elapsedMs}ms: ${e.localizedMessage ?: "Unknown error"}",
                         throwable = e,
+                        reasoningLevel = reasoningLevelStr,
                         recordId = recordId,
                         stepName = stepName,
                         attempt = attemptNumber,
