@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- App General -->
-    <string name="app_name">YomiLLM 日本語文法分析</string>
+    <string name="app_name">YomiLLM</string>
     <string name="app_title">文法分析</string>
     <string name="app_subtitle">AIが日本語の文法構造をわかりやすく解説します</string>
 
