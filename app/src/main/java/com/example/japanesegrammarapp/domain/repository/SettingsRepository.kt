@@ -13,6 +13,9 @@ interface SettingsRepository {
     fun setComponentReasoningLevel(apiTypeLabel: String, level: ComponentReasoningLevel)
     fun getEffectiveReasoningLevel(apiTypeLabel: String): ReasoningLevel
 
+    fun getComponentModelConfig(apiTypeLabel: String): com.example.japanesegrammarapp.domain.model.ComponentModelConfig
+    fun setComponentModelConfig(apiTypeLabel: String, config: com.example.japanesegrammarapp.domain.model.ComponentModelConfig)
+
     fun getAllProviders(): List<String>
     fun getBaseProviderType(providerId: String): String
 

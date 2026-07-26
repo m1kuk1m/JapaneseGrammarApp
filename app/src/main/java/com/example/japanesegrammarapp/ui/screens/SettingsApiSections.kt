@@ -78,7 +78,8 @@ fun SettingsApiPrioritySection(
     onFailoverToNextEndpointChange: (Boolean) -> Unit,
     onReasoningLevelChange: (ReasoningLevel) -> Unit,
     onComponentReasoningLevelChange: (String, ComponentReasoningLevel) -> Unit,
-    onOpenCotDialog: () -> Unit
+    onOpenCotDialog: () -> Unit,
+    onOpenComponentModelDialog: () -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -153,7 +154,7 @@ fun SettingsApiPrioritySection(
         val strHigh = stringResource(R.string.cot_level_high)
         val strDesc = stringResource(R.string.cot_dialog_desc)
 
-        val componentLabels = listOf("単語分割", "翻訳", "文節解析", "文法解説", "詳細文法解析")
+        val componentLabels = com.example.japanesegrammarapp.domain.model.AnalysisModule.entries.map { it.id }
         val levelCounts = componentLabels.map { uiState.componentReasoningLevels[it] ?: ComponentReasoningLevel.GLOBAL }
             .groupingBy { it }
             .eachCount()
@@ -187,6 +188,31 @@ fun SettingsApiPrioritySection(
             title = stringResource(R.string.reasoning_level),
             subtitle = summaryText,
             onClick = onOpenCotDialog,
+            trailingContent = {
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = sumiInk.copy(alpha = 0.5f)
+                )
+            }
+        )
+
+        SettingsDivider()
+
+        // モジュール別モデル設定 - 弹窗式单独配置
+        val overrideCount = componentLabels.count {
+            uiState.componentModelConfigs[it]?.isGlobal == false
+        }
+        val moduleModelSubtitle = if (overrideCount == 0) {
+            stringResource(R.string.module_model_desc)
+        } else {
+            stringResource(R.string.module_model_overrides_count, overrideCount)
+        }
+        SettingsItem(
+            icon = Icons.Default.AutoAwesome,
+            title = stringResource(R.string.module_model_title),
+            subtitle = moduleModelSubtitle,
+            onClick = onOpenComponentModelDialog,
             trailingContent = {
                 Icon(
                     Icons.Default.ChevronRight,

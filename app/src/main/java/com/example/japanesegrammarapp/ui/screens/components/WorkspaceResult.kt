@@ -854,13 +854,16 @@ fun WorkspaceResultContent(
                                                                         modifier = Modifier.width(22.dp)
                                                                     )
                                                                     Column(modifier = Modifier.weight(1f)) {
-                                                                        Row(
+                                                                        // FlowRow: 長いロールラベルとテキストが1行に収まらない場合、
+                                                                        // テキストを縦一列に潰さず次の行へ折り返す
+                                                                        FlowRow(
                                                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                                            verticalAlignment = Alignment.CenterVertically
+                                                                            verticalArrangement = Arrangement.spacedBy(4.dp)
                                                                         ) {
                                                                             Surface(
                                                                                 color = AizomeIndigo.copy(alpha = 0.35f),
-                                                                                shape = RoundedCornerShape(4.dp)
+                                                                                shape = RoundedCornerShape(4.dp),
+                                                                                modifier = Modifier.align(Alignment.CenterVertically)
                                                                             ) {
                                                                                 Text(
                                                                                     text = clause.role ?: "",
@@ -874,7 +877,8 @@ fun WorkspaceResultContent(
                                                                                 text = clause.text ?: "",
                                                                                 fontSize = 14.sp,
                                                                                 fontWeight = FontWeight.Bold,
-                                                                                color = SumiInk
+                                                                                color = SumiInk,
+                                                                                modifier = Modifier.align(Alignment.CenterVertically)
                                                                             )
                                                                         }
                                                                         Spacer(modifier = Modifier.height(4.dp))

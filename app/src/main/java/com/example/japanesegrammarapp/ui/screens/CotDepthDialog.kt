@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.japanesegrammarapp.R
+import com.example.japanesegrammarapp.domain.model.AnalysisModule
 import com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel
 import com.example.japanesegrammarapp.ui.theme.ZenColors.KuriAmber
 import com.example.japanesegrammarapp.ui.theme.ZenColors.MatchaGreen
@@ -46,13 +47,7 @@ fun CotDepthDialog(
     val strPresetMedium = stringResource(R.string.cot_preset_all_medium)
     val strPresetHigh = stringResource(R.string.cot_preset_all_high)
 
-    val components = listOf(
-        "単語分割" to stringResource(R.string.cot_word_segmentation),
-        "翻訳" to stringResource(R.string.cot_translation),
-        "文節解析" to stringResource(R.string.cot_clause_analysis),
-        "文法解説" to stringResource(R.string.cot_grammar_explanation),
-        "詳細文法解析" to stringResource(R.string.cot_detailed_analysis)
-    )
+    val components = AnalysisModule.entries.map { it.id to stringResource(it.displayNameRes()) }
 
     val levels = listOf(
         ComponentReasoningLevel.OFF to strOff,

@@ -3,11 +3,12 @@ package com.example.japanesegrammarapp.utils
 object ApiLogExportFormatter {
     fun format(
         logs: List<ApiDebugLog>,
-        includeFullDebug: Boolean
+        includeFullDebug: Boolean,
+        labelResolver: (String) -> String = { it }
     ): String {
         return logs.joinToString("\n\n") { log ->
             buildString {
-                appendLine("[${log.apiTypeLabel.safe()}] ${log.provider.safe()} - ${log.model.safe()}")
+                appendLine("[${labelResolver(log.apiTypeLabel).safe()}] ${log.provider.safe()} - ${log.model.safe()}")
                 appendLine("Time: ${log.time.safe()}")
                 appendLine("Status: ${log.status.safe()}")
                 if (!log.reasoningLevel.isNullOrBlank()) {

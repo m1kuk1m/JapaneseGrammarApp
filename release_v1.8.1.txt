@@ -1,7 +1,0 @@
-v1.8.1 Release Notes
-- Camera & Crop Enhancements: Added volume key capture support and four-edge drag crop support in camera screen.
-- UI & Settings Polish: Optimized CoT reasoning depth settings with a floating dialog and enhanced API provider model refreshing UX.
-- Prompt Editor Fixes: Resolved magnifier freeze on downward text drag and preserved selection/scroll position using TextFieldValue to prevent auto-scrolling to top.
-- LLM & API Compatibility: Removed hardcoded json_object response_format from OpenAI non-streaming calls and hardcoded application/json responseMimeType from Gemini calls.
-- Debug & Logging: Recorded and displayed reasoning level (CoT depth) in API debug logs.
-- Layout Adjustments: Reorganized endpoint action buttons with responsive wrapping layout to avoid text clipping.

@@ -40,4 +40,7 @@ scrape_*.py
 
 # Local prompt snapshots and assistant state
 .claude/
+.agents/
 prompt_backups/
+.gemini*
+*_scratch_*

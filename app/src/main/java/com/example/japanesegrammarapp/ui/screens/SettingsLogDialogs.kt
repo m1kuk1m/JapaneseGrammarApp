@@ -135,7 +135,10 @@ fun SettingsLogDialogs(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        val copyText = ApiLogExportFormatter.format(logsToCopy, includeFullApiLogExport)
+                        val copyText = ApiLogExportFormatter.format(
+                            logsToCopy,
+                            includeFullApiLogExport
+                        ) { moduleDisplayName(context, it) }
                         clipboardManager.setText(AnnotatedString(copyText))
                         Toast.makeText(
                             context,

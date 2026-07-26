@@ -107,12 +107,15 @@ fun ApiLogsDialog(
     val primaryColor = MaterialTheme.colorScheme.primary
     val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
 
-    val filteredApiLogs = remember(apiLogs, searchQuery, filterStatus, filterStep, selectedDate) {
+    val filterContext = LocalContext.current
+    val filteredApiLogs = remember(apiLogs, searchQuery, filterStatus, filterStep, selectedDate, filterContext) {
         apiLogs.filter { log ->
             val matchesQuery = searchQuery.isBlank() ||
                 log.provider.contains(searchQuery, ignoreCase = true) ||
                 log.model.contains(searchQuery, ignoreCase = true) ||
                 log.apiTypeLabel.contains(searchQuery, ignoreCase = true) ||
+                // ローカライズ済みモジュール名でも検索できるようにする
+                moduleDisplayName(filterContext, log.apiTypeLabel).contains(searchQuery, ignoreCase = true) ||
                 log.userPrompt.contains(searchQuery, ignoreCase = true) ||
                 (log.rawResponse?.contains(searchQuery, ignoreCase = true) ?: false)
 
@@ -420,7 +423,7 @@ private fun ApiLogSummaryCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "[${log.apiTypeLabel}] ${log.provider}",
+                    text = "[${moduleDisplayName(log.apiTypeLabel)}] ${log.provider}",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = sumiInk
@@ -607,7 +610,7 @@ private fun ApiLogMetadataCard(log: ApiDebugLog, sumiInk: Color) {
             Text(stringResource(R.string.api_details_metadata), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = sumiInk)
             Divider(color = sumiInk.copy(alpha = 0.05f))
             Text(stringResource(R.string.api_log_time, log.time), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
-            Text(stringResource(R.string.api_log_type, log.apiTypeLabel), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
+            Text(stringResource(R.string.api_log_type, moduleDisplayName(log.apiTypeLabel)), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
             Text(stringResource(R.string.api_log_provider, log.provider), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
             Text(stringResource(R.string.api_log_model, log.model), fontSize = 10.sp, color = sumiInk.copy(alpha = 0.8f))
             Text(stringResource(R.string.api_log_status, apiStatusLabel(log.status)), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = apiStatusColor(log.status))
