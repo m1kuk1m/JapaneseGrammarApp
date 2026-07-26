@@ -1,8 +1,8 @@
 # YomiLLM
 
 <p align="center">
-  <a href="https://github.com/m1kuk1m/JapaneseGrammarApp/actions/workflows/ci.yml">
-    <img src="https://github.com/m1kuk1m/JapaneseGrammarApp/actions/workflows/ci.yml/badge.svg" alt="CI Status">
+  <a href="https://github.com/m1kuk1m/YomiLLM/actions/workflows/ci.yml">
+    <img src="https://github.com/m1kuk1m/YomiLLM/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   </a>
   <a href="https://opensource.org/licenses/Apache-2.0">
     <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License">
@@ -102,7 +102,7 @@ For automated deployments, the included GitHub Actions release workflow builds a
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for the version history, or the [Releases page](https://github.com/m1kuk1m/JapaneseGrammarApp/releases) for signed APKs with SHA256 checksums.
+See [CHANGELOG.md](CHANGELOG.md) for the version history, or the [Releases page](https://github.com/m1kuk1m/YomiLLM/releases) for signed APKs with SHA256 checksums.
 
 ## Third-Party Notices
 

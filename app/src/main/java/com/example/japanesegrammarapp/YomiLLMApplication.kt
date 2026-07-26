@@ -8,7 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import javax.inject.Inject
 
 @HiltAndroidApp
-class JapaneseGrammarApplication : Application() {
+class YomiLLMApplication : Application() {
     @Inject
     @ApplicationScope
     lateinit var applicationScope: CoroutineScope

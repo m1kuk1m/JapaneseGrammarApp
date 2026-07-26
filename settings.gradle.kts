@@ -23,5 +23,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "JapaneseGrammarApp"
+rootProject.name = "YomiLLM"
 include(":app")
