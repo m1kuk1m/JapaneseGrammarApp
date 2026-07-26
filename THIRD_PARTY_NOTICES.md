@@ -1,4 +1,4 @@
-# Third-Party Notices
+# Third-Party Notices - YomiLLM
 
 This project depends on Android, Kotlin, Jetpack Compose, Hilt, Room, Retrofit,
 OkHttp, ML Kit, ONNX Runtime, and related Gradle dependencies. See the Gradle

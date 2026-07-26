@@ -1,3 +1,4 @@
+# YomiLLM Git Ignore Configuration
 # Built files
 /build
 app/build/
