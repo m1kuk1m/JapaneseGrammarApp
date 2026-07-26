@@ -171,6 +171,27 @@ class DefaultAnalysisTaskManager @Inject constructor(
                     emptyList()
                 }
 
+                // モジュール別モデル設定を解決する。オーバーライドが無効(キー未設定・全端点クールダウン中)
+                // ならグローバル設定へフォールバックし、解析自体は中断しない。予備APIは常にグローバル。
+                val stepPrimaryConfigs = AnalysisModule.entries.associateWith { module ->
+                    val override = settingsRepository.getComponentModelConfig(module.id)
+                    if (!override.isGlobal) {
+                        val overrideConfigs = settingsRepository.buildLlmApiConfigs(override.provider, override.model)
+                        if (overrideConfigs.isNotEmpty()) {
+                            return@associateWith overrideConfigs
+                        }
+                        appLogWriter.error(
+                            "LLM_API",
+                            "Module model override for [${module.id}] (${override.provider}: ${override.model}) has no usable endpoint; falling back to global model"
+                        )
+                    }
+                    primaryConfigs
+                }
+                val translationConfigs = stepPrimaryConfigs.getValue(AnalysisModule.TRANSLATION)
+                val clausesConfigs = stepPrimaryConfigs.getValue(AnalysisModule.CLAUSES)
+                val grammarConfigs = stepPrimaryConfigs.getValue(AnalysisModule.GRAMMAR)
+                val segmentsConfigs = stepPrimaryConfigs.getValue(AnalysisModule.SEGMENTS)
+
                 // Perform OCR if needed
                 val isOcrEnabled = settingsRepository.getUseOcr()
                 val imageTokenizerMode = settingsRepository.getImageTokenizerMode()
@@ -185,6 +206,11 @@ class DefaultAnalysisTaskManager @Inject constructor(
                 }
                 val imageBase64 = ocrResult.imagePayload?.base64Data
                 val mimeType = ocrResult.imagePayload?.mimeType
+
+                // tokenizer 変種は入力モード確定後に解決(executeTokenizer と同一条件)
+                val tokenizerConfigs = stepPrimaryConfigs.getValue(
+                    AnalysisModule.tokenizerVariant(imageBase64, isOcrMode, imageTokenizerMode)
+                )
 
 
                 val getRetryListener = { step: AnalysisStep ->
@@ -219,7 +245,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                             mimeType = null,
                             isOcrMode = true,
                             imageTokenizerMode = imageTokenizerMode,
-                            primaryConfigs = primaryConfigs,
+                            primaryConfigs = tokenizerConfigs,
                             backupConfigs = backupConfigs,
                             onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
                             onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
@@ -297,7 +323,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     text = effectiveText,
                                     imageBase64 = null,
                                     mimeType = null,
-                                    primaryConfigs = primaryConfigs,
+                                    primaryConfigs = translationConfigs,
                                     backupConfigs = backupConfigs,
                                     onRetry = getRetryListener(AnalysisStep.TRANSLATION),
                                     onBackup = getBackupListener(AnalysisStep.TRANSLATION),
@@ -330,7 +356,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     text = effectiveText,
                                     imageBase64 = null,
                                     mimeType = null,
-                                    primaryConfigs = primaryConfigs,
+                                    primaryConfigs = clausesConfigs,
                                     backupConfigs = backupConfigs,
                                     onRetry = getRetryListener(AnalysisStep.CLAUSE_ANALYSIS),
                                     onBackup = getBackupListener(AnalysisStep.CLAUSE_ANALYSIS),
@@ -363,7 +389,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     text = effectiveText,
                                     imageBase64 = null,
                                     mimeType = null,
-                                    primaryConfigs = primaryConfigs,
+                                    primaryConfigs = grammarConfigs,
                                     backupConfigs = backupConfigs,
                                     onRetry = getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION),
                                     onBackup = getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION),
@@ -397,7 +423,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                     tokens = tokens,
                                     imageBase64 = null,
                                     mimeType = null,
-                                    primaryConfigs = primaryConfigs,
+                                    primaryConfigs = segmentsConfigs,
                                     backupConfigs = backupConfigs,
                                     onRetry = getRetryListener(AnalysisStep.DETAILED_GRAMMAR),
                                     onBackup = getBackupListener(AnalysisStep.DETAILED_GRAMMAR),
@@ -443,7 +469,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                 mimeType = mimeType,
                                 isOcrMode = false,
                                 imageTokenizerMode = imageTokenizerMode,
-                                primaryConfigs = primaryConfigs,
+                                primaryConfigs = tokenizerConfigs,
                                 backupConfigs = backupConfigs,
                                 onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
                                 onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
@@ -523,7 +549,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         text = effectiveText,
                                         imageBase64 = null,
                                         mimeType = null,
-                                        primaryConfigs = primaryConfigs,
+                                        primaryConfigs = translationConfigs,
                                         backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.TRANSLATION),
                                         onBackup = getBackupListener(AnalysisStep.TRANSLATION),
@@ -556,7 +582,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         text = effectiveText,
                                         imageBase64 = null,
                                         mimeType = null,
-                                        primaryConfigs = primaryConfigs,
+                                        primaryConfigs = clausesConfigs,
                                         backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.CLAUSE_ANALYSIS),
                                         onBackup = getBackupListener(AnalysisStep.CLAUSE_ANALYSIS),
@@ -589,7 +615,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         text = effectiveText,
                                         imageBase64 = null,
                                         mimeType = null,
-                                        primaryConfigs = primaryConfigs,
+                                        primaryConfigs = grammarConfigs,
                                         backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION),
                                         onBackup = getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION),
@@ -623,7 +649,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         tokens = tokens,
                                         imageBase64 = null,
                                         mimeType = null,
-                                        primaryConfigs = primaryConfigs,
+                                        primaryConfigs = segmentsConfigs,
                                         backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.DETAILED_GRAMMAR),
                                         onBackup = getBackupListener(AnalysisStep.DETAILED_GRAMMAR),
@@ -663,7 +689,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         text = text,
                                         imageBase64 = imageBase64,
                                         mimeType = mimeType,
-                                        primaryConfigs = primaryConfigs,
+                                        primaryConfigs = translationConfigs,
                                         backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.TRANSLATION),
                                         onBackup = getBackupListener(AnalysisStep.TRANSLATION),
@@ -696,7 +722,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         text = text,
                                         imageBase64 = imageBase64,
                                         mimeType = mimeType,
-                                        primaryConfigs = primaryConfigs,
+                                        primaryConfigs = clausesConfigs,
                                         backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.CLAUSE_ANALYSIS),
                                         onBackup = getBackupListener(AnalysisStep.CLAUSE_ANALYSIS),
@@ -729,7 +755,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         text = text,
                                         imageBase64 = imageBase64,
                                         mimeType = mimeType,
-                                        primaryConfigs = primaryConfigs,
+                                        primaryConfigs = grammarConfigs,
                                         backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.GRAMMAR_EXPLANATION),
                                         onBackup = getBackupListener(AnalysisStep.GRAMMAR_EXPLANATION),
@@ -766,7 +792,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         mimeType = mimeType,
                                         isOcrMode = false,
                                         imageTokenizerMode = imageTokenizerMode,
-                                        primaryConfigs = primaryConfigs,
+                                        primaryConfigs = tokenizerConfigs,
                                         backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.TOKENIZATION),
                                         onBackup = getBackupListener(AnalysisStep.TOKENIZATION),
@@ -812,7 +838,7 @@ class DefaultAnalysisTaskManager @Inject constructor(
                                         tokens = tokens,
                                         imageBase64 = imageBase64,
                                         mimeType = mimeType,
-                                        primaryConfigs = primaryConfigs,
+                                        primaryConfigs = segmentsConfigs,
                                         backupConfigs = backupConfigs,
                                         onRetry = getRetryListener(AnalysisStep.DETAILED_GRAMMAR),
                                         onBackup = getBackupListener(AnalysisStep.DETAILED_GRAMMAR),

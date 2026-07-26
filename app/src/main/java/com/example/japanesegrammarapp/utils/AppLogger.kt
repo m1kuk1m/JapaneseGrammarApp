@@ -316,7 +316,7 @@ object AppLogger {
         return try {
             androidx.core.content.FileProvider.getUriForFile(
                 context,
-                "com.example.japanesegrammarapp.fileprovider",
+                "${context.packageName}.fileprovider",
                 file
             )
         } catch (e: Exception) {

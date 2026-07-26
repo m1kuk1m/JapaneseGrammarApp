@@ -268,6 +268,8 @@ class BookmarkViewModelFilterTest {
         override fun getComponentReasoningLevel(apiTypeLabel: String): com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel = com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel.GLOBAL
         override fun setComponentReasoningLevel(apiTypeLabel: String, level: com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel) = Unit
         override fun getEffectiveReasoningLevel(apiTypeLabel: String): com.example.japanesegrammarapp.domain.model.ReasoningLevel = com.example.japanesegrammarapp.domain.model.ReasoningLevel.AUTO
+        override fun getComponentModelConfig(apiTypeLabel: String): com.example.japanesegrammarapp.domain.model.ComponentModelConfig = com.example.japanesegrammarapp.domain.model.ComponentModelConfig()
+        override fun setComponentModelConfig(apiTypeLabel: String, config: com.example.japanesegrammarapp.domain.model.ComponentModelConfig) = Unit
         override fun getUseBackupApi(): Boolean = false
         override fun setUseBackupApi(value: Boolean) = Unit
         override fun getAutoRetryOnError(): Boolean = false

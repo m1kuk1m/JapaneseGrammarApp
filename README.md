@@ -15,9 +15,7 @@
   </a>
 </p>
 
-YomiLLM is a modern, developer-friendly Android utility designed to help users analyze Japanese sentences. Utilizing OCR text capture and configurable Large Language Models (LLMs), the application parses complex sentences into grammar-focused explanations, making Japanese study more interactive and efficient.
-
----
+An Android app for analyzing Japanese sentences. Capture text with the camera or from an image, and it breaks the sentence down into per-word grammar explanations using an LLM provider you configure yourself.
 
 ## Preview
 
@@ -26,39 +24,34 @@ YomiLLM is a modern, developer-friendly Android utility designed to help users a
   <img src="docs/screenshots/analysis-result.jpg" alt="Analysis Result Screen" width="280" style="border-radius: 8px;">
 </p>
 
----
-
 ## Features
 
-* **Advanced Grammar Analysis**: Breaks down Japanese sentences, providing detailed lexical, syntactic, and grammatical breakdowns.
-* **OCR-Assisted Text Capture**: Capture Japanese text directly using the device camera or local image inputs.
-* **Customizable OCR Region Tuning**: Calibrate text-region detection boundaries for horizontal, vertical, or complex layouts.
-* **Local Storage & History**: Keep a persistent history of analyzed sentences locally on your device.
-* **Bookmarks & Flashcards**: Bookmark specific sentences or segments and review them using an interactive flashcard system.
-* **Configurable LLM & TTS Providers**: Set up custom LLM endpoints (e.g., Gemini, OpenAI, Claude) and Text-to-Speech (TTS) backends directly within the settings.
-
----
+* **Grammar analysis** — splits a sentence into tokens and explains the lexical, syntactic, and grammatical role of each.
+* **OCR text capture** — read Japanese text from the camera or a local image. Region detection handles horizontal and vertical layouts, and the detection boundaries are tunable if it gets a line wrong.
+* **Bookmarks and flashcards** — save sentences, words, or grammar points, then review them as flashcards. Import/export supports JSON, CSV, and Anki-compatible TSV.
+* **History** — analyzed sentences are kept locally, with full-text search.
+* **Learning statistics** — daily through yearly activity, with charts and a heatmap.
+* **Bring your own provider** — point it at Gemini, OpenAI, Claude, or any compatible endpoint. TTS backends are configurable too.
 
 ## Security & Privacy
 
-We prioritize user security and credential privacy:
-* **Encrypted Shared Preferences**: All API keys and credentials are encrypted using `EncryptedSharedPreferences` at the OS level, keeping them secure from other apps or root access.
-* **No Middleman Servers**: The app communicates directly from your device to your configured LLM/TTS provider's API. No intermediate servers store your credentials or analytics.
-* **Offline-First Storage**: Sentence analysis history, bookmarks, and flashcards are stored in a secure local Room database.
+How credentials and data are handled:
 
----
+* **API keys** are stored via `EncryptedSharedPreferences` (AES256-SIV keys, AES256-GCM values), backed by a `MasterKey` in the Android Keystore. Note this protects against other apps and offline extraction, not against an attacker with root on the device. The underlying `androidx.security:security-crypto` dependency is currently on an alpha release (`1.1.0-alpha06`).
+* **No middleman servers.** Requests go from your device straight to whichever LLM/TTS endpoint you configured. Nothing is proxied, and no credentials or analytics are collected.
+* **Local storage.** History, bookmarks, and flashcards live in an on-device Room database.
 
 ## Tech Stack
 
-* **UI Layer**: Jetpack Compose (1.5.4) using Material 3 design tokens.
-* **Dependency Injection**: Hilt (2.48) for clean architecture decoupling.
-* **Local Database**: Room (2.6.1) with SQLite backend, schema migrations, and Paging 3 integrations.
-* **Networking**: Retrofit (2.9.0) and OkHttp logging interceptors.
-* **Text Recognition (OCR)**: Google ML Kit Japanese Text Recognition.
-* **Text Region Detection**: ONNX Runtime Android (1.18.0) running a bundled local PP-OCRv4 detection model.
-* **Image Loading**: Coil Compose for memory-efficient bitmap rendering.
-
----
+* **UI** — Jetpack Compose (BOM 2024.02.00), Material 3, Navigation Compose
+* **DI** — Hilt (2.48)
+* **Database** — Room (2.6.1) with schema migrations and Paging 3
+* **Networking** — Retrofit (2.9.0) with OkHttp (4.12.0); `okhttp-sse` for streaming responses
+* **OCR** — Google ML Kit Japanese text recognition
+* **Text region detection** — ONNX Runtime Android (1.18.0) running a bundled PP-OCRv4 detection model
+* **Camera** — CameraX (1.3.1)
+* **Charts** — Vico (1.13.0)
+* **Image loading** — Coil (2.5.0)
 
 ## For Developers
 
@@ -94,8 +87,6 @@ To run unit tests across all repositories, view models, and use cases:
 ./gradlew testDebugUnitTest
 ```
 
----
-
 ## Release Signing
 
 To sign release builds, signing keys should never be committed to source control. You can configure release signing locally by adding the following keys to your local configuration (e.g., `local.properties` or environment variables):
@@ -109,13 +100,13 @@ RELEASE_KEY_PASSWORD=your_key_password
 
 For automated deployments, the included GitHub Actions release workflow builds and signs APK assets using base64 encoded secrets.
 
----
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the version history, or the [Releases page](https://github.com/m1kuk1m/JapaneseGrammarApp/releases) for signed APKs with SHA256 checksums.
 
 ## Third-Party Notices
 
-The local OCR detector utilizes the PP-OCRv4 model. For licenses and upstream source details regarding bundled ONNX models, please refer to [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
----
+The local OCR detector uses the PP-OCRv4 model. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for licenses and upstream sources of the bundled ONNX models.
 
 ## License
 

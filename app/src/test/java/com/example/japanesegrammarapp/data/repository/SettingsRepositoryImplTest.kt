@@ -1,6 +1,9 @@
 package com.example.japanesegrammarapp.data.repository
 
 import android.content.SharedPreferences
+import com.example.japanesegrammarapp.domain.model.AnalysisModule
+import com.example.japanesegrammarapp.domain.model.ComponentModelConfig
+import com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel
 import com.example.japanesegrammarapp.domain.model.EndpointUrlValidator
 import com.example.japanesegrammarapp.domain.model.LlmConfig
 import com.example.japanesegrammarapp.domain.model.LlmEndpoint
@@ -20,6 +23,117 @@ class SettingsRepositoryImplTest {
 
         assertFalse(state.useOcr)
         assertEquals("faithful", state.imageTokenizerMode)
+    }
+
+    @Test
+    fun componentModelConfigDefaultsToGlobal() {
+        val repository = newRepository()
+
+        val config = repository.getComponentModelConfig(AnalysisModule.TRANSLATION.id)
+
+        assertTrue(config.isGlobal)
+    }
+
+    @Test
+    fun componentModelConfigRoundTripsAndPersists() {
+        val standardPrefs = TestSharedPreferences()
+        val securePrefs = TestSharedPreferences()
+        val repository = newRepository(standardPrefs, securePrefs)
+        val label = AnalysisModule.TRANSLATION.id
+
+        repository.setComponentModelConfig(label, ComponentModelConfig("DeepSeek", "deepseek-chat"))
+
+        val loaded = repository.getComponentModelConfig(label)
+        assertFalse(loaded.isGlobal)
+        assertEquals("DeepSeek", loaded.provider)
+        assertEquals("deepseek-chat", loaded.model)
+
+        // A fresh repository instance reads the same values back from prefs (no cache)
+        val reloaded = newRepository(standardPrefs, securePrefs).getComponentModelConfig(label)
+        assertEquals("DeepSeek", reloaded.provider)
+        assertEquals("deepseek-chat", reloaded.model)
+    }
+
+    @Test
+    fun settingGlobalComponentModelConfigClearsOverride() {
+        val standardPrefs = TestSharedPreferences()
+        val repository = newRepository(standardPrefs, TestSharedPreferences())
+        val label = AnalysisModule.TOKENIZER_TEXT.id
+
+        repository.setComponentModelConfig(label, ComponentModelConfig("Gemini", "gemini-3.5-flash"))
+        repository.setComponentModelConfig(label, ComponentModelConfig())
+
+        assertTrue(repository.getComponentModelConfig(label).isGlobal)
+        // Cleared state must survive a reload and must not fall back to the legacy key
+        assertTrue(
+            newRepository(standardPrefs, TestSharedPreferences())
+                .getComponentModelConfig(label).isGlobal
+        )
+    }
+
+    @Test
+    fun legacyComponentModelConfigKeyIsInheritedByAllTokenizerVariants() {
+        val standardPrefs = TestSharedPreferences().apply {
+            edit()
+                .putString("component_model_provider_word_segmentation", "Gemini")
+                .putString("component_model_name_word_segmentation", "gemini-3.5-flash")
+                .apply()
+        }
+        val repository = newRepository(standardPrefs, TestSharedPreferences())
+
+        AnalysisModule.entries.filter { it.isTokenizer }.forEach { module ->
+            val config = repository.getComponentModelConfig(module.id)
+            assertEquals("inherited by ${module.id}", "Gemini", config.provider)
+            assertEquals("inherited by ${module.id}", "gemini-3.5-flash", config.model)
+        }
+        // Non-tokenizer modules have a different legacy slug and stay global
+        assertTrue(repository.getComponentModelConfig(AnalysisModule.TRANSLATION.id).isGlobal)
+    }
+
+    @Test
+    fun tokenizerVariantsBecomeIndependentAfterWrite() {
+        val standardPrefs = TestSharedPreferences().apply {
+            edit()
+                .putString("component_model_provider_word_segmentation", "Gemini")
+                .putString("component_model_name_word_segmentation", "gemini-3.5-flash")
+                .apply()
+        }
+        val repository = newRepository(standardPrefs, TestSharedPreferences())
+
+        repository.setComponentModelConfig(
+            AnalysisModule.TOKENIZER_IMAGE.id,
+            ComponentModelConfig("DeepSeek", "deepseek-chat")
+        )
+
+        assertEquals("DeepSeek", repository.getComponentModelConfig(AnalysisModule.TOKENIZER_IMAGE.id).provider)
+        assertEquals("Gemini", repository.getComponentModelConfig(AnalysisModule.TOKENIZER_TEXT.id).provider)
+        assertEquals("Gemini", repository.getComponentModelConfig(AnalysisModule.TOKENIZER_OCR.id).provider)
+    }
+
+    @Test
+    fun legacyCotLevelKeyIsInheritedByAllTokenizerVariantsUntilOverridden() {
+        val standardPrefs = TestSharedPreferences().apply {
+            edit().putString("cot_level_word_segmentation", ComponentReasoningLevel.HIGH.name).apply()
+        }
+        val repository = newRepository(standardPrefs, TestSharedPreferences())
+
+        AnalysisModule.entries.filter { it.isTokenizer }.forEach { module ->
+            assertEquals(
+                "inherited by ${module.id}",
+                ComponentReasoningLevel.HIGH,
+                repository.getComponentReasoningLevel(module.id)
+            )
+        }
+        assertEquals(
+            ComponentReasoningLevel.GLOBAL,
+            repository.getComponentReasoningLevel(AnalysisModule.TRANSLATION.id)
+        )
+
+        repository.setComponentReasoningLevel(AnalysisModule.TOKENIZER_IMAGE.id, ComponentReasoningLevel.LOW)
+
+        val reloaded = newRepository(standardPrefs, TestSharedPreferences())
+        assertEquals(ComponentReasoningLevel.LOW, reloaded.getComponentReasoningLevel(AnalysisModule.TOKENIZER_IMAGE.id))
+        assertEquals(ComponentReasoningLevel.HIGH, reloaded.getComponentReasoningLevel(AnalysisModule.TOKENIZER_TEXT.id))
     }
 
     @Test

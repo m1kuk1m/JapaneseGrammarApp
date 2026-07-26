@@ -44,6 +44,7 @@ class SettingsRepositoryImpl @Inject constructor(
     @Volatile private var cachedBackupModel: String? = null
     private val cachedActiveModels = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val cachedComponentReasoningLevels = java.util.concurrent.ConcurrentHashMap<String, ComponentReasoningLevel>()
+    private val cachedComponentModelConfigs = java.util.concurrent.ConcurrentHashMap<String, com.example.japanesegrammarapp.domain.model.ComponentModelConfig>()
     private val cachedModelsList = java.util.concurrent.ConcurrentHashMap<String, List<String>>()
     private val cachedApiKeys = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val cachedApiUrls = java.util.concurrent.ConcurrentHashMap<String, String>()
@@ -110,22 +111,22 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     private fun getComponentPrefsKey(apiTypeLabel: String): String {
-        return when (apiTypeLabel) {
-            "単語分割" -> "cot_level_word_segmentation"
-            "翻訳" -> "cot_level_translation"
-            "文節解析" -> "cot_level_clause_analysis"
-            "文法解説" -> "cot_level_grammar_explanation"
-            "詳細文法解析" -> "cot_level_detailed_analysis"
-            else -> "cot_level_" + apiTypeLabel
-        }
+        return "cot_level_$apiTypeLabel"
+    }
+
+    /** 旧バージョンのキー(移行読み取りフォールバック用)。新キーと同一なら null。 */
+    private fun getLegacyComponentPrefsKey(apiTypeLabel: String): String? {
+        val legacySlug = com.example.japanesegrammarapp.domain.model.AnalysisModule.fromId(apiTypeLabel)?.legacySlug
+            ?: return null
+        return "cot_level_$legacySlug".takeIf { it != getComponentPrefsKey(apiTypeLabel) }
     }
 
     override fun getComponentReasoningLevel(apiTypeLabel: String): ComponentReasoningLevel {
         val cached = cachedComponentReasoningLevels[apiTypeLabel]
         if (cached != null) return cached
-        val key = getComponentPrefsKey(apiTypeLabel)
-        val name = settingPrefs.getString(key, ComponentReasoningLevel.GLOBAL.name)
-        val level = ComponentReasoningLevel.fromString(name)
+        val name = settingPrefs.getString(getComponentPrefsKey(apiTypeLabel), null)
+            ?: getLegacyComponentPrefsKey(apiTypeLabel)?.let { settingPrefs.getString(it, null) }
+        val level = ComponentReasoningLevel.fromString(name ?: ComponentReasoningLevel.GLOBAL.name)
         cachedComponentReasoningLevels[apiTypeLabel] = level
         return level
     }
@@ -139,6 +140,41 @@ class SettingsRepositoryImpl @Inject constructor(
     override fun getEffectiveReasoningLevel(apiTypeLabel: String): ReasoningLevel {
         val level = getComponentReasoningLevel(apiTypeLabel)
         return level.toReasoningLevel(getReasoningLevel())
+    }
+
+    override fun getComponentModelConfig(apiTypeLabel: String): com.example.japanesegrammarapp.domain.model.ComponentModelConfig {
+        val cached = cachedComponentModelConfigs[apiTypeLabel]
+        if (cached != null) return cached
+        var provider = settingPrefs.getString("component_model_provider_$apiTypeLabel", null)
+        var model = settingPrefs.getString("component_model_name_$apiTypeLabel", null)
+        if (provider == null && model == null) {
+            // 旧キー(legacySlug)からの移行読み取りフォールバック
+            val legacySlug = com.example.japanesegrammarapp.domain.model.AnalysisModule.fromId(apiTypeLabel)?.legacySlug
+            if (legacySlug != null && legacySlug != apiTypeLabel) {
+                provider = settingPrefs.getString("component_model_provider_$legacySlug", null)
+                model = settingPrefs.getString("component_model_name_$legacySlug", null)
+            }
+        }
+        val config = com.example.japanesegrammarapp.domain.model.ComponentModelConfig(provider ?: "", model ?: "")
+        cachedComponentModelConfigs[apiTypeLabel] = config
+        return config
+    }
+
+    override fun setComponentModelConfig(apiTypeLabel: String, config: com.example.japanesegrammarapp.domain.model.ComponentModelConfig) {
+        if (config.isGlobal) {
+            cachedComponentModelConfigs[apiTypeLabel] = com.example.japanesegrammarapp.domain.model.ComponentModelConfig()
+            // 空文字を明示的に保存する(remove すると旧キーへのフォールバックが復活してしまうため)
+            settingPrefs.edit()
+                .putString("component_model_provider_$apiTypeLabel", "")
+                .putString("component_model_name_$apiTypeLabel", "")
+                .apply()
+        } else {
+            cachedComponentModelConfigs[apiTypeLabel] = config
+            settingPrefs.edit()
+                .putString("component_model_provider_$apiTypeLabel", config.provider)
+                .putString("component_model_name_$apiTypeLabel", config.model)
+                .apply()
+        }
     }
 
     override fun getAllProviders(): List<String> {
@@ -767,11 +803,7 @@ class SettingsRepositoryImpl @Inject constructor(
                     // Migration logic
                     if (cachedPromptPresets.isEmpty()) {
                         val legacyPrompts = mutableMapOf<String, String>()
-                        val promptKeys = listOf(
-                            "prompt_translation", "prompt_segments", "prompt_clauses",
-                            "prompt_grammar", "prompt_tokenizer", "prompt_tokenizer_ocr",
-                            "prompt_tokenizer_image", "prompt_tokenizer_image_repair"
-                        )
+                        val promptKeys = com.example.japanesegrammarapp.domain.model.AnalysisModule.entries.map { it.promptKey }
                         var hasLegacy = false
                         for (key in promptKeys) {
                             if (settingPrefs.contains(key)) {

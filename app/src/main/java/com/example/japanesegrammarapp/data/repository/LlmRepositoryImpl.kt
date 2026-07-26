@@ -197,7 +197,9 @@ class LlmRepositoryImpl @Inject constructor(
                     contents = listOf(GeminiContent(role = "user", parts = parts)),
                     systemInstruction = GeminiSystemInstruction(parts = listOf(GeminiPart(text = systemPrompt))),
                     generationConfig = GeminiGenerationConfig(
-                        temperature = 0.1,
+                        // Gemini 3.x は temperature をデフォルト(1.0)のままにすることが公式推奨
+                        // (低温設定は推論劣化・ループの原因になる)
+                        temperature = if (LlmConfig.isGemini3Model(modelName)) null else 0.1,
                         thinkingConfig = thinkingConfig
                     ),
                     safetySettings = safetySettings
@@ -895,7 +897,8 @@ class LlmRepositoryImpl @Inject constructor(
                                 contents = listOf(GeminiContent(role = "user", parts = parts)),
                                 systemInstruction = GeminiSystemInstruction(parts = listOf(GeminiPart(text = systemPrompt))),
                                 generationConfig = GeminiGenerationConfig(
-                                    temperature = 0.1,
+                                    // Gemini 3.x は temperature をデフォルト(1.0)のままにすることが公式推奨
+                                    temperature = if (LlmConfig.isGemini3Model(config.modelName)) null else 0.1,
                                     thinkingConfig = thinkingConfig
                                 ),
                                 safetySettings = safetySettings

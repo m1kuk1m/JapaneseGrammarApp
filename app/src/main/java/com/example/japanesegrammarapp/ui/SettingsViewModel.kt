@@ -18,6 +18,7 @@ import com.example.japanesegrammarapp.domain.model.PromptPreset
 import com.example.japanesegrammarapp.domain.model.ReasoningLevel
 import com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel
 import com.example.japanesegrammarapp.R
+import com.example.japanesegrammarapp.ui.screens.moduleDisplayName
 import com.example.japanesegrammarapp.utils.ApiDebugLog
 import com.example.japanesegrammarapp.utils.ApiLogExportFormatter
 import com.example.japanesegrammarapp.utils.AppLogger
@@ -72,9 +73,12 @@ class SettingsViewModel @Inject constructor(
             val useBackupApi = settingsRepository.getUseBackupApi()
             val autoRetryOnError = settingsRepository.getAutoRetryOnError()
             val failoverToNextEndpoint = settingsRepository.getFailoverToNextEndpoint()
-            val componentLabels = listOf("単語分割", "翻訳", "文節解析", "文法解説", "詳細文法解析")
+            val componentLabels = com.example.japanesegrammarapp.domain.model.AnalysisModule.entries.map { it.id }
             val componentReasoningLevels = componentLabels.associateWith {
                 settingsRepository.getComponentReasoningLevel(it)
+            }
+            val componentModelConfigs = componentLabels.associateWith {
+                settingsRepository.getComponentModelConfig(it)
             }
 
             val models = providerModels[activeProvider] ?: emptyList()
@@ -103,6 +107,7 @@ class SettingsViewModel @Inject constructor(
                 it.copy(
                     reasoningLevel = reasoningLevel,
                     componentReasoningLevels = componentReasoningLevels,
+                    componentModelConfigs = componentModelConfigs,
                     activeProvider = activeProvider,
                     activeModel = finalActiveModel,
                     useOcr = useOcr,
@@ -626,7 +631,9 @@ class SettingsViewModel @Inject constructor(
     fun shareApiLogs(logs: List<ApiDebugLog>, includeFull: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val formattedLogs = ApiLogExportFormatter.format(logs, includeFull)
+                val formattedLogs = ApiLogExportFormatter.format(logs, includeFull) {
+                    moduleDisplayName(application, it)
+                }
                 val tempFile = File(application.cacheDir, "exports/api_logs_export.txt")
                 tempFile.parentFile?.mkdirs()
                 tempFile.writeText(formattedLogs)
@@ -934,6 +941,20 @@ class SettingsViewModel @Inject constructor(
                 this[apiTypeLabel] = level
             }
             state.copy(componentReasoningLevels = updated)
+        }
+    }
+
+    fun setComponentModelConfig(apiTypeLabel: String, config: com.example.japanesegrammarapp.domain.model.ComponentModelConfig) {
+        settingsRepository.setComponentModelConfig(apiTypeLabel, config)
+        _uiState.update { state ->
+            val updated = state.componentModelConfigs.toMutableMap().apply {
+                this[apiTypeLabel] = if (config.isGlobal) {
+                    com.example.japanesegrammarapp.domain.model.ComponentModelConfig()
+                } else {
+                    config
+                }
+            }
+            state.copy(componentModelConfigs = updated)
         }
     }
 

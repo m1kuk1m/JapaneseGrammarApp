@@ -9,6 +9,7 @@ import com.example.japanesegrammarapp.domain.model.ComponentReasoningLevel
 data class SettingsUiState(
     val reasoningLevel: ReasoningLevel = ReasoningLevel.AUTO,
     val componentReasoningLevels: Map<String, ComponentReasoningLevel> = emptyMap(),
+    val componentModelConfigs: Map<String, com.example.japanesegrammarapp.domain.model.ComponentModelConfig> = emptyMap(),
     val activeProvider: String = "Gemini",
     val activeModel: String = "",
     val availableModels: List<String> = emptyList(),

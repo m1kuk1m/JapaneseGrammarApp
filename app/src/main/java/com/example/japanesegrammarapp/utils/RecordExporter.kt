@@ -202,7 +202,7 @@ object RecordExporter {
         file.writeText(content)
         return androidx.core.content.FileProvider.getUriForFile(
             context,
-            "com.example.japanesegrammarapp.fileprovider",
+            "${context.packageName}.fileprovider",
             file
         )
     }
@@ -217,7 +217,7 @@ object RecordExporter {
         file.writeText(content)
         return androidx.core.content.FileProvider.getUriForFile(
             context,
-            "com.example.japanesegrammarapp.fileprovider",
+            "${context.packageName}.fileprovider",
             file
         )
     }

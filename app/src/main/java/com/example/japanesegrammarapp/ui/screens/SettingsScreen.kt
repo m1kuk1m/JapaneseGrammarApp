@@ -175,6 +175,7 @@ fun SettingsScreen(
 
     var expandedProvider by remember { mutableStateOf<String?>(null) }
     var showCotDepthDialog by remember { mutableStateOf(false) }
+    var showComponentModelDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     var customModelInputs by remember { mutableStateOf(providers.associateWith { "" }) }
@@ -590,7 +591,8 @@ fun SettingsScreen(
                                     onFailoverToNextEndpointChange = viewModel::setFailoverToNextEndpoint,
                                     onReasoningLevelChange = viewModel::setReasoningLevel,
                                     onComponentReasoningLevelChange = viewModel::setComponentReasoningLevel,
-                                    onOpenCotDialog = { showCotDepthDialog = true }
+                                    onOpenCotDialog = { showCotDepthDialog = true },
+                                    onOpenComponentModelDialog = { showComponentModelDialog = true }
                                 )
 
                                 SettingsCredentialsSection(
@@ -1031,6 +1033,16 @@ fun SettingsScreen(
             componentReasoningLevels = uiState.componentReasoningLevels,
             onComponentReasoningLevelChange = viewModel::setComponentReasoningLevel,
             onDismiss = { showCotDepthDialog = false }
+        )
+    }
+
+    if (showComponentModelDialog) {
+        ComponentModelDialog(
+            componentModelConfigs = uiState.componentModelConfigs,
+            allProviders = uiState.allProviders,
+            providerModels = uiState.providerModels,
+            onComponentModelConfigChange = viewModel::setComponentModelConfig,
+            onDismiss = { showComponentModelDialog = false }
         )
     }
 

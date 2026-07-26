@@ -312,17 +312,8 @@ private fun PromptTypeSelector(
     surfaceColor: Color
 ) {
     var dropdownExpanded by remember { mutableStateOf(false) }
-    val promptKeys = listOf(
-        "prompt_translation" to R.string.prompt_type_translation,
-        "prompt_segments" to R.string.prompt_type_segments,
-        "prompt_clauses" to R.string.prompt_type_clauses,
-        "prompt_grammar" to R.string.prompt_type_grammar,
-        "prompt_tokenizer" to R.string.prompt_type_tokenizer,
-        "prompt_tokenizer_ocr" to R.string.prompt_type_tokenizer_ocr,
-        "prompt_tokenizer_image" to R.string.prompt_type_tokenizer_image,
-        "prompt_tokenizer_image_repair" to R.string.prompt_type_tokenizer_image_repair
-    )
-    val selectedLabelRes = promptKeys.find { it.first == selectedPromptKey }?.second ?: R.string.prompt_type_translation
+    val promptKeys = com.example.japanesegrammarapp.domain.model.AnalysisModule.entries.map { it.promptKey to it.displayNameRes() }
+    val selectedLabelRes = promptKeys.find { it.first == selectedPromptKey }?.second ?: R.string.overall_translation
 
     Text(
         text = stringResource(R.string.prompt_select_type),

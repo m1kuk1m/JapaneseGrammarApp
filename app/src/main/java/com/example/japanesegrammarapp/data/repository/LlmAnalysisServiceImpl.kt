@@ -4,6 +4,7 @@ import com.example.japanesegrammarapp.domain.repository.LlmAnalysisService
 import com.example.japanesegrammarapp.domain.repository.LlmRepository
 import com.example.japanesegrammarapp.domain.repository.LlmApiConfig
 import com.example.japanesegrammarapp.domain.repository.LlmResultMetadata
+import com.example.japanesegrammarapp.domain.model.AnalysisModule
 import com.example.japanesegrammarapp.domain.model.DetailedAnalysisResult
 import com.example.japanesegrammarapp.domain.model.TokenizationResult
 import com.example.japanesegrammarapp.domain.model.WordSegment
@@ -49,12 +50,9 @@ class LlmAnalysisServiceImpl @Inject constructor(
         recordId: Int?,
         stepName: String?
     ): Flow<Pair<TokenizationResult?, LlmResultMetadata>> {
-        val systemPrompt = when {
-            imageBase64 != null && imageTokenizerMode == "repair" -> settingsRepository.getCustomPrompt("prompt_tokenizer_image_repair")
-            imageBase64 != null -> settingsRepository.getCustomPrompt("prompt_tokenizer_image")
-            isOcrMode -> settingsRepository.getCustomPrompt("prompt_tokenizer_ocr")
-            else -> settingsRepository.getCustomPrompt("prompt_tokenizer")
-        }
+        // 入力モードに応じた tokenizer 変種(プロンプト選択と apiTypeLabel を単一の解決に統合)
+        val module = AnalysisModule.tokenizerVariant(imageBase64, isOcrMode, imageTokenizerMode)
+        val systemPrompt = settingsRepository.getCustomPrompt(module.promptKey)
 
         val userPrompt = when {
             imageBase64 != null && imageTokenizerMode == "repair" -> "画像内の日本語テキストを視覚情報優先で読み取り、不鮮明な場合も文脈は類似字形候補を選ぶ補助に限定してください。意味・自然さ・頻度・安全性を理由に一般語へ置き換えず、濁点/半濁点/長音符/小書き文字は画像上の痕跡を優先してください。テキストで出力してください。"
@@ -68,7 +66,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
             mimeType = mimeType,
-            apiTypeLabel = "単語分割",
+            apiTypeLabel = module.id,
             primaryConfigs = primaryConfigs,
             backupConfigs = backupConfigs,
             onRetry = onRetry,
@@ -118,7 +116,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
             mimeType = mimeType,
-            apiTypeLabel = "翻訳",
+            apiTypeLabel = AnalysisModule.TRANSLATION.id,
             primaryConfigs = primaryConfigs,
             backupConfigs = backupConfigs,
             onRetry = onRetry,
@@ -153,7 +151,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
             mimeType = mimeType,
-            apiTypeLabel = "文節解析",
+            apiTypeLabel = AnalysisModule.CLAUSES.id,
             primaryConfigs = primaryConfigs,
             backupConfigs = backupConfigs,
             onRetry = onRetry,
@@ -200,7 +198,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
             mimeType = mimeType,
-            apiTypeLabel = "文法解説",
+            apiTypeLabel = AnalysisModule.GRAMMAR.id,
             primaryConfigs = primaryConfigs,
             backupConfigs = backupConfigs,
             onRetry = onRetry,
@@ -256,7 +254,7 @@ class LlmAnalysisServiceImpl @Inject constructor(
             userPrompt = userPrompt,
             imageBase64 = imageBase64,
             mimeType = mimeType,
-            apiTypeLabel = "詳細文法解析",
+            apiTypeLabel = AnalysisModule.SEGMENTS.id,
             primaryConfigs = primaryConfigs,
             backupConfigs = backupConfigs,
             onRetry = onRetry,
