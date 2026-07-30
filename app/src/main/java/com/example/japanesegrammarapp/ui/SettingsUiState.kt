@@ -16,6 +16,7 @@ data class SettingsUiState(
     val providerModels: Map<String, List<String>> = emptyMap(),
     val useOcr: Boolean = false,
     val autoNavigateResult: Boolean = true,
+    val silentBackgroundMode: Boolean = false,
     val removeAccidentalSpaces: Boolean = true,
     val useBackupApi: Boolean = false,
     val autoRetryOnError: Boolean = false,

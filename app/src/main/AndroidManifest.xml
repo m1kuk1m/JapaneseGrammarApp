@@ -38,6 +38,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ExternalTextReceiverActivity"
+            android:exported="true"
+            android:theme="@style/Theme.YomiLLM.Translucent"
+            android:noHistory="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity="">
             <intent-filter android:label="@string/action_process_text">
                 <action android:name="android.intent.action.PROCESS_TEXT" />
                 <category android:name="android.intent.category.DEFAULT" />

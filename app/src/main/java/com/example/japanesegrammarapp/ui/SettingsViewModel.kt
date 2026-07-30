@@ -64,6 +64,7 @@ class SettingsViewModel @Inject constructor(
             val useOcr = settingsRepository.getUseOcr()
             val reasoningLevel = settingsRepository.getReasoningLevel()
             val autoNavigateResult = settingsRepository.getAutoNavigateResult()
+            val silentBackgroundMode = settingsRepository.getSilentBackgroundMode()
             val removeAccidentalSpaces = settingsRepository.getRemoveAccidentalSpaces()
             val autoDeskewAfterCapture = settingsRepository.getAutoDeskewAfterCapture()
             val imageTokenizerMode = settingsRepository.getImageTokenizerMode()
@@ -112,6 +113,7 @@ class SettingsViewModel @Inject constructor(
                     activeModel = finalActiveModel,
                     useOcr = useOcr,
                     autoNavigateResult = autoNavigateResult,
+                    silentBackgroundMode = silentBackgroundMode,
                     removeAccidentalSpaces = removeAccidentalSpaces,
                     useBackupApi = useBackupApi,
                     autoRetryOnError = autoRetryOnError,
@@ -151,6 +153,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.wallpaperUri.collect { uri ->
                 _uiState.update { it.copy(wallpaperUri = uri) }
+            }
+        }
+
+        viewModelScope.launch {
+            settingsRepository.silentBackgroundMode.collect { mode ->
+                _uiState.update { it.copy(silentBackgroundMode = mode) }
             }
         }
 
@@ -326,6 +334,11 @@ class SettingsViewModel @Inject constructor(
     fun setAutoNavigateResult(value: Boolean) {
         settingsRepository.setAutoNavigateResult(value)
         _uiState.update { it.copy(autoNavigateResult = value) }
+    }
+
+    fun setSilentBackgroundMode(value: Boolean) {
+        settingsRepository.setSilentBackgroundMode(value)
+        _uiState.update { it.copy(silentBackgroundMode = value) }
     }
 
     fun setRemoveAccidentalSpaces(value: Boolean) {

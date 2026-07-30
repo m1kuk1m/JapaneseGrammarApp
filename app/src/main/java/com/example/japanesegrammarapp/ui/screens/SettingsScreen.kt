@@ -556,6 +556,7 @@ fun SettingsScreen(
                                     uiState = uiState,
                                     currentLangLabel = currentLangLabel,
                                     onAutoNavigateResultChange = viewModel::setAutoNavigateResult,
+                                    onSilentBackgroundModeChange = viewModel::setSilentBackgroundMode,
                                     onRemoveAccidentalSpacesChange = viewModel::setRemoveAccidentalSpaces
                                 )
                             }

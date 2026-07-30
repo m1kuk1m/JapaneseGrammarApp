@@ -353,6 +353,8 @@ private object FakeSettingsRepository : SettingsRepository {
     override fun resetOcrBoxDetectionSettings() = Unit
     override fun getAutoNavigateResult(): Boolean = true
     override fun setAutoNavigateResult(value: Boolean) = Unit
+    override fun getSilentBackgroundMode(): Boolean = false
+    override fun setSilentBackgroundMode(value: Boolean) = Unit
     override fun getAutoDeskewAfterCapture(): Boolean = false
     override fun setAutoDeskewAfterCapture(value: Boolean) = Unit
     override fun getModelsForProvider(provider: String): List<String> = emptyList()
@@ -367,6 +369,7 @@ private object FakeSettingsRepository : SettingsRepository {
     override fun setWallpaperUri(uri: String) = Unit
     override val themeMode = MutableStateFlow("System")
     override val wallpaperUri = MutableStateFlow("")
+    override val silentBackgroundMode = MutableStateFlow(false)
     override fun getCustomPrompt(promptKey: String): String = ""
     override fun saveCustomPrompt(promptKey: String, prompt: String) = Unit
     override fun resetCustomPrompt(promptKey: String) = Unit

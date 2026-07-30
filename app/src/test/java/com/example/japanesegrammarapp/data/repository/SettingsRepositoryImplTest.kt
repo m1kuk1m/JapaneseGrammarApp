@@ -312,6 +312,23 @@ class SettingsRepositoryImplTest {
         assertEquals("ready-key", configs.single().key)
     }
 
+    @Test
+    fun silentBackgroundModeDefaultsToFalseAndPersists() {
+        val standardPrefs = TestSharedPreferences()
+        val repository = newRepository(standardPrefs)
+
+        assertFalse(repository.getSilentBackgroundMode())
+        assertFalse(repository.silentBackgroundMode.value)
+
+        repository.setSilentBackgroundMode(true)
+
+        assertTrue(repository.getSilentBackgroundMode())
+        assertTrue(repository.silentBackgroundMode.value)
+
+        val reloaded = newRepository(standardPrefs)
+        assertTrue(reloaded.getSilentBackgroundMode())
+    }
+
     private fun newRepository(
         standardPrefs: TestSharedPreferences = TestSharedPreferences(),
         securePrefs: TestSharedPreferences = TestSharedPreferences()

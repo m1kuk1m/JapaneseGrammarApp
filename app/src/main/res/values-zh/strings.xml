@@ -71,6 +71,9 @@
     <string name="local_ocr_desc">关闭时，图片将直接发送给 AI 进行分析。</string>
     <string name="auto_navigate_result">自动跳转分析结果</string>
     <string name="auto_navigate_result_desc">开启后，拍照或使用悬浮球将自动跳转至结果页。关闭时则在后台静默分析。</string>
+    <string name="silent_background_mode">外部调用后台静默运行</string>
+    <string name="silent_background_mode_desc">从静读天下等外部应用分享或划词选中文本时，在后台静默分析，不弹窗打扰</string>
+    <string name="silent_analysis_queued_toast">已加入后台分析队列: %1$s</string>
     <string name="remove_accidental_spaces">自动去除误添加的空格</string>
     <string name="remove_accidental_spaces_desc">在将文本提交给 AI 分析前，自动去除日语字符间多余的空格，以避免分词错误。</string>
 

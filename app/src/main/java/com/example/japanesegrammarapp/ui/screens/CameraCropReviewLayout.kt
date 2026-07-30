@@ -248,6 +248,16 @@ fun ImageCropReviewLayout(
     var hideOcrBoxes by remember { mutableStateOf(false) }
     var selectedOcrBoxIndex by remember(bitmap, ocrBoxDetectionSettings) { mutableStateOf<Int?>(null) }
     var editingOcrBoxIndex by remember(bitmap, ocrBoxDetectionSettings) { mutableStateOf<Int?>(null) }
+    var userSelectionMade by remember(bitmap, ocrBoxDetectionSettings) { mutableStateOf(false) }
+
+    val unselectedBoxesAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (userSelectionMade) 0f else 1f,
+        animationSpec = androidx.compose.animation.core.tween(
+            durationMillis = 300,
+            easing = androidx.compose.animation.core.EaseInOutCubic
+        ),
+        label = "unselectedBoxesAlpha"
+    )
 
     LaunchedEffect(bitmap, ocrBoxDetectionSettings, interactionMode) {
         try {
@@ -263,6 +273,7 @@ fun ImageCropReviewLayout(
                     mergedBoxes[index].width().toLong() * mergedBoxes[index].height().toLong()
                 }
                 editingOcrBoxIndex = null
+                userSelectionMade = false
             } else {
                 val fineBoxes = detectFineGrainedCameraOcrBoxes(
                     bitmap = bitmap,
@@ -273,6 +284,7 @@ fun ImageCropReviewLayout(
                 hideOcrBoxes = false
                 textSelectStart = null
                 textSelectEnd = null
+                userSelectionMade = false
             }
         } catch (e: Exception) {
             AppLogger.e("CAMERA", "Failed to detect OCR text boxes", e)
@@ -280,6 +292,7 @@ fun ImageCropReviewLayout(
                 detectedBoxes = emptyList()
                 hideOcrBoxes = true
                 selectedOcrBoxIndex = null
+                userSelectionMade = false
             }
         }
     }
@@ -329,6 +342,7 @@ fun ImageCropReviewLayout(
         cropState.cropBottom = cropState.imgOffsetY + box.bottom * cropState.scaleFactor
         selectedOcrBoxIndex = index
         editingOcrBoxIndex = index
+        userSelectionMade = true
     }
 
     fun commitEditedOcrBox(index: Int) {
@@ -552,9 +566,14 @@ fun ImageCropReviewLayout(
                                             }
                                         }
 
-                                        // A tap inside the box remains the fast-submit gesture.
+                                        // A tap inside a candidate box selects it and triggers fade-out transition for other candidate boxes.
                                         if (targetBoxIndex == null) {
-                                            val interiorIndex = detectedBoxes.indices
+                                            val candidateIndices = if (userSelectionMade && selectedOcrBoxIndex != null) {
+                                                listOfNotNull(selectedOcrBoxIndex)
+                                            } else {
+                                                detectedBoxes.indices.toList()
+                                            }
+                                            val interiorIndex = candidateIndices
                                                 .filter { index ->
                                                     val box = detectedBoxes[index]
                                                     val left = cropState.imgOffsetX + box.left * cropState.scaleFactor
@@ -565,10 +584,8 @@ fun ImageCropReviewLayout(
                                                 }
                                                 .minByOrNull { index -> detectedBoxes[index].width() * detectedBoxes[index].height() }
                                             interiorIndex?.let { index ->
-                                                val box = detectedBoxes[index]
                                                 submitTarget = {
-                                                    selectedOcrBoxIndex = index
-                                                    confirmOcrBox(box)
+                                                    setCropStateFromOcrBox(index)
                                                 }
                                             }
                                         }
@@ -1039,19 +1056,32 @@ fun ImageCropReviewLayout(
                                 size = Size(imageRight - imageLeft, imageBottom - imageTop)
                             )
                             highlightedRects.forEach { entry ->
+                                val index = entry.first
                                 val rect = entry.second
-                                drawRect(
-                                    color = Color.Transparent,
-                                    topLeft = Offset(rect.left, rect.top),
-                                    size = Size(rect.width, rect.height),
-                                    blendMode = BlendMode.Clear
-                                )
+                                val isSelected = selectedOcrBoxIndex == index
+                                val holeAlpha = if (isSelected) 1f else unselectedBoxesAlpha
+                                if (holeAlpha > 0f) {
+                                    drawRect(
+                                        color = Color.Transparent,
+                                        topLeft = Offset(rect.left, rect.top),
+                                        size = Size(rect.width, rect.height),
+                                        blendMode = BlendMode.Clear,
+                                        alpha = holeAlpha
+                                    )
+                                }
                             }
                             drawContext.canvas.restore()
 
                             highlightedRects.forEach { entry ->
                                 val index = entry.first
                                 val rect = entry.second
+                                val isSelected = selectedOcrBoxIndex == index
+                                val boxAlpha = if (isSelected) 1f else unselectedBoxesAlpha
+
+                                if (boxAlpha <= 0f) {
+                                    return@forEach
+                                }
+
                                 val displayLeft = rect.left
                                 val displayTop = rect.top
                                 val displayRight = rect.right
@@ -1066,24 +1096,24 @@ fun ImageCropReviewLayout(
                                 val haloStroke = 5.dp.toPx()
                                 val shadowStroke = 3.5.dp.toPx()
                                 val borderStroke = 2.dp.toPx()
-                                val isSelected = selectedOcrBoxIndex == index
                                 val selectionColor = if (isSelected) KuriAmber else Color.White
+                                val cornerColor = selectionColor.copy(alpha = boxAlpha)
 
                                 drawRect(
-                                    color = selectionColor.copy(alpha = 0.20f),
+                                    color = selectionColor.copy(alpha = 0.20f * boxAlpha),
                                     topLeft = Offset(displayLeft, displayTop),
                                     size = Size(frameWidth, frameHeight),
                                     style = androidx.compose.ui.graphics.drawscope.Stroke(width = haloStroke)
                                 )
                                 drawRect(
-                                    color = Color.Black.copy(alpha = 0.35f),
+                                    color = Color.Black.copy(alpha = 0.35f * boxAlpha),
                                     topLeft = Offset(displayLeft, displayTop),
                                     size = Size(frameWidth, frameHeight),
                                     style = androidx.compose.ui.graphics.drawscope.Stroke(width = shadowStroke)
                                 )
 
                                 drawRect(
-                                    color = selectionColor,
+                                    color = selectionColor.copy(alpha = boxAlpha),
                                     topLeft = Offset(displayLeft, displayTop),
                                     size = Size(frameWidth, frameHeight),
                                     style = androidx.compose.ui.graphics.drawscope.Stroke(width = borderStroke)
@@ -1093,20 +1123,20 @@ fun ImageCropReviewLayout(
                                 val cornerStroke = 3.dp.toPx()
 
                                 // TL Bracket
-                                drawLine(selectionColor, Offset(displayLeft, displayTop), Offset(displayLeft + armLen, displayTop), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                                drawLine(selectionColor, Offset(displayLeft, displayTop), Offset(displayLeft, displayTop + armLen), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                drawLine(cornerColor, Offset(displayLeft, displayTop), Offset(displayLeft + armLen, displayTop), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                drawLine(cornerColor, Offset(displayLeft, displayTop), Offset(displayLeft, displayTop + armLen), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
 
                                 // TR Bracket
-                                drawLine(selectionColor, Offset(displayRight - armLen, displayTop), Offset(displayRight, displayTop), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                                drawLine(selectionColor, Offset(displayRight, displayTop), Offset(displayRight, displayTop + armLen), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                drawLine(cornerColor, Offset(displayRight - armLen, displayTop), Offset(displayRight, displayTop), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                drawLine(cornerColor, Offset(displayRight, displayTop), Offset(displayRight, displayTop + armLen), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
 
                                 // BL Bracket
-                                drawLine(selectionColor, Offset(displayLeft, displayBottom - armLen), Offset(displayLeft, displayBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                                drawLine(selectionColor, Offset(displayLeft, displayBottom), Offset(displayLeft + armLen, displayBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                drawLine(cornerColor, Offset(displayLeft, displayBottom - armLen), Offset(displayLeft, displayBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                drawLine(cornerColor, Offset(displayLeft, displayBottom), Offset(displayLeft + armLen, displayBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
 
                                 // BR Bracket
-                                drawLine(selectionColor, Offset(displayRight - armLen, displayBottom), Offset(displayRight, displayBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                                drawLine(selectionColor, Offset(displayRight, displayBottom - armLen), Offset(displayRight, displayBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                drawLine(cornerColor, Offset(displayRight - armLen, displayBottom), Offset(displayRight, displayBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                drawLine(cornerColor, Offset(displayRight, displayBottom - armLen), Offset(displayRight, displayBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
 
                                 val hideEdgeThreshold = 36.dp.toPx()
                                 if (frameWidth >= hideEdgeThreshold && frameHeight >= hideEdgeThreshold) {
@@ -1114,10 +1144,10 @@ fun ImageCropReviewLayout(
                                     val edgeStroke = 3.dp.toPx()
                                     val midX = (displayLeft + displayRight) / 2f
                                     val midY = (displayTop + displayBottom) / 2f
-                                    drawLine(selectionColor, Offset(midX - edgeLength / 2f, displayTop), Offset(midX + edgeLength / 2f, displayTop), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                                    drawLine(selectionColor, Offset(midX - edgeLength / 2f, displayBottom), Offset(midX + edgeLength / 2f, displayBottom), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                                    drawLine(selectionColor, Offset(displayLeft, midY - edgeLength / 2f), Offset(displayLeft, midY + edgeLength / 2f), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                                    drawLine(selectionColor, Offset(displayRight, midY - edgeLength / 2f), Offset(displayRight, midY + edgeLength / 2f), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                    drawLine(cornerColor, Offset(midX - edgeLength / 2f, displayTop), Offset(midX + edgeLength / 2f, displayTop), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                    drawLine(cornerColor, Offset(midX - edgeLength / 2f, displayBottom), Offset(midX + edgeLength / 2f, displayBottom), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                    drawLine(cornerColor, Offset(displayLeft, midY - edgeLength / 2f), Offset(displayLeft, midY + edgeLength / 2f), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                    drawLine(cornerColor, Offset(displayRight, midY - edgeLength / 2f), Offset(displayRight, midY + edgeLength / 2f), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
                                 }
                             }
                         }

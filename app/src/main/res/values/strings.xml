@@ -70,6 +70,9 @@
     <string name="local_ocr_desc">If off, images are sent directly to AI for analysis.</string>
     <string name="auto_navigate_result">Auto Navigate to Result</string>
     <string name="auto_navigate_result_desc">When using the floating button, jump to the result page automatically. If off, it runs in the background.</string>
+    <string name="silent_background_mode">Silent External Shared Processing</string>
+    <string name="silent_background_mode_desc">When receiving text shared or selected from external apps (e.g. Moon+ Reader), analyze in background without opening app UI.</string>
+    <string name="silent_analysis_queued_toast">Enqueued for background analysis: %1$s</string>
     <string name="remove_accidental_spaces">Remove Accidental Spaces</string>
     <string name="remove_accidental_spaces_desc">Automatically removes accidental spaces in Japanese text before analysis to prevent tokenization issues.</string>
 

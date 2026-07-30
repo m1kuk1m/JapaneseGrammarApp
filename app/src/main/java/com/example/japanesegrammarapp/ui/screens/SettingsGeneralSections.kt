@@ -171,6 +171,7 @@ fun SettingsGeneralSection(
     uiState: SettingsUiState,
     currentLangLabel: String,
     onAutoNavigateResultChange: (Boolean) -> Unit,
+    onSilentBackgroundModeChange: (Boolean) -> Unit,
     onRemoveAccidentalSpacesChange: (Boolean) -> Unit
 ) {
     val sumiInk = MaterialTheme.colorScheme.onBackground
@@ -248,6 +249,21 @@ fun SettingsGeneralSection(
                 Switch(
                     checked = uiState.autoNavigateResult,
                     onCheckedChange = onAutoNavigateResultChange,
+                    colors = SettingsSwitchColors(onPrimaryColor, primaryColor, sumiInk)
+                )
+            }
+        )
+
+        SettingsDivider()
+
+        SettingsItem(
+            icon = Icons.Default.PictureInPictureAlt,
+            title = stringResource(R.string.silent_background_mode),
+            subtitle = stringResource(R.string.silent_background_mode_desc),
+            trailingContent = {
+                Switch(
+                    checked = uiState.silentBackgroundMode,
+                    onCheckedChange = onSilentBackgroundModeChange,
                     colors = SettingsSwitchColors(onPrimaryColor, primaryColor, sumiInk)
                 )
             }

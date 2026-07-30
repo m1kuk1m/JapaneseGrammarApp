@@ -84,10 +84,14 @@ class SettingsRepositoryImpl @Inject constructor(
     private val _cardDetailDisplayMode = kotlinx.coroutines.flow.MutableStateFlow("POPUP")
     override val cardDetailDisplayMode: kotlinx.coroutines.flow.StateFlow<String> = _cardDetailDisplayMode.asStateFlow()
 
+    private val _silentBackgroundMode = kotlinx.coroutines.flow.MutableStateFlow(false)
+    override val silentBackgroundMode: kotlinx.coroutines.flow.StateFlow<Boolean> = _silentBackgroundMode.asStateFlow()
+
     init {
         applicationScope.launch {
             _themeMode.value = settingPrefs.getString("theme_mode", "System") ?: "System"
             _wallpaperUri.value = settingPrefs.getString("wallpaper_uri", "") ?: ""
+            _silentBackgroundMode.value = settingPrefs.getBoolean("external_silent_background_mode", false)
             _cardFontSizeScale.value = settingPrefs.getFloat("card_font_size_scale", 1.0f)
             _cardSpacingScale.value = settingPrefs.getFloat("card_spacing_scale", 1.0f)
             _furiganaSizeScale.value = settingPrefs.getFloat("furigana_size_scale", 1.0f)
@@ -195,6 +199,15 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override fun setAutoNavigateResult(value: Boolean) {
         settingPrefs.edit().putBoolean("auto_navigate_result", value).apply()
+    }
+
+    override fun getSilentBackgroundMode(): Boolean {
+        return settingPrefs.getBoolean("external_silent_background_mode", false)
+    }
+
+    override fun setSilentBackgroundMode(value: Boolean) {
+        _silentBackgroundMode.value = value
+        settingPrefs.edit().putBoolean("external_silent_background_mode", value).apply()
     }
 
     override fun getAutoDeskewAfterCapture(): Boolean {

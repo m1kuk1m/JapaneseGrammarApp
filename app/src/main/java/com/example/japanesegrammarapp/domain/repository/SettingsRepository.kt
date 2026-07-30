@@ -45,6 +45,8 @@ interface SettingsRepository {
     fun resetOcrBoxDetectionSettings()
     fun getAutoNavigateResult(): Boolean
     fun setAutoNavigateResult(value: Boolean)
+    fun getSilentBackgroundMode(): Boolean
+    fun setSilentBackgroundMode(value: Boolean)
     fun getAutoDeskewAfterCapture(): Boolean
     fun setAutoDeskewAfterCapture(value: Boolean)
     fun getModelsForProvider(provider: String): List<String>
@@ -67,6 +69,7 @@ interface SettingsRepository {
 
     val themeMode: kotlinx.coroutines.flow.StateFlow<String>
     val wallpaperUri: kotlinx.coroutines.flow.StateFlow<String>
+    val silentBackgroundMode: kotlinx.coroutines.flow.StateFlow<Boolean>
 
     // Prompt Customization Settings
     fun getPromptPresets(): List<com.example.japanesegrammarapp.domain.model.PromptPreset>
