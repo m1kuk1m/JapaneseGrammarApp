@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,8 +22,10 @@ import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.res.stringResource
+import com.example.japanesegrammarapp.domain.model.AnalysisStatus
 import com.example.japanesegrammarapp.domain.repository.SettingsRepository
 import com.example.japanesegrammarapp.domain.usecase.AnalyzeTextUseCase
+import com.example.japanesegrammarapp.domain.usecase.SaveAnalysisRecordUseCase
 import com.example.japanesegrammarapp.ui.AppNavigation
 import com.example.japanesegrammarapp.ui.SettingsViewModel
 import com.example.japanesegrammarapp.ui.theme.AppTheme
@@ -38,6 +41,9 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var analyzeTextUseCase: AnalyzeTextUseCase
+
+    @Inject
+    lateinit var saveAnalysisRecordUseCase: SaveAnalysisRecordUseCase
 
     private val externalTextChannel = Channel<String>(Channel.BUFFERED)
     val externalTextFlow = externalTextChannel.receiveAsFlow()
@@ -143,32 +149,39 @@ class MainActivity : AppCompatActivity() {
 
         if (!text.isNullOrBlank()) {
             val trimmedText = text.trim()
-            if (::settingsRepository.isInitialized && settingsRepository.getSilentBackgroundMode()) {
-                intent.action = null
-                intent.removeExtra(Intent.EXTRA_PROCESS_TEXT)
-                intent.removeExtra(Intent.EXTRA_TEXT)
-
-                val provider = settingsRepository.getActiveProvider()
-                val savedModel = settingsRepository.getActiveModel(provider)
-                val model = if (savedModel.isNotBlank()) savedModel else {
-                    val models = settingsRepository.getModelsForProvider(provider)
-                    models.firstOrNull() ?: "default"
+            if (::settingsRepository.isInitialized && ::saveAnalysisRecordUseCase.isInitialized) {
+                val existingRecord = runBlocking(Dispatchers.IO) {
+                    saveAnalysisRecordUseCase.getByOriginalText(trimmedText)
                 }
-                val key = settingsRepository.getApiKey(provider)
-                val url = settingsRepository.getApiUrl(provider)
+                val isAlreadyAnalyzed = existingRecord != null && existingRecord.status == AnalysisStatus.COMPLETED
 
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        analyzeTextUseCase.execute(trimmedText, null, provider, model, url, key)
-                    } catch (e: Exception) {
-                        AppLogger.e("MAIN", "Silent background analysis failed to start", e)
+                if (!isAlreadyAnalyzed && settingsRepository.getSilentBackgroundMode()) {
+                    intent.action = null
+                    intent.removeExtra(Intent.EXTRA_PROCESS_TEXT)
+                    intent.removeExtra(Intent.EXTRA_TEXT)
+
+                    val provider = settingsRepository.getActiveProvider()
+                    val savedModel = settingsRepository.getActiveModel(provider)
+                    val model = if (savedModel.isNotBlank()) savedModel else {
+                        val models = settingsRepository.getModelsForProvider(provider)
+                        models.firstOrNull() ?: "default"
                     }
-                }
+                    val key = settingsRepository.getApiKey(provider)
+                    val url = settingsRepository.getApiUrl(provider)
 
-                val displayText = if (trimmedText.length > 15) trimmedText.take(15) + "..." else trimmedText
-                val toastMsg = getString(R.string.silent_analysis_queued_toast, displayText)
-                Toast.makeText(applicationContext, toastMsg, Toast.LENGTH_SHORT).show()
-                return true
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            analyzeTextUseCase.execute(trimmedText, null, provider, model, url, key)
+                        } catch (e: Exception) {
+                            AppLogger.e("MAIN", "Silent background analysis failed to start", e)
+                        }
+                    }
+
+                    val displayText = if (trimmedText.length > 15) trimmedText.take(15) + "..." else trimmedText
+                    val toastMsg = getString(R.string.silent_analysis_queued_toast, displayText)
+                    Toast.makeText(applicationContext, toastMsg, Toast.LENGTH_SHORT).show()
+                    return true
+                }
             }
 
             externalTextChannel.trySend(trimmedText)
