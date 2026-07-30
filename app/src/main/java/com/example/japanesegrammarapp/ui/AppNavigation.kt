@@ -637,6 +637,7 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                 galleryImageUriString = galleryImageUriString,
                 ocrBoxDetectionSettings = settingsUiState.ocrBoxDetectionSettings,
                 autoDeskewAfterCapture = settingsUiState.autoDeskewAfterCapture,
+                settingsLoaded = settingsUiState.isSettingsLoaded,
                 uiPreferencesRepository = cameraViewModel.uiPreferencesRepository
             )
         }

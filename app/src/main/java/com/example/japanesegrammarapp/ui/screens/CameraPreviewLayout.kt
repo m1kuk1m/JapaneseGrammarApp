@@ -50,6 +50,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,13 +76,15 @@ import com.example.japanesegrammarapp.utils.AppLogger
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
+import java.util.concurrent.atomic.AtomicBoolean
 
 @Composable
 fun CameraPreviewLayout(
     imageCapture: ImageCapture,
     flashMode: Int,
     onFlashToggle: () -> Unit,
-    isCapturing: Boolean,
+    captureEnabled: Boolean,
+    onCameraReadyChanged: (Boolean) -> Unit,
     onCapture: () -> Unit,
     onBack: () -> Unit,
     deviceOrientation: DeviceOrientation
@@ -98,9 +101,15 @@ fun CameraPreviewLayout(
     var camera by remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
     var focusPoint by remember { mutableStateOf<Offset?>(null) }
     var previewViewRef by remember { mutableStateOf<PreviewView?>(null) }
+    val latestReadyCallback by rememberUpdatedState(onCameraReadyChanged)
+    val acceptsReadyCallbacks = remember { AtomicBoolean(false) }
 
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, imageCapture) {
+        acceptsReadyCallbacks.set(true)
+        latestReadyCallback(false)
         onDispose {
+            acceptsReadyCallbacks.set(false)
+            latestReadyCallback(false)
             try {
                 val cameraProvider = ProcessCameraProvider.getInstance(context).get()
                 cameraProvider.unbindAll()
@@ -143,6 +152,7 @@ fun CameraPreviewLayout(
                 val previewView = PreviewView(ctx).apply {
                     scaleType = PreviewView.ScaleType.FILL_CENTER
                 }
+                latestReadyCallback(false)
                 previewViewRef = previewView
                 previewView.post {
                     val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
@@ -173,7 +183,13 @@ fun CameraPreviewLayout(
                             }
                             
                             preview.setSurfaceProvider(previewView.surfaceProvider)
+                            if (acceptsReadyCallbacks.get()) {
+                                latestReadyCallback(true)
+                            }
                         } catch (e: Exception) {
+                            if (acceptsReadyCallbacks.get()) {
+                                latestReadyCallback(false)
+                            }
                             AppLogger.e("CAMERA", "Use case binding failed", e)
                         }
                     }, ContextCompat.getMainExecutor(ctx))
@@ -320,7 +336,7 @@ fun CameraPreviewLayout(
                     .padding(6.dp)
                     .clip(CircleShape)
                     .background(Color.White)
-                    .clickable(enabled = !isCapturing) { onCapture() }
+                    .clickable(enabled = captureEnabled) { onCapture() }
             )
         }
 

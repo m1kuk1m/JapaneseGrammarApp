@@ -3,6 +3,7 @@ package com.example.japanesegrammarapp.ui.screens
 import android.Manifest
 import android.graphics.Bitmap
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.ImageCapture
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import com.example.japanesegrammarapp.R
 import com.example.japanesegrammarapp.ui.theme.ZenColors.SumiInk
@@ -66,6 +68,7 @@ fun CameraScreen(
     galleryImageUriString: String? = null,
     ocrBoxDetectionSettings: OcrBoxDetectionSettings = OcrBoxDetectionSettings.DEFAULT,
     autoDeskewAfterCapture: Boolean = false,
+    settingsLoaded: Boolean = true,
     uiPreferencesRepository: com.example.japanesegrammarapp.domain.repository.UiPreferencesRepository
 ) {
     val context = LocalContext.current
@@ -110,7 +113,11 @@ fun CameraScreen(
     
     var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var wasImageRotatedToPortrait by rememberSaveable { mutableStateOf(false) } // Keep for gallery fallback
-    var isCapturing by remember { mutableStateOf(false) }
+    var captureStage by remember { mutableStateOf(CaptureStage.IDLE) }
+    var isCameraReady by remember { mutableStateOf(false) }
+    var deskewOutcome by remember { mutableStateOf<DeskewOutcome>(DeskewOutcome.Disabled) }
+    val latestAutoDeskew by rememberUpdatedState(autoDeskewAfterCapture)
+    val isBusy = captureStage != CaptureStage.IDLE
 
     fun replaceCapturedBitmap(bitmap: Bitmap?) {
         val oldBitmap = capturedBitmap
@@ -140,37 +147,57 @@ fun CameraScreen(
     }
     
     // If we passed a gallery image, directly go to the crop review mode
-    LaunchedEffect(galleryImageUriString) {
-        if (!galleryImageUriString.isNullOrBlank()) {
-            isCapturing = true
+    LaunchedEffect(galleryImageUriString, settingsLoaded) {
+        if (settingsLoaded && !galleryImageUriString.isNullOrBlank()) {
+            captureStage = CaptureStage.PROCESSING
             val uri = Uri.parse(galleryImageUriString)
-            val result = loadCameraReviewBitmap(context, uri)
-            if (result != null) {
-                val processedBitmap = applyAutoDeskewIfEnabled(result.bitmap, autoDeskewAfterCapture)
-                replaceCapturedBitmap(processedBitmap)
+            try {
+                val result = withContext(Dispatchers.IO) { loadCameraReviewBitmap(context, uri) }
+                    ?: error("Unable to decode gallery image")
+                val processed = withContext(Dispatchers.IO) {
+                    applyAutoDeskewIfEnabled(result.bitmap, latestAutoDeskew)
+                }
+                replaceCapturedBitmap(processed.bitmap)
+                deskewOutcome = processed.outcome
                 wasImageRotatedToPortrait = result.wasRotatedToPortrait
                 screenMode = CameraScreenMode.CROP_REVIEW
-            } else {
-                // Fail and navigate back
+                showDeskewFailureIfNeeded(context, processed.outcome)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                AppLogger.e("CAMERA", "Failed to load gallery image", error)
+                Toast.makeText(context, R.string.camera_capture_failed, Toast.LENGTH_SHORT).show()
                 navController.popBackStack()
+            } finally {
+                captureStage = CaptureStage.IDLE
             }
-            isCapturing = false
         }
     }
 
     // Restore captured image if saved state contains a path
-    LaunchedEffect(tempFileUriString) {
-        if (!tempFileUriString.isNullOrBlank() && capturedBitmap == null) {
-            isCapturing = true
+    LaunchedEffect(tempFileUriString, settingsLoaded) {
+        if (settingsLoaded && !tempFileUriString.isNullOrBlank() && capturedBitmap == null) {
+            captureStage = CaptureStage.PROCESSING
             val uri = Uri.parse(tempFileUriString)
-            val result = loadCameraReviewBitmap(context, uri)
-            if (result != null) {
-                val processedBitmap = applyAutoDeskewIfEnabled(result.bitmap, autoDeskewAfterCapture)
-                replaceCapturedBitmap(processedBitmap)
+            try {
+                val result = withContext(Dispatchers.IO) { loadCameraReviewBitmap(context, uri) }
+                    ?: error("Unable to restore captured image")
+                val processed = withContext(Dispatchers.IO) {
+                    applyAutoDeskewIfEnabled(result.bitmap, latestAutoDeskew)
+                }
+                replaceCapturedBitmap(processed.bitmap)
+                deskewOutcome = processed.outcome
                 wasImageRotatedToPortrait = result.wasRotatedToPortrait
                 screenMode = CameraScreenMode.CROP_REVIEW
+                showDeskewFailureIfNeeded(context, processed.outcome)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                AppLogger.e("CAMERA", "Failed to restore captured image", error)
+                Toast.makeText(context, R.string.camera_capture_failed, Toast.LENGTH_SHORT).show()
+            } finally {
+                captureStage = CaptureStage.IDLE
             }
-            isCapturing = false
         }
     }
     
@@ -199,46 +226,66 @@ fun CameraScreen(
         }
     }
 
-    val performCapture: () -> Boolean = remember(imageCapture, deviceOrientation, isCapturing) {
+    val canCapture = settingsLoaded && isCameraReady && captureStage == CaptureStage.IDLE
+    val performCapture: () -> Boolean = remember(imageCapture, deviceOrientation, canCapture, latestAutoDeskew) {
         {
-            if (!isCapturing) {
+            if (canCapture) {
                 captureDeviceOrientation = deviceOrientation
-                isCapturing = true
-                val file = createCameraCaptureFile(context)
-                val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
+                captureStage = CaptureStage.CAPTURING
+                val autoDeskewForCapture = latestAutoDeskew
+                try {
+                    val file = createCameraCaptureFile(context)
+                    val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
 
-                imageCapture.takePicture(
-                    outputOptions,
-                    ContextCompat.getMainExecutor(context),
-                    object : ImageCapture.OnImageSavedCallback {
-                        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                            scope.launch(Dispatchers.IO) {
-                                val result = processCapturedImageFile(context, file)
-                                if (result != null) {
-                                    val processedBitmap = applyAutoDeskewIfEnabled(result.bitmap, autoDeskewAfterCapture)
+                    imageCapture.takePicture(
+                        outputOptions,
+                        ContextCompat.getMainExecutor(context),
+                        object : ImageCapture.OnImageSavedCallback {
+                            override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                                captureStage = CaptureStage.PROCESSING
+                                scope.launch(Dispatchers.IO) {
+                                    try {
+                                        val result = processCapturedImageFile(context, file)
+                                            ?: error("Unable to decode captured image")
+                                        val processed = applyAutoDeskewIfEnabled(result.bitmap, autoDeskewForCapture)
 
-                                    withContext(Dispatchers.Main) {
-                                        replaceCapturedBitmap(processedBitmap)
-                                        wasImageRotatedToPortrait = result.wasRotatedToPortrait
-                                        tempFileUriString = result.savedUri?.toString()
-                                        screenMode = CameraScreenMode.CROP_REVIEW
-                                        isCapturing = false
-                                    }
-                                } else {
-                                    withContext(Dispatchers.Main) {
-                                        isCapturing = false
+                                        withContext(Dispatchers.Main) {
+                                            replaceCapturedBitmap(processed.bitmap)
+                                            deskewOutcome = processed.outcome
+                                            wasImageRotatedToPortrait = result.wasRotatedToPortrait
+                                            tempFileUriString = result.savedUri?.toString()
+                                            screenMode = CameraScreenMode.CROP_REVIEW
+                                            showDeskewFailureIfNeeded(context, processed.outcome)
+                                        }
+                                    } catch (error: CancellationException) {
+                                        throw error
+                                    } catch (error: Throwable) {
+                                        AppLogger.e("CAMERA", "Capture processing failed", error)
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, R.string.camera_capture_failed, Toast.LENGTH_SHORT).show()
+                                        }
+                                    } finally {
+                                        withContext(Dispatchers.Main) {
+                                            captureStage = CaptureStage.IDLE
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        override fun onError(exception: ImageCaptureException) {
-                            AppLogger.e("CAMERA", "Capture failed: ${exception.message}", exception)
-                            isCapturing = false
+                            override fun onError(exception: ImageCaptureException) {
+                                AppLogger.e("CAMERA", "Capture failed: ${exception.message}", exception)
+                                captureStage = CaptureStage.IDLE
+                                Toast.makeText(context, R.string.camera_capture_failed, Toast.LENGTH_SHORT).show()
+                            }
                         }
-                    }
-                )
-                true
+                    )
+                    true
+                } catch (error: Throwable) {
+                    AppLogger.e("CAMERA", "Unable to start capture", error)
+                    captureStage = CaptureStage.IDLE
+                    Toast.makeText(context, R.string.camera_capture_failed, Toast.LENGTH_SHORT).show()
+                    false
+                }
             } else {
                 false
             }
@@ -248,7 +295,10 @@ fun CameraScreen(
     DisposableEffect(screenMode, hasCameraPermission, performCapture) {
         val mainActivity = context as? com.example.japanesegrammarapp.MainActivity
         if (mainActivity != null && screenMode == CameraScreenMode.CAPTURE && hasCameraPermission) {
-            mainActivity.onVolumeKeyDownListener = { performCapture() }
+            mainActivity.onVolumeKeyDownListener = {
+                performCapture()
+                true
+            }
         }
         onDispose {
             (context as? com.example.japanesegrammarapp.MainActivity)?.let {
@@ -288,7 +338,8 @@ fun CameraScreen(
                                 }
                                 imageCapture.flashMode = flashMode
                             },
-                            isCapturing = isCapturing,
+                            captureEnabled = canCapture,
+                            onCameraReadyChanged = { isCameraReady = it },
                             onCapture = { performCapture() },
                             onBack = {
                                 navController.popBackStack()
@@ -316,6 +367,7 @@ fun CameraScreen(
                             captureDeviceOrientation = captureDeviceOrientation,
                             ocrBoxDetectionSettings = ocrBoxDetectionSettings,
                             autoDeskewAfterCapture = autoDeskewAfterCapture,
+                            initialDeskewOutcome = deskewOutcome,
                             uiPreferencesRepository = uiPreferencesRepository,
                             onCancel = {
                                 if (!galleryImageUriString.isNullOrBlank()) {
@@ -329,25 +381,35 @@ fun CameraScreen(
                                 }
                             },
                             onConfirm = { croppedBitmap ->
-                                isCapturing = true
+                                captureStage = CaptureStage.PROCESSING
                                 val sourceBitmap = capturedBitmap
                                 scope.launch(Dispatchers.IO) {
-                                    val outUri = saveConfirmedCrop(context, croppedBitmap, false)
-                                    if (croppedBitmap !== sourceBitmap && !croppedBitmap.isRecycled) {
-                                        croppedBitmap.recycle()
-                                    }
-                                    withContext(Dispatchers.Main) {
-                                        if (outUri != null) {
-                                            // Set result in savedStateHandle
+                                    try {
+                                        val outUri = saveConfirmedCrop(context, croppedBitmap, false)
+                                            ?: error("Unable to save cropped image")
+                                        withContext(Dispatchers.Main) {
                                             navController.previousBackStackEntry?.savedStateHandle?.set(
                                                 "captured_image_uri",
                                                 outUri.toString()
                                             )
+                                            replaceCapturedBitmap(null)
+                                            tempFileUriString = null
+                                            navController.popBackStack()
                                         }
-                                        replaceCapturedBitmap(null)
-                                        tempFileUriString = null
-                                        navController.popBackStack()
-                                        isCapturing = false
+                                    } catch (error: CancellationException) {
+                                        throw error
+                                    } catch (error: Throwable) {
+                                        AppLogger.e("CAMERA", "Failed to save confirmed crop", error)
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, R.string.camera_capture_failed, Toast.LENGTH_SHORT).show()
+                                        }
+                                    } finally {
+                                        if (croppedBitmap !== sourceBitmap && !croppedBitmap.isRecycled) {
+                                            croppedBitmap.recycle()
+                                        }
+                                        withContext(Dispatchers.Main) {
+                                            captureStage = CaptureStage.IDLE
+                                        }
                                     }
                                 }
                             }
@@ -357,7 +419,7 @@ fun CameraScreen(
             }
             
             // Loading Overlay
-            if (isCapturing) {
+            if (isBusy) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -371,31 +433,31 @@ fun CameraScreen(
     }
 }
 
-private suspend fun applyAutoDeskewIfEnabled(bitmap: android.graphics.Bitmap, enabled: Boolean): android.graphics.Bitmap {
-    if (!enabled) return bitmap
-    return try {
-        val skewAngle = detectImageSkewAngle(bitmap)
-        if (kotlin.math.abs(skewAngle) > 0.5f) {
-            val matrix = android.graphics.Matrix().apply { postRotate(-skewAngle) }
-            val rotatedBitmap = android.graphics.Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-            val cx = rotatedBitmap.width / 2
-            val cy = rotatedBitmap.height / 2
-            val targetWidth = bitmap.width
-            val targetHeight = bitmap.height
-            val x = (cx - targetWidth / 2).coerceAtLeast(0)
-            val y = (cy - targetHeight / 2).coerceAtLeast(0)
-            val finalWidth = minOf(targetWidth, rotatedBitmap.width - x)
-            val finalHeight = minOf(targetHeight, rotatedBitmap.height - y)
-            val deskewedBitmap = android.graphics.Bitmap.createBitmap(rotatedBitmap, x, y, finalWidth, finalHeight)
-            if (rotatedBitmap !== bitmap && rotatedBitmap !== deskewedBitmap) {
-                rotatedBitmap.recycle()
+private suspend fun applyAutoDeskewIfEnabled(bitmap: Bitmap, enabled: Boolean): DeskewProcessingResult {
+    if (!enabled) return DeskewProcessingResult(bitmap, DeskewOutcome.Disabled)
+    return when (val detection = detectImageSkew(bitmap)) {
+        is SkewDetectionResult.Detected -> {
+            if (kotlin.math.abs(detection.angle) <= 0.5f) {
+                DeskewProcessingResult(bitmap, DeskewOutcome.NotNeeded(detection.angle))
+            } else {
+                try {
+                    val rotated = rotateBitmapPreservingContent(bitmap, -detection.angle)
+                    if (rotated !== bitmap && !bitmap.isRecycled) bitmap.recycle()
+                    DeskewProcessingResult(rotated, DeskewOutcome.Corrected(detection.angle))
+                } catch (error: Throwable) {
+                    AppLogger.e("CAMERA", "Auto deskew rotation failed", error)
+                    DeskewProcessingResult(bitmap, DeskewOutcome.Failed(error))
+                }
             }
-            deskewedBitmap
-        } else {
-            bitmap
         }
-    } catch (e: Exception) {
-        com.example.japanesegrammarapp.utils.AppLogger.e("CAMERA", "Auto skew pre-processing failed", e)
-        bitmap
+        SkewDetectionResult.NoText -> DeskewProcessingResult(bitmap, DeskewOutcome.NoText)
+        is SkewDetectionResult.Failed -> DeskewProcessingResult(bitmap, DeskewOutcome.Failed(detection.cause))
+        SkewDetectionResult.TimedOut -> DeskewProcessingResult(bitmap, DeskewOutcome.TimedOut)
+    }
+}
+
+private fun showDeskewFailureIfNeeded(context: android.content.Context, outcome: DeskewOutcome) {
+    if (outcome is DeskewOutcome.Failed || outcome == DeskewOutcome.TimedOut) {
+        Toast.makeText(context, R.string.camera_auto_deskew_failed, Toast.LENGTH_SHORT).show()
     }
 }

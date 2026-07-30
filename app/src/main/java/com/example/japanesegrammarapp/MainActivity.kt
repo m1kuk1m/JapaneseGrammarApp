@@ -35,7 +35,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent?): Boolean {
         if (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP || keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) {
-            if (onVolumeKeyDownListener?.invoke() == true) {
+            val listener = onVolumeKeyDownListener
+            if (listener != null) {
+                if ((event?.repeatCount ?: 0) == 0) {
+                    listener.invoke()
+                }
                 return true
             }
         }

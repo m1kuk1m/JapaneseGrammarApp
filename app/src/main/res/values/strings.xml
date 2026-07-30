@@ -273,11 +273,13 @@
     <string name="camera_guide_crop_hint">You can select or edit the text after capture</string>
     <string name="camera_local_ocr">Local OCR</string>
     <string name="camera_crop_title">Select Text Area</string>
-    <string name="camera_crop_hint">Drag corners to adjust</string>
+    <string name="camera_crop_hint">Drag corners or edges to adjust</string>
     <string name="camera_cancel_desc">Cancel</string>
     <string name="camera_recapture_btn">Retake</string>
     <string name="camera_confirm_desc">Confirm</string>
     <string name="camera_confirm_btn">Confirm</string>
+    <string name="camera_capture_failed">Failed to capture or process the photo. Please try again.</string>
+    <string name="camera_auto_deskew_failed">Automatic correction failed. You can retry it manually.</string>
     <string name="image_tokenizer_mode_title">Image tokenizer mode</string>
     <string name="image_tokenizer_mode_faithful">Faithful text mode</string>
     <string name="image_tokenizer_mode_faithful_desc">Keep the text exactly as it appears without correction.</string>

@@ -273,11 +273,13 @@
     <string name="camera_guide_crop_hint">撮影後にテキストを自由に選択・編集できます</string>
     <string name="camera_local_ocr">ローカルOCR</string>
     <string name="camera_crop_title">文字範囲を選択</string>
-    <string name="camera_crop_hint">角をドラッグして調整</string>
+    <string name="camera_crop_hint">角または辺をドラッグして調整</string>
     <string name="camera_cancel_desc">キャンセル</string>
     <string name="camera_recapture_btn">再撮影</string>
     <string name="camera_confirm_desc">確定</string>
     <string name="camera_confirm_btn">確定</string>
+    <string name="camera_capture_failed">撮影または画像処理に失敗しました。もう一度お試しください。</string>
+    <string name="camera_auto_deskew_failed">自動補正に失敗しました。手動で再試行できます。</string>
     <string name="input_dialog_title">テキスト入力</string>
     <string name="input_dialog_placeholder">分析するテキストを入力...</string>
     <string name="start_analysis_btn">分析開始</string>

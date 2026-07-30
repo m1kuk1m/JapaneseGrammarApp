@@ -7,63 +7,102 @@ import com.example.japanesegrammarapp.domain.model.OcrBoxDetectionSettings
 import com.example.japanesegrammarapp.domain.model.OcrBoxDetectorEngine
 import com.example.japanesegrammarapp.domain.model.OcrBoxPreviewMode
 import com.example.japanesegrammarapp.utils.AppLogger
+import com.example.japanesegrammarapp.utils.BitmapHelper
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.math.atan2
 
-suspend fun detectImageSkewAngle(bitmap: Bitmap): Float = suspendCancellableCoroutine { continuation ->
+sealed interface SkewDetectionResult {
+    data class Detected(val angle: Float) : SkewDetectionResult
+    data object NoText : SkewDetectionResult
+    data class Failed(val cause: Throwable) : SkewDetectionResult
+    data object TimedOut : SkewDetectionResult
+}
+
+private const val SKEW_ANALYSIS_MAX_DIMENSION = 2048f
+private const val SKEW_DETECTION_TIMEOUT_MS = 8_000L
+
+suspend fun detectImageSkew(bitmap: Bitmap): SkewDetectionResult {
+    val analysisBitmap = try {
+        BitmapHelper.scaleDown(bitmap, SKEW_ANALYSIS_MAX_DIMENSION)
+    } catch (error: OutOfMemoryError) {
+        return SkewDetectionResult.Failed(error)
+    } catch (error: Exception) {
+        return SkewDetectionResult.Failed(error)
+    }
+    return try {
+        withTimeoutOrNull(SKEW_DETECTION_TIMEOUT_MS) {
+            var lastFailure: SkewDetectionResult.Failed? = null
+            repeat(2) { attempt ->
+                when (val result = detectImageSkewOnce(analysisBitmap)) {
+                    is SkewDetectionResult.Failed -> {
+                        lastFailure = result
+                        if (attempt == 0) delay(100)
+                    }
+                    else -> return@withTimeoutOrNull result
+                }
+            }
+            lastFailure ?: SkewDetectionResult.NoText
+        } ?: SkewDetectionResult.TimedOut
+    } finally {
+        if (analysisBitmap !== bitmap && !analysisBitmap.isRecycled) {
+            analysisBitmap.recycle()
+        }
+    }
+}
+
+private suspend fun detectImageSkewOnce(bitmap: Bitmap): SkewDetectionResult {
     val recognizer = TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
     val image = InputImage.fromBitmap(bitmap, 0)
-    
-    recognizer.process(image)
-        .addOnSuccessListener { visionText ->
-            if (continuation.isActive) {
-                val angles = mutableListOf<Float>()
-                for (block in visionText.textBlocks) {
-                    for (line in block.lines) {
-                        val points = line.cornerPoints
-                        if (points != null && points.size == 4) {
-                            val d1x = (points[1].x - points[0].x).toDouble()
-                            val d1y = (points[1].y - points[0].y).toDouble()
-                            val len1 = d1x * d1x + d1y * d1y
-                            
-                            val d2x = (points[2].x - points[1].x).toDouble()
-                            val d2y = (points[2].y - points[1].y).toDouble()
-                            val len2 = d2x * d2x + d2y * d2y
-                            
-                            val (mainDx, mainDy) = if (len1 > len2) Pair(d1x, d1y) else Pair(d2x, d2y)
-                            
-                            if (mainDx != 0.0 || mainDy != 0.0) {
-                                val rawAngle = Math.toDegrees(atan2(mainDy, mainDx)).toFloat()
-                                var skew = rawAngle % 90f
-                                if (skew > 45f) skew -= 90f
-                                else if (skew < -45f) skew += 90f
-                                angles.add(skew)
-                            }
-                        }
+    return try {
+        val visionText = recognizer.process(image).await()
+        val angles = mutableListOf<Float>()
+        for (block in visionText.textBlocks) {
+            for (line in block.lines) {
+                val points = line.cornerPoints
+                if (points != null && points.size == 4) {
+                    val d1x = (points[1].x - points[0].x).toDouble()
+                    val d1y = (points[1].y - points[0].y).toDouble()
+                    val len1 = d1x * d1x + d1y * d1y
+
+                    val d2x = (points[2].x - points[1].x).toDouble()
+                    val d2y = (points[2].y - points[1].y).toDouble()
+                    val len2 = d2x * d2x + d2y * d2y
+
+                    val (mainDx, mainDy) = if (len1 > len2) Pair(d1x, d1y) else Pair(d2x, d2y)
+                    if (mainDx != 0.0 || mainDy != 0.0) {
+                        val rawAngle = Math.toDegrees(atan2(mainDy, mainDx)).toFloat()
+                        var skew = rawAngle % 90f
+                        if (skew > 45f) skew -= 90f
+                        else if (skew < -45f) skew += 90f
+                        angles.add(skew)
                     }
                 }
-                
-                val finalAngle = if (angles.isNotEmpty()) {
-                    val sorted = angles.sorted()
-                    sorted[sorted.size / 2] // median
-                } else {
-                    0f
-                }
-                continuation.resume(finalAngle)
             }
         }
-        .addOnFailureListener {
-            if (continuation.isActive) continuation.resume(0f)
+
+        if (angles.isEmpty()) {
+            SkewDetectionResult.NoText
+        } else {
+            val sorted = angles.sorted()
+            SkewDetectionResult.Detected(sorted[sorted.size / 2])
         }
-        .addOnCompleteListener {
-            recognizer.close()
-        }
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        SkewDetectionResult.Failed(error)
+    } finally {
+        recognizer.close()
+    }
 }
 
 suspend fun detectCameraOcrBoxes(

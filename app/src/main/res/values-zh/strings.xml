@@ -273,11 +273,13 @@
     <string name="camera_guide_crop_hint">拍摄后可自由选取或编辑文本</string>
     <string name="camera_local_ocr">本地OCR</string>
     <string name="camera_crop_title">选择文字范围</string>
-    <string name="camera_crop_hint">拖动角进行调整</string>
+    <string name="camera_crop_hint">拖动角或边进行调整</string>
     <string name="camera_cancel_desc">取消</string>
     <string name="camera_recapture_btn">重拍</string>
     <string name="camera_confirm_desc">确定</string>
     <string name="camera_confirm_btn">确定</string>
+    <string name="camera_capture_failed">拍照或图片处理失败，请重试。</string>
+    <string name="camera_auto_deskew_failed">自动校正失败，可以手动重试。</string>
     <string name="input_dialog_title">文字输入</string>
     <string name="input_dialog_placeholder">输入要分析的日语文本...</string>
     <string name="start_analysis_btn">开始分析</string>

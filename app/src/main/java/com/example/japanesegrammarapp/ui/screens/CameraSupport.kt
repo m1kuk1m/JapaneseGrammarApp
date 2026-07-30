@@ -75,6 +75,12 @@ enum class CameraScreenMode {
     CROP_REVIEW
 }
 
+enum class CaptureStage {
+    IDLE,
+    CAPTURING,
+    PROCESSING
+}
+
 fun cameraResolutionSelector(): ResolutionSelector {
     return ResolutionSelector.Builder()
         .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
