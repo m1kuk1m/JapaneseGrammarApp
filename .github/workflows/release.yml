@@ -59,9 +59,22 @@ jobs:
         shell: bash
         run: |
           tag="${GITHUB_REF_NAME:-manual}"
+          clean_tag="${tag#v}"
           mkdir -p release
           cp app/build/outputs/apk/release/app-release.apk "release/YomiLLM-${tag}.apk"
           sha256sum "release/YomiLLM-${tag}.apk" > "release/YomiLLM-${tag}.apk.sha256"
+          python3 -c "
+          import re
+          try:
+              with open('CHANGELOG.md', 'r', encoding='utf-8') as f:
+                  text = f.read()
+              match = re.search(r'## \[' + re.escape('$clean_tag') + r'\][^\n]*\n(.*?)(?=\n## \[|\Z)', text, re.DOTALL)
+              if match:
+                  with open('release/RELEASE_NOTES.md', 'w', encoding='utf-8') as out:
+                      out.write(match.group(1).strip())
+          except Exception as e:
+              pass
+          "
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
@@ -74,4 +87,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: release/*
-          generate_release_notes: true
+          body_path: release/RELEASE_NOTES.md
+          generate_release_notes: false
