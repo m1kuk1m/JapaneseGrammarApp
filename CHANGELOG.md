@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-07-30
+
+### Added
+- External text receiver activity (`ExternalTextReceiverActivity`): process Japanese text shared from other Android apps directly into analysis.
+- Volume key shutter setting in camera screen for physical button capture control.
+
+### Changed
+- Refined OCR crop review interaction with adaptive L-shaped corner brackets and smart edge handle hiding.
+- Improved background silent text parsing and duplicate/analyzed text detection flow.
+
+### Fixed
+- Fixed camera auto-deskew angle handling and capture stage status transitions during image processing.
+
 ## [1.9.0] - 2026-07-26
 
 ### Added
