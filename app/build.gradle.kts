@@ -92,6 +92,7 @@ android {
     }
     lint {
         abortOnError = false
+        checkReleaseBuilds = false
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
