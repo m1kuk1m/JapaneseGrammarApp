@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed camera auto-deskew angle handling and capture stage status transitions during image processing.
+- Fixed photo crop box interior tap submit interaction: taps inside any crop box now directly submit for analysis regardless of handle grab tolerance.
 
 ## [1.9.0] - 2026-07-26
 

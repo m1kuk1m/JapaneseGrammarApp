@@ -566,14 +566,15 @@ fun ImageCropReviewLayout(
                                             }
                                         }
 
-                                        // A tap inside a candidate box selects it and triggers fade-out transition for other candidate boxes.
-                                        if (targetBoxIndex == null) {
-                                            val candidateIndices = if (userSelectionMade && selectedOcrBoxIndex != null) {
-                                                listOfNotNull(selectedOcrBoxIndex)
-                                            } else {
-                                                detectedBoxes.indices.toList()
+                                        // Always calculate interior box hit test for tap-to-submit, regardless of handle grab tolerance
+                                        if (userSelectionMade && selectedOcrBoxIndex != null) {
+                                            val isInsideCurrentCrop = startPos.x in cropState.cropLeft..cropState.cropRight &&
+                                                    startPos.y in cropState.cropTop..cropState.cropBottom
+                                            if (isInsideCurrentCrop) {
+                                                submitTarget = { confirmCurrentCrop() }
                                             }
-                                            val interiorIndex = candidateIndices
+                                        } else {
+                                            val interiorIndex = detectedBoxes.indices
                                                 .filter { index ->
                                                     val box = detectedBoxes[index]
                                                     val left = cropState.imgOffsetX + box.left * cropState.scaleFactor
@@ -584,9 +585,7 @@ fun ImageCropReviewLayout(
                                                 }
                                                 .minByOrNull { index -> detectedBoxes[index].width() * detectedBoxes[index].height() }
                                             interiorIndex?.let { index ->
-                                                submitTarget = {
-                                                    setCropStateFromOcrBox(index)
-                                                }
+                                                submitTarget = { confirmOcrBox(detectedBoxes[index]) }
                                             }
                                         }
                                     } else {
@@ -601,8 +600,12 @@ fun ImageCropReviewLayout(
                                         cropState.activeHandle = DragHandle.NONE
                                     }
                                     
-                                    if (submitTarget == null && hideOcrBoxes && targetHandle == DragHandle.NONE && activeTextHandle == null) {
-                                        submitTarget = { confirmCurrentCrop() }
+                                    if (submitTarget == null && hideOcrBoxes && activeTextHandle == null) {
+                                        val isInsideCurrentCrop = startPos.x in cropState.cropLeft..cropState.cropRight &&
+                                                startPos.y in cropState.cropTop..cropState.cropBottom
+                                        if (isInsideCurrentCrop) {
+                                            submitTarget = { confirmCurrentCrop() }
+                                        }
                                     }
 
                                     var isEditing = false
@@ -622,7 +625,7 @@ fun ImageCropReviewLayout(
                                                     cropState.stopDrag()
                                                     targetBoxIndex?.let { commitEditedOcrBox(it) }
                                                 }
-                                            } else if (!canEdit && maxDragDistance <= dragSlopPx) {
+                                            } else if (maxDragDistance <= dragSlopPx) {
                                                 downEvent.consume()
                                                 submitTarget?.invoke()
                                             }
