@@ -938,74 +938,79 @@ fun ImageCropReviewLayout(
                             )
                         }
                         
-                        // Draw 4 handles (Japanese-inspired accent circles)
-                        val handleRadius = 7.dp.toPx()
+
+                        
+
+                        // Draw 4 corner L-shaped brackets (modern unobtrusive handles)
+                        val cropW = cropState.cropRight - cropState.cropLeft
+                        val cropH = cropState.cropBottom - cropState.cropTop
+                        val armLen = minOf(14.dp.toPx(), cropW * 0.35f, cropH * 0.35f).coerceAtLeast(4.dp.toPx())
+                        val cornerStroke = 3.5.dp.toPx()
                         val activeColor = KuriAmber
                         val defaultColor = Color.White
-                        
-                        // TL
-                        drawCircle(
-                            color = if (cropState.activeHandle == DragHandle.TOP_LEFT) activeColor else defaultColor,
-                            radius = handleRadius,
-                            center = Offset(cropState.cropLeft, cropState.cropTop)
-                        )
-                        // TR
-                        drawCircle(
-                            color = if (cropState.activeHandle == DragHandle.TOP_RIGHT) activeColor else defaultColor,
-                            radius = handleRadius,
-                            center = Offset(cropState.cropRight, cropState.cropTop)
-                        )
-                        // BL
-                        drawCircle(
-                            color = if (cropState.activeHandle == DragHandle.BOTTOM_LEFT) activeColor else defaultColor,
-                            radius = handleRadius,
-                            center = Offset(cropState.cropLeft, cropState.cropBottom)
-                        )
-                        // BR
-                        drawCircle(
-                            color = if (cropState.activeHandle == DragHandle.BOTTOM_RIGHT) activeColor else defaultColor,
-                            radius = handleRadius,
-                            center = Offset(cropState.cropRight, cropState.cropBottom)
-                        )
 
-                        // Draw 4 edge handles (centered subtle caps)
-                        val edgeHandleLength = 20.dp.toPx()
-                        val edgeHandleStroke = 3.dp.toPx()
-                        val midX = (cropState.cropLeft + cropState.cropRight) / 2f
-                        val midY = (cropState.cropTop + cropState.cropBottom) / 2f
+                        val tlColor = if (cropState.activeHandle == DragHandle.TOP_LEFT) activeColor else defaultColor
+                        val trColor = if (cropState.activeHandle == DragHandle.TOP_RIGHT) activeColor else defaultColor
+                        val blColor = if (cropState.activeHandle == DragHandle.BOTTOM_LEFT) activeColor else defaultColor
+                        val brColor = if (cropState.activeHandle == DragHandle.BOTTOM_RIGHT) activeColor else defaultColor
 
-                        // Top Edge Handle
-                        drawLine(
-                            color = if (cropState.activeHandle == DragHandle.TOP) activeColor else defaultColor,
-                            start = Offset(midX - edgeHandleLength / 2f, cropState.cropTop),
-                            end = Offset(midX + edgeHandleLength / 2f, cropState.cropTop),
-                            strokeWidth = edgeHandleStroke,
-                            cap = androidx.compose.ui.graphics.StrokeCap.Round
-                        )
-                        // Bottom Edge Handle
-                        drawLine(
-                            color = if (cropState.activeHandle == DragHandle.BOTTOM) activeColor else defaultColor,
-                            start = Offset(midX - edgeHandleLength / 2f, cropState.cropBottom),
-                            end = Offset(midX + edgeHandleLength / 2f, cropState.cropBottom),
-                            strokeWidth = edgeHandleStroke,
-                            cap = androidx.compose.ui.graphics.StrokeCap.Round
-                        )
-                        // Left Edge Handle
-                        drawLine(
-                            color = if (cropState.activeHandle == DragHandle.LEFT) activeColor else defaultColor,
-                            start = Offset(cropState.cropLeft, midY - edgeHandleLength / 2f),
-                            end = Offset(cropState.cropLeft, midY + edgeHandleLength / 2f),
-                            strokeWidth = edgeHandleStroke,
-                            cap = androidx.compose.ui.graphics.StrokeCap.Round
-                        )
-                        // Right Edge Handle
-                        drawLine(
-                            color = if (cropState.activeHandle == DragHandle.RIGHT) activeColor else defaultColor,
-                            start = Offset(cropState.cropRight, midY - edgeHandleLength / 2f),
-                            end = Offset(cropState.cropRight, midY + edgeHandleLength / 2f),
-                            strokeWidth = edgeHandleStroke,
-                            cap = androidx.compose.ui.graphics.StrokeCap.Round
-                        )
+                        // TL Bracket
+                        drawLine(tlColor, Offset(cropState.cropLeft, cropState.cropTop), Offset(cropState.cropLeft + armLen, cropState.cropTop), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                        drawLine(tlColor, Offset(cropState.cropLeft, cropState.cropTop), Offset(cropState.cropLeft, cropState.cropTop + armLen), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+
+                        // TR Bracket
+                        drawLine(trColor, Offset(cropState.cropRight - armLen, cropState.cropTop), Offset(cropState.cropRight, cropState.cropTop), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                        drawLine(trColor, Offset(cropState.cropRight, cropState.cropTop), Offset(cropState.cropRight, cropState.cropTop + armLen), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+
+                        // BL Bracket
+                        drawLine(blColor, Offset(cropState.cropLeft, cropState.cropBottom - armLen), Offset(cropState.cropLeft, cropState.cropBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                        drawLine(blColor, Offset(cropState.cropLeft, cropState.cropBottom), Offset(cropState.cropLeft + armLen, cropState.cropBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+
+                        // BR Bracket
+                        drawLine(brColor, Offset(cropState.cropRight - armLen, cropState.cropBottom), Offset(cropState.cropRight, cropState.cropBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                        drawLine(brColor, Offset(cropState.cropRight, cropState.cropBottom - armLen), Offset(cropState.cropRight, cropState.cropBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+
+                        // Draw 4 edge handles (centered caps, adaptively hidden on small frames)
+                        val hideEdgeThreshold = 36.dp.toPx()
+                        if (cropW >= hideEdgeThreshold && cropH >= hideEdgeThreshold) {
+                            val edgeHandleLength = minOf(20.dp.toPx(), cropW * 0.3f, cropH * 0.3f)
+                            val edgeHandleStroke = 3.dp.toPx()
+                            val midX = (cropState.cropLeft + cropState.cropRight) / 2f
+                            val midY = (cropState.cropTop + cropState.cropBottom) / 2f
+
+                            // Top Edge Handle
+                            drawLine(
+                                color = if (cropState.activeHandle == DragHandle.TOP) activeColor else defaultColor,
+                                start = Offset(midX - edgeHandleLength / 2f, cropState.cropTop),
+                                end = Offset(midX + edgeHandleLength / 2f, cropState.cropTop),
+                                strokeWidth = edgeHandleStroke,
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                            // Bottom Edge Handle
+                            drawLine(
+                                color = if (cropState.activeHandle == DragHandle.BOTTOM) activeColor else defaultColor,
+                                start = Offset(midX - edgeHandleLength / 2f, cropState.cropBottom),
+                                end = Offset(midX + edgeHandleLength / 2f, cropState.cropBottom),
+                                strokeWidth = edgeHandleStroke,
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                            // Left Edge Handle
+                            drawLine(
+                                color = if (cropState.activeHandle == DragHandle.LEFT) activeColor else defaultColor,
+                                start = Offset(cropState.cropLeft, midY - edgeHandleLength / 2f),
+                                end = Offset(cropState.cropLeft, midY + edgeHandleLength / 2f),
+                                strokeWidth = edgeHandleStroke,
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                            // Right Edge Handle
+                            drawLine(
+                                color = if (cropState.activeHandle == DragHandle.RIGHT) activeColor else defaultColor,
+                                start = Offset(cropState.cropRight, midY - edgeHandleLength / 2f),
+                                end = Offset(cropState.cropRight, midY + edgeHandleLength / 2f),
+                                strokeWidth = edgeHandleStroke,
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                        }
                     } else {
                         if (detectedBoxes.isNotEmpty()) {
                             // Area-crop candidates remain independently editable.
@@ -1084,24 +1089,36 @@ fun ImageCropReviewLayout(
                                     style = androidx.compose.ui.graphics.drawscope.Stroke(width = borderStroke)
                                 )
 
-                                val handleRadius = 6.dp.toPx()
-                                listOf(
-                                    Offset(displayLeft, displayTop),
-                                    Offset(displayRight, displayTop),
-                                    Offset(displayLeft, displayBottom),
-                                    Offset(displayRight, displayBottom)
-                                ).forEach { center ->
-                                    drawCircle(selectionColor, handleRadius, center)
-                                }
+                                val armLen = minOf(14.dp.toPx(), frameWidth * 0.35f, frameHeight * 0.35f).coerceAtLeast(4.dp.toPx())
+                                val cornerStroke = 3.dp.toPx()
 
-                                val edgeLength = minOf(20.dp.toPx(), frameWidth, frameHeight)
-                                val edgeStroke = 3.dp.toPx()
-                                val midX = (displayLeft + displayRight) / 2f
-                                val midY = (displayTop + displayBottom) / 2f
-                                drawLine(selectionColor, Offset(midX - edgeLength / 2f, displayTop), Offset(midX + edgeLength / 2f, displayTop), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                                drawLine(selectionColor, Offset(midX - edgeLength / 2f, displayBottom), Offset(midX + edgeLength / 2f, displayBottom), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                                drawLine(selectionColor, Offset(displayLeft, midY - edgeLength / 2f), Offset(displayLeft, midY + edgeLength / 2f), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                                drawLine(selectionColor, Offset(displayRight, midY - edgeLength / 2f), Offset(displayRight, midY + edgeLength / 2f), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                // TL Bracket
+                                drawLine(selectionColor, Offset(displayLeft, displayTop), Offset(displayLeft + armLen, displayTop), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                drawLine(selectionColor, Offset(displayLeft, displayTop), Offset(displayLeft, displayTop + armLen), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+
+                                // TR Bracket
+                                drawLine(selectionColor, Offset(displayRight - armLen, displayTop), Offset(displayRight, displayTop), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                drawLine(selectionColor, Offset(displayRight, displayTop), Offset(displayRight, displayTop + armLen), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+
+                                // BL Bracket
+                                drawLine(selectionColor, Offset(displayLeft, displayBottom - armLen), Offset(displayLeft, displayBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                drawLine(selectionColor, Offset(displayLeft, displayBottom), Offset(displayLeft + armLen, displayBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+
+                                // BR Bracket
+                                drawLine(selectionColor, Offset(displayRight - armLen, displayBottom), Offset(displayRight, displayBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                drawLine(selectionColor, Offset(displayRight, displayBottom - armLen), Offset(displayRight, displayBottom), strokeWidth = cornerStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+
+                                val hideEdgeThreshold = 36.dp.toPx()
+                                if (frameWidth >= hideEdgeThreshold && frameHeight >= hideEdgeThreshold) {
+                                    val edgeLength = minOf(20.dp.toPx(), frameWidth * 0.3f, frameHeight * 0.3f)
+                                    val edgeStroke = 3.dp.toPx()
+                                    val midX = (displayLeft + displayRight) / 2f
+                                    val midY = (displayTop + displayBottom) / 2f
+                                    drawLine(selectionColor, Offset(midX - edgeLength / 2f, displayTop), Offset(midX + edgeLength / 2f, displayTop), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                    drawLine(selectionColor, Offset(midX - edgeLength / 2f, displayBottom), Offset(midX + edgeLength / 2f, displayBottom), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                    drawLine(selectionColor, Offset(displayLeft, midY - edgeLength / 2f), Offset(displayLeft, midY + edgeLength / 2f), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                    drawLine(selectionColor, Offset(displayRight, midY - edgeLength / 2f), Offset(displayRight, midY + edgeLength / 2f), edgeStroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                }
                             }
                         }
                     }
