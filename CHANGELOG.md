@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-08-25
+
+### Added
+- Steam Deck wireless screenshot drop and sync system:
+  - Local HTTP server on Android for wireless image transfer and PIN pairing authentication.
+  - mDNS (Network Service Discovery) auto-broadcasting for zero-config pairing with Steam Deck.
+  - Decky Loader companion plugin (`YomiDeck`) with zeroconf device discovery and one-click quick capture sync.
+  - Foreground service with status bar notifications and real-time pairing management in Settings.
+- Collapsible bookmark filter chips bar:
+  - Added smooth animated expand/collapse behavior on list scroll to maximize reading space in bookmarks.
+
 ## [1.9.2] - 2026-07-30
 
 ### Fixed

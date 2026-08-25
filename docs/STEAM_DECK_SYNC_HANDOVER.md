@@ -27,7 +27,7 @@
   {
     "status": "ready",
     "app": "YomiLLM",
-    "version": "1.9.2"
+    "version": "1.10.0"
   }
   ```
 

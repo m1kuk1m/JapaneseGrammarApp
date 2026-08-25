@@ -123,7 +123,7 @@ class DeckSyncServer(
 
             when {
                 method == "GET" && path == "/api/v1/ping" -> {
-                    val json = """{"status":"ready","app":"YomiLLM","version":"1.9.2"}"""
+                    val json = """{"status":"ready","app":"YomiLLM","version":"1.10.0"}"""
                     sendHttpResponse(output, 200, "OK", "application/json", json.toByteArray(Charsets.UTF_8))
                 }
 
