@@ -355,13 +355,22 @@ class BookmarkViewModelFilterTest {
         override val cardFontSizeScale = MutableStateFlow(1.0f)
         override val cardSpacingScale = MutableStateFlow(1.0f)
         override val furiganaSizeScale = MutableStateFlow(1.0f)
-        override val cardInternalPaddingScale = MutableStateFlow(1.0f)
-        override val furiganaGapScale = MutableStateFlow(1.0f)
         override fun getCardDetailDisplayMode(): String = "POPUP"
         override fun setCardDetailDisplayMode(mode: String) = Unit
         override val cardDetailDisplayMode = MutableStateFlow("POPUP")
+        override val cardInternalPaddingScale = MutableStateFlow(1.0f)
+        override val furiganaGapScale = MutableStateFlow(1.0f)
         override fun getRemoveAccidentalSpaces(): Boolean = true
         override fun setRemoveAccidentalSpaces(value: Boolean) = Unit
+
+        override fun getDeckSyncSettings(): com.example.japanesegrammarapp.domain.model.DeckSyncSettings = com.example.japanesegrammarapp.domain.model.DeckSyncSettings()
+        override fun setDeckSyncEnabled(enabled: Boolean) = Unit
+        override fun setDeckSyncPort(port: Int) = Unit
+        override fun setDeckSyncPin(pin: String) = Unit
+        override fun regenerateDeckSyncPin(): String = "8848"
+        override fun getDeckSyncAuthToken(): String = ""
+        override fun setDeckSyncAuthToken(token: String) = Unit
+        override val deckSyncSettingsFlow = MutableStateFlow(com.example.japanesegrammarapp.domain.model.DeckSyncSettings())
     }
 }
 

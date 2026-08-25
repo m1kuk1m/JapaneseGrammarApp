@@ -4,6 +4,14 @@ import android.app.Activity
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -23,6 +31,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.ui.Alignment
@@ -87,6 +96,10 @@ fun BookmarksScreen(
     val grammarListState = rememberLazyListState()
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
 
+    val wordCollapsingFilterState = rememberCollapsingFilterState(wordListState)
+    val sentenceCollapsingFilterState = rememberCollapsingFilterState(sentenceListState)
+    val grammarCollapsingFilterState = rememberCollapsingFilterState(grammarListState)
+
     // Track which card is in "confirm delete" mode
     var pendingDeleteId by remember { mutableStateOf<Int?>(null) }
 
@@ -111,6 +124,9 @@ fun BookmarksScreen(
         pendingDeleteId = null
         expandedId = null
         editingBookmark = null
+        wordCollapsingFilterState.reset()
+        sentenceCollapsingFilterState.reset()
+        grammarCollapsingFilterState.reset()
     }
 
     LaunchedEffect(
@@ -395,26 +411,44 @@ fun BookmarksScreen(
                             }
                         } else {
                             Column(
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .nestedScroll(wordCollapsingFilterState.nestedScrollConnection)
                             ) {
-                                BookmarkFilterChipsBar(
-                                    searchQuery = wordFilterState.searchQuery,
-                                    sortOrder = wordFilterState.sortOrder,
-                                    filterMode = wordFilterState.mode,
-                                    archiveFilter = wordFilterState.archiveFilter,
-                                    posCategories = posCategories,
-                                    dateCategories = wordDateCategories,
-                                    selectedPosCategory = wordFilterState.selectedPosCategory,
-                                    selectedDateFilter = wordFilterState.selectedDateFilter,
-                                    onSearchQueryChange = { viewModel.setSearchQuery(BookmarkTab.WORDS, it) },
-                                    onSortOrderChange = { viewModel.setSortOrder(BookmarkTab.WORDS, it) },
-                                    onFilterModeChange = { viewModel.setFilterMode(BookmarkTab.WORDS, it) },
-                                    onArchiveFilterChange = { viewModel.setArchiveFilter(BookmarkTab.WORDS, it) },
-                                    onPosCategoryChange = { viewModel.setPosCategory(BookmarkTab.WORDS, it) },
-                                    onDateFilterChange = { viewModel.setDateFilter(BookmarkTab.WORDS, it) },
-                                    onReset = { viewModel.resetFilters(BookmarkTab.WORDS) },
-                                    isDark = isDark
-                                )
+                                AnimatedVisibility(
+                                    visible = wordCollapsingFilterState.isVisible,
+                                    enter = expandVertically(
+                                        animationSpec = spring(
+                                            stiffness = Spring.StiffnessMediumLow,
+                                            dampingRatio = Spring.DampingRatioNoBouncy
+                                        )
+                                    ) + fadeIn(animationSpec = tween(150)),
+                                    exit = shrinkVertically(
+                                        animationSpec = spring(
+                                            stiffness = Spring.StiffnessMediumLow,
+                                            dampingRatio = Spring.DampingRatioNoBouncy
+                                        )
+                                    ) + fadeOut(animationSpec = tween(150))
+                                ) {
+                                    BookmarkFilterChipsBar(
+                                        searchQuery = wordFilterState.searchQuery,
+                                        sortOrder = wordFilterState.sortOrder,
+                                        filterMode = wordFilterState.mode,
+                                        archiveFilter = wordFilterState.archiveFilter,
+                                        posCategories = posCategories,
+                                        dateCategories = wordDateCategories,
+                                        selectedPosCategory = wordFilterState.selectedPosCategory,
+                                        selectedDateFilter = wordFilterState.selectedDateFilter,
+                                        onSearchQueryChange = { viewModel.setSearchQuery(BookmarkTab.WORDS, it) },
+                                        onSortOrderChange = { viewModel.setSortOrder(BookmarkTab.WORDS, it) },
+                                        onFilterModeChange = { viewModel.setFilterMode(BookmarkTab.WORDS, it) },
+                                        onArchiveFilterChange = { viewModel.setArchiveFilter(BookmarkTab.WORDS, it) },
+                                        onPosCategoryChange = { viewModel.setPosCategory(BookmarkTab.WORDS, it) },
+                                        onDateFilterChange = { viewModel.setDateFilter(BookmarkTab.WORDS, it) },
+                                        onReset = { viewModel.resetFilters(BookmarkTab.WORDS) },
+                                        isDark = isDark
+                                    )
+                                }
 
                                 if (bookmarks.isEmpty()) {
                                     BookmarkNoFilteredResults()
@@ -518,28 +552,47 @@ fun BookmarksScreen(
                                     )
                                 }
                             }
-                        } else {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                BookmarkFilterChipsBar(
-                                    searchQuery = sentenceFilterState.searchQuery,
-                                    sortOrder = sentenceFilterState.sortOrder,
-                                    filterMode = sentenceFilterState.mode,
-                                    archiveFilter = sentenceFilterState.archiveFilter,
-                                    posCategories = posCategories,
-                                    dateCategories = sentenceDateCategories,
-                                    selectedPosCategory = sentenceFilterState.selectedPosCategory,
-                                    selectedDateFilter = sentenceFilterState.selectedDateFilter,
-                                    onSearchQueryChange = { viewModel.setSearchQuery(BookmarkTab.SENTENCES, it) },
-                                    onSortOrderChange = { viewModel.setSortOrder(BookmarkTab.SENTENCES, it) },
-                                    onFilterModeChange = { viewModel.setFilterMode(BookmarkTab.SENTENCES, it) },
-                                    onArchiveFilterChange = { viewModel.setArchiveFilter(BookmarkTab.SENTENCES, it) },
-                                    onPosCategoryChange = { viewModel.setPosCategory(BookmarkTab.SENTENCES, it) },
-                                    onDateFilterChange = { viewModel.setDateFilter(BookmarkTab.SENTENCES, it) },
-                                    onReset = { viewModel.resetFilters(BookmarkTab.SENTENCES) },
-                                    isDark = isDark,
-                                    showPosFilter = false,
-                                    showArchiveFilter = true
-                                )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .nestedScroll(sentenceCollapsingFilterState.nestedScrollConnection)
+                            ) {
+                                AnimatedVisibility(
+                                    visible = sentenceCollapsingFilterState.isVisible,
+                                    enter = expandVertically(
+                                        animationSpec = spring(
+                                            stiffness = Spring.StiffnessMediumLow,
+                                            dampingRatio = Spring.DampingRatioNoBouncy
+                                        )
+                                    ) + fadeIn(animationSpec = tween(150)),
+                                    exit = shrinkVertically(
+                                        animationSpec = spring(
+                                            stiffness = Spring.StiffnessMediumLow,
+                                            dampingRatio = Spring.DampingRatioNoBouncy
+                                        )
+                                    ) + fadeOut(animationSpec = tween(150))
+                                ) {
+                                    BookmarkFilterChipsBar(
+                                        searchQuery = sentenceFilterState.searchQuery,
+                                        sortOrder = sentenceFilterState.sortOrder,
+                                        filterMode = sentenceFilterState.mode,
+                                        archiveFilter = sentenceFilterState.archiveFilter,
+                                        posCategories = posCategories,
+                                        dateCategories = sentenceDateCategories,
+                                        selectedPosCategory = sentenceFilterState.selectedPosCategory,
+                                        selectedDateFilter = sentenceFilterState.selectedDateFilter,
+                                        onSearchQueryChange = { viewModel.setSearchQuery(BookmarkTab.SENTENCES, it) },
+                                        onSortOrderChange = { viewModel.setSortOrder(BookmarkTab.SENTENCES, it) },
+                                        onFilterModeChange = { viewModel.setFilterMode(BookmarkTab.SENTENCES, it) },
+                                        onArchiveFilterChange = { viewModel.setArchiveFilter(BookmarkTab.SENTENCES, it) },
+                                        onPosCategoryChange = { viewModel.setPosCategory(BookmarkTab.SENTENCES, it) },
+                                        onDateFilterChange = { viewModel.setDateFilter(BookmarkTab.SENTENCES, it) },
+                                        onReset = { viewModel.resetFilters(BookmarkTab.SENTENCES) },
+                                        isDark = isDark,
+                                        showPosFilter = false,
+                                        showArchiveFilter = true
+                                    )
+                                }
                                 if (filteredSentences.isEmpty()) {
                                     BookmarkNoFilteredResults()
                                 } else {
@@ -612,28 +665,47 @@ fun BookmarksScreen(
                                     )
                                 }
                             }
-                        } else {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                BookmarkFilterChipsBar(
-                                    searchQuery = grammarFilterState.searchQuery,
-                                    sortOrder = grammarFilterState.sortOrder,
-                                    filterMode = grammarFilterState.mode,
-                                    archiveFilter = grammarFilterState.archiveFilter,
-                                    posCategories = posCategories,
-                                    dateCategories = grammarDateCategories,
-                                    selectedPosCategory = grammarFilterState.selectedPosCategory,
-                                    selectedDateFilter = grammarFilterState.selectedDateFilter,
-                                    onSearchQueryChange = { viewModel.setSearchQuery(BookmarkTab.GRAMMAR, it) },
-                                    onSortOrderChange = { viewModel.setSortOrder(BookmarkTab.GRAMMAR, it) },
-                                    onFilterModeChange = { viewModel.setFilterMode(BookmarkTab.GRAMMAR, it) },
-                                    onArchiveFilterChange = { viewModel.setArchiveFilter(BookmarkTab.GRAMMAR, it) },
-                                    onPosCategoryChange = { viewModel.setPosCategory(BookmarkTab.GRAMMAR, it) },
-                                    onDateFilterChange = { viewModel.setDateFilter(BookmarkTab.GRAMMAR, it) },
-                                    onReset = { viewModel.resetFilters(BookmarkTab.GRAMMAR) },
-                                    isDark = isDark,
-                                    showPosFilter = false,
-                                    showArchiveFilter = true
-                                )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .nestedScroll(grammarCollapsingFilterState.nestedScrollConnection)
+                            ) {
+                                AnimatedVisibility(
+                                    visible = grammarCollapsingFilterState.isVisible,
+                                    enter = expandVertically(
+                                        animationSpec = spring(
+                                            stiffness = Spring.StiffnessMediumLow,
+                                            dampingRatio = Spring.DampingRatioNoBouncy
+                                        )
+                                    ) + fadeIn(animationSpec = tween(150)),
+                                    exit = shrinkVertically(
+                                        animationSpec = spring(
+                                            stiffness = Spring.StiffnessMediumLow,
+                                            dampingRatio = Spring.DampingRatioNoBouncy
+                                        )
+                                    ) + fadeOut(animationSpec = tween(150))
+                                ) {
+                                    BookmarkFilterChipsBar(
+                                        searchQuery = grammarFilterState.searchQuery,
+                                        sortOrder = grammarFilterState.sortOrder,
+                                        filterMode = grammarFilterState.mode,
+                                        archiveFilter = grammarFilterState.archiveFilter,
+                                        posCategories = posCategories,
+                                        dateCategories = grammarDateCategories,
+                                        selectedPosCategory = grammarFilterState.selectedPosCategory,
+                                        selectedDateFilter = grammarFilterState.selectedDateFilter,
+                                        onSearchQueryChange = { viewModel.setSearchQuery(BookmarkTab.GRAMMAR, it) },
+                                        onSortOrderChange = { viewModel.setSortOrder(BookmarkTab.GRAMMAR, it) },
+                                        onFilterModeChange = { viewModel.setFilterMode(BookmarkTab.GRAMMAR, it) },
+                                        onArchiveFilterChange = { viewModel.setArchiveFilter(BookmarkTab.GRAMMAR, it) },
+                                        onPosCategoryChange = { viewModel.setPosCategory(BookmarkTab.GRAMMAR, it) },
+                                        onDateFilterChange = { viewModel.setDateFilter(BookmarkTab.GRAMMAR, it) },
+                                        onReset = { viewModel.resetFilters(BookmarkTab.GRAMMAR) },
+                                        isDark = isDark,
+                                        showPosFilter = false,
+                                        showArchiveFilter = true
+                                    )
+                                }
                                 if (filteredGrammarPoints.isEmpty()) {
                                     BookmarkNoFilteredResults()
                                 } else {

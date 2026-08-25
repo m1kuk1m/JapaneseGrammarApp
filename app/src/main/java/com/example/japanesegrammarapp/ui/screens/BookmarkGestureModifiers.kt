@@ -2,7 +2,18 @@ package com.example.japanesegrammarapp.ui.screens
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -43,5 +54,49 @@ fun Modifier.bookmarkRightSwipeBack(onBack: () -> Unit): Modifier = pointerInput
         if (isDecided && isRightSwipe) {
             onBack()
         }
+    }
+}
+
+class CollapsingFilterState(
+    val isVisible: Boolean,
+    val nestedScrollConnection: NestedScrollConnection,
+    val reset: () -> Unit
+)
+
+@Composable
+fun rememberCollapsingFilterState(
+    lazyListState: LazyListState,
+    thresholdPx: Float = 15f
+): CollapsingFilterState {
+    var isScrolledVisible by rememberSaveable { mutableStateOf(true) }
+    val isAtTop by remember {
+        derivedStateOf {
+            lazyListState.firstVisibleItemIndex == 0 && lazyListState.firstVisibleItemScrollOffset <= 10
+        }
+    }
+    val isVisible = isAtTop || isScrolledVisible
+
+    val nestedScrollConnection = remember(thresholdPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val dy = available.y
+                if (dy < -thresholdPx) {
+                    // Scrolling down (finger moves up, content moves up) -> collapse
+                    isScrolledVisible = false
+                } else if (dy > thresholdPx) {
+                    // Scrolling up (finger moves down, content moves down) -> expand
+                    isScrolledVisible = true
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    return remember(isVisible, nestedScrollConnection) {
+        CollapsingFilterState(
+            isVisible = isVisible,
+            nestedScrollConnection = nestedScrollConnection,
+            reset = { isScrolledVisible = true }
+        )
     }
 }
