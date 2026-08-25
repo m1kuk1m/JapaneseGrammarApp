@@ -552,6 +552,7 @@ fun BookmarksScreen(
                                     )
                                 }
                             }
+                        } else {
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -665,6 +666,7 @@ fun BookmarksScreen(
                                     )
                                 }
                             }
+                        } else {
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
