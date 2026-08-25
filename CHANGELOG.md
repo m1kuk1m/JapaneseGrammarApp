@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Collapsible bookmark filter chips bar:
   - Added smooth animated expand/collapse behavior on list scroll to maximize reading space in bookmarks.
 
+### Fixed
+- Fixed blank screen issue in bookmark Sentences and Grammar tabs when filtering conditions changed.
+
 ## [1.9.2] - 2026-07-30
 
 ### Fixed
@@ -311,6 +314,9 @@ This release should make grammar analysis more stable for sentences containing e
 ### Added
 - Initial stable release featuring Japanese grammar analysis using Kuromoji tokenizer and custom LLM prompts.
 
+[1.10.0]: https://github.com/m1kuk1m/YomiLLM/releases/tag/v1.10.0
+[1.9.2]: https://github.com/m1kuk1m/YomiLLM/releases/tag/v1.9.2
+[1.9.1]: https://github.com/m1kuk1m/YomiLLM/releases/tag/v1.9.1
 [1.9.0]: https://github.com/m1kuk1m/YomiLLM/releases/tag/v1.9.0
 [1.8.1]: https://github.com/m1kuk1m/YomiLLM/releases/tag/v1.8.1
 [1.8.0]: https://github.com/m1kuk1m/YomiLLM/releases/tag/v1.8.0
