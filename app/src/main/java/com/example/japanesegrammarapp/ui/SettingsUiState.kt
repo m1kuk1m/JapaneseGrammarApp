@@ -51,6 +51,9 @@ data class SettingsUiState(
     val furiganaSizeScale: Float = 1.0f,
     val cardInternalPaddingScale: Float = 1.0f,
     val furiganaGapScale: Float = 1.0f,
-    val cardDetailDisplayMode: String = "POPUP"
+    val cardDetailDisplayMode: String = "POPUP",
+    val deckSyncSettings: com.example.japanesegrammarapp.domain.model.DeckSyncSettings = com.example.japanesegrammarapp.domain.model.DeckSyncSettings(),
+    val isDeckSyncServiceRunning: Boolean = false,
+    val deckSyncIpAddress: String = ""
 )
 

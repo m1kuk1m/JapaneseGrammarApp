@@ -197,6 +197,32 @@ class SettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(cardDetailDisplayMode = mode) }
             }
         }
+
+        viewModelScope.launch {
+            settingsRepository.deckSyncSettingsFlow.collect { settings ->
+                _uiState.update { it.copy(deckSyncSettings = settings) }
+            }
+        }
+
+        viewModelScope.launch {
+            val ip = com.example.japanesegrammarapp.utils.NetworkUtils.getLocalIpAddress()
+            _uiState.update {
+                it.copy(
+                    isDeckSyncServiceRunning = com.example.japanesegrammarapp.service.DeckSyncForegroundService.isServiceRunning,
+                    deckSyncIpAddress = ip
+                )
+            }
+            com.example.japanesegrammarapp.service.DeckSyncEventBus.events.collect { event ->
+                if (event is com.example.japanesegrammarapp.service.DeckSyncEvent.StatusChanged) {
+                    _uiState.update { state ->
+                        state.copy(
+                            isDeckSyncServiceRunning = event.isRunning,
+                            deckSyncIpAddress = if (event.isRunning) event.ipAddress else com.example.japanesegrammarapp.utils.NetworkUtils.getLocalIpAddress()
+                        )
+                    }
+                }
+            }
+        }
     }
 
     fun getApiKey(provider: String): String = settingsRepository.getApiKey(provider)
@@ -984,6 +1010,40 @@ class SettingsViewModel @Inject constructor(
     fun setFailoverToNextEndpoint(value: Boolean) {
         settingsRepository.setFailoverToNextEndpoint(value)
         _uiState.update { it.copy(failoverToNextEndpoint = value) }
+    }
+
+    fun toggleDeckSyncService(context: android.content.Context) {
+        val currentRunning = _uiState.value.isDeckSyncServiceRunning
+        if (currentRunning) {
+            settingsRepository.setDeckSyncEnabled(false)
+            com.example.japanesegrammarapp.service.DeckSyncForegroundService.stopService(context)
+            _uiState.update { it.copy(isDeckSyncServiceRunning = false) }
+        } else {
+            settingsRepository.setDeckSyncEnabled(true)
+            com.example.japanesegrammarapp.service.DeckSyncForegroundService.startService(context)
+            _uiState.update { it.copy(isDeckSyncServiceRunning = true, deckSyncIpAddress = com.example.japanesegrammarapp.utils.NetworkUtils.getLocalIpAddress(context)) }
+        }
+    }
+
+    fun setDeckSyncPort(port: Int, context: android.content.Context? = null) {
+        settingsRepository.setDeckSyncPort(port)
+        if (_uiState.value.isDeckSyncServiceRunning && context != null) {
+            com.example.japanesegrammarapp.service.DeckSyncForegroundService.stopService(context)
+            com.example.japanesegrammarapp.service.DeckSyncForegroundService.startService(context)
+        }
+    }
+
+    fun setDeckSyncPin(pin: String) {
+        settingsRepository.setDeckSyncPin(pin)
+    }
+
+    fun regenerateDeckSyncPin(): String {
+        return settingsRepository.regenerateDeckSyncPin()
+    }
+
+    fun refreshDeckSyncIpAddress(context: android.content.Context? = null) {
+        val ip = com.example.japanesegrammarapp.utils.NetworkUtils.getLocalIpAddress(context)
+        _uiState.update { it.copy(deckSyncIpAddress = ip) }
     }
 
     private companion object {

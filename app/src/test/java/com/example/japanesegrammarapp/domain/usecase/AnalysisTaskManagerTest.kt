@@ -348,6 +348,15 @@ private class FakeSettingsRepository(
     override val cardDetailDisplayMode = MutableStateFlow("POPUP")
     override fun getRemoveAccidentalSpaces(): Boolean = true
     override fun setRemoveAccidentalSpaces(value: Boolean) = Unit
+
+    override fun getDeckSyncSettings(): com.example.japanesegrammarapp.domain.model.DeckSyncSettings = com.example.japanesegrammarapp.domain.model.DeckSyncSettings()
+    override fun setDeckSyncEnabled(enabled: Boolean) = Unit
+    override fun setDeckSyncPort(port: Int) = Unit
+    override fun setDeckSyncPin(pin: String) = Unit
+    override fun regenerateDeckSyncPin(): String = "8848"
+    override fun getDeckSyncAuthToken(): String = ""
+    override fun setDeckSyncAuthToken(token: String) = Unit
+    override val deckSyncSettingsFlow = MutableStateFlow(com.example.japanesegrammarapp.domain.model.DeckSyncSettings())
 }
 
 

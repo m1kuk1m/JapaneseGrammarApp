@@ -724,5 +724,46 @@
     <string name="import_preset_success">%1$d 件のプリセットをインポートしました</string>
     <string name="import_failed_invalid">ファイル形式が無効です</string>
     <string name="import_failed_empty">ファイルに有効なプリセットがありません</string>
+
+    <!-- Steam Deck Drop (ドロップ) -->
+    <string name="steam_deck_companion">Steam Deck ドロップ</string>
+    <string name="deck_sync_group_status">サービス稼働状況</string>
+    <string name="deck_sync_service_title">ドロップ受信サービス</string>
+    <string name="deck_sync_status_running">サービス稼働中</string>
+    <string name="deck_sync_status_stopped">サービス停止中</string>
+    <string name="deck_sync_server_address">LANサービスアドレス</string>
+    <string name="deck_sync_copy">アドレスをコピー</string>
+    <string name="deck_sync_copied_toast">サービスアドレスをクリップボードにコピーしました</string>
+    <string name="deck_sync_group_security">LANペアリングとセキュリティ</string>
+    <string name="deck_sync_mdns_title">mDNS 自動検出ブロードキャスト</string>
+    <string name="deck_sync_mdns_desc">LAN内に _yomillm._tcp をブロードキャストし、Steam Deck プラグインから自動検出可能にします</string>
+    <string name="deck_sync_mdns_broadcasting">ブロードキャスト中</string>
+    <string name="deck_sync_mdns_idle">停止中</string>
+    <string name="deck_sync_pin_title">セキュリティPINコード</string>
+    <string name="deck_sync_pin_desc">Steam Deck プラグインの初回接続時にこの4桁のPINを入力してください</string>
+    <string name="deck_sync_pin_regenerate">再生成</string>
+    <string name="deck_sync_pin_regenerated_toast">新しいPINコードを生成しました: %1$s</string>
+    <string name="deck_sync_port_title">リッスンポート</string>
+    <string name="deck_sync_port_desc">HTTP サービスポート (デフォルト: 8765)</string>
+    <string name="deck_sync_edit_port_title">ポート番号の変更</string>
+    <string name="deck_sync_edit_port_desc">1024 から 65535 の有効なポート番号を入力してください。</string>
+    <string name="deck_sync_group_guide">設定とドロップ連携ガイド</string>
+    <string name="deck_sync_guide_title">Steam Deck でのドロップ連携設定方法は？</string>
+    <string name="deck_sync_step_1">1. Steam Deck に Decky Loader と YomiDeck プラグインをインストールします。</string>
+    <string name="deck_sync_step_2">2. Steam Deck とスマートフォンを同じ Wi-Fi またはテザリングに接続します。</string>
+    <string name="deck_sync_step_3">3. Steam QAM サイドバーの YomiDeck プラグインを開くと、スマートフォンが自動検出されます。</string>
+    <string name="deck_sync_step_4">4. 上記の4桁のPINコードを入力して認証を完了します。</string>
+    <string name="deck_sync_step_5">5. ゲーム中にショートカットキー（背面ボタン L4/R4 など）を押すと、スマホにスクリーンショットが即座にドロップ送信され、字幕の解析が行われます。</string>
+    <string name="deck_sync_service_channel_name">Steam Deck ドロップサービス</string>
+    <string name="deck_sync_service_channel_desc">Steam Deck からのスクリーンショットを受信するためのバックグラウンドサービス</string>
+    <string name="deck_sync_screenshot_channel_name">Steam Deck スクリーンショット</string>
+    <string name="deck_sync_screenshot_channel_desc">新しいゲームスクリーンショット受信時のヘッドアップ通知</string>
+    <string name="deck_sync_pin_copied_toast">PINコードをクリップボードにコピーしました</string>
+    <string name="deck_sync_copy_pin_hint">タップしてPINコードをコピー</string>
+    <string name="deck_sync_service_running_title">Steam Deck ドロップ稼働中</string>
+    <string name="deck_sync_service_running_desc">待受アドレス: %1$s:%2$d</string>
+    <string name="deck_sync_stop_service">サービス停止</string>
+    <string name="deck_sync_notif_title">Steam Deck スクリーンショットを受信</string>
+    <string name="deck_sync_notif_desc">タップしてセリフ枠の選択と日本語文法解析を開始</string>
 </resources>
 

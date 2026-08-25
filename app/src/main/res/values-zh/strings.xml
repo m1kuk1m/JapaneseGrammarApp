@@ -725,5 +725,46 @@
     <string name="import_preset_success">成功导入 %1$d 个预设</string>
     <string name="import_failed_invalid">文件格式无效</string>
     <string name="import_failed_empty">文件中未找到有效预设</string>
+
+    <!-- Steam Deck Drop (投送) -->
+    <string name="steam_deck_companion">Steam Deck 投送</string>
+    <string name="deck_sync_group_status">服务运行状态</string>
+    <string name="deck_sync_service_title">投送接收服务</string>
+    <string name="deck_sync_status_running">服务运行中</string>
+    <string name="deck_sync_status_stopped">服务已停止</string>
+    <string name="deck_sync_server_address">服务局域网地址</string>
+    <string name="deck_sync_copy">复制地址</string>
+    <string name="deck_sync_copied_toast">已复制服务地址到剪贴板</string>
+    <string name="deck_sync_group_security">局域网配对与安全</string>
+    <string name="deck_sync_mdns_title">mDNS 自动广播发现</string>
+    <string name="deck_sync_mdns_desc">在局域网内广播 _yomillm._tcp，供 Steam Deck 插件免配置搜寻</string>
+    <string name="deck_sync_mdns_broadcasting">广播中</string>
+    <string name="deck_sync_mdns_idle">未广播</string>
+    <string name="deck_sync_pin_title">安全配对码 (PIN)</string>
+    <string name="deck_sync_pin_desc">Steam Deck 插件首次连接时需输入此 4 位配对码</string>
+    <string name="deck_sync_pin_regenerate">重新生成</string>
+    <string name="deck_sync_pin_regenerated_toast">已生成新配对码：%1$s</string>
+    <string name="deck_sync_port_title">服务监听端口</string>
+    <string name="deck_sync_port_desc">HTTP 服务端口（默认：8765）</string>
+    <string name="deck_sync_edit_port_title">修改服务端口</string>
+    <string name="deck_sync_edit_port_desc">请输入 1024 到 65535 之间的有效端口号。</string>
+    <string name="deck_sync_group_guide">使用指引与投送联动说明</string>
+    <string name="deck_sync_guide_title">如何在 Steam Deck 上配置投送联动？</string>
+    <string name="deck_sync_step_1">1. 在 Steam Deck 安装 Decky Loader 与 YomiDeck 插件。</string>
+    <string name="deck_sync_step_2">2. 确保 Steam Deck 与手机连入同一 Wi-Fi 或手机热点。</string>
+    <string name="deck_sync_step_3">3. 打开 Steam QAM 侧边栏的 YomiDeck 插件，自动发现手机。</string>
+    <string name="deck_sync_step_4">4. 输入上方 4 位配对码完成鉴权连接。</string>
+    <string name="deck_sync_step_5">5. 游戏中按下快捷截图键（如背键 L4/R4），手机即可秒级接收投送并自动圈选台词解析。</string>
+    <string name="deck_sync_service_channel_name">Steam Deck 投送服务</string>
+    <string name="deck_sync_service_channel_desc">保持后台投送服务运行以接收 Steam Deck 截图</string>
+    <string name="deck_sync_screenshot_channel_name">Steam Deck 游戏截图</string>
+    <string name="deck_sync_screenshot_channel_desc">接收到掌机游戏新截图时的横幅通知</string>
+    <string name="deck_sync_pin_copied_toast">已复制安全配对码到剪贴板</string>
+    <string name="deck_sync_copy_pin_hint">点击卡片可快速复制配对码</string>
+    <string name="deck_sync_service_running_title">Steam Deck 投送服务运行中</string>
+    <string name="deck_sync_service_running_desc">监听地址: %1$s:%2$d</string>
+    <string name="deck_sync_stop_service">停止服务</string>
+    <string name="deck_sync_notif_title">收到 Steam Deck 游戏截图</string>
+    <string name="deck_sync_notif_desc">轻点直接进入台词框圈选与日文语法解析</string>
 </resources>
 

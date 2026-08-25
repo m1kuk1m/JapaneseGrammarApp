@@ -70,6 +70,16 @@ import kotlinx.coroutines.launch
 @Composable
 fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow<Intent> = emptyFlow()) {
     val navController = rememberNavController()
+
+    LaunchedEffect(Unit) {
+        com.example.japanesegrammarapp.service.DeckSyncEventBus.events.collect { event ->
+            if (event is com.example.japanesegrammarapp.service.DeckSyncEvent.ScreenshotReceived) {
+                val encodedUri = Uri.encode(event.imageUri.toString())
+                navController.navigate("camera?imageUri=$encodedUri")
+            }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = "home_pager",
@@ -197,10 +207,15 @@ fun AppNavigation(externalTextFlow: Flow<String> = emptyFlow(), intentFlow: Flow
                     val dest = intent.getStringExtra("destination")
                     val showInput = intent.getBooleanExtra("show_input", false)
                     val ocrUriStr = intent.getStringExtra("ocr_uri")
+                    val imageUriStr = intent.getStringExtra("image_uri")
                     
                     if (dest == "camera") {
                         pagerState.animateScrollToPage(0)
-                        navController.navigate("camera")
+                        if (!imageUriStr.isNullOrBlank()) {
+                            navController.navigate("camera?imageUri=${Uri.encode(imageUriStr)}")
+                        } else {
+                            navController.navigate("camera")
+                        }
                     } else if (showInput) {
                         pagerState.animateScrollToPage(0)
                         workspaceViewModel.showGlobalInputDialog()

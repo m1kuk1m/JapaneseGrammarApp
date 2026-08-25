@@ -1,0 +1,9 @@
+{
+  "api_version": 1,
+  "name": "YomiDeck",
+  "author": "YomiLLM",
+  "flags": [],
+  "version": "1.0.0",
+  "description": "Wireless screenshot drop and synchronization plugin for YomiLLM Japanese grammar analysis",
+  "main": "dist/index.js"
+}

@@ -33,3 +33,10 @@
 -keep class ai.onnxruntime.** { *; }
 -dontwarn ai.onnxruntime.**
 
+# Ktor Server & SLF4J (Steam Deck Companion)
+-dontwarn java.lang.management.ManagementFactory
+-dontwarn java.lang.management.RuntimeMXBean
+-dontwarn org.slf4j.impl.StaticLoggerBinder
+-dontwarn io.ktor.**
+-keep class io.ktor.** { *; }
+

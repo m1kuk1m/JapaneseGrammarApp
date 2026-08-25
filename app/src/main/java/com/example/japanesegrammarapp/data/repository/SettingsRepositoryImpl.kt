@@ -87,6 +87,9 @@ class SettingsRepositoryImpl @Inject constructor(
     private val _silentBackgroundMode = kotlinx.coroutines.flow.MutableStateFlow(false)
     override val silentBackgroundMode: kotlinx.coroutines.flow.StateFlow<Boolean> = _silentBackgroundMode.asStateFlow()
 
+    private val _deckSyncSettingsFlow = kotlinx.coroutines.flow.MutableStateFlow(com.example.japanesegrammarapp.domain.model.DeckSyncSettings())
+    override val deckSyncSettingsFlow: kotlinx.coroutines.flow.StateFlow<com.example.japanesegrammarapp.domain.model.DeckSyncSettings> = _deckSyncSettingsFlow.asStateFlow()
+
     init {
         applicationScope.launch {
             _themeMode.value = settingPrefs.getString("theme_mode", "System") ?: "System"
@@ -98,6 +101,7 @@ class SettingsRepositoryImpl @Inject constructor(
             _cardInternalPaddingScale.value = settingPrefs.getFloat("card_internal_padding_scale", 1.0f)
             _furiganaGapScale.value = settingPrefs.getFloat("furigana_gap_scale", 1.0f)
             _cardDetailDisplayMode.value = settingPrefs.getString("card_detail_display_mode", "POPUP") ?: "POPUP"
+            _deckSyncSettingsFlow.value = loadDeckSyncSettingsInternal()
         }
     }
 
@@ -1209,5 +1213,74 @@ class SettingsRepositoryImpl @Inject constructor(
     override fun setFailoverToNextEndpoint(value: Boolean) {
         cachedFailoverToNextEndpoint = value
         settingPrefs.edit().putBoolean("failover_to_next_endpoint", value).apply()
+    }
+
+    // --- Steam Deck Companion Settings ---
+
+    private fun loadDeckSyncSettingsInternal(): com.example.japanesegrammarapp.domain.model.DeckSyncSettings {
+        val isEnabled = settingPrefs.getBoolean("deck_sync_enabled", false)
+        val port = settingPrefs.getInt("deck_sync_port", com.example.japanesegrammarapp.domain.model.DeckSyncSettings.DEFAULT_PORT)
+        var pin = settingPrefs.getString("deck_sync_pin", null)
+        if (pin.isNullOrBlank()) {
+            pin = generateRandomPin()
+            settingPrefs.edit().putString("deck_sync_pin", pin).apply()
+        }
+        val token = settingPrefs.getString("deck_sync_auth_token", "") ?: ""
+        return com.example.japanesegrammarapp.domain.model.DeckSyncSettings(
+            isEnabled = isEnabled,
+            port = port,
+            pin = pin,
+            authToken = token
+        )
+    }
+
+    private fun generateRandomPin(): String {
+        val randomNum = (0..9999).random()
+        return String.format(java.util.Locale.US, "%04d", randomNum)
+    }
+
+    private fun updateDeckSyncSettings(updater: (com.example.japanesegrammarapp.domain.model.DeckSyncSettings) -> com.example.japanesegrammarapp.domain.model.DeckSyncSettings) {
+        val current = _deckSyncSettingsFlow.value
+        val updated = updater(current)
+        _deckSyncSettingsFlow.value = updated
+    }
+
+    override fun getDeckSyncSettings(): com.example.japanesegrammarapp.domain.model.DeckSyncSettings {
+        return _deckSyncSettingsFlow.value
+    }
+
+    override fun setDeckSyncEnabled(enabled: Boolean) {
+        settingPrefs.edit().putBoolean("deck_sync_enabled", enabled).apply()
+        updateDeckSyncSettings { it.copy(isEnabled = enabled) }
+    }
+
+    override fun setDeckSyncPort(port: Int) {
+        val validPort = if (port in 1024..65535) port else com.example.japanesegrammarapp.domain.model.DeckSyncSettings.DEFAULT_PORT
+        settingPrefs.edit().putInt("deck_sync_port", validPort).apply()
+        updateDeckSyncSettings { it.copy(port = validPort) }
+    }
+
+    override fun setDeckSyncPin(pin: String) {
+        val validPin = if (pin.length == 4 && pin.all { it.isDigit() }) pin else generateRandomPin()
+        settingPrefs.edit().putString("deck_sync_pin", validPin).apply()
+        updateDeckSyncSettings { it.copy(pin = validPin) }
+    }
+
+    override fun regenerateDeckSyncPin(): String {
+        val newPin = generateRandomPin()
+        settingPrefs.edit().putString("deck_sync_pin", newPin).apply()
+        // Reset auth token on PIN regenerate to force re-pair
+        settingPrefs.edit().putString("deck_sync_auth_token", "").apply()
+        updateDeckSyncSettings { it.copy(pin = newPin, authToken = "") }
+        return newPin
+    }
+
+    override fun getDeckSyncAuthToken(): String {
+        return _deckSyncSettingsFlow.value.authToken
+    }
+
+    override fun setDeckSyncAuthToken(token: String) {
+        settingPrefs.edit().putString("deck_sync_auth_token", token).apply()
+        updateDeckSyncSettings { it.copy(authToken = token) }
     }
 }

@@ -45,3 +45,10 @@ scrape_*.py
 prompt_backups/
 .gemini*
 *_scratch_*
+
+# Decky Plugin dependencies
+decky-plugin/node_modules/
+
+# Script temporary test artifacts
+scripts/*.png
+

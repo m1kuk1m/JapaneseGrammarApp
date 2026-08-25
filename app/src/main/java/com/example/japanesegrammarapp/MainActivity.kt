@@ -93,6 +93,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // Auto-start Steam Deck Companion service if previously enabled
+        if (::settingsRepository.isInitialized && settingsRepository.getDeckSyncSettings().isEnabled) {
+            com.example.japanesegrammarapp.service.DeckSyncForegroundService.startService(this)
+        }
+
         setContent {
             val viewModel: SettingsViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsState()

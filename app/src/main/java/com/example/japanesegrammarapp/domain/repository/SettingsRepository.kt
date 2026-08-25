@@ -120,6 +120,16 @@ interface SettingsRepository {
 
     fun getRemoveAccidentalSpaces(): Boolean
     fun setRemoveAccidentalSpaces(value: Boolean)
+
+    // Steam Deck Companion Settings
+    fun getDeckSyncSettings(): com.example.japanesegrammarapp.domain.model.DeckSyncSettings
+    fun setDeckSyncEnabled(enabled: Boolean)
+    fun setDeckSyncPort(port: Int)
+    fun setDeckSyncPin(pin: String)
+    fun regenerateDeckSyncPin(): String
+    fun getDeckSyncAuthToken(): String
+    fun setDeckSyncAuthToken(token: String)
+    val deckSyncSettingsFlow: kotlinx.coroutines.flow.StateFlow<com.example.japanesegrammarapp.domain.model.DeckSyncSettings>
 }
 
 

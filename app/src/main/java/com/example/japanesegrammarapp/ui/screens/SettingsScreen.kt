@@ -60,6 +60,7 @@ enum class SettingsCategory(val titleRes: Int, val icon: ImageVector) {
     OCR_SCANNING(R.string.ocr_scanning, Icons.Default.DocumentScanner),
     LLM_API(R.string.llm_prompts, Icons.Default.VpnKey),
     TTS(R.string.tts_settings_title, Icons.Default.RecordVoiceOver),
+    STEAM_DECK(R.string.steam_deck_companion, Icons.Default.SportsEsports),
     ADVANCED(R.string.advanced_debug, Icons.Default.BugReport)
 }
 
@@ -653,6 +654,12 @@ fun SettingsScreen(
                                         )
                                     },
                                     onRequestClearTtsKey = { pendingTtsKeyClearProvider = it }
+                                )
+                            }
+                            SettingsCategory.STEAM_DECK -> {
+                                SettingsDeckSyncSection(
+                                    uiState = uiState,
+                                    viewModel = viewModel
                                 )
                             }
                             SettingsCategory.ADVANCED -> {

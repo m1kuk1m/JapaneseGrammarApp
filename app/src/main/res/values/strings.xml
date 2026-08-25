@@ -734,5 +734,46 @@
     <string name="import_preset_success">Imported %1$d preset(s) successfully</string>
     <string name="import_failed_invalid">Invalid file format</string>
     <string name="import_failed_empty">No valid presets found in file</string>
+
+    <!-- Steam Deck Drop -->
+    <string name="steam_deck_companion">Steam Deck Drop</string>
+    <string name="deck_sync_group_status">Service Status</string>
+    <string name="deck_sync_service_title">Drop Receiver Service</string>
+    <string name="deck_sync_status_running">Service Running</string>
+    <string name="deck_sync_status_stopped">Service Stopped</string>
+    <string name="deck_sync_server_address">Service Address</string>
+    <string name="deck_sync_copy">Copy</string>
+    <string name="deck_sync_copied_toast">Server address copied to clipboard</string>
+    <string name="deck_sync_group_security">Pairing &amp; Security</string>
+    <string name="deck_sync_mdns_title">mDNS Auto Discovery</string>
+    <string name="deck_sync_mdns_desc">Broadcasts _yomillm._tcp on local network for automatic zero-config discovery</string>
+    <string name="deck_sync_mdns_broadcasting">Broadcasting</string>
+    <string name="deck_sync_mdns_idle">Idle</string>
+    <string name="deck_sync_pin_title">Security PIN</string>
+    <string name="deck_sync_pin_desc">Enter this 4-digit PIN in Decky plugin during first connection</string>
+    <string name="deck_sync_pin_regenerate">Regenerate</string>
+    <string name="deck_sync_pin_regenerated_toast">Generated new PIN: %1$s</string>
+    <string name="deck_sync_port_title">Listen Port</string>
+    <string name="deck_sync_port_desc">HTTP service port (default: 8765)</string>
+    <string name="deck_sync_edit_port_title">Edit Service Port</string>
+    <string name="deck_sync_edit_port_desc">Enter a valid port number between 1024 and 65535.</string>
+    <string name="deck_sync_group_guide">Setup &amp; Drop Guide</string>
+    <string name="deck_sync_guide_title">How to set up Steam Deck Drop?</string>
+    <string name="deck_sync_step_1">1. Install Decky Loader and YomiDeck plugin on Steam Deck.</string>
+    <string name="deck_sync_step_2">2. Connect Steam Deck and this phone to the same Wi-Fi or phone hotspot.</string>
+    <string name="deck_sync_step_3">3. Open YomiDeck plugin from Steam QAM sidebar; it will discover your phone.</string>
+    <string name="deck_sync_step_4">4. Enter the 4-digit PIN shown above to complete authentication.</string>
+    <string name="deck_sync_step_5">5. Press shortcut key (e.g. back grip L4/R4) in any game to drop screenshot to phone and analyze subtitles immediately.</string>
+    <string name="deck_sync_service_channel_name">Steam Deck Drop Service</string>
+    <string name="deck_sync_service_channel_desc">Keeps background drop service active for Steam Deck screenshots</string>
+    <string name="deck_sync_screenshot_channel_name">Steam Deck Screenshots</string>
+    <string name="deck_sync_screenshot_channel_desc">Heads-up alerts when new game screenshots are received</string>
+    <string name="deck_sync_pin_copied_toast">PIN code copied to clipboard</string>
+    <string name="deck_sync_copy_pin_hint">Tap to copy PIN code</string>
+    <string name="deck_sync_service_running_title">Steam Deck Drop Service Running</string>
+    <string name="deck_sync_service_running_desc">Listening on %1$s:%2$d</string>
+    <string name="deck_sync_stop_service">Stop</string>
+    <string name="deck_sync_notif_title">Steam Deck Screenshot Received</string>
+    <string name="deck_sync_notif_desc">Tap to crop subtitles and parse Japanese grammar</string>
 </resources>
 

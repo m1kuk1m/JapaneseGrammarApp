@@ -203,6 +203,47 @@ class SettingsRepositoryImplTest {
     }
 
     @Test
+    fun deckSyncSettingsDefaultsAndPersistence() {
+        val standardPrefs = TestSharedPreferences()
+        val repository = newRepository(standardPrefs, TestSharedPreferences())
+
+        val initial = repository.getDeckSyncSettings()
+        assertFalse(initial.isEnabled)
+        assertEquals(8765, initial.port)
+        assertTrue(initial.pin.length == 4)
+
+        repository.setDeckSyncEnabled(true)
+        repository.setDeckSyncPort(9000)
+        repository.setDeckSyncPin("1234")
+        repository.setDeckSyncAuthToken("test-token-uuid")
+
+        val updated = repository.getDeckSyncSettings()
+        assertTrue(updated.isEnabled)
+        assertEquals(9000, updated.port)
+        assertEquals("1234", updated.pin)
+        assertEquals("test-token-uuid", updated.authToken)
+
+        val reloaded = newRepository(standardPrefs, TestSharedPreferences()).getDeckSyncSettings()
+        assertTrue(reloaded.isEnabled)
+        assertEquals(9000, reloaded.port)
+        assertEquals("1234", reloaded.pin)
+        assertEquals("test-token-uuid", reloaded.authToken)
+    }
+
+    @Test
+    fun deckSyncPinRegenerateClearsAuthToken() {
+        val repository = newRepository()
+        repository.setDeckSyncPin("1111")
+        repository.setDeckSyncAuthToken("token-to-clear")
+
+        val newPin = repository.regenerateDeckSyncPin()
+        assertEquals(4, newPin.length)
+        val settings = repository.getDeckSyncSettings()
+        assertEquals(newPin, settings.pin)
+        assertEquals("", settings.authToken)
+    }
+
+    @Test
     fun endpointUrlValidatorAcceptsOnlyHttpAndHttpsUrls() {
         assertTrue(EndpointUrlValidator.isValidHttpUrl("https://api.example.com/v1"))
         assertTrue(EndpointUrlValidator.isValidHttpUrl(" http://localhost:8080 "))
