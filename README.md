@@ -31,6 +31,7 @@ An Android app for analyzing Japanese sentences. Capture text with the camera or
 * **Bookmarks and flashcards** — save sentences, words, or grammar points, then review them as flashcards. Import/export supports JSON, CSV, and Anki-compatible TSV.
 * **History** — analyzed sentences are kept locally, with full-text search.
 * **Learning statistics** — daily through yearly activity, with charts and a heatmap.
+* **Steam Deck Drop** — wirelessly receive in-game screenshots from Steam Deck over local Wi-Fi with zero-lag mDNS auto-discovery and token authentication. Works with the companion Decky Loader plugin [decky-yomi-sync](https://github.com/m1kuk1m/decky-yomi-sync).
 * **Bring your own provider** — point it at Gemini, OpenAI, Claude, or any compatible endpoint. TTS backends are configurable too.
 
 ## Security & Privacy
