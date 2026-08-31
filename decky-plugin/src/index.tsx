@@ -10,7 +10,7 @@ import {
   Field,
   Navigation
 } from "decky-frontend-lib";
-import { VFC, useState, useEffect } from "react";
+import { VFC, useState, useEffect, useRef } from "react";
 import {
   FaMobileAlt,
   FaCheckCircle,
@@ -121,6 +121,7 @@ const Content: VFC<{ serverAPI?: ServerAPI }> = ({ serverAPI }) => {
   const [diagLogs, setDiagLogs] = useState<string[]>([]);
   const [showDiag, setShowDiag] = useState<boolean>(false);
   const [hotkey, setHotkey] = useState<string>("Steam + R1 / F12");
+  const initialLoadedRef = useRef<boolean>(false);
 
   const sanitizeAndSetIp = (val: string) => {
     let clean = val.trim();
@@ -140,17 +141,26 @@ const Content: VFC<{ serverAPI?: ServerAPI }> = ({ serverAPI }) => {
     try {
       const resp = await callBackend<PluginState>("get_status", {}, serverAPI);
       if (resp.success && resp.result) {
-        if (resp.result.phone_ip) {
-          setPhoneIp(resp.result.phone_ip);
+        const backendPaired = Boolean(resp.result.is_paired);
+        setIsPaired(backendPaired);
+
+        // Only synchronize phoneIp / phonePort from backend if:
+        // 1. It's the initial component load (initial hydration)
+        // 2. OR the device is in paired state (where IP/Port are displayed read-only)
+        if (!initialLoadedRef.current || backendPaired) {
+          if (resp.result.phone_ip) {
+            setPhoneIp(resp.result.phone_ip);
+          }
+          if (resp.result.phone_port) {
+            setPhonePort(String(resp.result.phone_port));
+          }
+          initialLoadedRef.current = true;
         }
-        if (resp.result.phone_port) {
-          setPhonePort(String(resp.result.phone_port));
-        }
-        setIsPaired(Boolean(resp.result.is_paired));
+
         if (resp.result.auto_upload_enabled !== undefined) {
           setAutoUpload(Boolean(resp.result.auto_upload_enabled));
         }
-        setStatus(resp.result.last_sync_status || (resp.result.is_paired ? "Connected" : "Disconnected"));
+        setStatus(resp.result.last_sync_status || (backendPaired ? "Connected" : "Disconnected"));
         if (resp.result.hotkey_name) {
           setHotkey(resp.result.hotkey_name);
         }

@@ -6,7 +6,10 @@ def deploy():
     plugin_dir = os.path.abspath("decky-plugin")
     target_remote_dir = "/home/deck/homebrew/plugins/decky-yomi-sync"
     
-    deck_ips = ["192.168.1.16", "192.168.1.15"]
+    deck_ips = ["10.12.159.227", "192.168.1.16", "192.168.1.15"]
+    if len(sys.argv) > 1:
+        deck_ips.insert(0, sys.argv[1].strip())
+    
     connected_ip = None
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -27,9 +30,9 @@ def deploy():
         
     sftp = ssh.open_sftp()
     
-    # 1. Create remote target directory
+    # 1. Create remote target directory and clean up obsolete files
     print(f"[Deploy] Preparing remote directory: {target_remote_dir}")
-    stdin, stdout, stderr = ssh.exec_command(f"echo 321127 | sudo -S mkdir -p {target_remote_dir} && echo 321127 | sudo -S chown -R deck:deck {target_remote_dir}")
+    stdin, stdout, stderr = ssh.exec_command(f"echo 321127 | sudo -S mkdir -p {target_remote_dir} && echo 321127 | sudo -S chown -R deck:deck {target_remote_dir} && rm -f {target_remote_dir}/py_modules/main.py")
     stdout.channel.recv_exit_status()
     
     # 2. Upload files

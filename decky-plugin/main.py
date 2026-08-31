@@ -41,13 +41,6 @@ try:
 except Exception:
     WATCHDOG_AVAILABLE = False
 
-try:
-    import evdev
-    from evdev import UInput, ecodes as e
-    EVDEV_AVAILABLE = True
-except Exception:
-    EVDEV_AVAILABLE = False
-
 
 def sanitize_ip(ip: str) -> str:
     if not ip:
@@ -97,6 +90,8 @@ def probe_single_ip(ip: str, port: int = 8765) -> Optional[Tuple[str, int]]:
 
 class PollingWatcher(threading.Thread):
     """Low CPU background polling watcher with fast response"""
+    IMAGE_PATTERNS = ("*.jpg", "*.jpeg", "*.png", "*.JPG", "*.JPEG", "*.PNG")
+
     def __init__(self, watch_dir: str, callback, interval: float = 0.2):
         super().__init__(daemon=True)
         self.watch_dir = watch_dir
@@ -106,25 +101,26 @@ class PollingWatcher(threading.Thread):
         self.known_files = {}
         self._init_files()
 
+    def _scan_files(self) -> List[str]:
+        found = []
+        for ext in self.IMAGE_PATTERNS:
+            found.extend(glob.glob(os.path.join(self.watch_dir, "**", ext), recursive=True))
+        return [f for f in found if "thumbnails" not in f]
+
     def _init_files(self):
         try:
-            pattern = os.path.join(self.watch_dir, "**", "*.jpg")
-            for f in glob.iglob(pattern, recursive=True):
-                if "thumbnails" not in f:
-                    try:
-                        self.known_files[f] = os.path.getmtime(f)
-                    except OSError:
-                        pass
+            for f in self._scan_files():
+                try:
+                    self.known_files[f] = os.path.getmtime(f)
+                except OSError:
+                    pass
         except Exception as e:
             LOGGER.error(f"Error scanning initial files: {e}")
 
     def run(self):
         while self.running:
             try:
-                pattern = os.path.join(self.watch_dir, "**", "*.jpg")
-                for f in glob.iglob(pattern, recursive=True):
-                    if "thumbnails" in f:
-                        continue
+                for f in self._scan_files():
                     try:
                         mtime = os.path.getmtime(f)
                         if f not in self.known_files:
@@ -171,23 +167,6 @@ class Plugin:
         self.observer = None
         self.polling_watcher = None
         self.loop = None
-        self.virtual_keyboard = None
-        if EVDEV_AVAILABLE:
-            try:
-                caps = {
-                    e.EV_KEY: [e.KEY_F12, e.KEY_SYSRQ, e.KEY_LEFTMETA, e.BTN_MODE, e.BTN_TR]
-                }
-                self.virtual_keyboard = UInput(
-                    caps,
-                    name="Valve Software Steam Controller Virtual Keyboard",
-                    vendor=0x28de,
-                    product=0x1102,
-                    version=1,
-                    bustype=e.BUS_USB
-                )
-                LOGGER.info("Virtual keyboard initialized on startup")
-            except Exception as ex:
-                LOGGER.warn(f"Failed to create virtual keyboard on startup: {ex}")
         self.load_config()
 
     async def _main(self):
@@ -336,10 +315,12 @@ class Plugin:
         subnets = get_lan_subnets()
         LOGGER.info(f"mDNS unavailable, probing LAN subnets: {subnets}")
         
+        target_port = int(self.phone_port or 8765)
+
         def run_subnet_scan():
             for prefix in subnets:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=80) as executor:
-                    futures = [executor.submit(probe_single_ip, f"{prefix}.{i}", 8765) for i in range(1, 255)]
+                    futures = [executor.submit(probe_single_ip, f"{prefix}.{i}", target_port) for i in range(1, 255)]
                     for f in concurrent.futures.as_completed(futures):
                         try:
                             res = f.result()
@@ -569,15 +550,19 @@ class Plugin:
             res = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
             LOGGER.info(f"Portal screenshot response: {res.stdout.strip()}")
 
+            search_dirs = list(dict.fromkeys(["/home/deck/Pictures", os.path.expanduser("~/Pictures")]))
             for _ in range(30):
                 time.sleep(0.08)
-                for f in glob.iglob("/home/deck/Pictures/*.png"):
-                    try:
-                        if os.path.getmtime(f) >= t0:
-                            LOGGER.info(f"Found portal screenshot: {f} ({os.path.getsize(f)} bytes)")
-                            return f
-                    except OSError:
-                        pass
+                for p_dir in search_dirs:
+                    if not os.path.exists(p_dir):
+                        continue
+                    for f in glob.iglob(os.path.join(p_dir, "**", "*.png"), recursive=True):
+                        try:
+                            if os.path.getmtime(f) >= t0 and os.path.getsize(f) > 0:
+                                LOGGER.info(f"Found portal screenshot: {f} ({os.path.getsize(f)} bytes)")
+                                return f
+                        except OSError:
+                            pass
         except Exception as e:
             LOGGER.error(f"capture_via_portal error: {e}")
         return None
@@ -607,8 +592,9 @@ class Plugin:
         return await self.trigger_test_sync()
 
     async def trigger_test_sync(self, *args, **kwargs) -> Dict[str, Any]:
-        pattern = os.path.join(self.watch_dir, "**", "*.jpg")
-        files = glob.glob(pattern, recursive=True)
+        files = []
+        for ext in ("*.jpg", "*.jpeg", "*.png", "*.JPG", "*.JPEG", "*.PNG"):
+            files.extend(glob.glob(os.path.join(self.watch_dir, "**", ext), recursive=True))
         files = [f for f in files if "thumbnails" not in f]
         if files:
             files.sort(key=os.path.getmtime, reverse=True)
